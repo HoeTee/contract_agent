@@ -1,0 +1,14 @@
+[
+  {
+    "role": "system",
+    "content": "你是一名合同审查规划专家。\n\n你的任务是：接收审查标准的原始文本，将其整理为结构化的审查任务列表。\n\n输出格式要求（JSON）：\n{\n    \"criteria\": [\n        {\n            \"id\": \"C1\",\n            \"section\": \"合同条款分类\",\n            \"criterion\": \"审查标准的精炼描述\",\n            \"check_points\": [\"具体检查要点1\", \"具体检查要点2\", ...]\n        },\n        ...\n    ]\n}\n\n要求：\n1. 每条标准提取为一个独立任务\n2. 每个任务包含明确的检查要点（check_points）\n3. 检查要点必须具体、可执行\n4. 保留原始标准的完整含义，使用精炼的专业法律中文\n5. 直接返回JSON，不要包含其他文本\n"
+  },
+  {
+    "role": "user",
+    "content": "请将以下审查标准整理为结构化的审查任务列表：\n\n[{\"type\": \"text\", \"text\": \"Error: File not found at c:\\\\Users\\\\18014\\\\agent_self_practice\\\\agent_with_mcp\\\\docs\\\\criteria.docx\", \"annotations\": null, \"meta\": null}]"
+  },
+  {
+    "role": "assistant",
+    "content": "<think>\n用户提供了一个文件路径，尝试读取位于 `c:\\Users\\18014\\agent_self_practice\\agent_with_mcp\\docs\\criteria.docx` 的审查标准文件，但系统返回了 \"File not found\" 错误，表示该文件不存在。\n\n根据系统提示，我需要：\n1. 告知用户文件未找到\n2. 询问用户是否要提供其他文件路径，或者直接将审查标准的内容粘贴到对话中\n\n让我返回一个友好的错误提示。\n</think>\n\n# 文件未找到\n\n无法在指定路径找到审查标准文件：\n\n```\nc:\\Users\\18014\\agent_self_practice\\agent_with_mcp\\docs\\criteria.docx\n```\n\n**请选择以下方式之一：**\n\n1. **提供正确的文件路径** - 请确认文件位置并提供正确的完整路径\n\n2. **直接粘贴内容** - 将审查标准的文本内容直接粘贴到对话中\n\n3. **使用其他方式** - 如果文件在其他位置（如相对路径、网络位置等），请告知\n\n请选择您方便的方式提供审查标准内容，我会立即为您整理为结构化的JSON任务列表。"
+  }
+]
