@@ -2,13 +2,8 @@
 SummarizerAgent — compiles all sub-agent review results into a final report.
 No MCP access. Pure text compilation.
 """
-import os
-import sys
 import re
 import asyncio
-
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_ROOT)
 
 from agent.agent import Agent
 from agents.prompts.cn_prompts import SUMMARIZER_SYSTEM_PROMPT

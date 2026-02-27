@@ -5,7 +5,7 @@ a Markdown report with Mermaid sequence diagram.
 import os
 import time
 from datetime import datetime
-from config import LOGS_DIR
+from config import LOGS_DIR, MAX_CONTEXT_TOKENS
 
 
 class WorkflowLogger:
@@ -19,8 +19,6 @@ class WorkflowLogger:
             action: str, input_summary: str = "", output_summary: str = "",
             tokens: int = 0, duration: float = 0.0):
         """Record one info-flow step."""
-        from config import MAX_CONTEXT_TOKENS
-        
         ctx_pct = ""
         if tokens > 0 and MAX_CONTEXT_TOKENS > 0:
             pct = int((tokens / MAX_CONTEXT_TOKENS) * 100)

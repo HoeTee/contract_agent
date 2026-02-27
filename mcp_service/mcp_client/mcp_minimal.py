@@ -5,10 +5,6 @@ import traceback # help show where the error happended
 from contextlib import AsyncExitStack
 from typing import Any, Dict, List, Optional
 
-import sys
-import os
-# Add parent directory to path for logger import
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from logger.logger import logger
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -181,83 +177,3 @@ class MinimalMCPClient:
             self.logger.error(f"Error during cleanup: {e}")
             traceback.print_exc()
 
-
-    async def log_conversation(self):
-        """
-        Chat Completions-style messages expected (examples):
-        {"role":"user","content":"..."}
-        {"role":"assistant","content":"..."}
-        {"role":"assistant","content":"...", "tool_calls":[{"id":"...","type":"function","function":{"name":"...","arguments":"{...}"}}]}
-        {"role":"tool","tool_call_id":"...","content":"..."}
-        """
-        # create a directory named "conversation" to stores all conversations
-        os.makedirs("conversations", exist_ok=True)
-
-        serializable_conversation = []
-
-        for message in self.messages:
-            try:
-                role = message.get("role")
-                out = {"role": role}
-
-                # ---- content (string only, as per Chat Completions) ----
-                if "content" in message:
-                    c = message["content"]
-                    if c is None or isinstance(c, str):
-                        out["content"] = c
-                    else:
-                        # if you accidentally stored non-string content, stringify it
-                        out["content"] = str(c)
-
-                # ---- assistant tool_calls ----
-                if role == "assistant" and "tool_calls" in message:
-                    tool_calls = message["tool_calls"] or []
-                    out_tool_calls = []
-                    for tc in tool_calls:
-                        # tolerate both dict tool_calls and SDK objects
-                        if hasattr(tc, "model_dump"):
-                            tc = tc.model_dump()
-                        elif hasattr(tc, "to_dict"):
-                            tc = tc.to_dict()
-                        elif hasattr(tc, "dict"):
-                            tc = tc.dict()
-
-                        out_tool_calls.append(
-                            {
-                                "id": tc.get("id"),
-                                "type": tc.get("type", "function"),
-                                "function": {
-                                    "name": (tc.get("function") or {}).get("name"),
-                                    "arguments": (tc.get("function") or {}).get("arguments"),
-                                },
-                            }
-                        )
-                    out["tool_calls"] = out_tool_calls
-
-                # ---- tool result message ----
-                if role == "tool":
-                    out["tool_call_id"] = message.get("tool_call_id")
-
-                # keep other fields if you stored any (safe stringify)
-                for k, v in message.items():
-                    if k in out or k in ("role", "content", "tool_calls", "tool_call_id"):
-                        continue
-                    out[k] = v if isinstance(v, (str, int, float, bool)) or v is None else str(v)
-
-                serializable_conversation.append(out)
-
-            except Exception as e:
-                self.logger.error(f"Error processing message: {str(e)}")
-                self.logger.debug(f"Message content: {message}")
-                raise
-
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        filepath = os.path.join("conversations", f"conversation_{timestamp}.json")
-
-        try:
-            with open(filepath, "w", encoding="utf-8") as f:
-                json.dump(serializable_conversation, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            self.logger.error(f"Error writing conversation to file: {str(e)}")
-            self.logger.debug(f"Serializable conversation: {serializable_conversation}")
-            raise

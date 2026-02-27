@@ -2,11 +2,6 @@
 ReflectorAgent — quality control agent that reviews sub-agent output.
 """
 import json
-import os
-import sys
-
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_ROOT)
 
 from agent.agent import Agent
 from agents.prompts.cn_prompts import REFLECTOR_SYSTEM_PROMPT

@@ -12,14 +12,10 @@ Phases:
 import asyncio
 import json
 import os
-import sys
 import time
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, PROJECT_ROOT)
-
 from config import MCP_SERVER_PATH, REPORTS_DIR, LOGS_DIR
-from workflow_logger import WorkflowLogger
+from main_workflow.workflow_logger import WorkflowLogger
 from agent.agent import Settings
 from agents.planner import PlannerAgent
 from agents.orchestrator import OrchestratorAgent
