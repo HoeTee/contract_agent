@@ -16,7 +16,7 @@ import time
 
 from config import MCP_SERVER_PATH, REPORTS_DIR, LOGS_DIR
 from main_workflow.workflow_logger import WorkflowLogger
-from agent.agent import Settings
+from agents.base_agent import Settings
 from agents.planner import PlannerAgent
 from agents.orchestrator import OrchestratorAgent
 from agents.summarizer import SummarizerAgent

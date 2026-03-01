@@ -1,0 +1,21 @@
+# Secrets
+.env
+
+# Private documents
+docs/contracts/
+docs/contract_review_criteria/
+
+# Runtime output
+docs/reports_md/
+reports/
+logs/
+!logs/**/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg

@@ -3,7 +3,7 @@ PlannerAgent — parses criteria markdown into structured tasks.
 """
 import json
 
-from agent.agent import Agent
+from agents.base_agent import Agent
 from agents.prompts.cn_prompts import PLANNER_SYSTEM_PROMPT
 
 

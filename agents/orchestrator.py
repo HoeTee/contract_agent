@@ -6,7 +6,7 @@ import json
 import time
 
 from config import MAX_REFLECTION_ROUNDS
-from agent.agent import Agent
+from agents.base_agent import Agent
 from agents.reflector import ReflectorAgent
 from agents.prompts.cn_prompts import SUB_AGENT_BASE_PROMPT
 

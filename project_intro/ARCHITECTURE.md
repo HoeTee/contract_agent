@@ -1,46 +1,46 @@
-# Contract Review System — Architecture & Data Flow
+# 合同审查系统 — 架构与数据流
 
 ---
 
-## System Architecture
+## 系统架构
 
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': {'primaryColor':'#fff'}, 'flowchart':{'curve':'linear'}}}%%
 graph TB
-    subgraph "User Layer"
+    subgraph "用户层"
         CLI[main.py]
     end
 
-    subgraph "Workflow Layer"
-        MainWorkflow["ContractReviewWorkflow<br/>6-Phase Pipeline"]
+    subgraph "工作流层"
+        MainWorkflow["ContractReviewWorkflow<br/>6 阶段流水线"]
         Logger["WorkflowLogger<br/>MD + Mermaid"]
     end
 
-    subgraph "Agent Layer"
-        Planner["Planner<br/>Criteria → Tasks"]
-        Orchestrator["Orchestrator<br/>Task Dispatch"]
-        SubAgents["Sub-Agents<br/>Per-Criterion Review"]
-        Reflector["Reflector<br/>Quality Control"]
-        Summarizer["Summarizer<br/>Report Compilation"]
+    subgraph "智能体层"
+        Planner["Planner<br/>标准 → 任务"]
+        Orchestrator["Orchestrator<br/>任务调度"]
+        SubAgents["Sub-Agents<br/>逐条审查"]
+        Reflector["Reflector<br/>质量控制"]
+        Summarizer["Summarizer<br/>报告汇总"]
     end
 
-    subgraph "MCP Layer"
-        MCPClient["MCP Client<br/>Tool Proxy"]
-        MCPServer["MCP Server<br/>Tool Provider"]
+    subgraph "MCP 层"
+        MCPClient["MCP Client<br/>工具代理"]
+        MCPServer["MCP Server<br/>工具提供"]
     end
 
-    subgraph "Tool Layer"
+    subgraph "工具层"
         FileParser["ingest_docx<br/>DOCX/PDF/TXT → MD"]
         TreeBuild["build_pageindex_tree<br/>MD → Tree"]
-        TreeSearch["pageindex_search<br/>LLM Tree Search"]
+        TreeSearch["pageindex_search<br/>LLM 树搜索"]
         WebSearch["web_search<br/>Serper API"]
-        ReportGen["generate_final_report<br/>DOCX Output"]
+        ReportGen["generate_final_report<br/>DOCX 输出"]
     end
 
-    subgraph "Storage"
-        Reports["docs/reports/<br/>Generated DOCX"]
-        Logs["logs/<br/>Workflow MD"]
-        ConvLogs["logger/conversation_logs/<br/>Agent JSON"]
+    subgraph "存储"
+        Reports["docs/reports_md/<br/>Markdown 报告"]
+        Logs["logs/<br/>工作流日志"]
+        ConvLogs["logs/conversations/<br/>智能体对话日志"]
     end
 
     CLI --> MainWorkflow
@@ -51,9 +51,9 @@ graph TB
     Orchestrator --> SubAgents
     Orchestrator --> Reflector
 
-    Planner -.uses.-> MCPClient
-    SubAgents -.uses.-> MCPClient
-    MainWorkflow -.uses.-> MCPClient
+    Planner -.调用.-> MCPClient
+    SubAgents -.调用.-> MCPClient
+    MainWorkflow -.调用.-> MCPClient
 
     MCPClient <-->|stdio| MCPServer
 
@@ -80,11 +80,11 @@ graph TB
 
 ---
 
-## Workflow Data Flow
+## 工作流数据流
 
 ```mermaid
 sequenceDiagram
-    participant U as User
+    participant U as 用户
     participant W as Workflow
     participant MCP as MCP Server
     participant P as Planner
@@ -95,49 +95,49 @@ sequenceDiagram
 
     U->>W: python main.py
 
-    Note over W: Phase 1: Ingestion
+    Note over W: 阶段 1：文件解析
     W->>MCP: ingest_docx(criteria)
     W->>MCP: ingest_docx(contract)
 
-    Note over W: Phase 2: Tree Building
+    Note over W: 阶段 2：构建文档树
     W->>MCP: build_pageindex_tree(contract_md)
     MCP-->>W: tree_json
 
-    Note over W: Phase 3: Planning
+    Note over W: 阶段 3：任务规划
     W->>P: design_tasks(criteria_md)
     P-->>W: criteria list (JSON)
 
-    Note over W: Phase 4: Execute + Reflect
+    Note over W: 阶段 4：执行 + 反思
     W->>O: execute_criteria(criteria, tree_json)
 
-    loop per criterion (concurrent)
+    loop 逐条审查（并发）
         O->>MCP: pageindex_search(query, tree_json)
-        MCP-->>S: relevant sections
-        S->>MCP: web_search(legal query)
-        MCP-->>S: search results
-        S-->>R: review output
+        MCP-->>S: 相关章节
+        S->>MCP: web_search(法律查询)
+        MCP-->>S: 搜索结果
+        S-->>R: 审查输出
 
-        loop max 3 rounds
-            R-->>S: PASS or feedback
-            S-->>R: refined output
+        loop 最多 3 轮
+            R-->>S: PASS 或反馈
+            S-->>R: 修订后输出
         end
     end
 
-    O-->>W: all results
+    O-->>W: 全部结果
 
-    Note over W: Phase 5: Summarization
+    Note over W: 阶段 5：报告汇总
     W->>SM: compile_report(results)
-    SM-->>W: report text
+    SM-->>W: 报告文本
 
-    Note over W: Phase 6: Report
+    Note over W: 阶段 6：生成报告
     W->>MCP: generate_final_report
-    MCP-->>W: DOCX path
-    W-->>U: Done
+    MCP-->>W: DOCX 路径
+    W-->>U: 完成
 ```
 
 ---
 
-## Agent Class Hierarchy
+## 智能体类层级
 
 ```mermaid
 classDiagram
@@ -172,85 +172,85 @@ classDiagram
     Agent <|-- PlannerAgent
     Agent <|-- ReflectorAgent
     Agent <|-- SummarizerAgent
-    OrchestratorAgent ..> Agent : spawns SubAgents
-    OrchestratorAgent ..> ReflectorAgent : uses
+    OrchestratorAgent ..> Agent : 创建 SubAgent
+    OrchestratorAgent ..> ReflectorAgent : 调用
 ```
 
 ---
 
-## MCP Tool Registry
+## MCP 工具注册表
 
 ```mermaid
 mindmap
-  root((MCP Tools))
-    Document
+  root((MCP 工具))
+    文档处理
       ingest_docx
-        Parse DOCX/PDF/TXT
-        Return Markdown
+        解析 DOCX/PDF/TXT
+        返回 Markdown
       generate_final_report
-        Format Content
-        Save DOCX
+        格式化内容
+        保存 DOCX
     PageIndex
       build_pageindex_tree
-        MD → Tree Structure
-        LLM Summaries
+        MD → 树结构
+        LLM 节点摘要
       pageindex_search
-        LLM Reasoning Search
-        Return Relevant Sections
+        LLM 推理搜索
+        返回相关章节
     Web
       web_search
         Serper API
-        Top 5 Results
+        前 5 条结果
       read_url
-        Fetch Page Text
+        获取页面文本
 ```
 
 ---
 
-## Workflow Phases (State Diagram)
+## 工作流阶段（状态图）
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Ingestion
-    Ingestion --> TreeBuilding: criteria_md, contract_md
-    TreeBuilding --> Planning: tree_json
-    Planning --> Execution: criteria_list
+    [*] --> 文件解析
+    文件解析 --> 构建文档树: criteria_md, contract_md
+    构建文档树 --> 任务规划: tree_json
+    任务规划 --> 执行审查: criteria_list
 
-    state Execution {
-        [*] --> PageIndexSearch
-        PageIndexSearch --> SubAgentReview
-        SubAgentReview --> Reflection
-        Reflection --> ReflectionCheck
+    state 执行审查 {
+        [*] --> PageIndex搜索
+        PageIndex搜索 --> SubAgent审查
+        SubAgent审查 --> 反思评估
+        反思评估 --> 评估检查
 
-        state ReflectionCheck <<choice>>
-        ReflectionCheck --> [*]: PASS
-        ReflectionCheck --> SubAgentReview: REJECT (max 3)
+        state 评估检查 <<choice>>
+        评估检查 --> [*]: PASS
+        评估检查 --> SubAgent审查: REJECT（最多 3 轮）
     }
 
-    Execution --> Summarization: results[]
-    Summarization --> ReportGeneration: report_text
-    ReportGeneration --> [*]: DOCX saved
+    执行审查 --> 报告汇总: results[]
+    报告汇总 --> 生成报告: report_text
+    生成报告 --> [*]: DOCX 已保存
 ```
 
 ---
 
-## Configuration Flow
+## 配置流
 
 ```mermaid
 %%{init: {'theme':'base', 'flowchart':{'curve':'linear'}}}%%
 graph LR
-    subgraph "Config Sources"
-        ENV[".env<br/>API_KEY, BASE_URL, LLM_NAME"]
-        CFG["config.py<br/>PROJECT_ROOT, paths, constants"]
+    subgraph "配置来源"
+        ENV[".env<br/>API_KEY, BASE_URL, LLM_NAME, TOP_P, SEED"]
+        CFG["config.py<br/>PROJECT_ROOT, 路径, 常量"]
     end
 
-    subgraph "Runtime"
-        Settings["Settings class<br/>(Pydantic)"]
+    subgraph "运行时"
+        Settings["Settings 类<br/>(Pydantic)"]
     end
 
     ENV --> Settings
     CFG --> Settings
-    Settings --> Agents["All Agent Instances"]
+    Settings --> Agents["所有智能体实例"]
     Settings --> MCPServer["MCP Server (PageIndex)"]
 
     style ENV fill:#fff4e1

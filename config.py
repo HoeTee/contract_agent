@@ -10,7 +10,7 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 MCP_SERVER_PATH = os.path.join(PROJECT_ROOT, "mcp_service", "mcp_server", "mcp_server.py")
 DOCS_DIR = os.path.join(PROJECT_ROOT, "docs")
 REPORTS_DIR = os.path.join(PROJECT_ROOT, "reports")
-LOGS_DIR = os.path.join(PROJECT_ROOT, "logs")
+LOGS_DIR = os.path.join(PROJECT_ROOT, "logs", "workflow")
 ENV_PATH = os.path.join(PROJECT_ROOT, ".env")
 
 # Agent config

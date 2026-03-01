@@ -3,7 +3,7 @@ ReflectorAgent — quality control agent that reviews sub-agent output.
 """
 import json
 
-from agent.agent import Agent
+from agents.base_agent import Agent
 from agents.prompts.cn_prompts import REFLECTOR_SYSTEM_PROMPT
 
 

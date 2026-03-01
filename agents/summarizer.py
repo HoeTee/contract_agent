@@ -5,7 +5,7 @@ No MCP access. Pure text compilation.
 import re
 import asyncio
 
-from agent.agent import Agent
+from agents.base_agent import Agent
 from agents.prompts.cn_prompts import SUMMARIZER_SYSTEM_PROMPT
 
 

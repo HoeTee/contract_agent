@@ -5,7 +5,7 @@ import traceback # help show where the error happended
 from contextlib import AsyncExitStack
 from typing import Any, Dict, List, Optional
 
-from logger.logger import logger
+from mcp_service.mcp_client.mcp_logger import logger
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.client.sse import sse_client

@@ -15,7 +15,7 @@ sys.path.insert(0, PROJECT_ROOT)
 from tools.document_tools import FileParser, ReportGenerator
 
 # Add PageIndex to path
-PAGEINDEX_ROOT = os.path.join(PROJECT_ROOT, "PageIndex-main")
+PAGEINDEX_ROOT = os.path.join(PROJECT_ROOT, "tools", "PageIndex-main")
 sys.path.insert(0, PAGEINDEX_ROOT)
 from pageindex.page_index_md import md_to_tree
 
@@ -209,6 +209,8 @@ async def pageindex_search(query: str, tree_json: str) -> str:
             model=LLM_NAME,
             messages=[{"role": "user", "content": search_prompt}],
             temperature=0,
+            top_p=0.01,
+            seed=42,
         )
         result_text = response.choices[0].message.content
 
