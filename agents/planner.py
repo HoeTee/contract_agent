@@ -25,25 +25,25 @@ class PlannerAgent(Agent):
         prompt = f"请将以下审查标准整理为结构化的审查任务列表：\n\n{criteria_markdown}"
         response = await self.chat(prompt)
 
-        # Parse JSON from response — multiple fallbacks
+        # Parse JSON from response — FALLBACKS (due to markdown formatting issues)
         text = response.strip()
-        # Try ```json ... ``` first
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0].strip()
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0].strip()
-
+        
         try:
+            # Try ```json ... ``` first
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0].strip()
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0].strip()
             return json.loads(text)
         except json.JSONDecodeError:
-            # Try extracting first { to last }
+            # Try extracting JSON content from first { to last }
             start = response.find("{")
             end = response.rfind("}") + 1
             if start != -1 and end > start:
                 try:
                     return json.loads(response[start:end])
                 except json.JSONDecodeError:
-                    pass
+                    pass # silently bypass error raise
             print(f"[Planner] Warning: Failed to parse JSON, returning raw text")
             print(f"[Planner] Raw response (first 500 chars): {response[:500]}")
             return {"criteria": [], "raw": response}

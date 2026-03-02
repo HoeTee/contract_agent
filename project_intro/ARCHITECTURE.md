@@ -19,6 +19,7 @@ graph TB
     subgraph "智能体层"
         Planner["Planner<br/>标准 → 任务"]
         Orchestrator["Orchestrator<br/>任务调度"]
+        EvidenceCollector["EvidenceCollector<br/>证据收集"]
         SubAgents["Sub-Agents<br/>逐条审查"]
         Reflector["Reflector<br/>质量控制"]
         Summarizer["Summarizer<br/>报告汇总"]
@@ -38,7 +39,9 @@ graph TB
     end
 
     subgraph "存储"
-        Reports["docs/reports_md/<br/>Markdown 报告"]
+        ReportsMD["docs/reports_md/<br/>Markdown 报告"]
+        ReportsDOCX["docs/reports_docx/<br/>Word 报告"]
+        ReportsPDF["docs/reports_pdf/<br/>PDF 报告"]
         Logs["logs/<br/>工作流日志"]
         ConvLogs["logs/conversations/<br/>智能体对话日志"]
     end
@@ -48,6 +51,7 @@ graph TB
     MainWorkflow --> Planner
     MainWorkflow --> Orchestrator
     MainWorkflow --> Summarizer
+    Orchestrator --> EvidenceCollector
     Orchestrator --> SubAgents
     Orchestrator --> Reflector
 
@@ -63,12 +67,15 @@ graph TB
     MCPServer --> WebSearch
     MCPServer --> ReportGen
 
-    ReportGen --> Reports
+    ReportGen --> ReportsMD
+    ReportGen --> ReportsDOCX
+    ReportGen --> ReportsPDF
     Logger --> Logs
     SubAgents --> ConvLogs
 
     style Planner fill:#e1f5ff
     style Orchestrator fill:#e1f5ff
+    style EvidenceCollector fill:#e1f5ff
     style SubAgents fill:#e1f5ff
     style Reflector fill:#e1f5ff
     style Summarizer fill:#e1f5ff
@@ -89,6 +96,7 @@ sequenceDiagram
     participant MCP as MCP Server
     participant P as Planner
     participant O as Orchestrator
+    participant EC as EvidenceCollector
     participant S as SubAgent
     participant R as Reflector
     participant SM as Summarizer
@@ -111,8 +119,17 @@ sequenceDiagram
     W->>O: execute_criteria(criteria, tree_json)
 
     loop 逐条审查（并发）
-        O->>MCP: pageindex_search(query, tree_json)
-        MCP-->>S: 相关章节
+        alt PAGEINDEX_SEARCH=True
+            O->>MCP: pageindex_search(query, tree_json)
+            MCP-->>O: 相关节点全文
+        else PAGEINDEX_SEARCH=False
+            O->>EC: collect_evidence(criterion, tree_json)
+            loop 逐 section 遍历
+                EC->>EC: LLM 提取相关片段
+            end
+            EC-->>O: 结构化证据（带出处）
+        end
+        O->>S: 证据/上下文 + criterion
         S->>MCP: web_search(法律查询)
         MCP-->>S: 搜索结果
         S-->>R: 审查输出
@@ -156,6 +173,14 @@ classDiagram
         +design_tasks(criteria_md) dict
     }
 
+    class EvidenceCollectorAgent {
+        +token_usage: dict
+        +collect_evidence(criterion, tree_json) list
+        +format_evidence(evidence) str
+        -_flatten_tree(tree_json) list
+        -_extract_from_section(criterion, section) dict
+    }
+
     class OrchestratorAgent {
         +execute_criteria(list, tree_json) list
         +execute_single_criterion(dict, tree_json) dict
@@ -173,6 +198,7 @@ classDiagram
     Agent <|-- ReflectorAgent
     Agent <|-- SummarizerAgent
     OrchestratorAgent ..> Agent : 创建 SubAgent
+    OrchestratorAgent ..> EvidenceCollectorAgent : 调用（PAGEINDEX_SEARCH=False）
     OrchestratorAgent ..> ReflectorAgent : 调用
 ```
 
@@ -189,7 +215,7 @@ mindmap
         返回 Markdown
       generate_final_report
         格式化内容
-        保存 DOCX
+        保存 MD/DOCX/PDF
     PageIndex
       build_pageindex_tree
         MD → 树结构
@@ -217,8 +243,14 @@ stateDiagram-v2
     任务规划 --> 执行审查: criteria_list
 
     state 执行审查 {
-        [*] --> PageIndex搜索
+        [*] --> 检索模式判断
+
+        state 检索模式判断 <<choice>>
+        检索模式判断 --> PageIndex搜索: PAGEINDEX_SEARCH=True
+        检索模式判断 --> Evidence收集: PAGEINDEX_SEARCH=False
+
         PageIndex搜索 --> SubAgent审查
+        Evidence收集 --> SubAgent审查
         SubAgent审查 --> 反思评估
         反思评估 --> 评估检查
 
@@ -229,7 +261,7 @@ stateDiagram-v2
 
     执行审查 --> 报告汇总: results[]
     报告汇总 --> 生成报告: report_text
-    生成报告 --> [*]: DOCX 已保存
+    生成报告 --> [*]: 报告已保存(MD, DOCX, PDF)
 ```
 
 ---
@@ -240,7 +272,7 @@ stateDiagram-v2
 %%{init: {'theme':'base', 'flowchart':{'curve':'linear'}}}%%
 graph LR
     subgraph "配置来源"
-        ENV[".env<br/>API_KEY, BASE_URL, LLM_NAME, TOP_P, SEED"]
+        ENV[".env<br/>API_KEY, BASE_URL, LLM_NAME,<br/>TOP_P, SEED, PAGEINDEX_SEARCH"]
         CFG["config.py<br/>PROJECT_ROOT, 路径, 常量"]
     end
 

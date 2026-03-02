@@ -6,9 +6,9 @@ import os
 logger = logging.getLogger("MCPClient")
 logger.setLevel(logging.DEBUG)
 
-# File handler — write to logs/mcp_client.log
+# File handler — write to logs/mcp/mcp_client.log
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-log_dir = os.path.join(PROJECT_ROOT, "logs")
+log_dir = os.path.join(PROJECT_ROOT, "logs", "mcp")
 os.makedirs(log_dir, exist_ok=True)
 log_file = os.path.join(log_dir, "mcp_client.log")
 file_handler = logging.FileHandler(log_file)

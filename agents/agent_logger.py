@@ -1,7 +1,10 @@
 """
 AgentLogger — handles per-agent conversation logging to JSON files.
 Saves full LLM I/O (system prompt, user messages, assistant responses, tool calls)
-to logs/conversations/ for debugging and auditing.
+to logs/conversations/<run_timestamp>/ for debugging and auditing.
+
+Each run of main.py creates a separate timestamped folder so logs from
+different runs don't mix together.
 """
 import json
 import os
@@ -9,7 +12,10 @@ from datetime import datetime
 
 # Project root for log paths
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CONVERSATIONS_DIR = os.path.join(PROJECT_ROOT, "logs", "conversations")
+
+# Create a unique session folder for this run (set once at import time)
+_SESSION_TS = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+SESSION_DIR = os.path.join(PROJECT_ROOT, "logs", "conversations", f"run_{_SESSION_TS}")
 
 
 def _serialize_messages(messages: list) -> list:
@@ -54,18 +60,18 @@ def _serialize_messages(messages: list) -> list:
 
 def log_conversation(agent_name: str, messages: list) -> None:
     """
-    Save agent conversation to a JSON file.
+    Save agent conversation to a JSON file in the current run's folder.
 
     Args:
         agent_name: Name of the agent (used in filename).
         messages: List of conversation messages.
     """
-    os.makedirs(CONVERSATIONS_DIR, exist_ok=True)
+    os.makedirs(SESSION_DIR, exist_ok=True)
 
     serializable = _serialize_messages(messages)
 
     ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filepath = os.path.join(CONVERSATIONS_DIR, f"{agent_name}_{ts}.json")
+    filepath = os.path.join(SESSION_DIR, f"{agent_name}_{ts}.json")
     try:
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(serializable, f, indent=2, ensure_ascii=False)

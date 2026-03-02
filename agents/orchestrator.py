@@ -5,9 +5,10 @@ import asyncio
 import json
 import time
 
-from config import MAX_REFLECTION_ROUNDS
+from config import MAX_REFLECTION_ROUNDS, PAGEINDEX_SEARCH
 from agents.base_agent import Agent
 from agents.reflector import ReflectorAgent
+from agents.evidence_collector import EvidenceCollectorAgent
 from agents.prompts.cn_prompts import SUB_AGENT_BASE_PROMPT
 
 
@@ -29,7 +30,7 @@ class OrchestratorAgent:
     async def execute_single_criterion(self, criterion: dict, tree_json: str) -> dict:
         """
         Review a single criterion:
-        1. Call pageindex_search to get relevant contract sections
+        1. Retrieve relevant contract sections (PageIndex search or Evidence Collector)
         2. Create sub-agent with context
         3. Run reflector loop until PASS or max rounds
         """
@@ -38,24 +39,44 @@ class OrchestratorAgent:
         check_points = criterion.get("check_points", [])
         check_points_text = "\n".join(f"- {cp}" for cp in check_points)
         start = time.time()
+        evidence_tokens = 0
 
-        # Step 1: Retrieve relevant contract sections via PageIndex
-        print(f"[Orchestrator] {cid}: Searching contract via PageIndex...")
-        search_query = f"{criterion_text}\n检查要点：{check_points_text}"
-        search_result = await self.mcp_client.call_tool(
-            "pageindex_search",
-            {"query": search_query, "tree_json": tree_json}
-        )
-        context = search_result if search_result else "未找到相关内容"
-
-        if self.logger:
-            self.logger.log(
-                phase="Execute", sender="Orchestrator", receiver="MCP:pageindex_search",
-                action=f"pageindex_search({cid})",
-                input_summary=criterion_text,
-                output_summary=f"{len(context)} chars retrieved",
-                duration=round(time.time() - start, 2)
+        # Step 1: Retrieve relevant contract sections
+        if PAGEINDEX_SEARCH:
+            # Mode A: Retrieve via PageIndex search (existing behavior)
+            print(f"[Orchestrator] {cid}: Searching contract via PageIndex...")
+            search_query = f"{criterion_text}\n检查要点：{check_points_text}"
+            search_result = await self.mcp_client.call_tool(
+                "pageindex_search",
+                {"query": search_query, "tree_json": tree_json}
             )
+            context = search_result if search_result else "未找到相关内容"
+
+            if self.logger:
+                self.logger.log(
+                    phase="Execute", sender="Orchestrator", receiver="MCP:pageindex_search",
+                    action=f"pageindex_search({cid})",
+                    input_summary=criterion_text,
+                    output_summary=f"{len(context)} chars retrieved",
+                    duration=round(time.time() - start, 2)
+                )
+        else:
+            # Mode B: Collect evidence via per-section LLM iteration
+            print(f"[Orchestrator] {cid}: Collecting evidence from contract sections...")
+            collector = EvidenceCollectorAgent(settings=self.settings)
+            evidence = await collector.collect_evidence(criterion, tree_json)
+            context = EvidenceCollectorAgent.format_evidence(evidence)
+            evidence_tokens = collector.token_usage.get("total_tokens", 0)
+
+            if self.logger:
+                self.logger.log(
+                    phase="Execute", sender="Orchestrator", receiver="EvidenceCollector",
+                    action=f"collect_evidence({cid})",
+                    input_summary=criterion_text,
+                    output_summary=f"{len(evidence)} evidence fragments, {len(context)} chars",
+                    tokens=evidence_tokens,
+                    duration=round(time.time() - start, 2)
+                )
 
         # Step 2: Create sub-agent with retrieved context
         tools = await self._get_tools()
@@ -94,7 +115,7 @@ class OrchestratorAgent:
                 "review_output": "",
                 "status": "COMPLIANT",
                 "reflection_rounds": 0,
-                "tokens": sub_agent.token_usage.get("total_tokens", 0),
+                "tokens": sub_agent.token_usage.get("total_tokens", 0) + evidence_tokens,
             }
 
         # Step 3: Reflection loop
@@ -119,18 +140,20 @@ class OrchestratorAgent:
             if review.get("status") == "PASS":
                 print(f"[Orchestrator] {cid}: PASS after {round_num+1} round(s)")
                 break
-
             # Feed back to sub-agent for refinement
-            print(f"[Orchestrator] {cid}: REJECT round {round_num+1}, refining...")
-            opinion = await sub_agent.chat(
-                f"请根据以下质量审查反馈，补充和完善你的审查结果：\n\n{review.get('feedback', '')}"
-            )
+            else:
+                print(f"[Orchestrator] {cid}: REJECT round {round_num+1}, refining...")
+                opinion = await sub_agent.chat(
+                    f"请根据以下质量审查反馈，补充和完善你的审查结果：\n\n{review.get('feedback', '')}"
+                )
         else:
             print(f"[Orchestrator] {cid}: Max {MAX_REFLECTION_ROUNDS} rounds reached")
 
-        # Aggregate tokens: sub-agent + reflector
-        total_tokens = sub_agent.token_usage.get("total_tokens", 0) + reflector.token_usage.get("total_tokens", 0)
+        # Aggregate tokens: evidence collector + sub-agent + reflector
+        total_tokens = evidence_tokens + sub_agent.token_usage.get("total_tokens", 0) + reflector.token_usage.get("total_tokens", 0)
 
+        # Defensive check: the initial opinion was not ALL_COMPLIANT (caught at line 109),
+        # but the sub-agent might have revised to ALL_COMPLIANT during the reflection loop
         is_compliant = "[ALL_COMPLIANT]" in opinion
         return {
             "criterion_id": cid,
@@ -148,7 +171,8 @@ class OrchestratorAgent:
             self.execute_single_criterion(c, tree_json)
             for c in criteria_list
         ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        # Exceptions are captured as results instead of crashing the entire batch
+        results = await asyncio.gather(*tasks, return_exceptions=True) 
 
         # Handle exceptions
         final = []

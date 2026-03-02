@@ -7,14 +7,14 @@ Phases:
   3. Planner designs tasks from criteria
   4. Orchestrator executes sub-agents with PageIndex retrieval + reflection
   5. Summarizer compiles final report
-  6. Generate DOCX report
+  6. Generate MD, DOCX, and PDF reports
 """
 import asyncio
 import json
 import os
 import time
 
-from config import MCP_SERVER_PATH, REPORTS_DIR, LOGS_DIR
+from config import PROJECT_ROOT, MCP_SERVER_PATH, REPORTS_DIR, LOGS_DIR, PAGEINDEX_SEARCH
 from main_workflow.workflow_logger import WorkflowLogger
 from agents.base_agent import Settings
 from agents.planner import PlannerAgent
@@ -55,6 +55,8 @@ class ContractReviewWorkflow:
             criteria_list = await self._phase_plan(criteria_md)
 
             # Phase 4: Execute + Reflect
+            mode_label = "PageIndex Search" if PAGEINDEX_SEARCH else "Evidence Collector"
+            print(f"\n  Search mode: {mode_label}")
             results = await self._phase_execute(criteria_list, tree_json)
 
             # Phase 5: Summarize
@@ -83,8 +85,11 @@ class ContractReviewWorkflow:
             )
             report_text += token_stats
 
-            # Phase 6: Generate report
-            report_path = await self._phase_generate_report(report_text, contract_path)
+            # Phase 6: Generate reports (MD + DOCX + PDF)
+            elapsed = round(time.time() - workflow_start, 1)
+            report_path = await self._phase_generate_report(
+                report_text, contract_path, elapsed_seconds=elapsed
+            )
 
             # Save workflow log
             log_path = self.logger.save()
@@ -284,27 +289,23 @@ class ContractReviewWorkflow:
         lines.append(f"\n**覆盖率：{checked_items}/{total_items}（{checked_items*100//total_items if total_items else 0}%）**\n")
         return "\n".join(lines)
 
-    async def _phase_generate_report(self, report_text: str, contract_path: str)-> str:
-        """Phase 6: Generate DOCX + MD reports."""
-        print("\n[Phase 6] Generating reports...")
+    async def _phase_generate_report(
+        self, report_text: str, contract_path: str, elapsed_seconds: float = None
+    ) -> str:
+        """Phase 6: Generate MD, DOCX, and PDF reports."""
+        print("\n[Phase 6] Generating reports (MD + DOCX + PDF)...")
         start = time.time()
-        from datetime import datetime
 
         contract_name = os.path.splitext(os.path.basename(contract_path))[0]
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # Save MD report
-        md_dir = os.path.join(PROJECT_ROOT, "docs", "reports_md")
-        os.makedirs(md_dir, exist_ok=True)
-        md_path = os.path.join(md_dir, f"审查报告_{contract_name}_{timestamp}.md")
-        with open(md_path, "w", encoding="utf-8") as f:
-            f.write(report_text)
-        print(f"  MD: {md_path}")
-
-        # Generate DOCX report
+        # Generate all three report formats via MCP tool
         result = await self.mcp_client.call_tool(
             "generate_final_report",
-            {"content_json": report_text, "contract_name": contract_name}
+            {
+                "content_json": report_text,
+                "contract_name": contract_name,
+                "elapsed_seconds": elapsed_seconds,
+            }
         )
 
         self.logger.log(
@@ -315,5 +316,5 @@ class ContractReviewWorkflow:
             duration=round(time.time() - start, 2)
         )
 
-        print(f"  DOCX: {result}")
+        print(f"  {result}")
         return result

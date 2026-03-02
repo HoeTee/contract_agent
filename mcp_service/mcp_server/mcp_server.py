@@ -110,13 +110,24 @@ async def ingest_docx(file_path: str) -> str:
 
 
 @mcp.tool()
-async def generate_final_report(content_json: str, contract_name: str) -> str:
+async def generate_final_report(
+    content_json: str,
+    contract_name: str,
+    elapsed_seconds: float = None,
+) -> str:
     """
-    Generate a formal Chinese DOCX report.
+    Generate MD, DOCX, and PDF reports from markdown content.
+    Returns paths to all three generated files.
     """
     try:
-        report_path = ReportGenerator.generate_report(content_json, contract_name)
-        return f"Report generated successfully: {report_path}"
+        paths = ReportGenerator.generate_report(
+            content_json, contract_name, elapsed_seconds=elapsed_seconds
+        )
+        lines = ["Reports generated successfully:"]
+        for fmt, path in paths.items():
+            status = path if path else "FAILED"
+            lines.append(f"  {fmt.upper()}: {status}")
+        return "\n".join(lines)
     except Exception as e:
         return f"Error generating report: {str(e)}"
 

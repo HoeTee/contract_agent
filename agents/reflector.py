@@ -29,10 +29,24 @@ class ReflectorAgent(Agent):
         )
         response = await self.chat(prompt)
 
+        text = response.strip()
+
         try:
-            if "```json" in response:
-                response = response.split("```json")[1].split("```")[0]
-            return json.loads(response.strip())
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0]
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0]
+            return json.loads(text.strip())
         except json.JSONDecodeError:
+            # Try extracting JSON content from first { to last }
+            start = text.find("{")
+            end = text.rfind("}") + 1
+            if start != -1 and end > start:
+                try:
+                    return json.loads(text[start:end])
+                except json.JSONDecodeError:
+                    pass # silently bypass error raise
+            print(f"[Reflector] Warning: Failed to parse JSON, returning raw text")
+            print(f"[Reflector] Raw response (first 500 chars): {text[:500]}")
             # If can't parse, treat as PASS to avoid infinite loops
             return {"status": "PASS", "feedback": "Unable to parse reflector output"}

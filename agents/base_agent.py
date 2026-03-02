@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from openai import AsyncOpenAI
 from agents.agent_logger import log_conversation
+from config import MAX_TOOL_CALLS, MAX_CONTEXT_TOKENS, MAX_RESULT_TOKENS
 import json
 import os
 
@@ -26,10 +27,6 @@ class Settings(BaseSettings):
 
 class Agent:
 
-    MAX_TOOL_CALLS = 30
-    MAX_CONTEXT_TOKENS = 100000
-    MAX_RESULT_TOKENS = 5000
-
     def __init__(
         self,
         system_prompt: str = "",
@@ -38,7 +35,24 @@ class Agent:
         tools=None,
         settings: Settings = None,
         debug: bool = False,
+        max_tool_calls: int = MAX_TOOL_CALLS,
+        max_context_tokens: int = MAX_CONTEXT_TOKENS,
+        max_result_tokens: int = MAX_RESULT_TOKENS,
     ) -> None:
+        """
+        Initialize the Agent.
+
+        Args:
+            system_prompt: System prompt for the agent.
+            name: Name of the agent.
+            mcp_client: MCP client for tool calling.
+            tools: List of tools for the agent.
+            settings: Settings for the agent.
+            debug: Whether to enable debug mode.
+            MAX_TOOL_CALLS: Maximum number of tool calls.
+            MAX_CONTEXT_TOKENS: Maximum number of context tokens.
+            MAX_RESULT_TOKENS: Maximum number of result tokens.
+        """
         self.settings = settings or Settings()
         self.client = AsyncOpenAI(
             api_key=self.settings.api_key,
@@ -49,6 +63,9 @@ class Agent:
         self.tools = tools or (mcp_client.tools if mcp_client else [])
         self.messages: list = []
         self.debug = debug
+        self.MAX_TOOL_CALLS = max_tool_calls
+        self.MAX_CONTEXT_TOKENS = max_context_tokens
+        self.MAX_RESULT_TOKENS = max_result_tokens
 
         # Token tracking
         self.token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
@@ -57,20 +74,22 @@ class Agent:
         if system_prompt:
             self.messages.append({"role": "system", "content": system_prompt})
 
-    # ==================== Logging ====================
+
+
+    # ==================== utils (Logging & Esti Tokens) ====================
 
     def _log(self, message: str):
         if self.debug:
             print(f"[{self.name}] {message}")
-
-    def _estimate_tokens(self, text: str) -> int:
-        return int(len(text) * 0.3)
+    
+    def _estimate_tokens(self, chars: int) -> int:
+        return int(chars * 0.3)
 
     # ==================== Context ====================
 
     def _check_context_limits(self):
         total_chars = sum(len(str(msg.get("content", ""))) for msg in self.messages)
-        estimated = self._estimate_tokens(str(total_chars))
+        estimated = self._estimate_tokens(total_chars)
         self._log(f"Pre-request: {len(self.messages)} messages, ~{estimated} tokens")
         if estimated > self.MAX_CONTEXT_TOKENS:
             print(f"[{self.name}] ⚠️ Context tokens ({estimated}) approaching limit!")
@@ -86,7 +105,7 @@ class Agent:
 
     # ==================== Token Tracking ====================
 
-    def _update_token_usage(self, usage):
+    def _update_token_usage(self, usage: dict):
         if usage:
             self.token_usage["prompt_tokens"] += usage.prompt_tokens
             self.token_usage["completion_tokens"] += usage.completion_tokens
@@ -97,6 +116,7 @@ class Agent:
 
     # ==================== Tool Calls ====================
 
+    ## Parse tool arguments from tool call.
     def _parse_tool_arguments(self, args_str: str, function_name: str) -> dict | None:
         try:
             return json.loads(args_str)
@@ -111,12 +131,13 @@ class Agent:
                     pass
             print(f"[{self.name}] ✗ Failed to parse tool arguments for {function_name}")
             return None
-
-    async def _execute_tool(self, tool_call) -> str:
+    
+    ## Execute a tool call and return text message.
+    async def _execute_a_tool(self, tool_call: dict) -> str:
         function_name = tool_call.function.name
         self._log(f"→ Calling tool: {function_name}")
 
-        args_dict = self._parse_tool_arguments(tool_call.function.arguments, function_name)
+        args_dict = self._parse_tool_arguments(tool_call.function.arguments, function_name) # Intercepts tool executions and returns text message.
         if args_dict is None:
             return "Failed to parse tool arguments."
 
@@ -128,23 +149,24 @@ class Agent:
 
         result_str = str(result)
         estimated = self._estimate_tokens(result_str)
-        if estimated > 10000:
+        if estimated > self.MAX_RESULT_TOKENS:
             result_str = self._truncate_text(result_str)
             self._log(f"← Tool '{function_name}': ~{estimated} tokens (truncated)")
         else:
             self._log(f"← Tool '{function_name}': ~{estimated} tokens")
         return result_str
 
+    ## Append tool calls onto history
     async def _process_tool_calls(self, tool_calls):
         self.tool_call_count += len(tool_calls)
         self._log(f"Processing {len(tool_calls)} tool calls (total: {self.tool_call_count})")
 
         if self.tool_call_count > self.MAX_TOOL_CALLS:
             print(f"[{self.name}] ⚠️ Max tool calls ({self.MAX_TOOL_CALLS}) reached. Aborting task and marking review invalid.")
-            raise RuntimeError(f"[{self.name}] Reached maximum tool calls ({self.MAX_TOOL_CALLS}) without completing the task. The review is considered invalid and has been excluded.")
+            return "You have used up all your tool calls. Please provide the final answer."
 
         for tool_call in tool_calls:
-            result = await self._execute_tool(tool_call)
+            result = await self._execute_a_tool(tool_call)
             self.messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call.id,
@@ -186,12 +208,16 @@ class Agent:
             self._update_token_usage(completion.usage)
 
             if response_message.tool_calls:
-                self.messages.append(response_message.model_dump(exclude_unset=True))
+                self.messages.append(response_message.model_dump(exclude_unset=True)) # Append tool calls onto history
                 log_conversation(self.name, self.messages)
                 forced = await self._process_tool_calls(response_message.tool_calls)
                 if forced:
                     self.messages.pop()  # Remove unresolved tool_calls message preventing API errors
-                    return forced
+                    self.messages.append(
+                        {"role": "user", "content": "你已用尽所有工具调用次数，请根据已收集的信息直接给出最终结论。"}
+                    )
+                    log_conversation(self.name, self.messages)
+                    continue
             else:
                 return response_message.content
 

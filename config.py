@@ -15,23 +15,31 @@ ENV_PATH = os.path.join(PROJECT_ROOT, ".env")
 
 # Agent config
 MAX_REFLECTION_ROUNDS = 3    # ← Change this to adjust reflection loop limit
-MAX_TOOL_CALLS = 10
+
+# Search mode: True = use PageIndex search, False = use Evidence Collector
+PAGEINDEX_SEARCH = os.getenv("PAGEINDEX_SEARCH", "True").lower() in ("true", "1", "yes")
 
 # Load .env to get LLM_NAME
 from dotenv import load_dotenv
 load_dotenv(ENV_PATH)
 
-llm_name = os.getenv("LLM_NAME", "qwen-plus").lower()
+LLM_NAME = os.getenv("LLM_NAME", "qwen-plus").lower()
 
-if "qwen-plus" in llm_name:
-    MAX_CONTEXT_TOKENS = 1_000_000
-elif "qwen-max" in llm_name:
-    MAX_CONTEXT_TOKENS = 262_144
-elif "deepseek" in llm_name:
+if LLM_NAME == "qwen-plus":
+    MAX_CONTEXT_TOKENS = 120_000
+    MAX_RESULT_TOKENS = 4_000
+    MAX_TOOL_CALLS = 25
+
+elif LLM_NAME == "deepseek-chat":
     MAX_CONTEXT_TOKENS = 128_000
-elif "minimax" in llm_name:
-    MAX_CONTEXT_TOKENS = 1_000_000
-else:
-    MAX_CONTEXT_TOKENS = 100_000  # Default fallback
+    MAX_RESULT_TOKENS = 8_000
+    MAX_TOOL_CALLS = 40
 
-MAX_RESULT_TOKENS = 5_000
+elif LLM_NAME == "minimax-k2.5":
+    MAX_CONTEXT_TOKENS = 240_000
+    MAX_RESULT_TOKENS = 8_000
+    MAX_TOOL_CALLS = 40
+else: # Default fallback
+    MAX_CONTEXT_TOKENS = 100_000  
+    MAX_RESULT_TOKENS = 5_000
+    MAX_TOOL_CALLS = 10

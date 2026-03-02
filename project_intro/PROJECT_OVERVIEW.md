@@ -2,7 +2,7 @@
 
 ## 项目简介
 
-基于多智能体架构的 AI 合同审查系统，使用 **PageIndex**（基于树结构的 RAG）进行文档检索。系统将审查标准分解为专项任务，分派给专家智能体执行审查（具备网络搜索能力），最终综合生成专业法律审查报告。
+基于多智能体架构的 AI 合同审查系统，使用 **PageIndex**（基于树结构的 RAG）进行文档检索。系统将审查标准分解为专项任务，分派给专家智能体执行审查（具备网络搜索能力），最终综合生成专业法律审查报告。支持两种检索模式：**PageIndex Search**（节点级检索）和 **Evidence Collector**（逐章节片段级证据提取）。
 
 ---
 
@@ -25,9 +25,10 @@
 │   智能体集群        │          │  工具                │
 │   - Planner         │         │  - ingest_docx       │
 │   - Orchestrator    │         │  - build_pageindex_tree│
-│   - Sub-Agents      │         │  - pageindex_search   │
-│   - Reflector       │         │  - web_search         │
-│   - Summarizer      │         │  - generate_report    │
+│   - EvidenceCollector│        │  - pageindex_search   │
+│   - Sub-Agents      │         │  - web_search         │
+│   - Reflector       │         │  - generate_report    │
+│   - Summarizer      │         │                       │
 └─────────────────────┘         └──────────────────────┘
 ```
 
@@ -35,42 +36,43 @@
 
 ## 工作流（6 阶段）
 
-| 阶段           | 组件                                           | 操作                                                              |
-| -------------- | ---------------------------------------------- | ----------------------------------------------------------------- |
-| 1. 文件解析    | MCP: `ingest_docx`                             | 解析合同 + 审查标准 DOCX → Markdown                               |
-| 2. 构建文档树  | MCP: `build_pageindex_tree`                    | 从合同 Markdown 构建 PageIndex 树                                 |
-| 3. 任务规划    | `PlannerAgent`                                 | 将审查标准结构化为检查任务                                        |
-| 4. 执行 + 反思 | `OrchestratorAgent` → `SubAgent` + `Reflector` | 逐条审查：pageindex_search → 子智能体审查 → 反思循环（最多 3 轮） |
-| 5. 报告汇总    | `SummarizerAgent`                              | 汇总所有审查结果为报告文本                                        |
-| 6. 生成报告    | MCP: `generate_final_report`                   | 生成带时间戳的 DOCX 报告                                          |
+| 阶段           | 组件                                           | 操作                                                                                          |
+| -------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 1. 文件解析    | MCP: `ingest_docx`                             | 解析合同 + 审查标准 DOCX → Markdown                                                           |
+| 2. 构建文档树  | MCP: `build_pageindex_tree`                    | 从合同 Markdown 构建 PageIndex 树                                                             |
+| 3. 任务规划    | `PlannerAgent`                                 | 将审查标准结构化为检查任务                                                                    |
+| 4. 执行 + 反思 | `OrchestratorAgent` → `SubAgent` + `Reflector` | 逐条审查：PageIndex 搜索或 Evidence Collector 提取证据 → 子智能体审查 → 反思循环（最多 3 轮） |
+| 5. 报告汇总    | `SummarizerAgent`                              | 汇总所有审查结果为报告文本                                                                    |
+| 6. 生成报告    | MCP: `generate_final_report`                   | 生成带时间戳的 DOCX 报告                                                                      |
 
 ---
 
 ## 核心组件
 
-### 1. 配置 — [config.py](file:///c:/Users/18014/agent_self_practice/deep_research_agent/config.py)
+### 1. 配置 — [config.py](deep_research_agent/config.py)
 
 中央配置：`PROJECT_ROOT`、路径常量、`MAX_REFLECTION_ROUNDS`、`MAX_TOOL_CALLS`。通过 `dotenv` 加载 `.env` 中的 API 密钥。
 
-### 2. 基础智能体 — [agents/base_agent.py](file:///c:/Users/18014/agent_self_practice/deep_research_agent/agents/base_agent.py)
+### 2. 基础智能体 — [agents/base_agent.py](deep_research_agent/agents/base_agent.py)
 
 基类，提供 LLM 对话、工具调用、上下文管理、Token 追踪、对话日志等通用功能。
 
-### 3. 专项智能体 — [agents/](file:///c:/Users/18014/agent_self_practice/deep_research_agent/agents)
+### 3. 专项智能体 — [agents/](deep_research_agent/agents)
 
-| 智能体           | 文件              | 职责                                                         |
-| ---------------- | ----------------- | ------------------------------------------------------------ |
-| **Planner**      | `planner.py`      | 解析审查标准 → 结构化 JSON 任务                              |
-| **Orchestrator** | `orchestrator.py` | 逐条分派子智能体，执行反思循环                               |
-| **SubAgent**     | （运行时创建）    | 针对单条标准审查合同，使用 `web_search` + `pageindex_search` |
-| **Reflector**    | `reflector.py`    | 质量控制 — PASS/REJECT + 反馈                                |
-| **Summarizer**   | `summarizer.py`   | 汇总审查结果为最终报告（不需 MCP）                           |
+| 智能体                | 文件                    | 职责                                                                     |
+| --------------------- | ----------------------- | ------------------------------------------------------------------------ |
+| **Planner**           | `planner.py`            | 解析审查标准 → 结构化 JSON 任务                                          |
+| **Orchestrator**      | `orchestrator.py`       | 逐条分派子智能体，执行反思循环                                           |
+| **EvidenceCollector** | `evidence_collector.py` | 逐章节提取与 criterion 相关的文本片段（`PAGEINDEX_SEARCH=False` 时启用） |
+| **SubAgent**          | （运行时创建）          | 针对单条标准审查合同，使用 `web_search` + 检索结果                       |
+| **Reflector**         | `reflector.py`          | 质量控制 — PASS/REJECT + 反馈                                            |
+| **Summarizer**        | `summarizer.py`         | 汇总审查结果为最终报告（不需 MCP）                                       |
 
-### 4. MCP Server — [mcp_server.py](file:///c:/Users/18014/agent_self_practice/deep_research_agent/mcp_service/mcp_server/mcp_server.py)
+### 4. MCP Server — [mcp_server.py](deep_research_agent/mcp_service/mcp_server/mcp_server.py)
 
 6 个工具：`web_search`、`read_url`、`ingest_docx`、`build_pageindex_tree`、`pageindex_search`、`generate_final_report`。
 
-### 5. 工作流日志 — [workflow_logger.py](file:///c:/Users/18014/agent_self_practice/deep_research_agent/main_workflow/workflow_logger.py)
+### 5. 工作流日志 — [workflow_logger.py](deep_research_agent/main_workflow/workflow_logger.py)
 
 记录每个步骤，输出到 `logs/workflow_*.md`，包含 Mermaid 序列图和详细步骤信息。
 
@@ -91,6 +93,7 @@ deep_research_agent/
 │   ├── agent_logger.py           # 智能体对话日志
 │   ├── planner.py                # 标准 → 任务
 │   ├── orchestrator.py           # 任务调度 + 反思循环
+│   ├── evidence_collector.py     # 证据收集智能体（逐章节提取）
 │   ├── reflector.py              # 质量控制
 │   ├── summarizer.py             # 报告汇总
 │   └── prompts/cn_prompts.py     # 中文提示词
@@ -110,8 +113,8 @@ deep_research_agent/
 │   └── contract_review_criteria/ # 审查标准（.gitignore 排除）
 ├── logs/                         # 所有运行时日志（.gitignore 排除）
 │   ├── workflow/                 # 工作流日志（MD + Mermaid）
-│   ├── conversations/            # 智能体对话日志（JSON）
-│   └── mcp_client.log            # MCP 客户端日志
+│   ├── conversations/            # 智能体对话日志（每次运行独立文件夹）
+│   └── mcp/                      # MCP 客户端日志
 └── project_intro/
     ├── ARCHITECTURE.md           # 架构图
     └── PROJECT_OVERVIEW.md       # 本文件
@@ -129,14 +132,16 @@ BASE_URL=https://...    # LLM 端点
 LLM_NAME=qwen-plus     # 模型名称
 TOP_P=0.01             # 采样范围（越小越确定性）
 SEED=42                # 随机种子（固定输出）
+PAGEINDEX_SEARCH=True  # True=PageIndex 搜索, False=Evidence Collector
 SERPER_API_KEY=...      # 网络搜索 API 密钥
 ```
 
 **关键常量**（`config.py`）：
 
-- `MAX_REFLECTION_ROUNDS = 3` — 反思循环上限
-- `MAX_TOOL_CALLS = 10` — 工具调用上限
-- `MAX_CONTEXT_TOKENS` — 根据模型自动设定
+- `MAX_REFLECTION_ROUNDS` — 反思循环上限（默认为 3）
+- `PAGEINDEX_SEARCH` — 检索模式切换（True=PageIndex 搜索, False=Evidence Collector）
+- `LLM_NAME` — 模型名称（如 qwen-plus, deepseek-chat, minimax-k2.5）
+- `MAX_CONTEXT_TOKENS`、`MAX_RESULT_TOKENS`、`MAX_TOOL_CALLS` — 根据选择的模型从 config.py 动态自动设定
 
 ---
 
@@ -151,6 +156,9 @@ python main.py
 **输出：**
 
 1. 控制台实时显示 6 个阶段的进度
-2. 报告保存至 `docs/reports_md/`（Markdown）+ 生成的 DOCX 路径
+2. 最终报告将分别保存至以下三个文件夹：
+   - `docs/reports_md/`（Markdown 原文文本）
+   - `docs/reports_docx/`（Word 格式）
+   - `docs/reports_pdf/`（PDF 格式）
 3. 工作流日志保存至 `logs/workflow_*.md`
 4. 智能体对话日志保存至 `logs/conversations/`
