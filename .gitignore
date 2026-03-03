@@ -7,7 +7,8 @@ docs/contract_review_criteria/
 
 # Runtime output
 docs/reports_md/
-reports/
+docs/reports_docx/
+docs/reports_pdf/
 logs/
 !logs/**/.gitkeep
 
