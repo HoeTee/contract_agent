@@ -4,11 +4,14 @@ management, token tracking, and conversation logging.
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, RateLimitError, APITimeoutError, APIConnectionError, InternalServerError
 from agents.agent_logger import log_conversation
 from config import MAX_TOOL_CALLS, MAX_CONTEXT_TOKENS, MAX_RESULT_TOKENS
+import asyncio
 import json
 import os
+
+MAX_API_RETRIES = 3
 
 
 class Settings(BaseSettings):
@@ -97,7 +100,7 @@ class Agent:
     def _truncate_text(self, text: str, max_tokens: int = None) -> str:
         if max_tokens is None:
             max_tokens = self.MAX_RESULT_TOKENS
-        estimated = self._estimate_tokens(text)
+        estimated = self._estimate_tokens(len(text))
         if estimated <= max_tokens:
             return text
         max_chars = int(max_tokens / 0.3)
@@ -148,7 +151,7 @@ class Agent:
             return f"No MCP client for tool {function_name}"
 
         result_str = str(result)
-        estimated = self._estimate_tokens(result_str)
+        estimated = self._estimate_tokens(len(result_str))
         if estimated > self.MAX_RESULT_TOKENS:
             result_str = self._truncate_text(result_str)
             self._log(f"← Tool '{function_name}': ~{estimated} tokens (truncated)")

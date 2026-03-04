@@ -6,10 +6,9 @@ docs/contracts/
 docs/contract_review_criteria/
 
 # Runtime output
-docs/reports_md/
-docs/reports_docx/
-docs/reports_pdf/
+docs/
 logs/
+!docs/**/.gitkeep
 !logs/**/.gitkeep
 
 # Python

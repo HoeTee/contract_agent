@@ -71,7 +71,7 @@ async def fetch_url(url: str):
             return "Timeout error"
 
 
-@mcp.tool()
+# @mcp.tool()
 async def web_search(query: str) -> str:
     """
     Search Google via Serper. Returns top results with titles, links, snippets.

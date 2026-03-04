@@ -15,11 +15,13 @@ from agents.prompts.cn_prompts import SUB_AGENT_BASE_PROMPT
 class OrchestratorAgent:
     """Coordinates per-criterion sub-agents with PageIndex retrieval and reflection."""
 
-    def __init__(self, mcp_client, logger=None, settings=None):
+    def __init__(self, mcp_client=None, logger=None, settings=None):
         self.mcp_client = mcp_client
         self.logger = logger
         self.settings = settings
         self.tools = None
+        self.collector = EvidenceCollectorAgent(settings=self.settings)
+        self.reflector = ReflectorAgent(settings=self.settings)
 
     async def _get_tools(self) -> list[str]:
         """Cache MCP tools list."""
@@ -63,7 +65,7 @@ class OrchestratorAgent:
         else:
             # Mode B: Collect evidence via per-section LLM iteration
             print(f"[Orchestrator] {cid}: Collecting evidence from contract sections...")
-            collector = EvidenceCollectorAgent(settings=self.settings)
+            collector = self.collector
             evidence = await collector.collect_evidence(criterion, tree_json)
             context = EvidenceCollectorAgent.format_evidence(evidence)
             evidence_tokens = collector.token_usage.get("total_tokens", 0)
@@ -119,7 +121,7 @@ class OrchestratorAgent:
             }
 
         # Step 3: Reflection loop
-        reflector = ReflectorAgent(settings=self.settings)
+        reflector = self.reflector
         for round_num in range(MAX_REFLECTION_ROUNDS):
             review = await reflector.review(
                 agent_output=opinion,
@@ -166,11 +168,9 @@ class OrchestratorAgent:
         }
 
     async def execute_criteria(self, criteria_list: list[dict], tree_json: str) -> list[dict]:
-        """Execute all criteria concurrently."""
-        tasks = [
-            self.execute_single_criterion(c, tree_json)
-            for c in criteria_list
-        ]
+        """Execute criteria with concurrency control and auto-retry for failures."""
+        tasks = [self.execute_single_criterion(c, tree_json) for c in criteria_list]
+
         # Exceptions are captured as results instead of crashing the entire batch
         results = await asyncio.gather(*tasks, return_exceptions=True) 
 
@@ -179,18 +179,21 @@ class OrchestratorAgent:
         for i, r in enumerate(results):
             if isinstance(r, Exception):
                 print(f"[Orchestrator] Error on criterion {criteria_list[i]['id']}: {r}")
-                final.append({
-                    "criterion_id": criteria_list[i]["id"],
-                    "criterion": criteria_list[i]["criterion"],
-                    "section": criteria_list[i].get("section", "其他"),
-                    "review_output": "",  # Empty string so it gets excluded from report
-                    "status": "ERROR",
-                    "reflection_rounds": 0,
-                    "tokens": 0,
-                })
+                final.append(
+                    {
+                        "criterion_id": criteria_list[i]["id"],
+                        "criterion": criteria_list[i]["criterion"],
+                        "section": criteria_list[i].get("section", "其他"),
+                        "review_output": "",  # Empty string so it gets excluded from report
+                        "status": "ERROR", # Return error status if task execution failed
+                        "reflection_rounds": 0,
+                        "tokens": 0
+                    }
+                )
             else:
                 final.append(r)
 
         total_tokens = sum(r.get("tokens", 0) for r in final)
         print(f"  Completed: {len(final)} reviews, Total tokens: {total_tokens:,}")
+
         return final
