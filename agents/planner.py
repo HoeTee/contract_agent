@@ -1,6 +1,7 @@
 """
 PlannerAgent — parses criteria markdown into structured tasks.
 """
+import arabic_reshaper.reshaper_config
 import json
 
 from agents.base_agent import Agent
@@ -47,11 +48,4 @@ class PlannerAgent(Agent):
             print(f"[Planner] Warning: Failed to parse JSON, returning raw text")
             print(f"[Planner] Raw response (first 500 chars): {response[:500]}")
             return {"criteria": [], "raw": response}
-<<<<<<< HEAD
-<<<<<<< HEAD
 
-# q
-=======
->>>>>>> parent of aa6133b (trial_2)
-=======
->>>>>>> parent of aa6133b (trial_2)

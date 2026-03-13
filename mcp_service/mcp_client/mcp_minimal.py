@@ -108,7 +108,10 @@ class MinimalMCPClient:
         """Call tool and return text result as string."""
         if not self.session:
             raise RuntimeError("Client not connected")
-        result = await self.session.call_tool(name, args)
+        # Functions in an MCP server that are exposed as tools cannot use variable arguments like *args or **kwargs. 
+        # This restriction is because the protocol requires a complete and predictable parameter schema to be generated 
+        # for the Language Model (LLM) client, which is not possible with variable argument lists.
+        result = await self.session.call_tool(name, args) 
         # Extract .text from TextContent objects
         if hasattr(result, 'content') and isinstance(result.content, list):
             texts = []

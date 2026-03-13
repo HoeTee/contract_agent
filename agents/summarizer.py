@@ -136,7 +136,7 @@ class SummarizerAgent(Agent):
         for meta, res in zip(task_metadata, formatted_results):
             section_name = meta[0]
             grouped_formatted[section_name].append(res["formatted_text"])
-            self.token_usage["total_tokens"] = self.token_usage.get("total_tokens", 0) + res["tokens"]
+            self.token_usage["total_tokens"] = self.token_usage.get("total_tokens", 0) + res.get("tokens", 0)
             self.token_usage["prompt_tokens"] = self.token_usage.get("prompt_tokens", 0) + res.get("prompt_tokens", 0)
             self.token_usage["completion_tokens"] = self.token_usage.get("completion_tokens", 0) + res.get("completion_tokens", 0)
             

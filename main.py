@@ -7,10 +7,14 @@ import os
 # Project root
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
+doc_1 = "【已审查】（214号）浙江农商与移动浙江公司集团固话业务协议-修订4(1).docx"
+doc_2 = "【已审查】（528号）2026年至2028年贵宾医疗服务合作协议-邵逸夫医院.docx"
+doc_3 = "【已审核】（262号）产品单次销售合同-卡券、实物、定点配送（东福、东乐通用型模版） (4).docx"
+
 # File paths — change these to your actual files
 CONTRACT_PATH = os.path.join(
     PROJECT_ROOT, 
-    "docs/contracts", "反馈0730-【已审查】（190号）互联网类系统CDN加速服务（三年）采购合同HT-ZRUB-2025-07-01-08-C002.docx"
+    "docs/contracts", doc_1
 )
 CRITERIA_PATH = os.path.join(
     PROJECT_ROOT, 

@@ -71,7 +71,7 @@ async def fetch_url(url: str):
             return "Timeout error"
 
 
-# @mcp.tool()
+@mcp.tool()
 async def web_search(query: str) -> str:
     """
     Search Google via Serper. Returns top results with titles, links, snippets.
@@ -114,14 +114,26 @@ async def generate_final_report(
     content_json: str,
     contract_name: str,
     elapsed_seconds: float = None,
+    contract_path: str = None,
+    results_json: str = None,
 ) -> str:
     """
     Generate MD, DOCX, and PDF reports from markdown content.
+    DOCX: copies original contract and adds review comments as annotations.
+    PDF: renders markdown with optimized CSS for Chinese text and tables.
     Returns paths to all three generated files.
     """
     try:
+        # Parse results JSON if provided
+        results = None
+        if results_json:
+            results = json.loads(results_json)
+        
         paths = ReportGenerator.generate_report(
-            content_json, contract_name, elapsed_seconds=elapsed_seconds
+            content_json, contract_name,
+            elapsed_seconds=elapsed_seconds,
+            contract_path=contract_path,
+            results=results,
         )
         lines = ["Reports generated successfully:"]
         for fmt, path in paths.items():

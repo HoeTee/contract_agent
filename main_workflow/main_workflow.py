@@ -88,7 +88,8 @@ class ContractReviewWorkflow:
             # Phase 6: Generate reports (MD + DOCX + PDF)
             elapsed = round(time.time() - workflow_start, 1)
             report_path = await self._phase_generate_report(
-                report_text, contract_path, elapsed_seconds=elapsed
+                report_text, contract_path,
+                elapsed_seconds=elapsed, results=results,
             )
 
             # Save workflow log
@@ -290,7 +291,8 @@ class ContractReviewWorkflow:
         return "\n".join(lines)
 
     async def _phase_generate_report(
-        self, report_text: str, contract_path: str, elapsed_seconds: float = None
+        self, report_text: str, contract_path: str,
+        elapsed_seconds: float = None, results: list = None,
     ) -> str:
         """Phase 6: Generate MD, DOCX, and PDF reports."""
         print("\n[Phase 6] Generating reports (MD + DOCX + PDF)...")
@@ -298,14 +300,21 @@ class ContractReviewWorkflow:
 
         contract_name = os.path.splitext(os.path.basename(contract_path))[0]
 
+        # Build MCP tool arguments
+        tool_args = {
+            "content_json": report_text,
+            "contract_name": contract_name,
+            "elapsed_seconds": elapsed_seconds,
+            "contract_path": contract_path,
+        }
+
+        # Pass structured results as JSON for DOCX comment generation
+        if results:
+            tool_args["results_json"] = json.dumps(results, ensure_ascii=False)
+
         # Generate all three report formats via MCP tool
         result = await self.mcp_client.call_tool(
-            "generate_final_report",
-            {
-                "content_json": report_text,
-                "contract_name": contract_name,
-                "elapsed_seconds": elapsed_seconds,
-            }
+            "generate_final_report", tool_args
         )
 
         self.logger.log(
