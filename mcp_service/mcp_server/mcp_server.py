@@ -13,6 +13,7 @@ import tempfile
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, PROJECT_ROOT)
 from tools.document_tools import FileParser, ReportGenerator
+from tools.document.parsers.mineru_pdf_parser import parse_file_with_mineru
 
 # Add PageIndex to path
 PAGEINDEX_ROOT = os.path.join(PROJECT_ROOT, "tools", "PageIndex-main")
@@ -26,7 +27,12 @@ import openai
 API_KEY = os.getenv("API_KEY")
 BASE_URL = os.getenv("BASE_URL")
 LLM_NAME = os.getenv("LLM_NAME", "qwen-plus")
+ENABLE_MCP_WEB_TOOLS = os.getenv("ENABLE_MCP_WEB_TOOLS")
+PARSE_FILE_WITH_MINERU = os.getenv("PARSE_FILE_WITH_MINERU")
 
+
+def env_bool(val):
+    return str(val).lower() in ("1", "true", "yes")
 
 class Settings(BaseSettings):
     USER_AGENT: str = Field(default="docs-app/1.0", alias="USER_AGENT")
@@ -71,7 +77,7 @@ async def fetch_url(url: str):
             return "Timeout error"
 
 
-@mcp.tool()
+# @mcp.tool()
 async def web_search(query: str) -> str:
     """
     Search Google via Serper. Returns top results with titles, links, snippets.
@@ -87,27 +93,39 @@ async def web_search(query: str) -> str:
     return formatted
 
 
-@mcp.tool()
+# @mcp.tool()
 async def read_url(url: str) -> str:
     """
     Visit a URL and read its full text content.
     """
     return str(await fetch_url(url))
 
+if env_bool(ENABLE_MCP_WEB_TOOLS):
+    mcp.tool()(web_search)
+    mcp.tool()(read_url)
 
 # ============ Document Tools ============
 
 @mcp.tool()
-async def ingest_docx(file_path: str) -> str:
+async def ingest_file(file_path: str) -> str:
     """
     Parse a DOCX/PDF/TXT file, return full markdown content.
     """
-    content = FileParser.parse_file(file_path)
-    if content.startswith("Error"):
-        return content
-    filename = os.path.basename(file_path)
-    return f"File '{filename}' ingested. Content:\n\n{content}"
-
+    if env_bool(PARSE_FILE_WITH_MINERU):
+        try:
+            content = await parse_file_with_mineru(file_path)
+        except Exception as e:
+            return f"Error parsing file: {str(e)}"
+        
+        filename = os.path.basename(file_path)
+        return f"File '{filename}' ingested. Content:\n\n{content}"
+    else:
+        try:
+            content = FileParser.parse_file(file_path)
+            filename = os.path.basename(file_path)
+            return f"File '{filename}' ingested. Content:\n\n{content}"
+        except Exception as e:
+            return f"Error parsing file: {str(e)}"
 
 @mcp.tool()
 async def generate_final_report(
@@ -227,8 +245,8 @@ async def pageindex_search(query: str, tree_json: str) -> str:
         Directly return the final JSON structure. Do not output anything else.
         """
 
-        client = openai.OpenAI(api_key=API_KEY, base_url=BASE_URL)
-        response = client.chat.completions.create(
+        client = openai.AsyncOpenAI(api_key=API_KEY, base_url=BASE_URL)
+        response = await client.chat.completions.create(
             model=LLM_NAME,
             messages=[{"role": "user", "content": search_prompt}],
             temperature=0,

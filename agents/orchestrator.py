@@ -95,20 +95,20 @@ class OrchestratorAgent:
             f"检查要点：\n{check_points_text}\n\n"
             f"以下是合同中与此标准相关的内容：\n\n{context}"
         )
-        opinion = await sub_agent.chat(task_prompt)
+        sub_agent_opinion = await sub_agent.chat(task_prompt)
 
         if self.logger:
             self.logger.log(
                 phase="Execute", sender=f"SubAgent_{cid}", receiver="LLM",
                 action=f"review({cid})",
                 input_summary=f"criterion + {len(context)} chars context",
-                output_summary=opinion,
+                output_summary=sub_agent_opinion,
                 tokens=sub_agent.token_usage.get("total_tokens", 0),
                 duration=round(time.time() - start, 2)
             )
 
         # If sub-agent found no issues at all across all check points, short-circuit
-        if "[ALL_COMPLIANT]" in opinion or not opinion.strip():
+        if "[ALL_COMPLIANT]" in sub_agent_opinion or not sub_agent_opinion.strip():
             print(f"[Orchestrator] {cid}: All check points compliant, skipping reflection.")
             return {
                 "criterion_id": cid,
@@ -123,17 +123,18 @@ class OrchestratorAgent:
         # Step 3: Reflection loop
         reflector = self.reflector
         for round_num in range(MAX_REFLECTION_ROUNDS):
+            # This reiew is different from opinion, it is the output of reflector after evaluating the opinion.
             review = await reflector.review(
-                agent_output=opinion,
+                agent_output=sub_agent_opinion,
                 evaluation_criteria=f"审查标准：{criterion_text}\n检查要点：\n{check_points_text}"
-            )
+            ) 
 
             if self.logger:
                 status = review.get("status", "UNKNOWN")
                 self.logger.log(
                     phase="Reflect", sender="Reflector", receiver=f"SubAgent_{cid}",
                     action=f"reflect({cid}, round={round_num+1})",
-                    input_summary=opinion,
+                    input_summary=sub_agent_opinion,
                     output_summary=f"{status}: {review.get('feedback', '')}",
                     tokens=reflector.token_usage.get("total_tokens", 0),
                     duration=round(time.time() - start, 2)
@@ -145,7 +146,7 @@ class OrchestratorAgent:
             # Feed back to sub-agent for refinement
             else:
                 print(f"[Orchestrator] {cid}: REJECT round {round_num+1}, refining...")
-                opinion = await sub_agent.chat(
+                sub_agent_opinion = await sub_agent.chat(
                     f"请根据以下质量审查反馈，补充和完善你的审查结果：\n\n{review.get('feedback', '')}"
                 )
         else:
@@ -156,12 +157,12 @@ class OrchestratorAgent:
 
         # Defensive check: the initial opinion was not ALL_COMPLIANT (caught at line 109),
         # but the sub-agent might have revised to ALL_COMPLIANT during the reflection loop
-        is_compliant = "[ALL_COMPLIANT]" in opinion
+        is_compliant = "[ALL_COMPLIANT]" in sub_agent_opinion
         return {
             "criterion_id": cid,
             "criterion": criterion_text,
             "section": criterion.get("section", "其他"),
-            "review_output": "" if is_compliant else opinion,
+            "review_output": "" if is_compliant else sub_agent_opinion,
             "status": "COMPLIANT" if is_compliant else "ISSUES_FOUND",
             "reflection_rounds": round_num + 1 if 'round_num' in dir() else 0,
             "tokens": total_tokens,
@@ -177,7 +178,7 @@ class OrchestratorAgent:
         # Handle exceptions
         final = []
         for i, r in enumerate(results):
-            if isinstance(r, Exception):
+            if isinstance(r, Exception): # An Exception requires entire input by yourself as it returns nothing. 
                 print(f"[Orchestrator] Error on criterion {criteria_list[i]['id']}: {r}")
                 final.append(
                     {

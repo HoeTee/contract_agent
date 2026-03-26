@@ -2,12 +2,15 @@ import os
 import re
 import copy
 import shutil
+import tempfile
+import zipfile
 from docx import Document
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from pypdf import PdfReader
 from datetime import datetime
 from lxml import etree
+from tools.clean_docx import DocxCleaner
 
 
 class FileParser:
@@ -23,7 +26,12 @@ class FileParser:
             
         try:
             if ext == '.docx':
-                return FileParser._parse_docx(file_path)
+                clean_path = FileParser._clean_docx(file_path)
+                try:
+                    return FileParser._parse_docx(clean_path)
+                finally:
+                    if clean_path != file_path and os.path.exists(clean_path):
+                        os.unlink(clean_path)
             elif ext == '.pdf':
                 return FileParser._parse_pdf(file_path)
             elif ext == '.txt':
@@ -32,6 +40,50 @@ class FileParser:
                 return f"Error: Unsupported file format {ext}"
         except Exception as e:
             return f"Error parsing file: {str(e)}"
+
+    @staticmethod
+    def _clean_docx(path: str) -> str:
+        cleaner = DocxCleaner(input_path=path)
+        return cleaner.clean() 
+
+    @staticmethod
+    def _clean_docx_for_parsing(path: str) -> str:
+        ns = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".docx")
+        tmp.close()
+
+        def _unwrap(root, tag: str) -> None:
+            for el in root.xpath(f".//w:{tag}", namespaces=ns):
+                parent = el.getparent()
+                if parent is None:
+                    continue
+                idx = parent.index(el)
+                for child in list(el):
+                    parent.insert(idx, child)
+                    idx += 1
+                parent.remove(el)
+
+        with zipfile.ZipFile(path, "r") as zin, zipfile.ZipFile(tmp.name, "w", zipfile.ZIP_DEFLATED) as zout:
+            for info in zin.infolist():
+                data = zin.read(info.filename)
+                if info.filename == "word/document.xml":
+                    root = etree.fromstring(data)
+                    for tag in ("commentRangeStart", "commentRangeEnd", "commentReference", "moveFromRangeStart", "moveFromRangeEnd", "moveToRangeStart", "moveToRangeEnd"):
+                        for el in root.xpath(f".//w:{tag}", namespaces=ns):
+                            parent = el.getparent()
+                            if parent is not None:
+                                parent.remove(el)
+                    _unwrap(root, "ins")
+                    _unwrap(root, "moveTo")
+                    for tag in ("del", "moveFrom"):
+                        for el in root.xpath(f".//w:{tag}", namespaces=ns):
+                            parent = el.getparent()
+                            if parent is not None:
+                                parent.remove(el)
+                    data = etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+                zout.writestr(info, data)
+
+        return tmp.name
 
     @staticmethod
     def _parse_docx(path: str) -> str:

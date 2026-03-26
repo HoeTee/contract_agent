@@ -10,9 +10,12 @@ Phases:
   6. Generate MD, DOCX, and PDF reports
 """
 import asyncio
+import inspect
 import json
 import os
+import re
 import time
+from typing import Any, Awaitable, Callable
 
 from config import PROJECT_ROOT, MCP_SERVER_PATH, REPORTS_DIR, LOGS_DIR, PAGEINDEX_SEARCH
 from main_workflow.workflow_logger import WorkflowLogger
@@ -31,10 +34,15 @@ class ContractReviewWorkflow:
         self.logger = WorkflowLogger()
         self.settings = Settings()
 
-    async def run(self, contract_path: str, criteria_path: str) -> str:
+    async def run(
+        self,
+        contract_path: str,
+        criteria_path: str,
+        progress_callback: Callable[[dict[str, Any]], Awaitable[None] | None] | None = None,
+    ) -> dict[str, Any]:
         """
         Execute the full review workflow.
-        Returns: path to generated report.
+        Returns: structured review data for the API layer.
         """
         workflow_start = time.time()
         print("=" * 60)
@@ -46,20 +54,29 @@ class ContractReviewWorkflow:
 
         try:
             # Phase 1: Ingest files
+            await self._emit_progress(progress_callback, "ingesting", "Parsing contract and criteria files")
             criteria_md, contract_md = await self._phase_ingest(contract_path, criteria_path)
 
             # Phase 2: Build PageIndex tree
+            await self._emit_progress(progress_callback, "building_tree", "Building the contract structure tree")
             tree_json = await self._phase_build_tree(contract_md)
 
             # Phase 3: Plan tasks
+            await self._emit_progress(progress_callback, "planning", "Extracting review criteria")
             criteria_list = await self._phase_plan(criteria_md)
 
             # Phase 4: Execute + Reflect
             mode_label = "PageIndex Search" if PAGEINDEX_SEARCH else "Evidence Collector"
             print(f"\n  Search mode: {mode_label}")
+            await self._emit_progress(
+                progress_callback,
+                "reviewing",
+                f"Reviewing {len(criteria_list)} criteria with the agent workflow",
+            )
             results = await self._phase_execute(criteria_list, tree_json)
 
             # Phase 5: Summarize
+            await self._emit_progress(progress_callback, "summarizing", "Compiling the final report")
             report_text = await self._phase_summarize(results)
 
             # Append criteria coverage checklist
@@ -87,10 +104,12 @@ class ContractReviewWorkflow:
 
             # Phase 6: Generate reports (MD + DOCX + PDF)
             elapsed = round(time.time() - workflow_start, 1)
-            report_path = await self._phase_generate_report(
+            await self._emit_progress(progress_callback, "generating_report", "Generating report artifacts")
+            report_paths = await self._phase_generate_report(
                 report_text, contract_path,
                 elapsed_seconds=elapsed, results=results,
             )
+            issues = self._extract_issues(results)
 
             # Save workflow log
             log_path = self.logger.save()
@@ -99,16 +118,41 @@ class ContractReviewWorkflow:
             print(f"\n{'=' * 60}")
             print(f"Workflow complete! Total time: {mins}m {secs}s")
             print(f"Total tokens: {total_tokens:,} (Planner: {planner_tokens:,} | Execute: {execute_tokens:,} | Summarizer: {summarizer_tokens:,})")
-            print(f"Report: {report_path}")
+            print(f"Report: {report_paths}")
             print(f"Log: {log_path}")
             print(f"{'=' * 60}")
 
-            return report_path
+            await self._emit_progress(progress_callback, "completed", "Review completed")
+
+            return {
+                "issues": issues,
+                "report_md": report_paths.get("md"),
+                "report_docx": report_paths.get("docx"),
+                "report_pdf": report_paths.get("pdf"),
+                "report_text": report_text,
+                "criteria_count": len(criteria_list),
+                "total_tokens": total_tokens,
+                "workflow_log": log_path,
+            }
 
         finally:
             await self.mcp_client.cleanup()
 
     # ==================== Phases ====================
+
+    async def _emit_progress(
+        self,
+        progress_callback: Callable[[dict[str, Any]], Awaitable[None] | None] | None,
+        stage: str,
+        message: str,
+    ) -> None:
+        if progress_callback is None:
+            return
+
+        update = {"stage": stage, "message": message}
+        maybe_awaitable = progress_callback(update)
+        if inspect.isawaitable(maybe_awaitable):
+            await maybe_awaitable
 
     async def _phase_ingest(self, contract_path: str, criteria_path: str) -> tuple[str, str]:
         """Phase 1: Ingest contract + criteria DOCX files."""
@@ -116,11 +160,11 @@ class ContractReviewWorkflow:
         t1 = time.time()
 
         criteria_result = await self.mcp_client.call_tool(
-            "ingest_docx", {"file_path": criteria_path}
+            "ingest_file", {"file_path": criteria_path}
         )
         self.logger.log(
-            phase="Ingestion", sender="Workflow", receiver="MCP:ingest_docx",
-            action="ingest_docx(criteria)",
+            phase="Ingestion", sender="Workflow", receiver="MCP:ingest_file",
+            action="ingest_file(criteria)",
             input_summary=os.path.basename(criteria_path),
             output_summary=f"{len(criteria_result)} chars",
             duration=round(time.time() - t1, 2)
@@ -128,11 +172,11 @@ class ContractReviewWorkflow:
 
         t2 = time.time()
         contract_result = await self.mcp_client.call_tool(
-            "ingest_docx", {"file_path": contract_path}
+            "ingest_file", {"file_path": contract_path}
         )
         self.logger.log(
-            phase="Ingestion", sender="Workflow", receiver="MCP:ingest_docx",
-            action="ingest_docx(contract)",
+            phase="Ingestion", sender="Workflow", receiver="MCP:ingest_file",
+            action="ingest_file(contract)",
             input_summary=os.path.basename(contract_path),
             output_summary=f"{len(contract_result)} chars",
             duration=round(time.time() - t2, 2)
@@ -185,7 +229,7 @@ class ContractReviewWorkflow:
         planner = PlannerAgent(settings=self.settings)
         plan_result = await planner.design_tasks(criteria_md)
 
-        criteria_list = plan_result.get("criteria", [])
+        criteria_list = plan_result.get("criteria", []) 
         self._planner_tokens = planner.token_usage.get("total_tokens", 0)
         self.logger.log(
             phase="Planning", sender="Workflow", receiver="Planner",
@@ -293,7 +337,7 @@ class ContractReviewWorkflow:
     async def _phase_generate_report(
         self, report_text: str, contract_path: str,
         elapsed_seconds: float = None, results: list = None,
-    ) -> str:
+    ) -> dict[str, str | None]:
         """Phase 6: Generate MD, DOCX, and PDF reports."""
         print("\n[Phase 6] Generating reports (MD + DOCX + PDF)...")
         start = time.time()
@@ -326,4 +370,145 @@ class ContractReviewWorkflow:
         )
 
         print(f"  {result}")
-        return result
+        return self._parse_report_paths(result)
+
+    def _parse_report_paths(self, tool_output: str) -> dict[str, str | None]:
+        paths: dict[str, str | None] = {"md": None, "docx": None, "pdf": None}
+
+        for raw_line in tool_output.splitlines():
+            line = raw_line.strip()
+            match = re.match(r"^(MD|DOCX|PDF):\s*(.+)$", line, flags=re.IGNORECASE)
+            if not match:
+                continue
+
+            fmt = match.group(1).lower()
+            value = match.group(2).strip()
+            paths[fmt] = None if value.upper() == "FAILED" else value
+
+        return paths
+
+    def _extract_issues(self, results: list[dict]) -> list[dict[str, Any]]:
+        issues: list[dict[str, Any]] = []
+
+        for result in results:
+            if result.get("status") != "ISSUES_FOUND":
+                continue
+
+            review_output = result.get("review_output", "").strip()
+            if not review_output:
+                continue
+
+            sections = re.split(r"(?=^#{3,4}\s)", review_output, flags=re.MULTILINE)
+            sections = [section.strip() for section in sections if section.strip()]
+            if not sections:
+                sections = [review_output]
+
+            for section in sections:
+                issues.append(
+                    {
+                        "clause_location": self._extract_field(
+                            section,
+                            [
+                                r"\*\*所在位置\*\*[:：]\s*([^\n]+)",
+                                r"所在位置[:：]\s*([^\n]+)",
+                            ],
+                            default="",
+                        ),
+                        "page": None,
+                        "risk_level": self._normalize_risk_level(
+                            self._extract_field(
+                                section,
+                                [
+                                    r"\*\*风险等级\*\*[:：]\s*([^\n]+)",
+                                    r"风险等级[:：]\s*([^\n]+)",
+                                ],
+                                default="low",
+                            )
+                        ),
+                        "violated_criteria": self._extract_field(
+                            section,
+                            [
+                                r"^#{3,4}\s*检查要点[:：]\s*(.+)$",
+                                r"^#{3,4}\s*(.+)$",
+                            ],
+                            default=result.get("criterion", ""),
+                        ),
+                        "conclusion": self._extract_field(
+                            section,
+                            [
+                                r"\*\*审查结论\*\*[:：]\s*([^\n]+)",
+                                r"\*\*结论\*\*[:：]\s*([^\n]+)",
+                                r"审查结论[:：]\s*([^\n]+)",
+                                r"结论[:：]\s*([^\n]+)",
+                            ],
+                            default="",
+                        ),
+                        "analysis": self._extract_field(
+                            section,
+                            [
+                                r"\*\*问题分析\*\*[:：]\s*([^\n]+)",
+                                r"问题分析[:：]\s*([^\n]+)",
+                            ],
+                            default=section,
+                        ),
+                        "legal_basis": self._extract_field(
+                            section,
+                            [
+                                r"\*\*法律依据\*\*[:：]\s*([^\n]+)",
+                                r"法律依据[:：]\s*([^\n]+)",
+                            ],
+                            default=None,
+                        ),
+                        "suggestion": self._extract_quoted_field(section, "修改建议"),
+                    }
+                )
+
+        return issues
+
+    def _extract_field(
+        self,
+        text: str,
+        patterns: list[str],
+        default: str | None = "",
+    ) -> str | None:
+        for pattern in patterns:
+            match = re.search(pattern, text, flags=re.MULTILINE)
+            if match:
+                return match.group(1).strip()
+        return default
+
+    def _extract_quoted_field(self, text: str, field_name: str) -> str:
+        block_pattern = (
+            rf"(?:- )?(?:\*\*)?{re.escape(field_name)}(?:\*\*)?[:：]?\s*\n"
+            rf"((?:>\s?.*(?:\n|$))+)"
+        )
+        block_match = re.search(block_pattern, text, flags=re.MULTILINE)
+        if block_match:
+            quoted_lines = [
+                re.sub(r"^>\s?", "", line).rstrip()
+                for line in block_match.group(1).splitlines()
+            ]
+            return "\n".join(line for line in quoted_lines if line).strip()
+
+        inline_match = re.search(
+            rf"(?:- )?(?:\*\*)?{re.escape(field_name)}(?:\*\*)?[:：]?\s*(.+)",
+            text,
+            flags=re.MULTILINE,
+        )
+        if inline_match:
+            return inline_match.group(1).strip()
+
+        return ""
+
+    def _normalize_risk_level(self, value: str | None) -> str:
+        if not value:
+            return "low"
+
+        normalized = value.lower()
+        if "high" in normalized or "高" in value:
+            return "high"
+        if "medium" in normalized or "中" in value:
+            return "medium"
+        if "none" in normalized or "无" in value:
+            return "none"
+        return "low"

@@ -1,0 +1,83 @@
+<h2>界面布局选择</h2>
+<p class="subtitle">类似 markdowntoword.io 的合同审查前端，你喜欢哪种布局？</p>
+
+<div class="options">
+  <div class="option" data-choice="single" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>单栏居中</h3>
+      <p>简洁垂直布局：顶部导航 → 上传区域 → 配置选项 → 转换按钮 → 结果区域</p>
+      <div class="mockup">
+        <div class="mockup-header">单栏布局示意</div>
+        <div class="mockup-body" style="padding: 20px;">
+          <div style="background:#f0f0f0;padding:30px;border-radius:8px;margin-bottom:10px;">
+            <div style="text-align:center;color:#666;">📁 拖拽文件到此处或点击上传</div>
+          </div>
+          <div style="background:#e8f4fc;padding:15px;border-radius:8px;margin-bottom:10px;">
+            <div style="font-size:12px;color:#666;">⚙️ 审查标准选择</div>
+          </div>
+          <div style="background:#4CAF50;color:white;padding:15px;text-align:center;border-radius:8px;margin-bottom:10px;">
+            开始审查
+          </div>
+          <div style="background:#fff;border:1px solid #ddd;padding:20px;border-radius:8px;">
+            <div style="color:#666;">📄 审查报告预览</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="split" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>左右分栏</h3>
+      <p>左侧：上传+配置 | 右侧：实时预览+进度显示</p>
+      <div class="mockup">
+        <div class="mockup-header">左右分栏示意</div>
+        <div class="mockup-body" style="display:flex;gap:10px;padding:20px;">
+          <div style="flex:1;">
+            <div style="background:#f0f0f0;padding:20px;border-radius:8px;margin-bottom:8px;">
+              <div style="font-size:11px;color:#666;">📁 上传区域</div>
+            </div>
+            <div style="background:#e8f4fc;padding:15px;border-radius:8px;">
+              <div style="font-size:11px;color:#666;">⚙️ 配置</div>
+            </div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
+            <div style="background:#fff;border:1px solid #ddd;padding:15px;border-radius:8px;flex:1;">
+              <div style="font-size:11px;color:#666;">👁️ 预览</div>
+            </div>
+            <div style="background:#fff3cd;padding:10px;border-radius:8px;">
+              <div style="font-size:11px;color:#666;">📊 阶段 3/6: 智能体审查中...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="wizard" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>向导式（多步骤）</h3>
+      <p>分步引导：步骤1上传 → 步骤2配置 → 步骤3处理 → 步骤4完成</p>
+      <div class="mockup">
+        <div class="mockup-header">向导步骤示意</div>
+        <div class="mockup-body" style="padding:20px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:15px;">
+            <div style="color:#4CAF50;font-size:12px;">✓ 1.上传</div>
+            <div style="color:#4CAF50;font-size:12px;">✓ 2.配置</div>
+            <div style="color:#2196F3;font-size:12px;font-weight:bold;">▶ 3.审查中</div>
+            <div style="color:#999;font-size:12px;">4.完成</div>
+          </div>
+          <div style="background:#f5f5f5;height:8px;border-radius:4px;margin-bottom:15px;">
+            <div style="background:#2196F3;width:60%;height:100%;border-radius:4px;"></div>
+          </div>
+          <div style="background:#fff;border:1px solid #ddd;padding:20px;border-radius:8px;">
+            <div style="font-size:12px;color:#666;">🔄 正在执行第3阶段：智能体审查中...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

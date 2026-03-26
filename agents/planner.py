@@ -1,7 +1,6 @@
 """
 PlannerAgent — parses criteria markdown into structured tasks.
 """
-import arabic_reshaper.reshaper_config
 import json
 
 from agents.base_agent import Agent

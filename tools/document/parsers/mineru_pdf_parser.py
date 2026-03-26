@@ -1,14 +1,16 @@
 """
-Remote-API-first PDF parser.
+Remote-API-first document parser.
 
 Strategy order:
 1. Remote MinerU cloud API, when configured.
-2. OpenAI-compatible LLM cleanup over extracted page text.
-3. Local PyMuPDF extraction fallback.
+2. PDF-only OpenAI-compatible LLM cleanup over extracted page text.
+3. PDF-only local PyMuPDF extraction fallback.
+4. DOCX local python-docx fallback via FileParser.
 """
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import io
 import json
 import os
@@ -20,7 +22,10 @@ import fitz  # PyMuPDF
 import httpx
 from openai import AsyncOpenAI
 
+from tools.clean_docx import clean_docx
+
 DEFAULT_REMOTE_MINERU_API_BASE = "https://mineru.net"
+MINERU_REMOTE_SUPPORTED_EXTENSIONS = {".pdf", ".docx"}
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -89,7 +94,7 @@ def _has_llm_config() -> bool:
 
 
 async def _parse_via_remote_mineru_api(
-    pdf_path: str,
+    file_path: str,
     include_content_list: bool = False,
     include_middle_json: bool = False,
 ) -> dict[str, Any]:
@@ -108,10 +113,10 @@ async def _parse_via_remote_mineru_api(
     language = os.getenv("MINERU_API_LANGUAGE", "ch")
     enable_ocr = _env_bool("MINERU_API_ENABLE_OCR", True)
     page_ranges = os.getenv("MINERU_API_PAGE_RANGES")
-    pdf_name = Path(pdf_path).name
+    file_name = Path(file_path).name
 
     file_payload: dict[str, Any] = {
-        "name": pdf_name,
+        "name": file_name,
         "is_ocr": enable_ocr,
     }
     if page_ranges:
@@ -132,7 +137,7 @@ async def _parse_via_remote_mineru_api(
         if not batch_id or not file_urls:
             raise RuntimeError(f"Unexpected MinerU upload response: {submit_payload}")
 
-        with open(pdf_path, "rb") as file_obj:
+        with open(file_path, "rb") as file_obj:
             upload_resp = await client.put(file_urls[0], content=file_obj.read())
         upload_resp.raise_for_status()
 
@@ -150,7 +155,7 @@ async def _parse_via_remote_mineru_api(
             extract_results = status_payload.get("data", {}).get("extract_result") or []
 
             matched_result = next(
-                (item for item in extract_results if item.get("file_name") == pdf_name),
+                (item for item in extract_results if item.get("file_name") == file_name),
                 None,
             )
             if not matched_result and extract_results:
@@ -184,7 +189,7 @@ async def _parse_via_remote_mineru_api(
         preferred = next(
             (
                 name for name in md_candidates
-                if Path(name).stem == Path(pdf_path).stem
+                if Path(name).stem == Path(file_path).stem
             ),
             md_candidates[0],
         )
@@ -355,29 +360,42 @@ def _extract_markdown_locally(pdf_path: str) -> str:
         doc.close()
 
 
-async def parse_pdf_to_content_bundle(
-    pdf_path: str,
+def _parse_docx_locally(file_path: str) -> str:
+    from tools.document_tools import FileParser
+
+    content = FileParser.parse_file(file_path)
+    if content.startswith("Error"):
+        raise RuntimeError(content)
+    return content
+
+
+async def parse_file_to_content_bundle(
+    file_path: str,
     include_middle_json: bool = False,
 ) -> dict[str, Any]:
-    """Parse a PDF file into a structured bundle using API-first fallbacks."""
-    if not os.path.exists(pdf_path):
-        raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+    """Parse a supported file into a structured bundle using API-first fallbacks."""
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
+
+    ext = Path(file_path).suffix.lower()
+    if ext not in MINERU_REMOTE_SUPPORTED_EXTENSIONS:
+        raise ValueError(f"Unsupported MinerU file format: {ext}")
 
     errors: list[str] = []
 
     if _has_remote_mineru_config():
         try:
             return await _parse_via_remote_mineru_api(
-                pdf_path,
+                file_path,
                 include_content_list=True,
                 include_middle_json=include_middle_json,
             )
         except Exception as exc:
             errors.append(f"remote MinerU API failed: {exc}")
 
-    if _has_llm_config():
+    if ext == ".pdf" and _has_llm_config():
         try:
-            md_content = await _parse_via_llm_cleanup(pdf_path)
+            md_content = await _parse_via_llm_cleanup(file_path)
             return {
                 "md_content": md_content,
                 "content_list": None,
@@ -387,25 +405,62 @@ async def parse_pdf_to_content_bundle(
         except Exception as exc:
             errors.append(f"LLM API parser failed: {exc}")
 
-    try:
-        md_content = _extract_markdown_locally(pdf_path)
-        return {
-            "md_content": md_content,
-            "content_list": None,
-            "middle_json": None,
-            "source": "local_fallback",
-        }
-    except Exception as exc:
-        errors.append(f"local fallback failed: {exc}")
+    if ext == ".pdf":
+        try:
+            md_content = _extract_markdown_locally(file_path)
+            return {
+                "md_content": md_content,
+                "content_list": None,
+                "middle_json": None,
+                "source": "local_fallback",
+            }
+        except Exception as exc:
+            errors.append(f"local fallback failed: {exc}")
+    elif ext == ".docx":
+        try:
+            md_content = _parse_docx_locally(file_path)
+            return {
+                "md_content": md_content,
+                "content_list": None,
+                "middle_json": None,
+                "source": "local_docx_fallback",
+            }
+        except Exception as exc:
+            errors.append(f"local DOCX fallback failed: {exc}")
 
     joined = " | ".join(errors) if errors else "unknown parsing error"
-    raise RuntimeError(f"All PDF parsing strategies failed: {joined}")
+    raise RuntimeError(f"All file parsing strategies failed: {joined}")
+
+
+async def parse_file_with_mineru(file_path: str) -> str:
+    """Parse a supported file into Markdown using MinerU-first fallbacks."""
+    ext = Path(file_path).suffix.lower()
+    cleaned_file_path = file_path
+
+    if ext == ".docx":
+        cleaned_file_path = clean_docx(file_path)
+
+    try:
+        bundle = await parse_file_to_content_bundle(cleaned_file_path, include_middle_json=False)
+    finally:
+        if cleaned_file_path != file_path:
+            with contextlib.suppress(OSError):
+                os.unlink(cleaned_file_path)
+
+    md_content = bundle.get("md_content")
+    if not md_content:
+        raise RuntimeError("Parsed file bundle does not contain markdown content.")
+    return md_content
+
+
+async def parse_pdf_to_content_bundle(
+    pdf_path: str,
+    include_middle_json: bool = False,
+) -> dict[str, Any]:
+    """Backward-compatible wrapper for PDF callers."""
+    return await parse_file_to_content_bundle(pdf_path, include_middle_json=include_middle_json)
 
 
 async def parse_pdf_to_md(pdf_path: str) -> str:
-    """Parse a PDF file into Markdown using API-first fallbacks."""
-    bundle = await parse_pdf_to_content_bundle(pdf_path, include_middle_json=False)
-    md_content = bundle.get("md_content")
-    if not md_content:
-        raise RuntimeError("Parsed PDF bundle does not contain markdown content.")
-    return md_content
+    """Backward-compatible wrapper for PDF callers."""
+    return await parse_file_with_mineru(pdf_path)
