@@ -1,11 +1,16 @@
 """
-OrchestratorAgent — dispatches sub-agents per criterion with PageIndex retrieval + reflection.
+OrchestratorAgent - dispatches sub-agents per criterion with retrieval + reflection.
+
+Supports three retrieval modes (configured via config.py):
+  - LLAMA_INDEX=True            → LlamaIndex vector search via MCP
+  - PAGEINDEX_SEARCH=True       → PageIndex two-stage tree search via MCP
+  - PAGEINDEX_SEARCH=False      → EvidenceCollector per-section LLM iteration
 """
 import asyncio
 import json
 import time
 
-from config import MAX_REFLECTION_ROUNDS, PAGEINDEX_SEARCH
+from config import MAX_REFLECTION_ROUNDS
 from agents.base_agent import Agent
 from agents.reflector import ReflectorAgent
 from agents.evidence_collector import EvidenceCollectorAgent
@@ -13,15 +18,23 @@ from agents.prompts.cn_prompts import SUB_AGENT_BASE_PROMPT
 
 
 class OrchestratorAgent:
-    """Coordinates per-criterion sub-agents with PageIndex retrieval and reflection."""
+    """Coordinates per-criterion sub-agents with retrieval and reflection."""
 
-    def __init__(self, mcp_client=None, logger=None, settings=None):
+    def __init__(
+        self,
+        mcp_client=None,
+        logger=None,
+        settings=None,
+        retrieval_mode: str = "pageindex",
+    ):
         self.mcp_client = mcp_client
         self.logger = logger
         self.settings = settings
+        self.retrieval_mode = retrieval_mode
         self.tools = None
-        self.collector = EvidenceCollectorAgent(settings=self.settings)
+        self.collector = EvidenceCollectorAgent(settings=self.settings) if retrieval_mode == "evidence" else None
         self.reflector = ReflectorAgent(settings=self.settings)
+        self.retrieval_tokens = 0  # Track MCP tool internal LLM tokens
 
     async def _get_tools(self) -> list[str]:
         """Cache MCP tools list."""
@@ -29,7 +42,81 @@ class OrchestratorAgent:
             self.tools = await self.mcp_client.get_available_tools()
         return self.tools
 
-    async def execute_single_criterion(self, criterion: dict, tree_json: str) -> dict:
+    async def _retrieve_context(
+        self, cid: str, criterion_text: str, check_points_text: str,
+        tree_json: str | None, start: float,
+    ) -> tuple[str, int]:
+        """Unified retrieval: returns (context_text, retrieval_tokens)."""
+        search_query = f"{criterion_text}\n检查要点：{check_points_text}"
+        retrieval_tokens = 0
+
+        if self.retrieval_mode == "llamaindex":
+            # Mode C: LlamaIndex vector search
+            print(f"[Orchestrator] {cid}: Searching via LlamaIndex...")
+            # Direct callable injection is disabled; always use MCP for LlamaIndex.
+            search_result = await self.mcp_client.call_tool(
+                "llamaindex_search", {"query": search_query}
+            )
+            receiver = "MCP:llamaindex_search"
+            action = f"llamaindex_search({cid})"
+            if isinstance(search_result, str) and search_result.startswith("Error"):
+                raise RuntimeError(search_result)
+            context = search_result if search_result else "未找到相关内容。"
+
+            if self.logger:
+                self.logger.log(
+                    phase="Execute", sender="Orchestrator", receiver=receiver,
+                    action=action,
+                    input_summary=criterion_text,
+                    output_summary=f"{len(context)} chars retrieved",
+                    duration=round(time.time() - start, 2)
+                )
+
+        elif self.retrieval_mode == "pageindex":
+            # Mode A: PageIndex two-stage tree search
+            print(f"[Orchestrator] {cid}: Searching contract via PageIndex...")
+            raw_result = await self.mcp_client.call_tool(
+                "pageindex_search",
+                {"query": search_query, "tree_json": tree_json}
+            )
+            # Parse JSON envelope (result + token_usage)
+            try:
+                parsed = json.loads(raw_result)
+                context = parsed.get("result", raw_result)
+                tool_tokens = parsed.get("token_usage", {})
+                retrieval_tokens = tool_tokens.get("total_tokens", 0)
+                self.retrieval_tokens += retrieval_tokens
+            except (json.JSONDecodeError, TypeError):
+                context = raw_result if raw_result else "未找到相关内容。"
+
+            if self.logger:
+                self.logger.log(
+                    phase="Execute", sender="Orchestrator", receiver="MCP:pageindex_search",
+                    action=f"pageindex_search({cid})",
+                    input_summary=criterion_text,
+                    output_summary=f"{len(context)} chars retrieved, {retrieval_tokens} tool tokens",
+                    duration=round(time.time() - start, 2)
+                )
+        else:
+            # Mode B: EvidenceCollector per-section LLM iteration
+            print(f"[Orchestrator] {cid}: Collecting evidence from contract sections...")
+            evidence = await self.collector.collect_evidence(criterion, tree_json)
+            context = EvidenceCollectorAgent.format_evidence(evidence)
+            retrieval_tokens = self.collector.token_usage.get("total_tokens", 0)
+
+            if self.logger:
+                self.logger.log(
+                    phase="Execute", sender="Orchestrator", receiver="EvidenceCollector",
+                    action=f"collect_evidence({cid})",
+                    input_summary=criterion_text,
+                    output_summary=f"{len(evidence)} evidence fragments, {len(context)} chars",
+                    tokens=retrieval_tokens,
+                    duration=round(time.time() - start, 2)
+                )
+
+        return context, retrieval_tokens
+
+    async def execute_single_criterion(self, criterion: dict, tree_json: str | None) -> dict:
         """
         Review a single criterion:
         1. Retrieve relevant contract sections (PageIndex search or Evidence Collector)
@@ -44,41 +131,9 @@ class OrchestratorAgent:
         evidence_tokens = 0
 
         # Step 1: Retrieve relevant contract sections
-        if PAGEINDEX_SEARCH:
-            # Mode A: Retrieve via PageIndex search (existing behavior)
-            print(f"[Orchestrator] {cid}: Searching contract via PageIndex...")
-            search_query = f"{criterion_text}\n检查要点：{check_points_text}"
-            search_result = await self.mcp_client.call_tool(
-                "pageindex_search",
-                {"query": search_query, "tree_json": tree_json}
-            )
-            context = search_result if search_result else "未找到相关内容"
-
-            if self.logger:
-                self.logger.log(
-                    phase="Execute", sender="Orchestrator", receiver="MCP:pageindex_search",
-                    action=f"pageindex_search({cid})",
-                    input_summary=criterion_text,
-                    output_summary=f"{len(context)} chars retrieved",
-                    duration=round(time.time() - start, 2)
-                )
-        else:
-            # Mode B: Collect evidence via per-section LLM iteration
-            print(f"[Orchestrator] {cid}: Collecting evidence from contract sections...")
-            collector = self.collector
-            evidence = await collector.collect_evidence(criterion, tree_json)
-            context = EvidenceCollectorAgent.format_evidence(evidence)
-            evidence_tokens = collector.token_usage.get("total_tokens", 0)
-
-            if self.logger:
-                self.logger.log(
-                    phase="Execute", sender="Orchestrator", receiver="EvidenceCollector",
-                    action=f"collect_evidence({cid})",
-                    input_summary=criterion_text,
-                    output_summary=f"{len(evidence)} evidence fragments, {len(context)} chars",
-                    tokens=evidence_tokens,
-                    duration=round(time.time() - start, 2)
-                )
+        context, evidence_tokens = await self._retrieve_context(
+            cid, criterion_text, check_points_text, tree_json, start
+        )
 
         # Step 2: Create sub-agent with retrieved context
         tools = await self._get_tools()
@@ -123,11 +178,10 @@ class OrchestratorAgent:
         # Step 3: Reflection loop
         reflector = self.reflector
         for round_num in range(MAX_REFLECTION_ROUNDS):
-            # This reiew is different from opinion, it is the output of reflector after evaluating the opinion.
             review = await reflector.review(
                 agent_output=sub_agent_opinion,
                 evaluation_criteria=f"审查标准：{criterion_text}\n检查要点：\n{check_points_text}"
-            ) 
+            )
 
             if self.logger:
                 status = review.get("status", "UNKNOWN")
@@ -143,7 +197,6 @@ class OrchestratorAgent:
             if review.get("status") == "PASS":
                 print(f"[Orchestrator] {cid}: PASS after {round_num+1} round(s)")
                 break
-            # Feed back to sub-agent for refinement
             else:
                 print(f"[Orchestrator] {cid}: REJECT round {round_num+1}, refining...")
                 sub_agent_opinion = await sub_agent.chat(
@@ -152,11 +205,7 @@ class OrchestratorAgent:
         else:
             print(f"[Orchestrator] {cid}: Max {MAX_REFLECTION_ROUNDS} rounds reached")
 
-        # Aggregate tokens: evidence collector + sub-agent + reflector
         total_tokens = evidence_tokens + sub_agent.token_usage.get("total_tokens", 0) + reflector.token_usage.get("total_tokens", 0)
-
-        # Defensive check: the initial opinion was not ALL_COMPLIANT (caught at line 109),
-        # but the sub-agent might have revised to ALL_COMPLIANT during the reflection loop
         is_compliant = "[ALL_COMPLIANT]" in sub_agent_opinion
         return {
             "criterion_id": cid,
@@ -168,31 +217,29 @@ class OrchestratorAgent:
             "tokens": total_tokens,
         }
 
-    async def execute_criteria(self, criteria_list: list[dict], tree_json: str) -> list[dict]:
+    async def execute_criteria(self, criteria_list: list[dict], tree_json: str | None) -> list[dict]:
         """Execute criteria with concurrency control and auto-retry for failures."""
         tasks = [self.execute_single_criterion(c, tree_json) for c in criteria_list]
 
-        # Exceptions are captured as results instead of crashing the entire batch
-        results = await asyncio.gather(*tasks, return_exceptions=True) 
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Handle exceptions
         final = []
-        for i, r in enumerate(results):
-            if isinstance(r, Exception): # An Exception requires entire input by yourself as it returns nothing. 
-                print(f"[Orchestrator] Error on criterion {criteria_list[i]['id']}: {r}")
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                print(f"[Orchestrator] Error on criterion {criteria_list[i]['id']}: {result}")
                 final.append(
                     {
                         "criterion_id": criteria_list[i]["id"],
                         "criterion": criteria_list[i]["criterion"],
                         "section": criteria_list[i].get("section", "其他"),
-                        "review_output": "",  # Empty string so it gets excluded from report
-                        "status": "ERROR", # Return error status if task execution failed
+                        "review_output": "",
+                        "status": "ERROR",
                         "reflection_rounds": 0,
                         "tokens": 0
                     }
                 )
             else:
-                final.append(r)
+                final.append(result)
 
         total_tokens = sum(r.get("tokens", 0) for r in final)
         print(f"  Completed: {len(final)} reviews, Total tokens: {total_tokens:,}")

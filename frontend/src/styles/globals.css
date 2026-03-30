@@ -2,20 +2,20 @@
 
 :root {
   --font-size: 16px;
-  --background: #f8fafc;
+  --background: #f7fbff;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #1e3a8a;
-  --primary-foreground: #f8fafc;
+  --primary: #026dbd;
+  --primary-foreground: #f7fbff;
   --secondary: #e2e8f0;
   --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
+  --muted: #f2f8f8;
   --muted-foreground: #475569;
-  --accent: #eff6ff;
-  --accent-foreground: #1e3a8a;
+  --accent: #edf9f2;
+  --accent-foreground: #124d2d;
   --destructive: #b91c1c;
   --destructive-foreground: #ffffff;
   --border: #cbd5e1;
@@ -24,21 +24,21 @@
   --switch-background: #94a3b8;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: #2563eb;
-  --chart-1: #1e3a8a;
-  --chart-2: #1d4ed8;
-  --chart-3: #b45309;
-  --chart-4: #0369a1;
-  --chart-5: #047857;
+  --ring: #026dbd;
+  --chart-1: #026dbd;
+  --chart-2: #44adf4;
+  --chart-3: #10a94f;
+  --chart-4: #0f7739;
+  --chart-5: #0b2741;
   --radius: 0.625rem;
   --sidebar: #ffffff;
   --sidebar-foreground: #0f172a;
-  --sidebar-primary: #1e3a8a;
-  --sidebar-primary-foreground: #f8fafc;
-  --sidebar-accent: #eff6ff;
-  --sidebar-accent-foreground: #1e3a8a;
+  --sidebar-primary: #026dbd;
+  --sidebar-primary-foreground: #f7fbff;
+  --sidebar-accent: #edf9f2;
+  --sidebar-accent-foreground: #124d2d;
   --sidebar-border: #cbd5e1;
-  --sidebar-ring: #2563eb;
+  --sidebar-ring: #026dbd;
 }
 
 .dark {
@@ -91,14 +91,14 @@
     color: var(--foreground);
     font-family: "Lato", ui-sans-serif, system-ui, sans-serif;
     background-image:
-      radial-gradient(circle at top left, rgba(30, 58, 138, 0.14), transparent 28%),
-      radial-gradient(circle at top right, rgba(180, 83, 9, 0.1), transparent 22%),
-      linear-gradient(180deg, #f8fbff 0%, #f3f7fd 44%, #eef2f8 100%);
+      radial-gradient(circle at top left, rgba(2, 109, 189, 0.14), transparent 30%),
+      radial-gradient(circle at top right, rgba(16, 169, 79, 0.1), transparent 24%),
+      linear-gradient(180deg, #f7fbff 0%, #f1f8f8 46%, #e9f2f5 100%);
     background-attachment: fixed;
   }
 
   ::selection {
-    background: rgba(30, 64, 175, 0.18);
+    background: rgba(2, 109, 189, 0.18);
   }
 }
 
@@ -153,7 +153,7 @@
   }
 
   .action-primary {
-    @apply inline-flex items-center gap-2 rounded-full bg-brand-900 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none;
+    @apply inline-flex items-center gap-2 rounded-full bg-brand-700 px-5 py-3 text-sm font-semibold text-white shadow-soft transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none;
   }
 
   .action-secondary {
@@ -161,7 +161,7 @@
   }
 
   .badge-muted {
-    @apply inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600;
+    @apply inline-flex items-center rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-600;
   }
 }
 
@@ -175,7 +175,7 @@ html {
 }
 
 :focus-visible {
-  outline: 3px solid rgba(37, 99, 235, 0.34);
+  outline: 3px solid rgba(2, 109, 189, 0.34);
   outline-offset: 2px;
   border-radius: 12px;
 }
@@ -285,7 +285,7 @@ html {
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 55%, #b45309 100%);
+  background: linear-gradient(135deg, #0b2741 0%, #026dbd 52%, #10a94f 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -301,7 +301,7 @@ html {
   position: absolute;
   width: 500px;
   height: 500px;
-  background: radial-gradient(circle, rgba(30, 58, 138, 0.1) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(2, 109, 189, 0.12) 0%, transparent 70%);
   top: -250px;
   right: -250px;
   animation: float 8s ease-in-out infinite;
@@ -312,7 +312,7 @@ html {
   position: absolute;
   width: 400px;
   height: 400px;
-  background: radial-gradient(circle, rgba(180, 83, 9, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(16, 169, 79, 0.1) 0%, transparent 70%);
   bottom: -200px;
   left: -200px;
   animation: float 10s ease-in-out infinite reverse;

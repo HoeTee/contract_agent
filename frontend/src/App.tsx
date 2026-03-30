@@ -6,6 +6,7 @@ import { FileDropzone } from "./features/contract-review/components/FileDropzone
 import { HistoryDrawer } from "./features/contract-review/components/HistoryDrawer";
 import { TaskStatusPanel } from "./features/contract-review/components/TaskStatusPanel";
 import {
+  RetrievalMode,
   ReviewResultResponse,
   ReviewTaskResponse,
   getReviewResult,
@@ -85,7 +86,7 @@ export default function App() {
     setError(null);
   };
 
-  const handleStartReview = async () => {
+  const handleStartReview = async (retrievalMode: RetrievalMode) => {
     if (!contractFile || !criteriaFile) {
       setError("请先上传合同文件和审查标准。");
       return;
@@ -102,7 +103,7 @@ export default function App() {
         uploadCriteriaFile(criteriaFile),
       ]);
 
-      const createdTask = await startReview(contractUpload.file_path, criteriaUpload.file_path);
+      const createdTask = await startReview(contractUpload.file_path, criteriaUpload.file_path, retrievalMode);
       setTask(createdTask);
     } catch (reason) {
       setError(getErrorMessage(reason));
@@ -149,7 +150,7 @@ export default function App() {
     <div className="min-h-screen bg-legal-shell text-slate-900">
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-8 sm:px-6 lg:px-8">
         <header className="surface-panel relative overflow-hidden px-6 py-7 sm:px-8">
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-300 to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-300 to-trust-300" />
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
               <p className="eyebrow">Deep Research Agent</p>
@@ -157,7 +158,7 @@ export default function App() {
                 面向真实法务流程的合同审查工作台
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
-                上传合同与审查标准，跟踪任务阶段，并在同一工作区查看结构化风险结论、Markdown 报告和历史记录。
+                上传合同与审查标准，跟踪任务阶段，并在同一工作区查看结构化风险结论、Markdown 报告与历史任务。
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <span className="badge-muted">结构化风险结论</span>
@@ -175,9 +176,9 @@ export default function App() {
                 <ShieldCheck className="h-4 w-4" />
                 法务工作流模式
               </div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-gold-200 bg-gold-50 px-5 py-3 text-sm font-medium text-gold-700">
+              <div className="inline-flex items-center gap-2 rounded-full border border-trust-100 bg-trust-50 px-5 py-3 text-sm font-medium text-trust-800">
                 <Clock3 className="h-4 w-4" />
-                支持长任务跟踪
+                品牌蓝绿工作台
               </div>
             </div>
           </div>
@@ -190,20 +191,20 @@ export default function App() {
                 <FileDropzone
                   step="01"
                   title="合同文件"
-                  description="上传 PDF 或 DOCX。PDF 可直接预览，DOCX 会先在服务端清洗和修订后再进入审查流程。"
+                  description="上传 PDF 或 DOCX。PDF 可直接预览，DOCX 会先在服务端清洗和转换后再进入审查流程。"
                   accept=".pdf,.docx"
                   file={contractFile}
-                  accent="from-brand-900 to-brand-600"
+                  accent="from-brand-900 via-brand-700 to-brand-600"
                   onFileSelect={handleContractSelect}
                   onFileReject={setError}
                 />
                 <FileDropzone
                   step="02"
                   title="审查标准"
-                  description="上传 PDF 或 DOCX 格式的审查标准文件，系统会据此生成结构化审查结论。"
+                  description="上传 PDF 或 DOCX 格式的审查标准文件，系统将据此生成结构化审查结论。"
                   accept=".pdf,.docx"
                   file={criteriaFile}
-                  accent="from-gold-600 to-gold-400"
+                  accent="from-trust-800 via-trust-600 to-trust-500"
                   onFileSelect={handleCriteriaSelect}
                   onFileReject={setError}
                 />

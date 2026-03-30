@@ -1,6 +1,7 @@
 from __future__ import annotations # no quotes are needed for type hints
 
 import json
+import sys
 import traceback # help show where the error happended
 from contextlib import AsyncExitStack
 from typing import Any, Dict, List, Optional
@@ -9,6 +10,7 @@ from mcp_service.mcp_client.mcp_logger import logger
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.client.sse import sse_client
+from mcp.client.streamable_http import streamable_http_client
 
 
 class MinimalMCPClient:
@@ -34,29 +36,43 @@ class MinimalMCPClient:
         if not server_script_path:
             raise ValueError("No server_script_path provided")
         try: 
-            is_http = server_script_path.startswith(".http")
-            is_https = server_script_path.startswith(".https")
+            # is_http = server_script_path.startswith(".http")
+            # is_https = server_script_path.startswith(".https")
+            # is_python = server_script_path.endswith(".py")
+            # is_js = server_script_path.endswith(".js")
+            is_http = server_script_path.startswith("http://")
+            is_https = server_script_path.startswith("https://")
             is_python = server_script_path.endswith(".py")
             is_js = server_script_path.endswith(".js")
 
             if not (is_http or is_https or is_python or is_js):
-                raise ValueError("Server path/script must be a .http, .https, .py, or .js file")
+                # raise ValueError("Server path/script must be a .http, .https, .py, or .js file")
+                raise ValueError("Server target must be an http(s) URL or a .py/.js file")
             
             elif is_http or is_https:
-                sse_transport = await self.exit_stack.enter_async_context(
-                    sse_client(server_script_path)
+                # sse_transport = await self.exit_stack.enter_async_context(
+                #     sse_client(server_script_path)
+                # )
+                # stdio, write = sse_transport
+                # self.session = await self.exit_stack.enter_async_context(
+                #     ClientSession(stdio, write)
+                # )
+                http_transport = await self.exit_stack.enter_async_context(
+                    streamable_http_client(server_script_path)
                 )
-                stdio, write = sse_transport
+                read_stream, write_stream, _ = http_transport
                 self.session = await self.exit_stack.enter_async_context(
-                    ClientSession(stdio, write)
+                    ClientSession(read_stream, write_stream)
                 )
                 await self.session.initialize()
 
                 self.tools = await self.list_tools_openai()
-                self.logger.info(f"Connected to remote server. Tools: {[t['function']['name'] for t in self.tools]}")
+                self.logger.info(
+                    f"Connected to remote server. Tools: {[t['function']['name'] for t in self.tools]}"
+                )
 
             elif is_python or is_js:
-                command = "python" if is_python else "node"
+                command = sys.executable if is_python else "node"
                 server_params = StdioServerParameters(
                     command=command,
                     args=[server_script_path],
@@ -65,14 +81,20 @@ class MinimalMCPClient:
                 stdio_transport = await self.exit_stack.enter_async_context(
                     stdio_client(server_params)
                 )
-                stdio, write = stdio_transport
+                # stdio, write = stdio_transport
+                # self.session = await self.exit_stack.enter_async_context(
+                #     ClientSession(stdio, write)
+                # )
+                read_stream, write_stream = stdio_transport
                 self.session = await self.exit_stack.enter_async_context(
-                    ClientSession(stdio, write)
+                    ClientSession(read_stream, write_stream)
                 )
                 await self.session.initialize()
 
                 self.tools = await self.list_tools_openai()
-                self.logger.info(f"Connected to remote server. Tools: {[t['function']['name'] for t in self.tools]}")
+                self.logger.info(
+                    f"Connected to remote server. Tools: {[t['function']['name'] for t in self.tools]}"
+                )
         
         except Exception as e:
             self.logger.error(f"Error connecting to MCP server: {e}")

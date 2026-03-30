@@ -17,6 +17,7 @@ class ReviewStatus(str, Enum):
 class ReviewStage(str, Enum):
     QUEUED = "queued"
     INGESTING = "ingesting"
+    BUILDING_INDEX = "building_index"
     BUILDING_TREE = "building_tree"
     PLANNING = "planning"
     REVIEWING = "reviewing"
@@ -33,6 +34,12 @@ class RiskLevel(str, Enum):
     NONE = "none"
 
 
+class RetrievalMode(str, Enum):
+    LLAMAINDEX = "llamaindex"
+    PAGEINDEX = "pageindex"
+    EVIDENCE = "evidence"
+
+
 class IssueBase(BaseModel):
     clause_location: str
     page: Optional[int] = None
@@ -47,6 +54,7 @@ class IssueBase(BaseModel):
 class ReviewTaskCreate(BaseModel):
     contract_path: str
     criteria_path: str
+    retrieval_mode: Optional[RetrievalMode] = None
 
 
 class ReviewTaskResponse(BaseModel):
@@ -54,6 +62,7 @@ class ReviewTaskResponse(BaseModel):
     status: ReviewStatus
     created_at: datetime
     contract_name: Optional[str] = None
+    retrieval_mode: Optional[RetrievalMode] = None
     stage: Optional[ReviewStage] = None
     progress_message: Optional[str] = None
     error: Optional[str] = None
@@ -63,6 +72,7 @@ class ReviewResultResponse(BaseModel):
     task_id: str
     status: ReviewStatus
     contract_name: str
+    retrieval_mode: Optional[RetrievalMode] = None
     total_issues: int
     issues: List[IssueBase]
     report_md: Optional[str] = None
@@ -80,6 +90,7 @@ class HistoryItem(BaseModel):
     status: ReviewStatus
     created_at: datetime
     completed_at: Optional[datetime] = None
+    retrieval_mode: Optional[RetrievalMode] = None
     stage: Optional[ReviewStage] = None
     progress_message: Optional[str] = None
     total_issues: int = 0

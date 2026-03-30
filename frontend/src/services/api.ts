@@ -4,6 +4,7 @@ export type ReviewStatus = "pending" | "processing" | "completed" | "failed";
 export type ReviewStage =
   | "queued"
   | "ingesting"
+  | "building_index"
   | "building_tree"
   | "planning"
   | "reviewing"
@@ -11,6 +12,7 @@ export type ReviewStage =
   | "generating_report"
   | "completed"
   | "failed";
+export type RetrievalMode = "llamaindex" | "pageindex" | "evidence";
 
 export type ArtifactType = "md" | "docx" | "pdf";
 
@@ -36,6 +38,7 @@ export interface ReviewTaskResponse {
   status: ReviewStatus;
   created_at: string;
   contract_name?: string | null;
+  retrieval_mode?: RetrievalMode | null;
   stage?: ReviewStage | null;
   progress_message?: string | null;
   error?: string | null;
@@ -114,7 +117,11 @@ export async function uploadCriteriaFile(file: File): Promise<UploadResponse> {
   return payload.data;
 }
 
-export async function startReview(contractPath: string, criteriaPath: string): Promise<ReviewTaskResponse> {
+export async function startReview(
+  contractPath: string,
+  criteriaPath: string,
+  retrievalMode: RetrievalMode,
+): Promise<ReviewTaskResponse> {
   return request<ReviewTaskResponse>("/api/v1/review/start", {
     method: "POST",
     headers: {
@@ -123,6 +130,7 @@ export async function startReview(contractPath: string, criteriaPath: string): P
     body: JSON.stringify({
       contract_path: contractPath,
       criteria_path: criteriaPath,
+      retrieval_mode: retrievalMode,
     }),
   });
 }

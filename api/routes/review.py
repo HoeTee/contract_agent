@@ -41,6 +41,7 @@ async def start_review(
         "progress_message": "Task created",
         "contract_path": task.contract_path,
         "criteria_path": task.criteria_path,
+        "retrieval_mode": task.retrieval_mode,
         "contract_name": contract_name,
         "result": None,
         "created_at": created_at,
@@ -67,8 +68,12 @@ async def run_review_task(task_id: str, task: ReviewTaskCreate, workflow):
         result = await workflow.run(
             contract_path=task.contract_path,
             criteria_path=task.criteria_path,
+            retrieval_mode=task.retrieval_mode.value if task.retrieval_mode else None,
             progress_callback=progress_callback,
         )
+        task_record = tasks[task_id]
+        if result.get("retrieval_mode"):
+            task_record["retrieval_mode"] = result["retrieval_mode"]
 
         issues = [
             IssueBase(
@@ -85,7 +90,6 @@ async def run_review_task(task_id: str, task: ReviewTaskCreate, workflow):
         ]
 
         completed_at = datetime.now()
-        task_record = tasks[task_id]
         task_record["status"] = ReviewStatus.COMPLETED
         task_record["stage"] = ReviewStage.COMPLETED
         task_record["progress_message"] = "Review completed"
@@ -94,6 +98,7 @@ async def run_review_task(task_id: str, task: ReviewTaskCreate, workflow):
             task_id=task_id,
             status=ReviewStatus.COMPLETED,
             contract_name=task_record.get("contract_name", ""),
+            retrieval_mode=task_record.get("retrieval_mode"),
             total_issues=len(issues),
             issues=issues,
             report_md=result.get("report_md"),
@@ -164,6 +169,7 @@ def _build_task_response(task: dict) -> ReviewTaskResponse:
         status=task["status"],
         created_at=task.get("created_at", datetime.now()),
         contract_name=task.get("contract_name"),
+        retrieval_mode=task.get("retrieval_mode"),
         stage=task.get("stage"),
         progress_message=task.get("progress_message"),
         error=task.get("error"),

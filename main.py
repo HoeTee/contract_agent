@@ -19,7 +19,7 @@ def contract_path(filename):
     def extract_ext(filename):
         return os.path.splitext(filename)[1].lower()
 
-    if not extract_ext() in ALLOWED_FORMATS:
+    if extract_ext(filename) not in ALLOWED_FORMATS:
         raise ValueError(f".{os.path.splitext(filename)[1].lower()} is not in an allowed format.")
     
     return os.path.join(
@@ -32,7 +32,7 @@ def contract_path(filename):
 CRITERIA_PATH = os.path.join(
     PROJECT_ROOT, 
     "docs/contract_review_criteria", 
-    "审核要点（初稿）.docx"
+    "审核要点（初稿）(2).docx"
 )
 MCP_SERVER_PATH = os.path.join(
     PROJECT_ROOT, 
@@ -51,7 +51,7 @@ async def main(filename: str=doc_1):
         contract_path=CONTRACT_PATH,
         criteria_path=CRITERIA_PATH,
     )
-    print(f"\nResult: {result}")
+    # print(f"\nResult: {result}")
 
 
 if __name__ == "__main__":

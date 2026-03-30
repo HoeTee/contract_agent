@@ -20,8 +20,8 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
-    api_key: str = Field(..., alias="API_KEY")
-    base_url: str = Field(..., alias="BASE_URL")
+    api_key: str = Field(..., alias="LLM_API_KEY")
+    base_url: str = Field(..., alias="LLM_BASE_URL")
     model: str = Field(..., alias="LLM_NAME")
     temperature: float = Field(0.0, alias="TEMPERATURE")
     top_p: float = Field(0.01, alias="TOP_P")

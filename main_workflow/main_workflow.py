@@ -17,7 +17,7 @@ import re
 import time
 from typing import Any, Awaitable, Callable
 
-from config import PROJECT_ROOT, MCP_SERVER_PATH, REPORTS_DIR, LOGS_DIR, PAGEINDEX_SEARCH
+from config import MCP_SERVER_PATH, get_default_retrieval_mode, get_retrieval_mode
 from main_workflow.workflow_logger import WorkflowLogger
 from agents.base_agent import Settings
 from agents.planner import PlannerAgent
@@ -38,12 +38,15 @@ class ContractReviewWorkflow:
         self,
         contract_path: str,
         criteria_path: str,
+        retrieval_mode: str | None = None,
         progress_callback: Callable[[dict[str, Any]], Awaitable[None] | None] | None = None,
     ) -> dict[str, Any]:
         """
         Execute the full review workflow.
         Returns: structured review data for the API layer.
         """
+        retrieval_mode = retrieval_mode or get_default_retrieval_mode()
+        mode_label = get_retrieval_mode(retrieval_mode)
         workflow_start = time.time()
         print("=" * 60)
         print("Contract Review Workflow")
@@ -57,23 +60,34 @@ class ContractReviewWorkflow:
             await self._emit_progress(progress_callback, "ingesting", "Parsing contract and criteria files")
             criteria_md, contract_md = await self._phase_ingest(contract_path, criteria_path)
 
-            # Phase 2: Build PageIndex tree
-            await self._emit_progress(progress_callback, "building_tree", "Building the contract structure tree")
-            tree_json = await self._phase_build_tree(contract_md)
+            # Phase 2: Build index / tree
+            if retrieval_mode == "llamaindex":
+                await self._emit_progress(progress_callback, "building_index", "Building LlamaIndex vector index")
+                # Direct in-process LlamaIndex calls are disabled; use MCP tools instead.
+                # llamaindex_engine = self._create_llamaindex_engine()
+                # await self._phase_build_llamaindex(contract_md, llamaindex_engine)
+                await self._phase_build_llamaindex(contract_md)
+                tree_json = None  # Not used in LlamaIndex mode
+            else:
+                await self._emit_progress(progress_callback, "building_tree", "Building the contract structure tree")
+                tree_json = await self._phase_build_tree(contract_md)
 
             # Phase 3: Plan tasks
             await self._emit_progress(progress_callback, "planning", "Extracting review criteria")
             criteria_list = await self._phase_plan(criteria_md)
 
             # Phase 4: Execute + Reflect
-            mode_label = "PageIndex Search" if PAGEINDEX_SEARCH else "Evidence Collector"
             print(f"\n  Search mode: {mode_label}")
             await self._emit_progress(
                 progress_callback,
                 "reviewing",
                 f"Reviewing {len(criteria_list)} criteria with the agent workflow",
             )
-            results = await self._phase_execute(criteria_list, tree_json)
+            results = await self._phase_execute(
+                criteria_list,
+                tree_json,
+                retrieval_mode,
+            )
 
             # Phase 5: Summarize
             await self._emit_progress(progress_callback, "summarizing", "Compiling the final report")
@@ -86,8 +100,9 @@ class ContractReviewWorkflow:
             # Aggregate token usage from all phases
             planner_tokens = getattr(self, '_planner_tokens', 0)
             execute_tokens = sum(r.get("tokens", 0) for r in results)
+            retrieval_tokens = getattr(self, '_retrieval_tokens', 0)
             summarizer_tokens = getattr(self, '_summarizer_tokens', 0)
-            total_tokens = planner_tokens + execute_tokens + summarizer_tokens
+            total_tokens = planner_tokens + execute_tokens + retrieval_tokens + summarizer_tokens
 
             # Append token stats to report
             token_stats = (
@@ -96,6 +111,7 @@ class ContractReviewWorkflow:
                 f"| 阶段 | Token 消耗 |\n"
                 f"|------|----------|\n"
                 f"| 规划（Planner） | {planner_tokens:,} |\n"
+                f"| 检索（{mode_label}） | {retrieval_tokens:,} |\n"
                 f"| 审查（Sub-Agents + Reflectors） | {execute_tokens:,} |\n"
                 f"| 汇总（Summarizer） | {summarizer_tokens:,} |\n"
                 f"| **合计** | **{total_tokens:,}** |\n"
@@ -117,7 +133,7 @@ class ContractReviewWorkflow:
             mins, secs = divmod(int(elapsed), 60)
             print(f"\n{'=' * 60}")
             print(f"Workflow complete! Total time: {mins}m {secs}s")
-            print(f"Total tokens: {total_tokens:,} (Planner: {planner_tokens:,} | Execute: {execute_tokens:,} | Summarizer: {summarizer_tokens:,})")
+            print(f"Total tokens: {total_tokens:,} (Planner: {planner_tokens:,} | Retrieval: {retrieval_tokens:,} | Execute: {execute_tokens:,} | Summarizer: {summarizer_tokens:,})")
             print(f"Report: {report_paths}")
             print(f"Log: {log_path}")
             print(f"{'=' * 60}")
@@ -132,6 +148,7 @@ class ContractReviewWorkflow:
                 "report_text": report_text,
                 "criteria_count": len(criteria_list),
                 "total_tokens": total_tokens,
+                "retrieval_mode": retrieval_mode,
                 "workflow_log": log_path,
             }
 
@@ -221,6 +238,36 @@ class ContractReviewWorkflow:
         print(f"  Tree: {len(tree_json)} chars (built in {round(time.time()-start,1)}s)")
         return tree_json
 
+    async def _phase_build_llamaindex(self, contract_md: str) -> str:
+        """Phase 2 (LlamaIndex mode): Build vector index from contract markdown."""
+        print("\n[Phase 2] Building LlamaIndex vector index...")
+        start = time.time()
+
+        # Direct in-process build is disabled; use MCP instead.
+        # result = await asyncio.to_thread(engine.build_index_from_markdown, contract_md)
+        result = await self.mcp_client.call_tool(
+            "llamaindex_build_index", {"markdown_content": contract_md}
+        )
+
+        self.logger.log(
+            phase="Index Building", sender="Workflow", receiver="MCP:llamaindex_build_index",
+            action="llamaindex_build_index",
+            input_summary=f"{len(contract_md)} chars markdown",
+            output_summary=result,
+            duration=round(time.time() - start, 2)
+        )
+
+        try:
+            parsed = json.loads(result)
+        except json.JSONDecodeError:
+            parsed = None
+
+        if isinstance(parsed, dict) and parsed.get("error"):
+            raise RuntimeError(f"LlamaIndex index build failed: {parsed['error']}")
+
+        print(f"  Index built in {round(time.time()-start,1)}s: {result[:200]}")
+        return result
+
     async def _phase_plan(self, criteria_md: str) -> list[dict]:
         """Phase 3: Planner designs structured tasks from criteria."""
         print("\n[Phase 3] Planning tasks...")
@@ -245,7 +292,12 @@ class ContractReviewWorkflow:
             print(f"    {c['id']}: {c['criterion'][:50]}...")
         return criteria_list
 
-    async def _phase_execute(self, criteria_list: list[dict], tree_json: str) -> list[dict]:
+    async def _phase_execute(
+        self,
+        criteria_list: list[dict],
+        tree_json: str | None,
+        retrieval_mode: str,
+    ) -> list[dict]:
         """Phase 4: Orchestrator runs sub-agents with PageIndex retrieval + reflection."""
         print(f"\n[Phase 4] Executing {len(criteria_list)} criteria reviews...")
         start = time.time()
@@ -254,8 +306,10 @@ class ContractReviewWorkflow:
             mcp_client=self.mcp_client,
             logger=self.logger,
             settings=self.settings,
+            retrieval_mode=retrieval_mode,
         )
         results = await orchestrator.execute_criteria(criteria_list, tree_json)
+        self._retrieval_tokens = getattr(orchestrator, 'retrieval_tokens', 0)
 
         self.logger.log(
             phase="Execution", sender="Orchestrator", receiver="Workflow",

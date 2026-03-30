@@ -8,6 +8,8 @@ docs/contract_review_criteria/
 # Runtime output
 docs/
 logs/
+RAG_persist/manifest/
+RAG_persist/persist/
 !docs/**/.gitkeep
 !logs/**/.gitkeep
 
