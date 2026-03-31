@@ -11,6 +11,8 @@ from fastapi.responses import FileResponse
 from api.dependencies.workflow import get_workflow
 from api.models.schemas import (
     IssueBase,
+    ReviewItem,
+    ReviewItemStatus,
     ReviewResultResponse,
     ReviewStage,
     ReviewStatus,
@@ -49,6 +51,12 @@ async def start_review(
         "error": None,
     }
 
+    logger.info(
+        "Review task %s created with retrieval_mode=%s",
+        task_id,
+        task.retrieval_mode.value if task.retrieval_mode else "default",
+    )
+
     background_tasks.add_task(run_review_task, task_id, task, workflow)
     return _build_task_response(tasks[task_id])
 
@@ -65,6 +73,11 @@ async def run_review_task(task_id: str, task: ReviewTaskCreate, workflow):
         task_record["progress_message"] = update.get("message")
 
     try:
+        logger.info(
+            "Review task %s starting with retrieval_mode=%s",
+            task_id,
+            task.retrieval_mode.value if task.retrieval_mode else "default",
+        )
         result = await workflow.run(
             contract_path=task.contract_path,
             criteria_path=task.criteria_path,
@@ -77,6 +90,9 @@ async def run_review_task(task_id: str, task: ReviewTaskCreate, workflow):
 
         issues = [
             IssueBase(
+                section=issue.get("section"),
+                criterion_id=issue.get("criterion_id"),
+                criterion=issue.get("criterion"),
                 clause_location=issue.get("clause_location", ""),
                 page=issue.get("page"),
                 risk_level=_coerce_risk_level(issue.get("risk_level")),
@@ -87,6 +103,32 @@ async def run_review_task(task_id: str, task: ReviewTaskCreate, workflow):
                 suggestion=issue.get("suggestion", ""),
             )
             for issue in result.get("issues", [])
+        ]
+        review_items = [
+            ReviewItem(
+                criterion_id=item.get("criterion_id", ""),
+                section=item.get("section", "其他"),
+                criterion=item.get("criterion", ""),
+                status=_coerce_review_item_status(item.get("status")),
+                issue_count=item.get("issue_count", len(item.get("issues", []))),
+                issues=[
+                    IssueBase(
+                        section=issue.get("section"),
+                        criterion_id=issue.get("criterion_id"),
+                        criterion=issue.get("criterion"),
+                        clause_location=issue.get("clause_location", ""),
+                        page=issue.get("page"),
+                        risk_level=_coerce_risk_level(issue.get("risk_level")),
+                        violated_criteria=issue.get("violated_criteria", ""),
+                        conclusion=issue.get("conclusion", ""),
+                        analysis=issue.get("analysis", ""),
+                        legal_basis=issue.get("legal_basis"),
+                        suggestion=issue.get("suggestion", ""),
+                    )
+                    for issue in item.get("issues", [])
+                ],
+            )
+            for item in result.get("review_items", [])
         ]
 
         completed_at = datetime.now()
@@ -101,6 +143,7 @@ async def run_review_task(task_id: str, task: ReviewTaskCreate, workflow):
             retrieval_mode=task_record.get("retrieval_mode"),
             total_issues=len(issues),
             issues=issues,
+            review_items=review_items,
             report_md=result.get("report_md"),
             report_docx=result.get("report_docx"),
             report_pdf=result.get("report_pdf"),
@@ -185,3 +228,12 @@ def _coerce_risk_level(raw_value: str | None) -> RiskLevel:
     if "none" in value or "无" in (raw_value or ""):
         return RiskLevel.NONE
     return RiskLevel.LOW
+
+
+def _coerce_review_item_status(raw_value: str | None) -> ReviewItemStatus:
+    value = (raw_value or "").lower()
+    if value == "compliant":
+        return ReviewItemStatus.COMPLIANT
+    if value == "error":
+        return ReviewItemStatus.ERROR
+    return ReviewItemStatus.ISSUES_FOUND

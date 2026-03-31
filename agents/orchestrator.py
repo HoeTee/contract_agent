@@ -8,6 +8,7 @@ Supports three retrieval modes (configured via config.py):
 """
 import asyncio
 import json
+import re
 import time
 
 from config import MAX_REFLECTION_ROUNDS
@@ -114,7 +115,25 @@ class OrchestratorAgent:
                     duration=round(time.time() - start, 2)
                 )
 
-        return context, retrieval_tokens
+        return self._prepare_review_context(context), retrieval_tokens
+
+    def _prepare_review_context(self, context: str) -> str:
+        """Add guardrails so retrieval wrapper text is not mistaken for contract locations."""
+        normalized_context = context or "未找到相关内容。"
+        normalized_context = re.sub(
+            r"^##\s*检索结果\s*\d+(?:\s*\([^)]*\))?\s*$",
+            "",
+            normalized_context,
+            flags=re.MULTILINE,
+        )
+        normalized_context = re.sub(r"\n{3,}", "\n\n", normalized_context).strip()
+        guidance = (
+            '注意：下面内容中的”检索结果1/2””相关度分数””检索片段标题”等仅是检索系统包装信息，'
+            '不是合同原始条款标题或所在位置。输出”所在位置”时只能填写合同原文中真实出现的条款、'
+            '章节或段落位置；若合同原文未标明具体条款编号，请写”合同缺失审查要点要求书写的内容”，'
+            '绝对不要照抄检索包装标题。'
+        )
+        return f"{guidance}\n\n{normalized_context}"
 
     async def execute_single_criterion(self, criterion: dict, tree_json: str | None) -> dict:
         """

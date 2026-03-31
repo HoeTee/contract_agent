@@ -1,23 +1,22 @@
-# 合同审查前端说明
+# 前端说明
 
-这个前端已经从旧的 demo 形态收敛成真实合同审查工作台。
+当前前端已经围绕“合同审查工作台”这一主路径收敛，不再是早期的演示页集合。
 
 ## 当前能力
 
 - 上传合同文件和审查标准文件
-- 启动审查任务并轮询阶段进度
-- 左侧查看文档预览
+- 仅允许在界面中选择 `.pdf` 和 `.docx`
+- 选择检索策略并启动审查任务
+- 展示任务阶段进度与当前状态
+- 左侧查看合同预览
+  - PDF 支持浏览器内预览
+  - DOCX 不直接预览，服务端会先清洗再解析
 - 右侧查看结构化审查结论
-- 右侧切换查看 `Markdown` 报告
-- 打开历史任务并重新查看已完成结果
+  - 按大点/小点组织
+  - 展示问题数、风险等级、分析、建议、法律依据
+- 切换查看 Markdown 报告
 - 下载 `md`、`docx`、`pdf` 报告
-
-## 当前上传限制
-
-- 浏览器 UI 当前只允许选择 `.pdf` 和 `.docx`
-- PDF 支持直接预览
-- DOCX 会在服务端清洗修订和批注后再解析
-- 后端上传接口目前还没有同步做同样的强校验，因此这仍然主要是前端限制
+- 查看当前后端实例内的历史任务
 
 ## 技术栈
 
@@ -25,26 +24,27 @@
 - TypeScript 5
 - Vite 6
 - Tailwind CSS
-- Lucide React
 - `react-markdown`
+- `remark-gfm`
+- `lucide-react`
 
 ## 本地开发
 
 ### 1. 安装依赖
 
-```bash
+```powershell
 cd frontend
 npm install
 ```
 
 ### 2. 配置后端地址
 
-本地开发推荐：
+默认推荐：
 
 - 不设置 `VITE_API_URL`
-- 直接使用 Vite dev proxy 转发 `/api`
+- 直接使用 Vite 开发代理把 `/api` 转发到 `http://localhost:8000`
 
-如果你要显式指定后端，请在 `frontend/.env` 中设置：
+如果需要显式指定后端地址，在 `frontend/.env` 写入：
 
 ```env
 VITE_API_URL=http://localhost:8000
@@ -52,7 +52,7 @@ VITE_API_URL=http://localhost:8000
 
 ### 3. 启动开发服务器
 
-```bash
+```powershell
 npm run dev
 ```
 
@@ -60,9 +60,9 @@ npm run dev
 
 `http://localhost:5173`
 
-### 4. 构建
+### 4. 生产构建
 
-```bash
+```powershell
 npm run build
 ```
 
@@ -70,9 +70,9 @@ npm run build
 
 `frontend/build`
 
-### 5. 预览生产构建
+### 5. 本地预览构建结果
 
-```bash
+```powershell
 npm run preview
 ```
 
@@ -87,19 +87,39 @@ npm run preview
 - `GET /api/v1/history`
 - `GET /api/v1/history/{task_id}`
 
-## 任务模型
+## 主要页面结构
 
-`status`：
+当前主入口是：
+
+- [`src/App.tsx`](./src/App.tsx)
+
+当前主要功能组件位于：
+
+- [`src/features/contract-review/components/FileDropzone.tsx`](./src/features/contract-review/components/FileDropzone.tsx)
+- [`src/features/contract-review/components/DocumentPreview.tsx`](./src/features/contract-review/components/DocumentPreview.tsx)
+- [`src/features/contract-review/components/TaskStatusPanel.tsx`](./src/features/contract-review/components/TaskStatusPanel.tsx)
+- [`src/features/contract-review/components/HistoryDrawer.tsx`](./src/features/contract-review/components/HistoryDrawer.tsx)
+- [`src/services/api.ts`](./src/services/api.ts)
+
+说明：
+
+- `src/features/contract-review/` 是当前主路径
+- `src/components/` 下仍有一批旧组件或实验组件，但已经不是当前页面的主实现
+
+## 当前状态模型
+
+任务 `status`：
 
 - `pending`
 - `processing`
 - `completed`
 - `failed`
 
-`stage`：
+任务 `stage`：
 
 - `queued`
 - `ingesting`
+- `building_index`
 - `building_tree`
 - `planning`
 - `reviewing`
@@ -108,9 +128,15 @@ npm run preview
 - `completed`
 - `failed`
 
-## 说明
+检索模式 `retrieval_mode`：
 
-- 历史任务目前依赖后端内存存储，后端重启后会丢失
-- 主界面已经采用“左侧预览，右侧结果”布局
-- 右侧结果面板支持风险卡片筛选和 Markdown 渲染
-- 当前构建会排除旧的 `src/components` demo 目录，只编译合同审查主路径
+- `llamaindex`
+- `pageindex`
+- `evidence`
+
+## 当前限制
+
+- DOCX 在浏览器中不做原文预览
+- 历史任务来自后端内存，后端重启后历史会清空
+- 前端限制上传 `.pdf` 和 `.docx`，后端上传接口本身没有做同等强校验
+- 任务进度目前通过轮询获取，不是 WebSocket 推送

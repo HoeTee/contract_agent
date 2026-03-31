@@ -12,7 +12,6 @@ import {
   Search,
   ShieldAlert,
   ShieldCheck,
-  ShieldQuestion,
   TimerReset,
   type LucideIcon,
 } from "lucide-react";
@@ -22,6 +21,8 @@ import remarkGfm from "remark-gfm";
 import {
   Issue,
   RetrievalMode,
+  ReviewItem,
+  ReviewItemStatus,
   ReviewResultResponse,
   ReviewStage,
   ReviewTaskResponse,
@@ -40,8 +41,7 @@ interface TaskStatusPanelProps {
   onReset: () => void;
 }
 
-type ResultTab = "issues" | "markdown";
-type RiskFilter = "all" | Issue["risk_level"];
+type ResultTab = "structured" | "markdown";
 type StageState = "pending" | "active" | "complete";
 
 type Strategy = {
@@ -56,6 +56,11 @@ type Strategy = {
   active: string;
   chip: string;
   beta?: boolean;
+};
+
+type ReviewSectionGroup = {
+  section: string;
+  items: ReviewItem[];
 };
 
 const STRATEGIES: Strategy[] = [
@@ -95,11 +100,12 @@ const STRATEGIES: Strategy[] = [
     accent: "border-slate-200 bg-slate-100 text-slate-700",
     active: "border-slate-300 bg-slate-100/90 shadow-soft",
     chip: "border-slate-200 bg-slate-100 text-slate-700",
+    beta: true,
   },
 ];
 
-function issueKey(issue: Issue, index: number) {
-  return `${index}-${issue.violated_criteria}-${issue.clause_location}`;
+function reviewItemKey(item: ReviewItem) {
+  return item.criterion_id || `${item.section}-${item.criterion}`;
 }
 
 function formatTime(value?: string | null) {
@@ -125,13 +131,24 @@ function statusMeta(status?: string | null) {
 function riskMeta(level: Issue["risk_level"]) {
   switch (level) {
     case "high":
-      return { label: "高风险", tone: "border-rose-200 bg-rose-50 text-rose-700", badge: "bg-rose-100 text-rose-700" };
+      return { label: "高风险", badge: "bg-rose-100 text-rose-700" };
     case "medium":
-      return { label: "中风险", tone: "border-amber-200 bg-amber-50 text-amber-700", badge: "bg-amber-100 text-amber-700" };
+      return { label: "中风险", badge: "bg-amber-100 text-amber-700" };
     case "low":
-      return { label: "低风险", tone: "border-sky-200 bg-sky-50 text-sky-700", badge: "bg-sky-100 text-sky-700" };
+      return { label: "低风险", badge: "bg-sky-100 text-sky-700" };
     default:
-      return { label: "无风险", tone: "border-emerald-200 bg-emerald-50 text-emerald-700", badge: "bg-emerald-100 text-emerald-700" };
+      return { label: "无风险", badge: "bg-emerald-100 text-emerald-700" };
+    }
+}
+
+function reviewItemStatusMeta(status: ReviewItemStatus) {
+  switch (status) {
+    case "compliant":
+      return { label: "已通过", tone: "border-emerald-200 bg-emerald-50 text-emerald-700" };
+    case "error":
+      return { label: "执行异常", tone: "border-rose-200 bg-rose-50 text-rose-700" };
+    default:
+      return { label: "发现问题", tone: "border-amber-200 bg-amber-50 text-amber-700" };
   }
 }
 
@@ -144,11 +161,64 @@ function stageState(stages: Array<{ id: ReviewStage }>, activeStage: ReviewStage
   return "pending";
 }
 
+function getHighestRiskLevel(issues: Issue[]): Issue["risk_level"] | null {
+  if (issues.some((issue) => issue.risk_level === "high")) return "high";
+  if (issues.some((issue) => issue.risk_level === "medium")) return "medium";
+  if (issues.some((issue) => issue.risk_level === "low")) return "low";
+  if (issues.some((issue) => issue.risk_level === "none")) return "none";
+  return null;
+}
+
+function buildFallbackReviewItems(issues: Issue[]): ReviewItem[] {
+  const grouped = new Map<string, ReviewItem>();
+
+  issues.forEach((issue, index) => {
+    const section = issue.section || "未分组";
+    const criterion = issue.criterion || issue.violated_criteria || `问题 ${index + 1}`;
+    const criterionId = issue.criterion_id || `legacy-${index + 1}`;
+    const key = `${section}-${criterion}`;
+    const current = grouped.get(key);
+
+    if (current) {
+      current.issues.push(issue);
+      current.issue_count = current.issues.length;
+      return;
+    }
+
+    grouped.set(key, {
+      criterion_id: criterionId,
+      section,
+      criterion,
+      status: "issues_found",
+      issue_count: 1,
+      issues: [issue],
+    });
+  });
+
+  return Array.from(grouped.values());
+}
+
+function groupReviewItems(items: ReviewItem[]): ReviewSectionGroup[] {
+  const groups = new Map<string, ReviewSectionGroup>();
+
+  items.forEach((item) => {
+    const section = item.section || "其他";
+    const current = groups.get(section);
+    if (current) {
+      current.items.push(item);
+      return;
+    }
+
+    groups.set(section, { section, items: [item] });
+  });
+
+  return Array.from(groups.values());
+}
+
 export function TaskStatusPanel(props: TaskStatusPanelProps) {
   const { contractFile, criteriaFile, task, result, isStarting, error, onStart, onReset } = props;
-  const [activeTab, setActiveTab] = useState<ResultTab>("issues");
-  const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
-  const [selectedIssueKey, setSelectedIssueKey] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ResultTab>("structured");
+  const [selectedReviewItemKey, setSelectedReviewItemKey] = useState<string | null>(null);
   const [markdownContent, setMarkdownContent] = useState("");
   const [markdownError, setMarkdownError] = useState<string | null>(null);
   const [isLoadingMarkdown, setIsLoadingMarkdown] = useState(false);
@@ -160,15 +230,22 @@ export function TaskStatusPanel(props: TaskStatusPanelProps) {
   const canStart = Boolean(contractFile && criteriaFile) && !isStarting && task?.status !== "processing";
   const taskId = result?.task_id || task?.task_id;
   const progressMessage = task?.progress_message || result?.progress_message;
-
-  const issues = useMemo(
-    () => (result?.issues || []).map((issue, index) => ({ issue, index, key: issueKey(issue, index) })),
-    [result],
-  );
-
-  const filteredIssues = issues.filter((entry) => (riskFilter === "all" ? true : entry.issue.risk_level === riskFilter));
-  const selectedIssue = filteredIssues.find((entry) => entry.key === selectedIssueKey) || filteredIssues[0] || null;
+  const reviewItems = useMemo(() => {
+    if (!result) return [];
+    return result.review_items?.length ? result.review_items : buildFallbackReviewItems(result.issues || []);
+  }, [result]);
+  const groupedReviewItems = useMemo(() => groupReviewItems(reviewItems), [reviewItems]);
+  const selectedReviewItem = reviewItems.find((item) => reviewItemKey(item) === selectedReviewItemKey) || reviewItems[0] || null;
   const currentStrategy = STRATEGIES.find((item) => item.id === retrievalMode) || STRATEGIES[0];
+  const structuredStats = useMemo(
+    () => ({
+      total: reviewItems.length,
+      issuesFound: reviewItems.filter((item) => item.status === "issues_found").length,
+      compliant: reviewItems.filter((item) => item.status === "compliant").length,
+      error: reviewItems.filter((item) => item.status === "error").length,
+    }),
+    [reviewItems],
+  );
 
   useEffect(() => {
     const nextMode = result?.retrieval_mode || task?.retrieval_mode;
@@ -184,16 +261,15 @@ export function TaskStatusPanel(props: TaskStatusPanelProps) {
 
   useEffect(() => {
     if (!result) {
-      setRiskFilter("all");
-      setSelectedIssueKey(null);
+      setSelectedReviewItemKey(null);
       setMarkdownContent("");
       setMarkdownError(null);
-      setActiveTab("issues");
+      setActiveTab("structured");
       return;
     }
 
-    setRiskFilter("all");
-    setSelectedIssueKey(result.issues[0] ? issueKey(result.issues[0], 0) : null);
+    const initialItem = result.review_items?.[0] || buildFallbackReviewItems(result.issues || [])[0];
+    setSelectedReviewItemKey(initialItem ? reviewItemKey(initialItem) : null);
 
     let cancelled = false;
     setIsLoadingMarkdown(true);
@@ -230,53 +306,30 @@ export function TaskStatusPanel(props: TaskStatusPanelProps) {
     { id: "completed", label: "已完成" },
   ];
 
-  const riskCounts = {
-    high: result?.issues.filter((item) => item.risk_level === "high").length || 0,
-    medium: result?.issues.filter((item) => item.risk_level === "medium").length || 0,
-    low: result?.issues.filter((item) => item.risk_level === "low").length || 0,
-    none: result?.issues.filter((item) => item.risk_level === "none").length || 0,
-  };
-
   const summaryCards = [
     {
-      id: "all" as const,
-      label: "全部问题",
-      value: result?.total_issues || 0,
+      label: "审查要点",
+      value: structuredStats.total,
       icon: FileSearch,
       tone: "border-slate-200 bg-slate-50 text-slate-700",
-      active: "border-slate-400 bg-slate-100 text-slate-900 shadow-soft",
     },
     {
-      id: "high" as const,
-      label: "高风险",
-      value: riskCounts.high,
+      label: "发现问题",
+      value: structuredStats.issuesFound,
       icon: ShieldAlert,
-      tone: "border-rose-200 bg-rose-50 text-rose-700",
-      active: "border-rose-400 bg-rose-100 text-rose-900 shadow-soft",
-    },
-    {
-      id: "medium" as const,
-      label: "中风险",
-      value: riskCounts.medium,
-      icon: AlertTriangle,
       tone: "border-amber-200 bg-amber-50 text-amber-700",
-      active: "border-amber-400 bg-amber-100 text-amber-900 shadow-soft",
     },
     {
-      id: "low" as const,
-      label: "低风险",
-      value: riskCounts.low,
-      icon: ShieldQuestion,
-      tone: "border-sky-200 bg-sky-50 text-sky-700",
-      active: "border-sky-400 bg-sky-100 text-sky-900 shadow-soft",
-    },
-    {
-      id: "none" as const,
-      label: "无风险",
-      value: riskCounts.none,
+      label: "已通过",
+      value: structuredStats.compliant,
       icon: ShieldCheck,
       tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
-      active: "border-emerald-400 bg-emerald-100 text-emerald-900 shadow-soft",
+    },
+    {
+      label: "执行异常",
+      value: structuredStats.error,
+      icon: AlertTriangle,
+      tone: "border-rose-200 bg-rose-50 text-rose-700",
     },
   ];
 
@@ -286,7 +339,7 @@ export function TaskStatusPanel(props: TaskStatusPanelProps) {
         <div>
           <p className="eyebrow">Task Console</p>
           <h2 className="mt-2 font-serif text-3xl font-semibold text-slate-950">合同审查工作台</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">这里集中显示任务状态、策略入口、问题详情与 Markdown 审查报告。</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">这里集中显示任务状态、策略入口、按审查要点组织的结构化结论，以及 Markdown 审查报告。</p>
         </div>
         <div className="rounded-[22px] border border-brand-100 bg-brand-50 p-3 text-brand-700">
           <Scale className="h-6 w-6" />
@@ -324,7 +377,7 @@ export function TaskStatusPanel(props: TaskStatusPanelProps) {
             <div>
               <p className="eyebrow">Retrieval Strategy</p>
               <h3 className="mt-2 text-lg font-semibold text-slate-900">检索策略</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-600">按最新链路展示三种策略入口，帮助用户理解速度、结构理解与覆盖深度的差异。</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">用于决定审查时如何从合同中定位证据与上下文，不同模式在速度、覆盖和结构理解上侧重点不同。</p>
             </div>
             <span className={`rounded-full border px-3 py-1 text-xs font-medium ${currentStrategy.chip}`}>当前选择：{currentStrategy.label}</span>
           </div>
@@ -369,9 +422,6 @@ export function TaskStatusPanel(props: TaskStatusPanelProps) {
             当前选择会作为本次任务的检索策略提交给服务端；历史任务会回显其实际执行模式。
           </div>
 
-          <div className="hidden">
-            实际执行策略仍由服务端当前配置决定。当前选择用于前端展示与操作提示，不会修改后端检索链路。
-          </div>
         </div>
 
         <div className="surface-subtle p-4">
@@ -444,18 +494,24 @@ export function TaskStatusPanel(props: TaskStatusPanelProps) {
             <p className="eyebrow">Results</p>
             <h3 className="mt-2 text-xl font-semibold text-slate-900">审查结论</h3>
             <p className="mt-2 text-sm text-slate-600">
-              {result ? `已生成 ${result.total_issues} 条问题记录，可切换查看结构化结论或 Markdown 报告。` : "任务完成后，这里会显示风险分布、问题卡片和 Markdown 报告。"}
+              {result
+                ? `已按 ${structuredStats.total} 个审查要点组织结果，其中 ${structuredStats.issuesFound} 个要点发现问题，共提取 ${result.total_issues} 条结构化问题。`
+                : "任务完成后，这里会按审查大点和小点展示结论，并保留 Markdown 报告查看入口。"}
             </p>
           </div>
           {result ? (
             <div className="flex flex-wrap gap-2">
-              {(["md", "docx", "pdf"] as const).map((artifact) => (
+              {(["md", "docx", "pdf"] as const)
+                .filter((artifact) => {
+                  const key = `report_${artifact}` as keyof typeof result;
+                  return result[key];
+                })
+                .map((artifact) => (
                 <a
                   key={artifact}
                   href={getReviewArtifactUrl(result.task_id, artifact)}
+                  download
                   className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-900"
-                  target="_blank"
-                  rel="noreferrer"
                 >
                   <Download className="h-4 w-4" />
                   {artifact.toUpperCase()}
@@ -468,8 +524,8 @@ export function TaskStatusPanel(props: TaskStatusPanelProps) {
         <div className="mt-4 inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
           <button
             type="button"
-            onClick={() => setActiveTab("issues")}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${activeTab === "issues" ? "bg-brand-700 text-white" : "text-slate-600 hover:text-slate-900"}`}
+            onClick={() => setActiveTab("structured")}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${activeTab === "structured" ? "bg-brand-700 text-white" : "text-slate-600 hover:text-slate-900"}`}
           >
             结构化结论
           </button>
@@ -482,114 +538,172 @@ export function TaskStatusPanel(props: TaskStatusPanelProps) {
           </button>
         </div>
 
-        {activeTab === "issues" ? (
+        {activeTab === "structured" ? (
           result ? (
             <div className="mt-5 space-y-4">
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
                 {summaryCards.map((card) => (
-                  <button
-                    key={card.id}
-                    type="button"
-                    onClick={() => {
-                      setRiskFilter(card.id);
-                      const next = issues.find((entry) => card.id === "all" || entry.issue.risk_level === card.id);
-                      setSelectedIssueKey(next?.key || null);
-                    }}
-                    className={`rounded-[22px] border px-4 py-3 text-left transition ${riskFilter === card.id ? card.active : card.tone}`}
-                  >
+                  <div key={card.label} className={`rounded-[22px] border px-4 py-3 ${card.tone}`}>
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium">{card.label}</p>
                       <card.icon className="h-4 w-4" />
                     </div>
                     <p className="mt-3 text-2xl font-semibold">{card.value}</p>
-                  </button>
+                  </div>
                 ))}
               </div>
 
-              <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
-                <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-slate-700">当前筛选：{summaryCards.find((card) => card.id === riskFilter)?.label}</p>
-                    <span className="text-xs text-slate-500">{filteredIssues.length} 条</span>
-                  </div>
-
-                  {filteredIssues.length === 0 ? (
-                    <div className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
-                      当前风险级别下没有可显示的问题。
-                    </div>
-                  ) : (
-                    <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
-                      {filteredIssues.map((entry) => {
-                        const risk = riskMeta(entry.issue.risk_level);
-                        const active = selectedIssue?.key === entry.key;
-
-                        return (
-                          <button
-                            key={entry.key}
-                            type="button"
-                            onClick={() => setSelectedIssueKey(entry.key)}
-                            className={`w-full rounded-[20px] border px-4 py-3 text-left transition ${
-                              active ? "border-brand-300 bg-brand-50 shadow-soft" : "border-slate-200 bg-white hover:border-brand-200 hover:bg-brand-50/50"
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-slate-800">{entry.issue.violated_criteria || `问题 ${entry.index + 1}`}</p>
-                                <p className="mt-1 truncate text-xs text-slate-500">{entry.issue.clause_location || "未提供条款位置"}</p>
-                              </div>
-                              <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${risk.badge}`}>{risk.label}</span>
-                            </div>
-                            <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{entry.issue.conclusion || "未提供结论"}</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+              {reviewItems.length === 0 ? (
+                <div className="rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center text-sm text-slate-500">
+                  当前结果尚未生成可展示的结构化审查要点，请改看 Markdown 报告。
                 </div>
-
-                {selectedIssue ? (
-                  <article className="rounded-[24px] border border-brand-100 bg-white p-4 shadow-soft">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="eyebrow">Issue Detail</p>
-                        <h4 className="mt-2 text-lg font-semibold text-slate-900">{selectedIssue.issue.violated_criteria || `问题 ${selectedIssue.index + 1}`}</h4>
-                      </div>
-                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${riskMeta(selectedIssue.issue.risk_level).badge}`}>
-                        {riskMeta(selectedIssue.issue.risk_level).label}
+              ) : (
+                <div className="space-y-4">
+                  <div className="rounded-[24px] border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-slate-700">按审查大点 / 小点浏览</p>
+                      <span className="text-xs text-slate-500">
+                        {groupedReviewItems.length} 个大点 · {structuredStats.total} 个小点
                       </span>
                     </div>
 
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
-                      <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
-                        <p className="text-xs font-semibold tracking-[0.18em] text-slate-500">条款位置</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-700">{selectedIssue.issue.clause_location || "未提供"}</p>
-                      </div>
-                      <div className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
-                        <p className="text-xs font-semibold tracking-[0.18em] text-slate-500">页码</p>
-                        <p className="mt-2 text-sm leading-6 text-slate-700">{selectedIssue.issue.page || "未提供"}</p>
-                      </div>
-                    </div>
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      {groupedReviewItems.map((group, groupIndex) => (
+                        <section key={`${group.section}-${groupIndex}`} className="rounded-[20px] border border-slate-200 bg-white p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                大点 {String(groupIndex + 1).padStart(2, "0")}
+                              </p>
+                              <h4 className="mt-2 text-sm font-semibold text-slate-900">{group.section}</h4>
+                            </div>
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600">
+                              {group.items.length} 项
+                            </span>
+                          </div>
 
-                    <div className="mt-3 space-y-3">
-                      {[
-                        ["结论", selectedIssue.issue.conclusion || "未提供"],
-                        ["分析", selectedIssue.issue.analysis || "未提供"],
-                        ["修改建议", selectedIssue.issue.suggestion || "未提供"],
-                        ["法律依据", selectedIssue.issue.legal_basis || "未提供"],
-                      ].map(([label, value]) => (
-                        <div key={label} className="rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3">
-                          <p className="text-xs font-semibold tracking-[0.18em] text-slate-500">{label}</p>
-                          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{value}</p>
-                        </div>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {group.items.map((item, itemIndex) => {
+                              const active = selectedReviewItem && reviewItemKey(selectedReviewItem) === reviewItemKey(item);
+                              const itemStatus = reviewItemStatusMeta(item.status);
+                              const primaryRisk = getHighestRiskLevel(item.issues);
+
+                              return (
+                                <button
+                                  key={reviewItemKey(item)}
+                                  type="button"
+                                  onClick={() => setSelectedReviewItemKey(reviewItemKey(item))}
+                                  className={`rounded-[18px] border px-3 py-2 text-left transition ${
+                                    active ? "border-brand-300 bg-brand-50 shadow-soft" : "border-slate-200 bg-slate-50 hover:border-brand-200 hover:bg-brand-50/50"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                                      {groupIndex + 1}.{itemIndex + 1}
+                                    </p>
+                                    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${itemStatus.tone}`}>
+                                      {itemStatus.label}
+                                    </span>
+                                    {primaryRisk ? (
+                                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${riskMeta(primaryRisk).badge}`}>
+                                        {riskMeta(primaryRisk).label}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <p className="mt-1 line-clamp-1 text-sm font-semibold text-slate-900">{item.criterion}</p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </section>
                       ))}
                     </div>
-                  </article>
-                ) : null}
-              </div>
+                  </div>
+
+                  {selectedReviewItem ? (
+                    <article className="rounded-[24px] border border-brand-100 bg-white p-4 shadow-soft">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="eyebrow">Criterion Detail</p>
+                          <h4 className="mt-2 text-lg font-semibold text-slate-900">{selectedReviewItem.criterion}</h4>
+                          <p className="mt-2 text-sm text-slate-600">所属大点：{selectedReviewItem.section}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <span className={`rounded-full border px-3 py-1 text-xs font-medium ${reviewItemStatusMeta(selectedReviewItem.status).tone}`}>
+                            {reviewItemStatusMeta(selectedReviewItem.status).label}
+                          </span>
+                          <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700">
+                            {selectedReviewItem.issue_count} 条问题
+                          </span>
+                        </div>
+                      </div>
+
+                      {selectedReviewItem.status === "compliant" ? (
+                        <div className="mt-4 rounded-[20px] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm leading-6 text-emerald-800">
+                          该审查要点已通过，当前没有提取到需要处理的风险问题。
+                        </div>
+                      ) : selectedReviewItem.status === "error" ? (
+                        <div className="mt-4 rounded-[20px] border border-rose-200 bg-rose-50 px-4 py-4 text-sm leading-6 text-rose-700">
+                          该审查要点在执行过程中发生异常，建议查看 Markdown 报告或重新发起任务。
+                        </div>
+                      ) : selectedReviewItem.issues.length === 0 ? (
+                        <div className="mt-4 rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-800">
+                          该审查要点已判定存在问题，但当前结构化解析未提取到细项，请结合 Markdown 报告查看完整结论。
+                        </div>
+                      ) : (
+                        <div className="mt-4 space-y-4">
+                          {selectedReviewItem.issues.map((issue, index) => {
+                            const issueRisk = riskMeta(issue.risk_level);
+                            const issueTitle =
+                              issue.violated_criteria && issue.violated_criteria !== selectedReviewItem.criterion
+                                ? issue.violated_criteria
+                                : `问题 ${index + 1}`;
+
+                            return (
+                              <article key={`${reviewItemKey(selectedReviewItem)}-${index}`} className="rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                                      Issue {String(index + 1).padStart(2, "0")}
+                                    </p>
+                                    <h5 className="mt-2 text-base font-semibold text-slate-900">{issueTitle}</h5>
+                                  </div>
+                                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${issueRisk.badge}`}>{issueRisk.label}</span>
+                                </div>
+
+                                <div className="mt-4">
+                                  <div className="rounded-[18px] border border-slate-200 bg-white px-4 py-3">
+                                    <p className="text-xs font-semibold tracking-[0.18em] text-slate-500">条款位置</p>
+                                    <p className="mt-2 text-sm leading-6 text-slate-700">{issue.clause_location || "未提供"}</p>
+                                  </div>
+                                </div>
+
+                                <div className="mt-3 space-y-3">
+                                  {[
+                                    ["结论", issue.conclusion || "未提供"],
+                                    ["分析", issue.analysis || "未提供"],
+                                    ["修改建议", issue.suggestion || "未提供"],
+                                    ["法律依据", issue.legal_basis || "未提供"],
+                                  ].map(([label, value]) => (
+                                    <div key={label} className="rounded-[18px] border border-slate-200 bg-white px-4 py-3">
+                                      <p className="text-xs font-semibold tracking-[0.18em] text-slate-500">{label}</p>
+                                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{value}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </article>
+                  ) : null}
+                </div>
+              )}
             </div>
           ) : (
             <div className="mt-5 rounded-[24px] border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center text-sm text-slate-500">
-              审查完成后，这里会显示可点击的风险卡片和问题详情。
+              审查完成后，这里会按大点和小点显示结构化结论，而不是只平铺问题卡片。
             </div>
           )
         ) : (

@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ReviewStatus(str, Enum):
@@ -34,6 +34,12 @@ class RiskLevel(str, Enum):
     NONE = "none"
 
 
+class ReviewItemStatus(str, Enum):
+    COMPLIANT = "compliant"
+    ISSUES_FOUND = "issues_found"
+    ERROR = "error"
+
+
 class RetrievalMode(str, Enum):
     LLAMAINDEX = "llamaindex"
     PAGEINDEX = "pageindex"
@@ -41,6 +47,9 @@ class RetrievalMode(str, Enum):
 
 
 class IssueBase(BaseModel):
+    section: Optional[str] = None
+    criterion_id: Optional[str] = None
+    criterion: Optional[str] = None
     clause_location: str
     page: Optional[int] = None
     risk_level: RiskLevel
@@ -49,6 +58,15 @@ class IssueBase(BaseModel):
     analysis: str
     legal_basis: Optional[str] = None
     suggestion: str
+
+
+class ReviewItem(BaseModel):
+    criterion_id: str
+    section: str
+    criterion: str
+    status: ReviewItemStatus
+    issue_count: int = 0
+    issues: List[IssueBase] = Field(default_factory=list)
 
 
 class ReviewTaskCreate(BaseModel):
@@ -75,6 +93,7 @@ class ReviewResultResponse(BaseModel):
     retrieval_mode: Optional[RetrievalMode] = None
     total_issues: int
     issues: List[IssueBase]
+    review_items: List[ReviewItem] = Field(default_factory=list)
     report_md: Optional[str] = None
     report_docx: Optional[str] = None
     report_pdf: Optional[str] = None

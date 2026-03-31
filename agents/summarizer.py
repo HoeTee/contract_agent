@@ -42,6 +42,27 @@ class SummarizerAgent(Agent):
                 
         return filtered_text.strip()
 
+    def _sanitize_location_fields(self, text: str) -> str:
+        """Replace retrieval wrapper labels that leaked into report locations."""
+        def _replace(match: re.Match[str]) -> str:
+            prefix = match.group(1)
+            location = match.group(2).strip()
+            if self._is_retrieval_wrapper_location(location):
+                location = "合同缺失审查要点要求书写的内容"
+            return f"{prefix}{location}"
+
+        return re.sub(
+            r"(^\s*-\s*\*\*所在位置\*\*[:：]\s*)(.+)$",
+            _replace,
+            text,
+            flags=re.MULTILINE,
+        )
+
+    def _is_retrieval_wrapper_location(self, value: str) -> bool:
+        """Detect retrieval wrapper text that should not appear as clause locations."""
+        retrieval_markers = ("检索结果", "相关度", "命中片段", "检索片段", "搜索结果")
+        return any(marker in value for marker in retrieval_markers)
+
     async def format_single_result(self, major_idx: int, minor_idx: int, criterion: str, raw_output: str) -> dict:
         """
         Format the review output for a single check point.
@@ -53,6 +74,7 @@ class SummarizerAgent(Agent):
         )
         formatter = Agent(system_prompt=formatter_prompt, name=f"Formatter-{major_idx}.{minor_idx}")
         response = await formatter.chat(f"原始审查输出如下（请重构为标准客观的分析格式）：\n{raw_output}")
+        response = self._sanitize_location_fields(response)
         
         return {
             "formatted_text": response,

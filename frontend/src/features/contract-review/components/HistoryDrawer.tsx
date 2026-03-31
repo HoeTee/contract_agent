@@ -90,7 +90,7 @@ export function HistoryDrawer({ open, activeTaskId, onClose, onSelectTask }: His
           <div>
             <p className="eyebrow">History</p>
             <h2 className="mt-2 font-serif text-2xl font-semibold text-slate-950">审查任务</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">查看最近的任务记录，并快速回到已完成或处理中任务。</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">这里展示当前后端实例中的任务历史，不受单个网页标签页限制；后端重启后会清空。</p>
           </div>
           <button
             type="button"
@@ -100,6 +100,10 @@ export function HistoryDrawer({ open, activeTaskId, onClose, onSelectTask }: His
           >
             <X className="h-4 w-4" />
           </button>
+        </div>
+
+        <div className="mt-5 rounded-[20px] border border-slate-200 bg-white/80 px-4 py-3 text-xs leading-6 text-slate-600">
+          同一后端实例下，刷新页面或重新打开网页仍可看到这些任务；如果服务重启，历史记录会重新开始。
         </div>
 
         <div className="mt-6 flex-1 space-y-3 overflow-y-auto">

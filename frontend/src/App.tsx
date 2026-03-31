@@ -148,14 +148,14 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-legal-shell text-slate-900">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-screen max-w-[1600px] flex-col px-5 py-8 sm:px-6 lg:px-8">
         <header className="surface-panel relative overflow-hidden px-6 py-7 sm:px-8">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-300 to-trust-300" />
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
               <p className="eyebrow">Deep Research Agent</p>
               <h1 className="mt-4 max-w-3xl font-serif text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl">
-                面向真实法务流程的合同审查工作台
+                合同法律审查智能体
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
                 上传合同与审查标准，跟踪任务阶段，并在同一工作区查看结构化风险结论、Markdown 报告与历史任务。
@@ -185,7 +185,7 @@ export default function App() {
         </header>
 
         <main className="mt-6 flex-1 space-y-6">
-          <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(430px,0.92fr)] 2xl:grid-cols-[minmax(0,1.1fr)_minmax(520px,0.9fr)]">
             <div className="space-y-6">
               <div className="grid gap-4 lg:grid-cols-2">
                 <FileDropzone

@@ -266,7 +266,18 @@ class LlamaIndexRAG:
         for i, source_node in enumerate(response.source_nodes, 1):
             score = getattr(source_node, "score", None)
             text = source_node.get_content()
-            header = f"## 检索结果 {i}"
+            metadata = getattr(source_node, "metadata", None) or {}
+
+            # Extract clause location from MarkdownNodeParser header_path
+            header_path = metadata.get("header_path", "")
+            # Clean separator padding: " / A / B / " → "A / B"
+            sep = " / "
+            location = header_path.strip().strip("/").strip()
+            if location:
+                # Use the real section path as the header
+                header = f"## 所在位置：{location}"
+            else:
+                header = f"## 检索结果 {i}"
             if score is not None:
                 header += f" (相关度: {score:.3f})"
             parts.append(f"{header}\n{text}")

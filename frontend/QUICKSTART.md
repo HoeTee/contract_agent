@@ -1,135 +1,83 @@
-# 快速开始指南
+# 前端快速开始
 
-## ✅ 项目已成功配置!
+这份文档只保留最短启动路径。
 
-你的 React 前端项目已经完全配置好,可以直接运行了!
+## 1. 启动后端
 
-## 🚀 立即开始
+先在项目根目录启动 FastAPI：
 
-### 1. 启动开发服务器
+```powershell
+cd C:\Users\18014\agent_self_practice\deep_research_agent
+.\.venv\Scripts\Activate.ps1
+python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+```
 
-项目已经在后台运行中,访问:
+确认后端正常：
 
-**http://localhost:3000**
+`http://localhost:8000/health`
 
-### 2. 重新启动(如需要)
+## 2. 启动前端
 
-```bash
-cd /home/MuyuWorkSpace/07_DocumentReviewAgent/DocumentAgent/frontend
+打开第二个终端：
+
+```powershell
+cd C:\Users\18014\agent_self_practice\deep_research_agent\frontend
+npm install
 npm run dev
 ```
 
-### 3. 构建生产版本
+打开：
 
-```bash
-npm run build
+`http://localhost:5173`
+
+## 3. 本地开发默认行为
+
+默认情况下：
+
+- 不需要设置 `VITE_API_URL`
+- Vite 会把 `/api` 请求代理到 `http://localhost:8000`
+
+如果你想显式指定后端地址，在 `frontend/.env` 中加入：
+
+```env
+VITE_API_URL=http://localhost:8000
 ```
 
-构建产出在 `build` 目录
+## 4. 你能在页面上做什么
 
-## 📁 项目结构
+- 上传合同文件
+- 上传审查标准文件
+- 选择检索策略
+- 启动审查
+- 查看阶段进度
+- 查看结构化审查结论
+- 查看 Markdown 报告
+- 下载 `md`、`docx`、`pdf`
+- 查看历史任务
 
-```
-frontend/
-├── src/
-│   ├── components/        # 所有React组件
-│   │   ├── Sidebar.tsx   # 侧边栏
-│   │   ├── DocumentUpload.tsx
-│   │   ├── DocumentPreview.tsx
-│   │   ├── OCRResults.tsx
-│   │   ├── ReviewResults.tsx
-│   │   └── HistoryPanel.tsx
-│   ├── styles/
-│   │   └── globals.css   # 全局样式(保留所有UI效果)
-│   ├── App.tsx           # 主应用
-│   └── main.tsx          # 入口文件
-├── package.json
-├── vite.config.ts
-└── tsconfig.json
-```
+## 5. 常见问题
 
-## 🎨 UI 特色(完全保留)
+### 页面打不开
 
-✅ 毛玻璃效果 (glass-effect)
-✅ 渐变动画 (animate-gradient)
-✅ 浮动动画 (animate-float)
-✅ 高级阴影 (shadow-premium)
-✅ 动态背景 (dynamic-bg)
-✅ 所有自定义 CSS 动画
+检查：
 
-## 🔧 技术栈
+1. 前端是否启动在 `5173`
+2. 后端是否启动在 `8000`
+3. 浏览器是否访问了 `http://localhost:5173`
 
-- React 18.3.1
-- TypeScript 5.3.3
-- Vite 6.4.1
-- Tailwind CSS 3.4.18
-- Radix UI 组件库
-- Lucide Icons
+### 前端请求失败
 
-## 📝 下一步 - 接入后端
+检查：
 
-当你准备接入 FastAPI 后端时:
+1. `http://localhost:8000/health` 是否正常
+2. 是否误配置了 `VITE_API_URL`
+3. 后端控制台是否已有报错
 
-1. 创建 API 服务层:
-```typescript
-// src/services/api.ts
-export const API_BASE_URL = 'http://localhost:8000';
+### 没有历史任务
 
-export async function uploadDocument(file: File) {
-  const formData = new FormData();
-  formData.append('file', file);
-  const response = await fetch(`${API_BASE_URL}/upload`, {
-    method: 'POST',
-    body: formData,
-  });
-  return response.json();
-}
-```
+当前历史任务保存在后端内存中。页面刷新不影响，但后端重启后会清空。
 
-2. 在组件中调用API:
-```typescript
-const handleDocumentUpload = async (file: File) => {
-  setIsProcessing(true);
-  try {
-    const result = await uploadDocument(file);
-    setOcrData(result);
-  } catch (error) {
-    console.error(error);
-  } finally {
-    setIsProcessing(false);
-  }
-};
-```
+## 6. 更多说明
 
-3. 配置 CORS (FastAPI 后端):
-```python
-from fastapi.middleware.cors import CORSMiddleware
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
-
-## ⚡ 常见问题
-
-**Q: 端口被占用?**
-修改 `vite.config.ts` 中的 `server.port` 为其他端口
-
-**Q: 样式没有生效?**
-确保 `src/styles/globals.css` 被正确导入
-
-**Q: TypeScript 报错?**
-运行 `npm run build` 查看具体错误
-
-## 📚 更多资源
-
-- [React 文档](https://react.dev/)
-- [Vite 文档](https://vitejs.dev/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Radix UI](https://www.radix-ui.com/)
-
-祝开发顺利! 🎉
+- 详细前端说明见 [`README.md`](./README.md)
+- 完整部署文档见 [`../DEPLOYMENT.md`](../DEPLOYMENT.md)

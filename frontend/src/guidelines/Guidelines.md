@@ -1,61 +1,173 @@
-**Add your own guidelines here**
-<!--
+# 前端生成与改动指南
 
-System Guidelines
+这份文件用于约束当前前端在后续修改时的基本方向。它不是通用模板，而是本项目自己的约束。
 
-Use this file to provide the AI with rules and guidelines you want it to follow.
-This template outlines a few examples of things you can add. You can add your own sections and format it to suit your needs
+## 1. 产品定位
 
-TIP: More context isn't always better. It can confuse the LLM. Try and add the most important rules you need
+这是一个“合同审查工作台”，不是营销落地页，也不是泛用型后台模板。
 
-# General guidelines
+前端改动应始终服务于以下主流程：
 
-Any general rules you want the AI to follow.
-For example:
+1. 上传合同文件
+2. 上传审查标准文件
+3. 选择检索策略
+4. 启动审查任务
+5. 查看阶段进度
+6. 查看结构化结论或 Markdown 报告
+7. 下载报告
+8. 查看历史任务
 
-* Only use absolute positioning when necessary. Opt for responsive and well structured layouts that use flexbox and grid by default
-* Refactor code as you go to keep code clean
-* Keep file sizes small and put helper functions and components in their own files.
+## 2. 视觉方向
 
---------------
+界面应体现：
 
-# Design system guidelines
-Rules for how the AI should make generations look like your company's design system
+- 专业
+- 可信
+- 克制
+- 适合法务/审查场景
 
-Additionally, if you select a design system to use in the prompt box, you can reference
-your design system's components, tokens, variables and components.
-For example:
+避免：
 
-* Use a base font-size of 14px
-* Date formats should always be in the format “Jun 10”
-* The bottom toolbar should only ever have a maximum of 4 items
-* Never use the floating action button with the bottom toolbar
-* Chips should always come in sets of 3 or more
-* Don't use a dropdown if there are 2 or fewer options
+- 过强的营销页风格
+- 大面积炫技渐变
+- 紫色系 AI 产品默认审美
+- 情绪化或娱乐化视觉语言
 
-You can also create sub sections and add more specific details
-For example:
+## 3. 配色规则
 
+当前主方向以品牌蓝、信任青、灰白中性色为主。
 
-## Button
-The Button component is a fundamental interactive element in our design system, designed to trigger actions or navigate
-users through the application. It provides visual feedback and clear affordances to enhance user experience.
+建议：
 
-### Usage
-Buttons should be used for important actions that users need to take, such as form submissions, confirming choices,
-or initiating processes. They communicate interactivity and should have clear, action-oriented labels.
+- 主色：偏蓝
+- 辅助色：偏青绿
+- 背景：低饱和浅色
+- 风险色：红 / 橙 / 蓝 / 绿分层
 
-### Variants
-* Primary Button
-  * Purpose : Used for the main action in a section or page
-  * Visual Style : Bold, filled with the primary brand color
-  * Usage : One primary button per section to guide users toward the most important action
-* Secondary Button
-  * Purpose : Used for alternative or supporting actions
-  * Visual Style : Outlined with the primary color, transparent background
-  * Usage : Can appear alongside a primary button for less important actions
-* Tertiary Button
-  * Purpose : Used for the least important actions
-  * Visual Style : Text-only with no border, using primary color
-  * Usage : For actions that should be available but not emphasized
--->
+不要：
+
+- 重新引入橙色主导的整页视觉
+- 在主要工作区使用高饱和撞色块
+- 用颜色代替全部信息表达
+
+## 4. 布局规则
+
+保持当前应用的核心信息架构：
+
+- 左侧：文件与合同预览
+- 右侧：任务控制、进度、结构化结果、Markdown 报告
+
+不要轻易改成：
+
+- 单列超长页面
+- 多层级跳转式“向导”
+- 脱离当前主流程的 demo 布局
+
+## 5. 组件组织规则
+
+当前主功能路径在：
+
+- `src/features/contract-review/`
+
+后续新增合同审查核心能力时，优先继续放在这个目录下，而不是把新逻辑散落回旧的 `src/components/` 演示组件中。
+
+规则：
+
+- 合同审查主路径优先写在 `src/features/contract-review/`
+- 通用 UI 原子组件保留在 `src/components/ui/`
+- 旧 demo 组件不要继续扩散
+
+## 6. 文案与语言
+
+默认界面语言为中文。
+
+要求：
+
+- 用户可见文案优先中文
+- 状态文案应简洁直接
+- 不使用过度宣传式文案
+- 错误文案要能直接说明问题
+
+例如：
+
+- 用“审查失败”而不是“Oops something went wrong”
+- 用“构建 PageIndex 结构树”而不是模糊的“处理中”
+
+## 7. 上传与预览规则
+
+当前前端只允许上传：
+
+- `.pdf`
+- `.docx`
+
+保持以下规则：
+
+- PDF 可直接预览
+- DOCX 不在浏览器中做伪预览
+- 不要把前端限制和后端真实能力写反
+
+## 8. 检索策略展示规则
+
+前端需要清楚展示三种检索策略：
+
+- `llamaindex`
+- `pageindex`
+- `evidence`
+
+要求：
+
+- 每种策略都要有明确标签和差异说明
+- 当前选择要清楚高亮
+- 历史任务或结果页要能回显实际执行模式
+
+## 9. 结果展示规则
+
+结果区应优先服务“扫描”和“定位”，再服务“深读”。
+
+保持：
+
+- 结构化结论和 Markdown 报告分视图
+- 大点/小点的主从关系
+- 问题详情集中阅读
+- 下载入口清晰可见
+
+避免：
+
+- 把所有问题平铺成一整列没有层级的卡片
+- 把结构化结论与 Markdown 原文混在同一视图里
+
+## 10. 可访问性规则
+
+任何新增交互至少满足：
+
+- 图标按钮有可访问名称
+- 错误状态有 `role="alert"` 或等效提示
+- 异步加载状态可被感知
+- 键盘焦点清晰
+
+不要只依赖颜色提示状态。
+
+## 11. 交互规则
+
+优先：
+
+- 稳定
+- 清晰
+- 可预测
+
+避免：
+
+- 过多 hover 缩放动画
+- 不必要的弹窗链式交互
+- 在高频流程里加入花哨动画
+
+## 12. 文档同步规则
+
+如果前端交互、端口、主要入口、上传限制、结果结构发生变化，应同步更新：
+
+- `frontend/README.md`
+- `frontend/QUICKSTART.md`
+- 根目录 `README.md`
+- `DEPLOYMENT.md`
+
+不要让代码和文档长期脱节。

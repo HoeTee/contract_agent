@@ -13,6 +13,7 @@ export type ReviewStage =
   | "completed"
   | "failed";
 export type RetrievalMode = "llamaindex" | "pageindex" | "evidence";
+export type ReviewItemStatus = "compliant" | "issues_found" | "error";
 
 export type ArtifactType = "md" | "docx" | "pdf";
 
@@ -23,6 +24,9 @@ export interface UploadResponse {
 }
 
 export interface Issue {
+  section?: string | null;
+  criterion_id?: string | null;
+  criterion?: string | null;
   clause_location: string;
   page?: number | null;
   risk_level: "high" | "medium" | "low" | "none";
@@ -31,6 +35,15 @@ export interface Issue {
   analysis: string;
   legal_basis?: string | null;
   suggestion: string;
+}
+
+export interface ReviewItem {
+  criterion_id: string;
+  section: string;
+  criterion: string;
+  status: ReviewItemStatus;
+  issue_count: number;
+  issues: Issue[];
 }
 
 export interface ReviewTaskResponse {
@@ -48,6 +61,7 @@ export interface ReviewResultResponse extends ReviewTaskResponse {
   contract_name: string;
   total_issues: number;
   issues: Issue[];
+  review_items: ReviewItem[];
   report_md?: string | null;
   report_docx?: string | null;
   report_pdf?: string | null;

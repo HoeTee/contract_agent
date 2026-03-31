@@ -1,164 +1,217 @@
-# 合同审查多智能体系统 — 项目概览
+# 项目概览
 
-## 项目简介
+## 1. 项目定位
 
-基于多智能体架构的 AI 合同审查系统，使用 **PageIndex**（基于树结构的 RAG）进行文档检索。系统将审查标准分解为专项任务，分派给专家智能体执行审查（具备网络搜索能力），最终综合生成专业法律审查报告。支持两种检索模式：**PageIndex Search**（节点级检索）和 **Evidence Collector**（逐章节片段级证据提取）。
+`deep_research_agent` 是一个面向合同审查场景的多智能体系统，目标是把“文档解析、条款检索、逐项审查、报告生成”串成一条可重复执行的自动化流程。
 
----
+当前仓库已经不只是一个单独的研究脚本，而是一套完整的应用：
 
-## 架构概览
+- 前端工作台：上传文件、选择检索模式、查看进度与结果、下载报告
+- 后端 API：负责任务接收、状态管理、结果输出
+- 工作流引擎：负责编排解析、检索、审查、反思与汇总
+- MCP 工具层：统一暴露文件解析、检索、报告生成、网页搜索等能力
 
-```
-┌─────────────────────┐         ┌──────────────────────┐
-│   Main Workflow     │◄────────┤   MCP Client         │
-│  （6 阶段流水线）    │         │  （工具代理）         │
-└─────────────────────┘         └──────────────────────┘
-         │                                │ stdio
-         │                                ▼
-         │                       ┌──────────────────────┐
-         │                       │   MCP Server         │
-         │                       │  （工具提供方）       │
-         │                       └──────────────────────┘
-         │                                │
-         ▼                                ▼
-┌─────────────────────┐         ┌──────────────────────┐
-│   智能体集群        │          │  工具                │
-│   - Planner         │         │  - ingest_docx       │
-│   - Orchestrator    │         │  - build_pageindex_tree│
-│   - EvidenceCollector│        │  - pageindex_search   │
-│   - Sub-Agents      │         │  - web_search         │
-│   - Reflector       │         │  - generate_report    │
-│   - Summarizer      │         │                       │
-└─────────────────────┘         └──────────────────────┘
-```
+## 2. 适用场景
 
----
+适合以下类型的任务：
 
-## 工作流（6 阶段）
+- 对合同正文进行批量审查
+- 根据“审核要点/审查标准”逐项检查合同
+- 输出结构化问题清单和正式报告
+- 对同一份合同切换不同检索策略做效果对比
 
-| 阶段           | 组件                                           | 操作                                                                                          |
-| -------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| 1. 文件解析    | MCP: `ingest_docx`                             | 解析合同 + 审查标准 DOCX → Markdown                                                           |
-| 2. 构建文档树  | MCP: `build_pageindex_tree`                    | 从合同 Markdown 构建 PageIndex 树                                                             |
-| 3. 任务规划    | `PlannerAgent`                                 | 将审查标准结构化为检查任务                                                                    |
-| 4. 执行 + 反思 | `OrchestratorAgent` → `SubAgent` + `Reflector` | 逐条审查：PageIndex 搜索或 Evidence Collector 提取证据 → 子智能体审查 → 反思循环（最多 3 轮） |
-| 5. 报告汇总    | `SummarizerAgent`                              | 汇总所有审查结果为报告文本                                                                    |
-| 6. 生成报告    | MCP: `generate_final_report`                   | 生成带时间戳的 DOCX 报告                                                                      |
+## 3. 核心能力
 
----
+### 3.1 多智能体协作
 
-## 核心组件
+系统包含以下核心角色：
 
-### 1. 配置 — [config.py](deep_research_agent/config.py)
+- `Planner`
+  - 把审查标准拆成结构化任务列表
 
-中央配置：`PROJECT_ROOT`、路径常量、`MAX_REFLECTION_ROUNDS`、`MAX_TOOL_CALLS`。通过 `dotenv` 加载 `.env` 中的 API 密钥。
+- `Orchestrator`
+  - 调度检索、子智能体执行和反思循环
 
-### 2. 基础智能体 — [agents/base_agent.py](deep_research_agent/agents/base_agent.py)
+- `EvidenceCollector`
+  - 在 `evidence` 模式下逐段收集证据
 
-基类，提供 LLM 对话、工具调用、上下文管理、Token 追踪、对话日志等通用功能。
+- `Reflector`
+  - 对子智能体输出进行质量复核
 
-### 3. 专项智能体 — [agents/](deep_research_agent/agents)
+- `Summarizer`
+  - 汇总所有审查结果，输出最终报告
 
-| 智能体                | 文件                    | 职责                                                                     |
-| --------------------- | ----------------------- | ------------------------------------------------------------------------ |
-| **Planner**           | `planner.py`            | 解析审查标准 → 结构化 JSON 任务                                          |
-| **Orchestrator**      | `orchestrator.py`       | 逐条分派子智能体，执行反思循环                                           |
-| **EvidenceCollector** | `evidence_collector.py` | 逐章节提取与 criterion 相关的文本片段（`PAGEINDEX_SEARCH=False` 时启用） |
-| **SubAgent**          | （运行时创建）          | 针对单条标准审查合同，使用 `web_search` + 检索结果                       |
-| **Reflector**         | `reflector.py`          | 质量控制 — PASS/REJECT + 反馈                                            |
-| **Summarizer**        | `summarizer.py`         | 汇总审查结果为最终报告（不需 MCP）                                       |
+### 3.2 三种检索模式
 
-### 4. MCP Server — [mcp_server.py](deep_research_agent/mcp_service/mcp_server/mcp_server.py)
+系统支持三种检索模式：
 
-6 个工具：`web_search`、`read_url`、`ingest_docx`、`build_pageindex_tree`、`pageindex_search`、`generate_final_report`。
+| 模式 | 标识 | 说明 | 适合场景 |
+| --- | --- | --- | --- |
+| LlamaIndex 向量检索 | `llamaindex` | 向量召回 + 可选重排 | 长文档、语义召回要求高 |
+| PageIndex 树检索 | `pageindex` | 基于文档结构树的两阶段检索 | 条款结构较清晰的合同 |
+| Evidence Collector | `evidence` | 按章节迭代提取证据 | 需要更细粒度人工风格证据整理 |
 
-### 5. 工作流日志 — [workflow_logger.py](deep_research_agent/main_workflow/workflow_logger.py)
+其中：
 
-记录每个步骤，输出到 `logs/workflow_*.md`，包含 Mermaid 序列图和详细步骤信息。
+- 前端会把 `retrieval_mode` 显式传给后端
+- 如果请求不传 `retrieval_mode`，后端才会根据 `.env` 中的 `LLAMA_INDEX` 和 `PAGEINDEX_SEARCH` 推导默认模式
 
----
+### 3.3 多格式报告输出
 
-## 目录结构
+系统会生成三类产物：
 
-```
+- Markdown 报告
+- DOCX 报告
+- PDF 报告
+
+当原始合同为 `.docx` 时，DOCX 导出会优先尝试基于原合同插入批注，而不是简单另存为纯报告文档。
+
+### 3.4 可观测性
+
+系统会保留：
+
+- 工作流日志
+- 智能体对话日志
+- MCP 客户端日志
+- RAG 索引或树缓存
+
+这使得它更适合调试、复盘和后续优化。
+
+## 4. 运行形态
+
+项目支持两种运行形态。
+
+### 4.1 Web 应用模式
+
+入口：
+
+- 后端：`api.main:app`
+- 前端：`frontend/`
+
+特点：
+
+- 面向产品化使用
+- 支持上传、历史记录、结果展示和下载
+- MCP 服务通过后端 `/mcp` 暴露
+
+### 4.2 CLI 模式
+
+入口：
+
+- [`main.py`](../main.py)
+
+特点：
+
+- 直接在本地执行完整工作流
+- 适合开发调试和问题排查
+- 通过本地脚本路径启动 MCP，而不是 HTTP
+
+## 5. 工作流主链路
+
+一次合同审查任务大致分为 6 个阶段：
+
+1. 文件解析
+   - 解析合同与审查标准文件
+
+2. 建树或建索引
+   - `pageindex` / `evidence` 模式构建结构树
+   - `llamaindex` 模式构建向量索引
+
+3. 任务规划
+   - 从审查标准提取结构化审查项
+
+4. 审查执行
+   - 检索证据
+   - 子智能体逐项审查
+   - Reflector 做质量复核
+
+5. 结果汇总
+   - Summarizer 汇总所有审查项
+
+6. 报告导出
+   - 生成 `md`、`docx`、`pdf`
+
+## 6. 项目结构
+
+```text
 deep_research_agent/
-├── main.py                       # 入口脚本
-├── config.py                     # 中央配置（路径、常量、加载 .env）
-├── .env                          # API 密钥（.gitignore 排除）
-├── .env.example                  # 环境变量模板
-├── pyproject.toml                # Python 项目配置
-├── requirements.txt              # pip 依赖
-├── agents/
-│   ├── base_agent.py             # 基础 Agent 类
-│   ├── agent_logger.py           # 智能体对话日志
-│   ├── planner.py                # 标准 → 任务
-│   ├── orchestrator.py           # 任务调度 + 反思循环
-│   ├── evidence_collector.py     # 证据收集智能体（逐章节提取）
-│   ├── reflector.py              # 质量控制
-│   ├── summarizer.py             # 报告汇总
-│   └── prompts/cn_prompts.py     # 中文提示词
-├── mcp_service/
-│   ├── mcp_client/
-│   │   ├── mcp_minimal.py        # MCP 客户端封装
-│   │   └── mcp_logger.py         # MCP 客户端日志配置
-│   └── mcp_server/mcp_server.py  # 工具注册
-├── main_workflow/
-│   ├── main_workflow.py          # 6 阶段编排
-│   └── workflow_logger.py        # 工作流日志（MD + Mermaid）
-├── tools/
-│   ├── document_tools.py         # 文件解析 + 报告生成
-│   └── PageIndex-main/           # 基于树结构的 RAG 库
-├── docs/
-│   ├── contracts/                # 输入合同（.gitignore 排除）
-│   └── contract_review_criteria/ # 审查标准（.gitignore 排除）
-├── logs/                         # 所有运行时日志（.gitignore 排除）
-│   ├── workflow/                 # 工作流日志（MD + Mermaid）
-│   ├── conversations/            # 智能体对话日志（每次运行独立文件夹）
-│   └── mcp/                      # MCP 客户端日志
-└── project_intro/
-    ├── ARCHITECTURE.md           # 架构图
-    └── PROJECT_OVERVIEW.md       # 本文件
+├── agents/                     # 智能体实现
+├── api/                        # FastAPI 接口
+├── frontend/                   # React 前端
+├── main_workflow/              # 6 阶段工作流编排
+├── mcp_service/                # MCP 客户端与服务端
+├── tools/                      # 文件解析、检索、报告生成
+├── docs/                       # 输入文件与导出报告
+├── uploads/                    # 上传文件暂存
+├── logs/                       # 运行日志
+├── RAG_persist/                # 索引、树缓存、manifest
+├── project_intro/              # 项目说明文档
+├── config.py                   # 全局配置与默认检索模式
+├── DEPLOYMENT.md               # 部署说明
+└── main.py                     # CLI 调试入口
 ```
 
----
+## 7. 关键模块说明
 
-## 环境配置
+| 模块 | 位置 | 作用 |
+| --- | --- | --- |
+| 配置 | `config.py` | 统一维护路径、默认检索模式、模型上下文配置 |
+| API 入口 | `api/main.py` | 暴露 Web API、健康检查和 MCP 路由 |
+| 工作流 | `main_workflow/main_workflow.py` | 编排完整合同审查链路 |
+| 智能体 | `agents/` | 规划、检索调度、反思、汇总 |
+| MCP 服务 | `mcp_service/mcp_server/mcp_server.py` | 注册文件解析、检索、报告生成、网页搜索工具 |
+| 前端 API 层 | `frontend/src/services/api.ts` | 对接上传、审查、历史、下载等接口 |
 
-**`.env`**（参考 `.env.example`）：
+## 8. 输入与输出
 
-```env
-API_KEY=sk-...          # LLM API 密钥
-BASE_URL=https://...    # LLM 端点
-LLM_NAME=qwen-plus     # 模型名称
-TOP_P=0.01             # 采样范围（越小越确定性）
-SEED=42                # 随机种子（固定输出）
-PAGEINDEX_SEARCH=True  # True=PageIndex 搜索, False=Evidence Collector
-SERPER_API_KEY=...      # 网络搜索 API 密钥
-```
+### 8.1 输入
 
-**关键常量**（`config.py`）：
+- 合同文件
+- 审查标准文件
+- 检索模式选择
 
-- `MAX_REFLECTION_ROUNDS` — 反思循环上限（默认为 3）
-- `PAGEINDEX_SEARCH` — 检索模式切换（True=PageIndex 搜索, False=Evidence Collector）
-- `LLM_NAME` — 模型名称（如 qwen-plus, deepseek-chat, minimax-k2.5）
-- `MAX_CONTEXT_TOKENS`、`MAX_RESULT_TOKENS`、`MAX_TOOL_CALLS` — 根据选择的模型从 config.py 动态自动设定
+当前前端界面限制用户上传：
 
----
+- `.pdf`
+- `.docx`
 
-## 使用方法
+### 8.2 输出
 
-```bash
-pip install -r requirements.txt
-pip install -e .
-python main.py
-```
+结构化输出包括：
 
-**输出：**
+- 审查问题清单
+- 分条审查结果
+- Markdown 报告
+- DOCX 报告
+- PDF 报告
 
-1. 控制台实时显示 6 个阶段的进度
-2. 最终报告将分别保存至以下三个文件夹：
-   - `docs/reports_md/`（Markdown 原文文本）
-   - `docs/reports_docx/`（Word 格式）
-   - `docs/reports_pdf/`（PDF 格式）
-3. 工作流日志保存至 `logs/workflow_*.md`
-4. 智能体对话日志保存至 `logs/conversations/`
+文件输出目录：
+
+- `docs/reports_md/`
+- `docs/reports_docx/`
+- `docs/reports_pdf/`
+
+## 9. 当前实现特点
+
+### 9.1 优点
+
+- 检索策略可切换
+- 有明确的阶段化状态
+- 报告导出链路完整
+- 日志较全，便于排查
+- 适合继续演进成更完整的审查平台
+
+### 9.2 当前限制
+
+- 历史任务目前保存在内存，后端重启后会丢失
+- 上传接口本身没有做严格文件类型校验，当前主要依赖前端限制
+- 生产环境还没有内建任务队列、数据库和鉴权
+- 外部模型、网页搜索、MinerU 等能力都依赖外部服务稳定性
+
+## 10. 你应该先看哪份文档
+
+如果你的目标是：
+
+- 了解部署方式：看 [`DEPLOYMENT.md`](../DEPLOYMENT.md)
+- 了解整体架构：看 [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+- 想直接联调：优先看 `DEPLOYMENT.md` 里的本地开发部署章节

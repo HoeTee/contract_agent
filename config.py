@@ -62,5 +62,5 @@ MAX_CONTEXT_TOKENS, MAX_RESULT_TOKENS, MAX_TOOL_CALLS = _LLM_PROFILES.get(
 )
 
 # ── Startup banner ─────────────────────────────────────────
-print(f"[config] Retrieval mode : {get_retrieval_mode()}")
+print(f"[config] Default retrieval mode : {get_retrieval_mode(get_default_retrieval_mode())}")
 print(f"[config] LLM            : {LLM_NAME}  (ctx={MAX_CONTEXT_TOKENS:,}  out={MAX_RESULT_TOKENS:,}  tools={MAX_TOOL_CALLS})")
