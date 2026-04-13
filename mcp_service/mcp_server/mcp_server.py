@@ -54,6 +54,8 @@ index_retriever = IndexRetriever(
 # ============ Web Search ============
 
 async def search_web(query: str) -> dict | None:
+    if not settings.SERPER_API_KEY:
+        return {"error": "SERPER_API_KEY is not configured.", "organic": []}
     headers = {
         "X-API-KEY": settings.SERPER_API_KEY,
         "Content-Type": "application/json",
@@ -93,6 +95,8 @@ async def web_search(query: str) -> str:
     Search Google via Serper. Returns top results with titles, links, snippets.
     """
     results = await search_web(query)
+    if results and results.get("error"):
+        return f"Web search unavailable: {results['error']}"
     if not results or "organic" not in results:
         return "No results found."
     formatted = "Search Results:\n"
@@ -110,9 +114,8 @@ async def read_url(url: str) -> str:
     return str(await fetch_url(url))
 
 
-if env_bool(ENABLE_MCP_WEB_TOOLS):
-    mcp.tool()(web_search)
-    mcp.tool()(read_url)
+mcp.tool()(web_search)
+mcp.tool()(read_url)
 
 
 # ============ Document Tools ============
@@ -146,10 +149,10 @@ async def generate_final_report(
     results_json: str = None,
 ) -> str:
     """
-    Generate MD, DOCX, and PDF reports from markdown content.
-    DOCX: always generated; when the source contract is a DOCX, the export is
-    enhanced with review comments on top of the original contract.
-    PDF: renders markdown with optimized CSS for Chinese text and tables.
+    Generate MD, annotated DOCX, and PDF reports from markdown content.
+    DOCX: only generated when the source contract is a DOCX. The export is a
+    cleaned contract copy with review comments.
+    PDF: renders the markdown report with Chinese-capable HTML/PDF output.
     Returns paths to all three generated files.
     """
     try:

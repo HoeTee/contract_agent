@@ -29,7 +29,7 @@ export function DocumentPreview({ file, previewUrl, taskName }: DocumentPreviewP
           </div>
           <h2 className="mt-6 font-serif text-3xl font-semibold text-slate-950">合同预览区</h2>
           <p className="mt-3 text-sm leading-7 text-slate-600">
-            先上传合同和审查标准。左侧用于快速核对原文，右侧集中呈现任务进度、结构化结论和 Markdown 报告。
+            先上传合同和审查标准。这里用于快速核对原文；工作台负责控制任务，审查结论会在下方独立展示。
           </p>
         </div>
       </section>

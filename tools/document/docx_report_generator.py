@@ -3,6 +3,7 @@ import re
 import shutil
 from dataclasses import dataclass
 from docx import Document
+import fitz
 from docx.document import Document as DocxDocument
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
@@ -13,6 +14,8 @@ from docx.table import Table, _Cell
 from docx.text.paragraph import Paragraph
 from datetime import datetime
 from lxml import etree
+
+from tools.document.file_cleaner import clean_docx
 
 
 @dataclass(frozen=True)
@@ -40,13 +43,13 @@ class ReportGenerator:
     margin: 20mm 15mm 20mm 15mm;
 }
 body {
-    font-family: "SimSun", "SimHei", "Microsoft YaHei", serif;
+    font-family: "ContractSerif", "ContractSans", serif;
     font-size: 11pt;
     line-height: 1.6;
     color: #222;
 }
 h1 {
-    font-family: "SimHei", "Microsoft YaHei", sans-serif;
+    font-family: "ContractSans", sans-serif;
     font-size: 18pt;
     border-bottom: 2px solid #333;
     padding-bottom: 4px;
@@ -54,7 +57,7 @@ h1 {
     page-break-after: avoid;
 }
 h2 {
-    font-family: "SimHei", "Microsoft YaHei", sans-serif;
+    font-family: "ContractSans", sans-serif;
     font-size: 15pt;
     border-bottom: 1px solid #aaa;
     padding-bottom: 3px;
@@ -62,13 +65,13 @@ h2 {
     page-break-after: avoid;
 }
 h3 {
-    font-family: "SimHei", "Microsoft YaHei", sans-serif;
+    font-family: "ContractSans", sans-serif;
     font-size: 13pt;
     margin-top: 14px;
     page-break-after: avoid;
 }
 h4 {
-    font-family: "SimHei", "Microsoft YaHei", sans-serif;
+    font-family: "ContractSans", sans-serif;
     font-size: 12pt;
     margin-top: 12px;
     page-break-after: avoid;
@@ -92,7 +95,7 @@ th, td {
 th {
     background-color: #f0f0f0;
     font-weight: bold;
-    font-family: "SimHei", "Microsoft YaHei", sans-serif;
+    font-family: "ContractSans", sans-serif;
 }
 blockquote {
     border-left: 3px solid #ccc;
@@ -429,10 +432,12 @@ p { margin: 4px 0; }
         results: list,
         output_path: str,
     ) -> str:
-        """Generate the annotated DOCX report using the original contract as the base."""
+        """Generate the annotated DOCX report using the cleaned contract as the base."""
 
+        cleaned_contract_path = None
         try:
-            shutil.copy2(contract_path, output_path)
+            cleaned_contract_path = clean_docx(contract_path)
+            shutil.copy2(cleaned_contract_path, output_path)
             doc = Document(output_path)
 
             comments_data = []
@@ -502,6 +507,12 @@ p { margin: 4px 0; }
                 except OSError:
                     pass
             return None
+        finally:
+            if cleaned_contract_path and cleaned_contract_path != contract_path and os.path.exists(cleaned_contract_path):
+                try:
+                    os.unlink(cleaned_contract_path)
+                except OSError:
+                    pass
 
     # ==================== PDF Generation ====================
 
@@ -544,34 +555,60 @@ p { margin: 4px 0; }
 </html>"""
 
     @staticmethod
-    def _register_chinese_fonts():
-        """Register system Chinese TTF fonts for xhtml2pdf/reportlab."""
-        from reportlab.pdfbase import pdfmetrics
-        from reportlab.pdfbase.ttfonts import TTFont
-
+    def _build_pdf_font_css() -> tuple[str, fitz.Archive]:
+        """Build CSS and a font archive for Chinese-capable PDF rendering."""
         font_dir = r"C:\Windows\Fonts"
-        fonts_to_register = [
-            ("SimSun", "simsun.ttc"),
-            ("SimHei", "simhei.ttf"),
-            ("Microsoft-YaHei", "msyh.ttc"),
+        archive = fitz.Archive(font_dir)
+        font_candidates = [
+            ("ContractSans", "simhei.ttf"),
+            ("ContractSerif", "simfang.ttf"),
+            ("ContractSerif", "simhei.ttf"),
         ]
+        css_rules = []
+        seen = set()
+        for family, filename in font_candidates:
+            font_path = os.path.join(font_dir, filename)
+            if not os.path.exists(font_path):
+                continue
+            key = (family, filename)
+            if key in seen:
+                continue
+            seen.add(key)
+            css_rules.append(
+                f'@font-face {{ font-family: "{family}"; src: url("{filename}"); }}'
+            )
+        return "\n".join(css_rules), archive
 
-        registered = []
-        for font_name, font_file in fonts_to_register:
-            font_path = os.path.join(font_dir, font_file)
-            if os.path.exists(font_path):
-                try:
-                    pdfmetrics.registerFont(TTFont(font_name, font_path))
-                    registered.append(font_name)
-                except Exception as e:
-                    print(f"  WARNING: Could not register font {font_name}: {e}")
+    @staticmethod
+    def _render_pdf_with_pymupdf(html_body: str, output_path: str) -> str:
+        """Render report HTML to a paginated PDF with Chinese font support."""
+        font_css, archive = ReportGenerator._build_pdf_font_css()
+        html = f"""<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<style>
+{font_css}
+{ReportGenerator._PDF_CSS}
+</style>
+</head>
+<body>
+{html_body}
+</body>
+</html>"""
+        story = fitz.Story(html=html, archive=archive)
+        writer = fitz.DocumentWriter(output_path)
+        page_rect = fitz.paper_rect("a4")
+        content_rect = fitz.Rect(page_rect.x0 + 42, page_rect.y0 + 48, page_rect.x1 - 42, page_rect.y1 - 48)
 
-        if registered:
-            print(f"  PDF fonts registered: {', '.join(registered)}")
-        else:
-            print("  WARNING: No TTF fonts found, falling back to CID font")
-            from reportlab.pdfbase.cidfonts import UnicodeCIDFont
-            pdfmetrics.registerFont(UnicodeCIDFont('STSong-Light'))
+        def rect_fn(page_num: int, _filled: fitz.Rect):
+            return page_rect, content_rect, fitz.Matrix(1, 1)
+
+        try:
+            story.write(writer, rect_fn)
+        finally:
+            writer.close()
+        return output_path
 
     # ==================== Main Report Generator ====================
 
@@ -610,33 +647,26 @@ p { margin: 4px 0; }
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(content)
 
-        # 2. Generate DOCX report. When the source contract is a DOCX, enhance it
-        # with inline review comments; otherwise generate the standard report DOCX.
+        # 2. Generate DOCX report.
+        # When the source contract is a DOCX, produce an annotated copy with
+        # inline review comments.  Otherwise (PDF / other), fall back to a
+        # standard report DOCX generated from the markdown content.
         docx_output_path = os.path.join(docx_dir, f"{base_name}.docx")
         if ReportGenerator._can_generate_annotated_docx(contract_path, results):
             docx_path = ReportGenerator._generate_docx_with_comments(
                 contract_path, results, docx_output_path
             )
             if not docx_path:
-                print("  DOCX: annotated export unavailable, generating standard report DOCX.")
+                print("  DOCX: annotated export failed, falling back to standard report DOCX.")
                 docx_path = ReportGenerator._generate_standard_docx_report(content, docx_output_path)
         else:
             docx_path = ReportGenerator._generate_standard_docx_report(content, docx_output_path)
 
-        # 3. Generate PDF from HTML with optimized CSS
+        # 3. Generate the report PDF with a Chinese-capable HTML renderer.
         html_body = ReportGenerator._markdown_to_html(content)
-        pdf_html = ReportGenerator._wrap_html_for_pdf(html_body)
         pdf_path = os.path.join(pdf_dir, f"{base_name}.pdf")
         try:
-            from xhtml2pdf import pisa
-
-            ReportGenerator._register_chinese_fonts()
-
-            with open(pdf_path, "wb") as pdf_file:
-                pisa_status = pisa.CreatePDF(pdf_html, dest=pdf_file)
-                if pisa_status.err:
-                    print(f"  WARNING: PDF generation had errors (code {pisa_status.err})")
-                    pdf_path = None
+            ReportGenerator._render_pdf_with_pymupdf(html_body, pdf_path)
         except Exception as e:
             print(f"  WARNING: PDF generation failed: {e}")
             pdf_path = None

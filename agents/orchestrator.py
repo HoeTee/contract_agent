@@ -27,11 +27,13 @@ class OrchestratorAgent:
         logger=None,
         settings=None,
         retrieval_mode: str = "pageindex",
+        web_search_enabled: bool = False,
     ):
         self.mcp_client = mcp_client
         self.logger = logger
         self.settings = settings
         self.retrieval_mode = retrieval_mode
+        self.web_search_enabled = web_search_enabled
         self.tools = None
         self.collector = EvidenceCollectorAgent(settings=self.settings) if retrieval_mode == "evidence" else None
         self.reflector = ReflectorAgent(settings=self.settings)
@@ -40,7 +42,14 @@ class OrchestratorAgent:
     async def _get_tools(self) -> list[str]:
         """Cache MCP tools list."""
         if self.tools is None:
-            self.tools = await self.mcp_client.get_available_tools()
+            tools = await self.mcp_client.get_available_tools()
+            if not self.web_search_enabled:
+                disabled = {"web_search", "read_url"}
+                tools = [
+                    tool for tool in tools
+                    if tool.get("function", {}).get("name") not in disabled
+                ]
+            self.tools = tools
         return self.tools
 
     async def _retrieve_context(
@@ -188,10 +197,12 @@ class OrchestratorAgent:
                 "criterion_id": cid,
                 "criterion": criterion_text,
                 "section": criterion.get("section", "其他"),
+                "check_points": check_points,
                 "review_output": "",
                 "status": "COMPLIANT",
                 "reflection_rounds": 0,
                 "tokens": sub_agent.token_usage.get("total_tokens", 0) + evidence_tokens,
+                "error_message": None,
             }
 
         # Step 3: Reflection loop
@@ -230,10 +241,12 @@ class OrchestratorAgent:
             "criterion_id": cid,
             "criterion": criterion_text,
             "section": criterion.get("section", "其他"),
+            "check_points": check_points,
             "review_output": "" if is_compliant else sub_agent_opinion,
             "status": "COMPLIANT" if is_compliant else "ISSUES_FOUND",
             "reflection_rounds": round_num + 1 if 'round_num' in dir() else 0,
             "tokens": total_tokens,
+            "error_message": None,
         }
 
     async def execute_criteria(self, criteria_list: list[dict], tree_json: str | None) -> list[dict]:
@@ -251,10 +264,12 @@ class OrchestratorAgent:
                         "criterion_id": criteria_list[i]["id"],
                         "criterion": criteria_list[i]["criterion"],
                         "section": criteria_list[i].get("section", "其他"),
+                        "check_points": criteria_list[i].get("check_points", []),
                         "review_output": "",
                         "status": "ERROR",
                         "reflection_rounds": 0,
-                        "tokens": 0
+                        "tokens": 0,
+                        "error_message": str(result),
                     }
                 )
             else:

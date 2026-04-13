@@ -9,6 +9,13 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(PROJECT_ROOT, ".env")
 load_dotenv(ENV_PATH)
 
+
+def _env_bool(value: str | None, default: bool = False) -> bool:
+    """Parse a common boolean environment variable representation."""
+    if value is None:
+        return default
+    return str(value).lower() in ("true", "1", "yes", "on")
+
 # ── Paths ──────────────────────────────────────────────────
 MCP_SERVER_PATH = os.path.join(PROJECT_ROOT, "mcp_service", "mcp_server", "mcp_server.py")
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp")
@@ -20,8 +27,8 @@ LOGS_DIR = os.path.join(PROJECT_ROOT, "logs", "workflow")
 # LLAMA_INDEX=True  → LlamaIndex RAG via MCP (PAGEINDEX_SEARCH is ignored)
 # LLAMA_INDEX=False + PAGEINDEX_SEARCH=True  → PageIndex tree search via MCP
 # LLAMA_INDEX=False + PAGEINDEX_SEARCH=False → EvidenceCollector agent
-LLAMA_INDEX = os.getenv("LLAMA_INDEX", "False").lower() in ("true", "1", "yes")
-PAGEINDEX_SEARCH = os.getenv("PAGEINDEX_SEARCH", "True").lower() in ("true", "1", "yes")
+LLAMA_INDEX = _env_bool(os.getenv("LLAMA_INDEX"), default=False)
+PAGEINDEX_SEARCH = _env_bool(os.getenv("PAGEINDEX_SEARCH"), default=True)
 
 RETRIEVAL_MODE_LABELS = {
     "llamaindex": "LlamaIndex RAG (MCP)",
@@ -45,6 +52,14 @@ def get_retrieval_mode(mode: str | None = None) -> str:
         mode,
         RETRIEVAL_MODE_LABELS[get_default_retrieval_mode()]
     )
+
+
+def get_default_web_search_enabled() -> bool:
+    """Return the default task-level web search flag from the environment."""
+    raw_value = os.getenv("ENABLE_WEB_SEACH_TOOL")
+    if raw_value is None:
+        raw_value = os.getenv("ENABLE_MCP_WEB_TOOLS")
+    return _env_bool(raw_value, default=False)
 
 # ── Agent config ───────────────────────────────────────────
 MAX_REFLECTION_ROUNDS = int(os.getenv("MAX_REFLECTION_ROUNDS", "3"))

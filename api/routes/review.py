@@ -14,6 +14,7 @@ from api.models.schemas import (
     ReviewItem,
     ReviewItemStatus,
     ReviewResultResponse,
+    ReviewSettingsResponse,
     ReviewStage,
     ReviewStatus,
     ReviewTaskCreate,
@@ -21,9 +22,18 @@ from api.models.schemas import (
     RiskLevel,
 )
 from api.services.task_store import get_task, tasks
+from config import get_default_retrieval_mode, get_default_web_search_enabled
 
 router = APIRouter(prefix="/review", tags=["review"])
 logger = logging.getLogger(__name__)
+
+
+@router.get("/settings", response_model=ReviewSettingsResponse)
+async def get_review_settings():
+    return ReviewSettingsResponse(
+        default_retrieval_mode=get_default_retrieval_mode(),
+        default_web_search_enabled=get_default_web_search_enabled(),
+    )
 
 
 @router.post("/start", response_model=ReviewTaskResponse)
@@ -44,6 +54,7 @@ async def start_review(
         "contract_path": task.contract_path,
         "criteria_path": task.criteria_path,
         "retrieval_mode": task.retrieval_mode,
+        "web_search_enabled": task.web_search_enabled if task.web_search_enabled is not None else get_default_web_search_enabled(),
         "contract_name": contract_name,
         "result": None,
         "created_at": created_at,
@@ -73,6 +84,7 @@ async def run_review_task(task_id: str, task: ReviewTaskCreate, workflow):
         task_record["progress_message"] = update.get("message")
 
     try:
+        task_record = tasks[task_id]
         logger.info(
             "Review task %s starting with retrieval_mode=%s",
             task_id,
@@ -82,11 +94,13 @@ async def run_review_task(task_id: str, task: ReviewTaskCreate, workflow):
             contract_path=task.contract_path,
             criteria_path=task.criteria_path,
             retrieval_mode=task.retrieval_mode.value if task.retrieval_mode else None,
+            web_search_enabled=task_record.get("web_search_enabled"),
             progress_callback=progress_callback,
         )
-        task_record = tasks[task_id]
         if result.get("retrieval_mode"):
             task_record["retrieval_mode"] = result["retrieval_mode"]
+        if result.get("web_search_enabled") is not None:
+            task_record["web_search_enabled"] = result["web_search_enabled"]
 
         issues = [
             IssueBase(
@@ -109,6 +123,9 @@ async def run_review_task(task_id: str, task: ReviewTaskCreate, workflow):
                 criterion_id=item.get("criterion_id", ""),
                 section=item.get("section", "其他"),
                 criterion=item.get("criterion", ""),
+                section_order=item.get("section_order", 0),
+                criterion_order=item.get("criterion_order", 0),
+                check_points=item.get("check_points", []),
                 status=_coerce_review_item_status(item.get("status")),
                 issue_count=item.get("issue_count", len(item.get("issues", []))),
                 issues=[
@@ -127,6 +144,7 @@ async def run_review_task(task_id: str, task: ReviewTaskCreate, workflow):
                     )
                     for issue in item.get("issues", [])
                 ],
+                error_message=item.get("error_message"),
             )
             for item in result.get("review_items", [])
         ]
@@ -141,6 +159,7 @@ async def run_review_task(task_id: str, task: ReviewTaskCreate, workflow):
             status=ReviewStatus.COMPLETED,
             contract_name=task_record.get("contract_name", ""),
             retrieval_mode=task_record.get("retrieval_mode"),
+            web_search_enabled=task_record.get("web_search_enabled"),
             total_issues=len(issues),
             issues=issues,
             review_items=review_items,
@@ -213,6 +232,7 @@ def _build_task_response(task: dict) -> ReviewTaskResponse:
         created_at=task.get("created_at", datetime.now()),
         contract_name=task.get("contract_name"),
         retrieval_mode=task.get("retrieval_mode"),
+        web_search_enabled=task.get("web_search_enabled"),
         stage=task.get("stage"),
         progress_message=task.get("progress_message"),
         error=task.get("error"),

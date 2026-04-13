@@ -21,3 +21,15 @@ __pycache__/
 dist/
 build/
 *.egg
+
+*.docx
+*.doc
+*.pdf
+.claude/
+.codex/
+.venv/
+frontend/
+src/
+api/
+介绍.md
+

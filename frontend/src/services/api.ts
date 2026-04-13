@@ -41,9 +41,13 @@ export interface ReviewItem {
   criterion_id: string;
   section: string;
   criterion: string;
+  section_order: number;
+  criterion_order: number;
+  check_points: string[];
   status: ReviewItemStatus;
   issue_count: number;
   issues: Issue[];
+  error_message?: string | null;
 }
 
 export interface ReviewTaskResponse {
@@ -52,6 +56,7 @@ export interface ReviewTaskResponse {
   created_at: string;
   contract_name?: string | null;
   retrieval_mode?: RetrievalMode | null;
+  web_search_enabled?: boolean | null;
   stage?: ReviewStage | null;
   progress_message?: string | null;
   error?: string | null;
@@ -78,6 +83,11 @@ export interface HistoryItem {
   progress_message?: string | null;
   total_issues: number;
   error?: string | null;
+}
+
+export interface ReviewSettingsResponse {
+  default_retrieval_mode: RetrievalMode;
+  default_web_search_enabled: boolean;
 }
 
 interface ApiEnvelope<T> {
@@ -135,6 +145,7 @@ export async function startReview(
   contractPath: string,
   criteriaPath: string,
   retrievalMode: RetrievalMode,
+  webSearchEnabled: boolean,
 ): Promise<ReviewTaskResponse> {
   return request<ReviewTaskResponse>("/api/v1/review/start", {
     method: "POST",
@@ -145,8 +156,13 @@ export async function startReview(
       contract_path: contractPath,
       criteria_path: criteriaPath,
       retrieval_mode: retrievalMode,
+      web_search_enabled: webSearchEnabled,
     }),
   });
+}
+
+export async function getReviewSettings(): Promise<ReviewSettingsResponse> {
+  return request<ReviewSettingsResponse>("/api/v1/review/settings");
 }
 
 export async function getReviewStatus(taskId: string): Promise<ReviewTaskResponse> {

@@ -14,9 +14,15 @@ import json
 import os
 import re
 import time
+from collections import OrderedDict
 from typing import Any, Awaitable, Callable
 
-from config import MCP_SERVER_PATH, get_default_retrieval_mode, get_retrieval_mode
+from config import (
+    MCP_SERVER_PATH,
+    get_default_retrieval_mode,
+    get_default_web_search_enabled,
+    get_retrieval_mode,
+)
 from main_workflow.workflow_logger import WorkflowLogger
 from agents.base_agent import Settings
 from agents.planner import PlannerAgent
@@ -44,6 +50,7 @@ class ContractReviewWorkflow:
         contract_path: str,
         criteria_path: str,
         retrieval_mode: str | None = None,
+        web_search_enabled: bool | None = None,
         progress_callback: Callable[[dict[str, Any]], Awaitable[None] | None] | None = None,
     ) -> dict[str, Any]:
         """
@@ -51,12 +58,14 @@ class ContractReviewWorkflow:
         Returns: structured review data for the API layer.
         """
         retrieval_mode = retrieval_mode or get_default_retrieval_mode()
+        web_search_enabled = get_default_web_search_enabled() if web_search_enabled is None else web_search_enabled
         mode_label = get_retrieval_mode(retrieval_mode)
         workflow_start = time.time()
         print("=" * 60)
         print("Contract Review Workflow")
         print("=" * 60)
         print(f"Selected retrieval mode: {retrieval_mode} ({mode_label})")
+        print(f"Web search enabled: {web_search_enabled}")
 
         # Initialize MCP client
         await self.mcp_client.connect()
@@ -93,6 +102,7 @@ class ContractReviewWorkflow:
                 criteria_list,
                 tree_json,
                 retrieval_mode,
+                web_search_enabled,
             )
 
             # Phase 5: Summarize
@@ -136,6 +146,7 @@ class ContractReviewWorkflow:
                 "criteria_count": len(criteria_list),
                 "total_tokens": total_tokens,
                 "retrieval_mode": retrieval_mode,
+                "web_search_enabled": web_search_enabled,
                 "workflow_log": log_path,
             }
 
@@ -281,6 +292,7 @@ class ContractReviewWorkflow:
         criteria_list: list[dict],
         tree_json: str | None,
         retrieval_mode: str,
+        web_search_enabled: bool,
     ) -> list[dict]:
         """Phase 4: Orchestrator runs sub-agents with PageIndex retrieval + reflection."""
         print(f"\n[Phase 4] Executing {len(criteria_list)} criteria reviews...")
@@ -291,6 +303,7 @@ class ContractReviewWorkflow:
             logger=self.logger,
             settings=self.settings,
             retrieval_mode=retrieval_mode,
+            web_search_enabled=web_search_enabled,
         )
         results = await orchestrator.execute_criteria(criteria_list, tree_json)
         self._retrieval_tokens = getattr(orchestrator, 'retrieval_tokens', 0)
@@ -507,17 +520,28 @@ class ContractReviewWorkflow:
     def _extract_review_items(self, results: list[dict]) -> list[dict[str, Any]]:
         """Build the section/criterion hierarchy consumed by the structured UI."""
         review_items: list[dict[str, Any]] = []
+        section_order: OrderedDict[str, int] = OrderedDict()
+        section_counts: dict[str, int] = {}
 
         for result in results:
+            section_name = result.get("section", "其他") or "其他"
+            if section_name not in section_order:
+                section_order[section_name] = len(section_order) + 1
+                section_counts[section_name] = 0
+            section_counts[section_name] += 1
             criterion_issues = self._extract_result_issues(result)
             review_items.append(
                 {
                     "criterion_id": result.get("criterion_id", ""),
-                    "section": result.get("section", "其他") or "其他",
+                    "section": section_name,
                     "criterion": result.get("criterion", ""),
+                    "section_order": section_order[section_name],
+                    "criterion_order": section_counts[section_name],
+                    "check_points": result.get("check_points", []),
                     "status": self._normalize_review_item_status(result.get("status")),
                     "issue_count": len(criterion_issues),
                     "issues": criterion_issues,
+                    "error_message": result.get("error_message"),
                 }
             )
 

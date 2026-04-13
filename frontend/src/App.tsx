@@ -4,11 +4,13 @@ import { Clock3, FolderClock, ShieldCheck } from "lucide-react";
 import { DocumentPreview } from "./features/contract-review/components/DocumentPreview";
 import { FileDropzone } from "./features/contract-review/components/FileDropzone";
 import { HistoryDrawer } from "./features/contract-review/components/HistoryDrawer";
+import { ReviewConclusionPanel } from "./features/contract-review/components/ReviewConclusionPanel";
 import { TaskStatusPanel } from "./features/contract-review/components/TaskStatusPanel";
 import {
   RetrievalMode,
   ReviewResultResponse,
   ReviewTaskResponse,
+  getReviewSettings,
   getReviewResult,
   getReviewStatus,
   startReview,
@@ -29,6 +31,26 @@ export default function App() {
   const [isStarting, setIsStarting] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [defaultRetrievalMode, setDefaultRetrievalMode] = useState<RetrievalMode>("llamaindex");
+  const [defaultWebSearchEnabled, setDefaultWebSearchEnabled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getReviewSettings()
+      .then((settings) => {
+        if (cancelled) return;
+        setDefaultRetrievalMode(settings.default_retrieval_mode);
+        setDefaultWebSearchEnabled(settings.default_web_search_enabled);
+      })
+      .catch(() => {
+        // Keep local fallbacks when the backend settings are temporarily unavailable.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!contractFile) {
@@ -86,7 +108,7 @@ export default function App() {
     setError(null);
   };
 
-  const handleStartReview = async (retrievalMode: RetrievalMode) => {
+  const handleStartReview = async (retrievalMode: RetrievalMode, webSearchEnabled: boolean) => {
     if (!contractFile || !criteriaFile) {
       setError("请先上传合同文件和审查标准。");
       return;
@@ -103,7 +125,12 @@ export default function App() {
         uploadCriteriaFile(criteriaFile),
       ]);
 
-      const createdTask = await startReview(contractUpload.file_path, criteriaUpload.file_path, retrievalMode);
+      const createdTask = await startReview(
+        contractUpload.file_path,
+        criteriaUpload.file_path,
+        retrievalMode,
+        webSearchEnabled,
+      );
       setTask(createdTask);
     } catch (reason) {
       setError(getErrorMessage(reason));
@@ -158,12 +185,12 @@ export default function App() {
                 合同法律审查智能体
               </h1>
               <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base">
-                上传合同与审查标准，跟踪任务阶段，并在同一工作区查看结构化风险结论、Markdown 报告与历史任务。
+                上传合同与审查标准，跟踪任务阶段，并在独立审查结论板块中查看结构化风险明细、Markdown 报告与历史任务。
               </p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <span className="badge-muted">结构化风险结论</span>
                 <span className="badge-muted">长任务跟踪</span>
-                <span className="badge-muted">Markdown / DOCX / PDF 导出</span>
+                <span className="badge-muted">Markdown / 批注合同 DOCX / PDF 导出</span>
               </div>
             </div>
 
@@ -222,8 +249,12 @@ export default function App() {
               error={error}
               onStart={handleStartReview}
               onReset={handleReset}
+              defaultRetrievalMode={defaultRetrievalMode}
+              defaultWebSearchEnabled={defaultWebSearchEnabled}
             />
           </div>
+
+          <ReviewConclusionPanel result={result} task={task} />
         </main>
       </div>
 

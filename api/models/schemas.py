@@ -64,15 +64,20 @@ class ReviewItem(BaseModel):
     criterion_id: str
     section: str
     criterion: str
+    section_order: int = 0
+    criterion_order: int = 0
+    check_points: List[str] = Field(default_factory=list)
     status: ReviewItemStatus
     issue_count: int = 0
     issues: List[IssueBase] = Field(default_factory=list)
+    error_message: Optional[str] = None
 
 
 class ReviewTaskCreate(BaseModel):
     contract_path: str
     criteria_path: str
     retrieval_mode: Optional[RetrievalMode] = None
+    web_search_enabled: Optional[bool] = None
 
 
 class ReviewTaskResponse(BaseModel):
@@ -81,6 +86,7 @@ class ReviewTaskResponse(BaseModel):
     created_at: datetime
     contract_name: Optional[str] = None
     retrieval_mode: Optional[RetrievalMode] = None
+    web_search_enabled: Optional[bool] = None
     stage: Optional[ReviewStage] = None
     progress_message: Optional[str] = None
     error: Optional[str] = None
@@ -91,6 +97,7 @@ class ReviewResultResponse(BaseModel):
     status: ReviewStatus
     contract_name: str
     retrieval_mode: Optional[RetrievalMode] = None
+    web_search_enabled: Optional[bool] = None
     total_issues: int
     issues: List[IssueBase]
     review_items: List[ReviewItem] = Field(default_factory=list)
@@ -114,3 +121,8 @@ class HistoryItem(BaseModel):
     progress_message: Optional[str] = None
     total_issues: int = 0
     error: Optional[str] = None
+
+
+class ReviewSettingsResponse(BaseModel):
+    default_retrieval_mode: RetrievalMode
+    default_web_search_enabled: bool
