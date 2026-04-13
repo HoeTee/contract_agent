@@ -1,0 +1,35 @@
+# Secrets
+.env
+
+# Private documents
+docs/contracts/
+docs/contract_review_criteria/
+
+# Runtime output
+docs/
+logs/
+RAG_persist/manifest/
+RAG_persist/persist/
+!docs/**/.gitkeep
+!logs/**/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+*.docx
+*.doc
+*.pdf
+.claude/
+.codex/
+.venv/
+frontend/
+src/
+api/
+介绍.md
+PLAN.md

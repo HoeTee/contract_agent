@@ -1,0 +1,6 @@
+{
+  "doc_hash": "6271c4e8c27c1a0f4176fc8d643a6ee9310ddffcd7c10e4f5081ecf6db30d12d",
+  "chunk_size": 512,
+  "chunk_overlap": 100,
+  "embedding_model": "text-embedding-v4"
+}
