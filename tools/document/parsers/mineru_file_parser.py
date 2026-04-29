@@ -22,18 +22,12 @@ import fitz  # PyMuPDF
 import httpx
 from openai import AsyncOpenAI
 
+from config import _env_bool
 from tools.document.file_cleaner import clean_docx
 from tools.document.parsers.default_file_parser import DefaultFileParser
 
 DEFAULT_REMOTE_MINERU_API_BASE = "https://mineru.net"
 MINERU_REMOTE_SUPPORTED_EXTENSIONS = {".pdf", ".docx"}
-
-
-def _env_bool(name: str, default: bool = False) -> bool:
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _env_int(name: str, default: int) -> int:

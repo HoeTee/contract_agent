@@ -1,17 +1,19 @@
 """
 OrchestratorAgent - dispatches sub-agents per criterion with retrieval + reflection.
 
-Supports three retrieval modes (configured via config.py):
-  - LLAMA_INDEX=True            → LlamaIndex vector search via MCP
-  - PAGEINDEX_SEARCH=True       → PageIndex two-stage tree search via MCP
-  - PAGEINDEX_SEARCH=False      → EvidenceCollector per-section LLM iteration
+Retrieval mode and web-search availability are derived solely from .env via
+config.get_default_retrieval_mode / config.get_default_web_search_enabled.
 """
 import asyncio
 import json
 import re
 import time
 
-from config import MAX_REFLECTION_ROUNDS
+from config import (
+    MAX_REFLECTION_ROUNDS,
+    get_default_retrieval_mode,
+    get_default_web_search_enabled,
+)
 from agents.base_agent import Agent
 from agents.reflector import ReflectorAgent
 from agents.evidence_collector import EvidenceCollectorAgent
@@ -26,16 +28,14 @@ class OrchestratorAgent:
         mcp_client=None,
         logger=None,
         settings=None,
-        retrieval_mode: str = "pageindex",
-        web_search_enabled: bool = False,
     ):
         self.mcp_client = mcp_client
         self.logger = logger
         self.settings = settings
-        self.retrieval_mode = retrieval_mode
-        self.web_search_enabled = web_search_enabled
+        self.retrieval_mode = get_default_retrieval_mode()
+        self.web_search_enabled = get_default_web_search_enabled()
         self.tools = None
-        self.collector = EvidenceCollectorAgent(settings=self.settings) if retrieval_mode == "evidence" else None
+        self.collector = EvidenceCollectorAgent(settings=self.settings) if self.retrieval_mode == "evidence" else None
         self.reflector = ReflectorAgent(settings=self.settings)
         self.retrieval_tokens = 0  # Track MCP tool internal LLM tokens
 

@@ -2,93 +2,88 @@
 
 ## 1. 架构总览
 
-当前系统是一个“前端工作台 + FastAPI 后端 + 多智能体工作流 + MCP 工具层”的组合式架构。
+当前系统是一个「CLI 入口 + 多智能体工作流 + MCP 工具层」的组合式架构。
 
 从职责划分上看：
 
-- 前端负责交互、上传、进度展示、结果展示、历史查看
-- 后端负责接收请求、调度工作流、维护任务状态、返回结果
-- 工作流负责组织完整审查链路
-- MCP 负责统一封装文件解析、检索、报告导出、网页搜索
+- CLI 入口负责加载输入文件并启动工作流
+- 工作流负责组织完整审查链路，维护阶段状态
+- 智能体层负责规划、调度、反思、汇总
+- MCP 工具层统一封装文件解析、检索、报告导出、网页搜索
+
+> 当前分支 (`rollback-0313-with-mineru`) 不包含前端工作台与 FastAPI 后端，因此本文不再描述 Web / HTTP 部署视角。
 
 ## 2. 总体组件图
 
 ```mermaid
 flowchart LR
-    U[用户]
-    FE[前端工作台<br/>React + Vite]
-    API[后端 API<br/>FastAPI]
+    U[使用者]
+    CLI[CLI 入口<br/>main.py]
     WF[工作流编排<br/>ContractReviewWorkflow]
-    AG[智能体层<br/>Planner / Orchestrator / Reflector / Summarizer]
-    MCP[MCP 服务<br/>/mcp]
+    AG[智能体层<br/>Planner / Orchestrator / EvidenceCollector / Reflector / Summarizer]
+    MCPC[MCP 客户端<br/>mcp_service/mcp_client]
+    MCPS[MCP 服务端<br/>mcp_service/mcp_server]
     TOOLS[工具层<br/>文件解析 / 检索 / 报告生成 / 网页搜索]
-    STORE[运行存储<br/>uploads / docs/reports_* / logs / RAG_persist]
+    STORE[运行存储<br/>docs/reports_* / logs / RAG_persist]
     EXT[外部服务<br/>LLM / Embedding / Rerank / Serper / MinerU]
 
-    U --> FE
-    FE -->|HTTP| API
-    API --> WF
+    U --> CLI
+    CLI --> WF
     WF --> AG
-    WF --> MCP
-    MCP --> TOOLS
+    WF --> MCPC
+    MCPC -->|本地脚本子进程| MCPS
+    MCPS --> TOOLS
     TOOLS --> STORE
     AG --> EXT
     TOOLS --> EXT
 ```
 
-## 3. Web 部署视角
+## 3. CLI 运行视角
 
-在 Web 模式下，MCP 服务并不是一个单独进程，而是和 FastAPI 一起挂在同一个应用内，由后端通过 `MCP_SERVER_URL` 回调访问。
+CLI 模式下，MCP 服务由 `MCPClient` 通过 `server_script_path` 启动一个本地 Python 子进程，不需要监听 HTTP 端口。
 
 ```mermaid
 flowchart TB
-    Browser[浏览器]
-    Frontend[前端静态站点<br/>frontend/build]
-    Backend[FastAPI<br/>api.main:app]
-    MCPRoute[MCP 路由<br/>/mcp]
+    Main[main.py]
     Workflow[ContractReviewWorkflow]
+    Client[MCP Client]
+    Server[MCP Server 子进程<br/>mcp_service/mcp_server/mcp_server.py]
 
-    Browser --> Frontend
-    Browser -->|/api| Backend
-    Backend --> Workflow
-    Workflow -->|HTTP| MCPRoute
+    Main --> Workflow
+    Workflow --> Client
+    Client -->|stdio / 本地进程| Server
 ```
 
 关键点：
 
-- 对浏览器来说，主要访问的是 `/api/v1/*`
-- 对后端工作流来说，主要访问的是 `/mcp`
-- MCP 实际由同一个 FastAPI 进程提供
+- 整套链路都在一台机器上、一次进程内完成
+- MCP 服务端的生命周期跟随 CLI 进程
 
 ## 4. 核心模块分层
 
-### 4.1 接口层
+### 4.1 入口层
 
 位置：
 
-- `api/main.py`
-- `api/routes/upload.py`
-- `api/routes/review.py`
-- `api/routes/history.py`
+- `main.py`
 
 职责：
 
-- 暴露上传接口
-- 启动审查任务
-- 查询任务状态和结果
-- 下载报告
-- 返回历史任务列表
+- 校验合同文件后缀
+- 解析合同与审查标准的文件路径
+- 启动 `ContractReviewWorkflow`
 
 ### 4.2 工作流层
 
 位置：
 
 - `main_workflow/main_workflow.py`
+- `main_workflow/workflow_logger.py`
 
 职责：
 
 - 定义完整执行顺序
-- 向前端回传阶段状态
+- 在每个阶段记录日志
 - 汇总结果并触发报告生成
 
 工作流阶段：
@@ -111,6 +106,8 @@ flowchart TB
 - `agents/evidence_collector.py`
 - `agents/reflector.py`
 - `agents/summarizer.py`
+- `agents/agent_logger.py`
+- `agents/prompts/`
 
 职责分工：
 
@@ -127,6 +124,7 @@ flowchart TB
 位置：
 
 - `mcp_service/mcp_server/mcp_server.py`
+- `mcp_service/mcp_client/`
 
 当前注册的关键工具包括：
 
@@ -143,19 +141,14 @@ flowchart TB
 
 ```mermaid
 sequenceDiagram
-    participant UI as 前端
-    participant API as FastAPI
+    participant CLI as main.py
     participant WF as Workflow
     participant Planner as Planner
     participant Orch as Orchestrator
     participant MCP as MCP
     participant Sum as Summarizer
 
-    UI->>API: POST /api/v1/review/start
-    API->>API: 创建 task_id 并写入内存任务表
-    API-->>UI: 返回 processing 状态
-
-    API->>WF: 后台启动工作流
+    CLI->>WF: workflow.run(contract_path, criteria_path)
 
     Note over WF: 阶段 1 - 解析文件
     WF->>MCP: ingest_file(criteria)
@@ -186,8 +179,7 @@ sequenceDiagram
     WF->>MCP: generate_final_report
     MCP-->>WF: md/docx/pdf 路径
 
-    WF->>API: 写回完成状态与结果
-    API-->>UI: GET /api/v1/review/{task_id} 轮询可见 completed
+    WF-->>CLI: 返回执行结果
 ```
 
 ## 6. 检索策略分支
@@ -213,6 +205,11 @@ flowchart TD
     Review --> Reflect
     Reflect --> Report
 ```
+
+`retrieval_mode` 来源：
+
+- 仅由 `.env` 中的 `LLAMA_INDEX` / `PAGEINDEX_SEARCH` 通过 `config.get_default_retrieval_mode()` 推导
+- `workflow.run()` 与 `OrchestratorAgent.__init__()` 都不再接受覆盖参数；切换模式必须修改 `.env`
 
 ## 7. 文件解析链路
 
@@ -256,11 +253,11 @@ flowchart TD
 
 - `.docx` 会先做修订/批注清理，再进入本地解析
 - `.pdf` 在没有 MinerU 时，会尝试走本地提取或兼容的 LLM 清洗回退
-- 前端目前只开放 `.pdf` 和 `.docx` 上传
+- CLI 入口当前只接受 `.pdf` 和 `.docx`
 
 ## 8. 报告导出架构
 
-报告导出由 `generate_final_report` 调用 `tools/document/docx_report_generator.py` 完成。
+报告导出由 `generate_final_report` 调用 `tools/document/` 下的报告生成器完成。
 
 输出目录：
 
@@ -280,39 +277,33 @@ flowchart TD
 
 ### 9.1 任务状态
 
-任务状态由 `api/services/task_store.py` 在内存中维护。
-
-特点：
-
-- 简单直接
-- 无持久化
-- 后端重启后历史任务会丢失
+当前 CLI 模式下没有显式的任务表：一次 `python main.py` 就是一次完整的工作流执行，状态通过日志反映，不在内存中长期保留。
 
 ### 9.2 持久化目录
 
 ```mermaid
 flowchart LR
-    Uploads[uploads/]
+    Inputs[docs/contracts/<br/>docs/contract_review_criteria/]
     Reports[docs/reports_*/]
     Logs[logs/]
     Rag[RAG_persist/]
 
-    Uploads --> APIState[接口层与工作流]
-    APIState --> Reports
-    APIState --> Logs
-    APIState --> Rag
+    Inputs --> Workflow[工作流]
+    Workflow --> Reports
+    Workflow --> Logs
+    Workflow --> Rag
 ```
 
 说明：
 
-- `uploads/` 保存用户上传文件
+- `docs/contracts/`、`docs/contract_review_criteria/` 是输入文件
 - `docs/reports_*` 保存导出报告
 - `logs/` 保存运行日志
 - `RAG_persist/` 保存树缓存、向量索引和 manifest
 
 ## 10. 当前架构的优先级与边界
 
-当前设计明显偏向“可运行、可迭代、便于调试”，而不是“重型企业生产架构”。这意味着：
+当前设计明显偏向「可运行、可迭代、便于调试」，而不是「重型企业生产架构」。这意味着：
 
 - 优先打通端到端链路
 - 优先保留日志和可观测性
@@ -320,6 +311,7 @@ flowchart LR
 
 但也意味着当前仍缺少：
 
+- HTTP API 与前端工作台
 - 数据库持久化
 - 正式任务队列
 - 用户与权限系统
@@ -332,4 +324,4 @@ flowchart LR
 
 1. 先看 [`PROJECT_OVERVIEW.md`](./PROJECT_OVERVIEW.md)
 2. 再看 [`DEPLOYMENT.md`](../DEPLOYMENT.md)
-3. 最后结合 `api/`、`main_workflow/`、`mcp_service/` 阅读具体实现
+3. 最后结合 `main.py`、`main_workflow/`、`mcp_service/` 阅读具体实现

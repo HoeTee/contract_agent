@@ -13,6 +13,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 sys.path.insert(0, PROJECT_ROOT)
 load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
+from config import _env_bool
 from tools.document.file_parser import FileParser
 from tools.document.docx_report_generator import ReportGenerator
 from tools.retrieval.index_retriever import IndexRetriever
@@ -21,12 +22,8 @@ from tools.retrieval.index_retriever import IndexRetriever
 API_KEY = os.getenv("LLM_API_KEY")
 BASE_URL = os.getenv("LLM_BASE_URL")
 LLM_NAME = os.getenv("LLM_NAME", "qwen-plus")
-ENABLE_MCP_WEB_TOOLS = os.getenv("ENABLE_MCP_WEB_TOOLS")
-PARSE_FILE_WITH_MINERU = os.getenv("PARSE_FILE_WITH_MINERU")
-
-
-def env_bool(val):
-    return str(val).lower() in ("1", "true", "yes")
+ENABLE_MCP_WEB_TOOLS = _env_bool("ENABLE_MCP_WEB_TOOLS", default=False)
+PARSE_FILE_WITH_MINERU = _env_bool("PARSE_FILE_WITH_MINERU", default=False)
 
 
 class Settings(BaseSettings):
@@ -113,9 +110,9 @@ async def read_url(url: str) -> str:
     """
     return str(await fetch_url(url))
 
-
-mcp.tool()(web_search)
-mcp.tool()(read_url)
+if ENABLE_MCP_WEB_TOOLS:
+    mcp.tool()(web_search)
+    mcp.tool()(read_url)
 
 
 # ============ Document Tools ============
@@ -125,7 +122,7 @@ async def ingest_file(file_path: str) -> str:
     """
     Parse a DOCX/PDF/TXT file, return full markdown content.
     """
-    if env_bool(PARSE_FILE_WITH_MINERU):
+    if PARSE_FILE_WITH_MINERU:
         try:
             content = await FileParser.parse_file_with_mineru(file_path)
         except Exception as e:

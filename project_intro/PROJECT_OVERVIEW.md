@@ -2,21 +2,23 @@
 
 ## 1. 项目定位
 
-`deep_research_agent` 是一个面向合同审查场景的多智能体系统，目标是把“文档解析、条款检索、逐项审查、报告生成”串成一条可重复执行的自动化流程。
+`deep_research_agent` 是一个面向合同审查场景的多智能体系统，目标是把「文档解析、条款检索、逐项审查、报告生成」串成一条可重复执行的自动化流程。
 
-当前仓库已经不只是一个单独的研究脚本，而是一套完整的应用：
+当前仓库（分支 `rollback-0313-with-mineru`）专注于核心后端实现：
 
-- 前端工作台：上传文件、选择检索模式、查看进度与结果、下载报告
-- 后端 API：负责任务接收、状态管理、结果输出
 - 工作流引擎：负责编排解析、检索、审查、反思与汇总
+- 多智能体协作层：Planner、Orchestrator、EvidenceCollector、Reflector、Summarizer
 - MCP 工具层：统一暴露文件解析、检索、报告生成、网页搜索等能力
+- CLI 入口：`main.py`，便于本地链路调试
+
+> 本分支不包含前端工作台与 FastAPI Web 服务。如果你看到的旧版本文档提到 `frontend/` 或 `api/`，那是之前 Web 形态的描述，不适用于当前仓库。
 
 ## 2. 适用场景
 
 适合以下类型的任务：
 
 - 对合同正文进行批量审查
-- 根据“审核要点/审查标准”逐项检查合同
+- 根据「审核要点 / 审查标准」逐项检查合同
 - 输出结构化问题清单和正式报告
 - 对同一份合同切换不同检索策略做效果对比
 
@@ -49,12 +51,12 @@
 | --- | --- | --- | --- |
 | LlamaIndex 向量检索 | `llamaindex` | 向量召回 + 可选重排 | 长文档、语义召回要求高 |
 | PageIndex 树检索 | `pageindex` | 基于文档结构树的两阶段检索 | 条款结构较清晰的合同 |
-| Evidence Collector | `evidence` | 按章节迭代提取证据 | 需要更细粒度人工风格证据整理 |
+| Evidence Collector | `evidence` | 按章节迭代提取证据 | 需要更细粒度证据整理 |
 
 其中：
 
-- 前端会把 `retrieval_mode` 显式传给后端
-- 如果请求不传 `retrieval_mode`，后端才会根据 `.env` 中的 `LLAMA_INDEX` 和 `PAGEINDEX_SEARCH` 推导默认模式
+- 默认检索模式由 `.env` 中的 `LLAMA_INDEX` 与 `PAGEINDEX_SEARCH` 推导（详见 `config.py`）
+- 检索模式由 `.env` 唯一决定，工作流与 Orchestrator 不再支持通过参数覆盖
 
 ### 3.3 多格式报告输出
 
@@ -70,31 +72,16 @@
 
 系统会保留：
 
-- 工作流日志
-- 智能体对话日志
-- MCP 客户端日志
-- RAG 索引或树缓存
+- 工作流日志（`logs/workflow/`）
+- 智能体对话日志（`logs/conversations/`）
+- MCP 客户端日志（`logs/mcp/`）
+- RAG 索引或树缓存（`RAG_persist/`）
 
 这使得它更适合调试、复盘和后续优化。
 
 ## 4. 运行形态
 
-项目支持两种运行形态。
-
-### 4.1 Web 应用模式
-
-入口：
-
-- 后端：`api.main:app`
-- 前端：`frontend/`
-
-特点：
-
-- 面向产品化使用
-- 支持上传、历史记录、结果展示和下载
-- MCP 服务通过后端 `/mcp` 暴露
-
-### 4.2 CLI 模式
+当前仓库提供 CLI 模式：
 
 入口：
 
@@ -103,8 +90,10 @@
 特点：
 
 - 直接在本地执行完整工作流
-- 适合开发调试和问题排查
-- 通过本地脚本路径启动 MCP，而不是 HTTP
+- 适合开发调试和效果验证
+- 通过本地脚本路径以子进程方式启动 MCP（`mcp_service/mcp_server/mcp_server.py`），不需要单独拉起 HTTP 服务
+
+如果未来需要 Web 形态（FastAPI + 前端），可在此基础上自行扩展，详见 `DEPLOYMENT.md` 末尾的扩展方向。
 
 ## 5. 工作流主链路
 
@@ -136,41 +125,42 @@
 ```text
 deep_research_agent/
 ├── agents/                     # 智能体实现
-├── api/                        # FastAPI 接口
-├── frontend/                   # React 前端
 ├── main_workflow/              # 6 阶段工作流编排
 ├── mcp_service/                # MCP 客户端与服务端
 ├── tools/                      # 文件解析、检索、报告生成
-├── docs/                       # 输入文件与导出报告
-├── uploads/                    # 上传文件暂存
-├── logs/                       # 运行日志
 ├── RAG_persist/                # 索引、树缓存、manifest
 ├── project_intro/              # 项目说明文档
 ├── config.py                   # 全局配置与默认检索模式
-├── DEPLOYMENT.md               # 部署说明
-└── main.py                     # CLI 调试入口
+├── DEPLOYMENT.md               # 部署 / 运行说明
+├── main.py                     # CLI 调试入口
+├── requirements.txt
+└── pyproject.toml
 ```
+
+> 实际运行时还会在根目录下生成 `docs/`、`uploads/`、`logs/` 等数据目录，这些不是源代码的一部分，但属于运行产物。
 
 ## 7. 关键模块说明
 
 | 模块 | 位置 | 作用 |
 | --- | --- | --- |
-| 配置 | `config.py` | 统一维护路径、默认检索模式、模型上下文配置 |
-| API 入口 | `api/main.py` | 暴露 Web API、健康检查和 MCP 路由 |
+| 配置 | `config.py` | 统一维护路径、默认检索模式、LLM 上下文配置 |
 | 工作流 | `main_workflow/main_workflow.py` | 编排完整合同审查链路 |
 | 智能体 | `agents/` | 规划、检索调度、反思、汇总 |
 | MCP 服务 | `mcp_service/mcp_server/mcp_server.py` | 注册文件解析、检索、报告生成、网页搜索工具 |
-| 前端 API 层 | `frontend/src/services/api.ts` | 对接上传、审查、历史、下载等接口 |
+| MCP 客户端 | `mcp_service/mcp_client/` | 工作流调用 MCP 的封装 |
+| 文档解析 | `tools/document/` | MinerU、本地 PDF/DOCX 解析与回退 |
+| 检索 | `tools/retrieval/` | PageIndex 与 LlamaIndex 实现 |
+| CLI 入口 | `main.py` | 本地一键跑完整工作流 |
 
 ## 8. 输入与输出
 
 ### 8.1 输入
 
-- 合同文件
-- 审查标准文件
-- 检索模式选择
+- 合同文件（默认放在 `docs/contracts/`）
+- 审查标准文件（默认放在 `docs/contract_review_criteria/`）
+- 可选：在工作流调用处显式指定检索模式
 
-当前前端界面限制用户上传：
+CLI 入口当前限制上传后缀为：
 
 - `.pdf`
 - `.docx`
@@ -203,15 +193,15 @@ deep_research_agent/
 
 ### 9.2 当前限制
 
-- 历史任务目前保存在内存，后端重启后会丢失
-- 上传接口本身没有做严格文件类型校验，当前主要依赖前端限制
-- 生产环境还没有内建任务队列、数据库和鉴权
+- 仅有 CLI 形态，没有 Web 前端或 HTTP API
+- MCP 通过本地脚本进程方式调用，未对外暴露 HTTP 端点
+- 没有数据库、任务队列、鉴权
 - 外部模型、网页搜索、MinerU 等能力都依赖外部服务稳定性
 
 ## 10. 你应该先看哪份文档
 
 如果你的目标是：
 
-- 了解部署方式：看 [`DEPLOYMENT.md`](../DEPLOYMENT.md)
+- 了解部署和运行方式：看 [`DEPLOYMENT.md`](../DEPLOYMENT.md)
 - 了解整体架构：看 [`ARCHITECTURE.md`](./ARCHITECTURE.md)
-- 想直接联调：优先看 `DEPLOYMENT.md` 里的本地开发部署章节
+- 想直接跑一遍：先看 `DEPLOYMENT.md` 里的本地运行章节，再回到根目录执行 `python main.py`

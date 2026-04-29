@@ -49,16 +49,15 @@ class ContractReviewWorkflow:
         self,
         contract_path: str,
         criteria_path: str,
-        retrieval_mode: str | None = None,
-        web_search_enabled: bool | None = None,
         progress_callback: Callable[[dict[str, Any]], Awaitable[None] | None] | None = None,
     ) -> dict[str, Any]:
         """
         Execute the full review workflow.
         Returns: structured review data for the API layer.
+        Retrieval mode and web-search availability are taken solely from .env.
         """
-        retrieval_mode = retrieval_mode or get_default_retrieval_mode()
-        web_search_enabled = get_default_web_search_enabled() if web_search_enabled is None else web_search_enabled
+        retrieval_mode = get_default_retrieval_mode()
+        web_search_enabled = get_default_web_search_enabled()
         mode_label = get_retrieval_mode(retrieval_mode)
         workflow_start = time.time()
         print("=" * 60)
@@ -101,8 +100,6 @@ class ContractReviewWorkflow:
             results = await self._phase_execute(
                 criteria_list,
                 tree_json,
-                retrieval_mode,
-                web_search_enabled,
             )
 
             # Phase 5: Summarize
@@ -291,8 +288,6 @@ class ContractReviewWorkflow:
         self,
         criteria_list: list[dict],
         tree_json: str | None,
-        retrieval_mode: str,
-        web_search_enabled: bool,
     ) -> list[dict]:
         """Phase 4: Orchestrator runs sub-agents with PageIndex retrieval + reflection."""
         print(f"\n[Phase 4] Executing {len(criteria_list)} criteria reviews...")
@@ -302,8 +297,6 @@ class ContractReviewWorkflow:
             mcp_client=self.mcp_client,
             logger=self.logger,
             settings=self.settings,
-            retrieval_mode=retrieval_mode,
-            web_search_enabled=web_search_enabled,
         )
         results = await orchestrator.execute_criteria(criteria_list, tree_json)
         self._retrieval_tokens = getattr(orchestrator, 'retrieval_tokens', 0)
