@@ -3,6 +3,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
+from contextlib import redirect_stdout
 import httpx
 import json
 import os
@@ -11,19 +12,25 @@ import sys
 # Add project root to path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, PROJECT_ROOT)
+from offline_bootstrap import configure_offline_tiktoken
+
+configure_offline_tiktoken(PROJECT_ROOT)
 load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
-from config import _env_bool
 from tools.document.file_parser import FileParser
-from tools.document.docx_report_generator import ReportGenerator
+from tools.document.report_generator import ReportGenerator
 from tools.retrieval.index_retriever import IndexRetriever
 
 
 API_KEY = os.getenv("LLM_API_KEY")
 BASE_URL = os.getenv("LLM_BASE_URL")
 LLM_NAME = os.getenv("LLM_NAME", "qwen-plus")
-ENABLE_MCP_WEB_TOOLS = _env_bool("ENABLE_MCP_WEB_TOOLS", default=False)
-PARSE_FILE_WITH_MINERU = _env_bool("PARSE_FILE_WITH_MINERU", default=False)
+ENABLE_MCP_WEB_TOOLS = os.getenv("ENABLE_MCP_WEB_TOOLS")
+PARSE_FILE_WITH_MINERU = os.getenv("PARSE_FILE_WITH_MINERU")
+
+
+def env_bool(val):
+    return str(val).lower() in ("1", "true", "yes")
 
 
 class Settings(BaseSettings):
@@ -46,6 +53,8 @@ index_retriever = IndexRetriever(
     rerank_base_url=os.getenv("RERANK_BASE_URL"),
     rerank_name=os.getenv("RERANK_NAME"),
 )
+if os.getenv("CONTRACT_RETRIEVAL_MODE") == "llamaindex":
+    index_retriever._get_contract_llamaindex_engine()
 
 
 # ============ Web Search ============
@@ -110,9 +119,9 @@ async def read_url(url: str) -> str:
     """
     return str(await fetch_url(url))
 
-if ENABLE_MCP_WEB_TOOLS:
-    mcp.tool()(web_search)
-    mcp.tool()(read_url)
+
+mcp.tool()(web_search)
+mcp.tool()(read_url)
 
 
 # ============ Document Tools ============
@@ -122,7 +131,7 @@ async def ingest_file(file_path: str) -> str:
     """
     Parse a DOCX/PDF/TXT file, return full markdown content.
     """
-    if PARSE_FILE_WITH_MINERU:
+    if env_bool(PARSE_FILE_WITH_MINERU):
         try:
             content = await FileParser.parse_file_with_mineru(file_path)
         except Exception as e:
@@ -149,22 +158,29 @@ async def generate_final_report(
     Generate MD, annotated DOCX, and PDF reports from markdown content.
     DOCX: only generated when the source contract is a DOCX. The export is a
     cleaned contract copy with review comments.
-    PDF: renders the markdown report with Chinese-capable HTML/PDF output.
+    PDF: renders the markdown report through Pandoc + xelatex.
     Returns paths to all three generated files.
     """
     try:
         results = json.loads(results_json) if results_json else None
-        paths = ReportGenerator.generate_report(
-            content_json,
-            contract_name,
-            elapsed_seconds=elapsed_seconds,
-            contract_path=contract_path,
-            results=results,
-        )
+        # MCP stdio reserves stdout for JSON-RPC frames. Report generation can
+        # invoke libraries that print progress, so route incidental text away
+        # from stdout while the tool runs.
+        with redirect_stdout(sys.stderr):
+            paths = ReportGenerator.generate_report(
+                content_json,
+                contract_name,
+                elapsed_seconds=elapsed_seconds,
+                contract_path=contract_path,
+                results=results,
+            )
+        errors = paths.pop("errors", {}) if isinstance(paths, dict) else {}
         lines = ["Reports generated successfully:"]
         for fmt, path in paths.items():
             status = path if path else "FAILED"
             lines.append(f"  {fmt.upper()}: {status}")
+        for fmt, message in errors.items():
+            lines.append(f"  {fmt.upper()}_ERROR: {message}")
         return "\n".join(lines)
     except Exception as e:
         return f"Error generating report: {str(e)}"
@@ -190,31 +206,33 @@ async def pageindex_search(query: str, tree_json: str) -> str:
     return await index_retriever.pageindex_search(query, tree_json)
 
 
-def warmup_llamaindex_engine() -> None:
-    """Force lazy LlamaIndex initialization during backend startup."""
-    index_retriever.warmup_llamaindex_engine()
-
-
 async def llamaindex_build_index(markdown_content: str) -> str:
     """
-    Build a LlamaIndex vector index from markdown content.
-    Returns index metadata JSON (status, doc_hash, num_nodes).
-    Uses embedding model to vectorize document chunks.
+    Build a temporary in-memory LlamaIndex index for the current contract.
+    This does not persist contract vectors to RAG_persist.
     """
-    return await index_retriever.build_llamaindex_index(markdown_content)
+    return await index_retriever.build_contract_llamaindex_index(markdown_content)
 
 
 async def llamaindex_search(query: str) -> str:
     """
-    Search the LlamaIndex vector index for sections relevant to a query.
-    Uses embedding similarity + reranking to find the most relevant passages.
-    Must call llamaindex_build_index first.
+    Search the temporary in-memory LlamaIndex index for the current contract.
+    Must call llamaindex_build_index first in the same workflow run.
     """
-    return await index_retriever.search_llamaindex(query)
+    return await index_retriever.search_contract_llamaindex(query)
+
+
+async def institutional_search(query: str) -> str:
+    """
+    Search the persistent institutional-document index for relevant policy passages.
+    The index is maintained manually via scripts/build_institutional_index.py.
+    """
+    return await index_retriever.search_institutional_index(query)
 
 
 mcp.tool()(llamaindex_build_index)
 mcp.tool()(llamaindex_search)
+mcp.tool()(institutional_search)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 EvidenceCollectorAgent — collects relevant text fragments from each contract
 section for a given review criterion.
 
-When PAGEINDEX_SEARCH=False, this agent replaces the pageindex_search MCP tool
+When CONTRACT_RETRIEVAL_MODE=evidence, this agent replaces the pageindex_search MCP tool
 by iterating through every section in the tree_json, making one LLM call per
 section to extract only the text fragments relevant to the criterion.
 """

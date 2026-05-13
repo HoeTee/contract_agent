@@ -1,24 +1,24 @@
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import hashlib
-import io
 import json
 import os
 import tempfile
+from datetime import datetime
 
 import openai
 
 from tools.retrieval.llamaindex import build_llamaindex_env_error, load_llamaindex_rag
 from tools.retrieval.pageindex.page_index_md import md_to_tree
+from tools.document.file_parser import FileParser
 
 
 SINGLE_STAGE_THRESHOLD = 20
 
 
 class IndexRetriever:
-    """Facade over the project's PageIndex and LlamaIndex retrieval strategies."""
+    """Facade over contract PageIndex retrieval and institutional RAG."""
 
     def __init__(
         self,
@@ -44,42 +44,28 @@ class IndexRetriever:
         self.rerank_api_key = rerank_api_key
         self.rerank_base_url = rerank_base_url
         self.rerank_name = rerank_name
-        self.pageindex_tree_cache_dir = os.path.join(
+        self._contract_llamaindex_engine = None
+        self._institutional_engine = None
+        self.institutional_docs_dir = os.path.join(
+            self.project_root,
+            os.getenv("INSTITUTIONAL_DOCS_DIR", os.path.join("docs", "institutional_docs")),
+        )
+        self.institutional_index_dir = os.path.join(
             self.project_root,
             "RAG_persist",
-            "pageindex_tree",
+            "institutional_index",
         )
-        self._pageindex_tree_cache: dict[str, str] = {}
-        self._llamaindex_engine = None
+        self.institutional_manifest_path = os.path.join(
+            self.project_root,
+            "RAG_persist",
+            "institutional_manifest.json",
+        )
 
     async def build_pageindex_tree(self, markdown_content: str) -> str:
-        """Build or load a cached PageIndex tree from markdown content."""
+        """Build a transient PageIndex tree from markdown content."""
         summary_token_threshold = 200
-        cache_key = hashlib.sha256(
-            json.dumps(
-                {
-                    "markdown_hash": hashlib.sha256(markdown_content.encode("utf-8")).hexdigest(),
-                    "model": self.llm_name,
-                    "summary_token_threshold": summary_token_threshold,
-                    "with_node_summary": True,
-                    "with_node_text": True,
-                    "with_node_id": True,
-                },
-                sort_keys=True,
-            ).encode("utf-8")
-        ).hexdigest()
-        cache_path = os.path.join(self.pageindex_tree_cache_dir, f"{cache_key}.json")
 
         try:
-            if cache_key in self._pageindex_tree_cache:
-                return self._pageindex_tree_cache[cache_key]
-
-            if os.path.exists(cache_path):
-                with open(cache_path, "r", encoding="utf-8") as f:
-                    cached_tree_json = f.read()
-                self._pageindex_tree_cache[cache_key] = cached_tree_json
-                return cached_tree_json
-
             with tempfile.NamedTemporaryFile(
                 mode="w",
                 suffix=".md",
@@ -103,12 +89,7 @@ class IndexRetriever:
                 if os.path.exists(tmp_path):
                     os.unlink(tmp_path)
 
-            tree_json = json.dumps(tree, ensure_ascii=False, indent=2)
-            os.makedirs(self.pageindex_tree_cache_dir, exist_ok=True)
-            with open(cache_path, "w", encoding="utf-8") as f:
-                f.write(tree_json)
-            self._pageindex_tree_cache[cache_key] = tree_json
-            return tree_json
+            return json.dumps(tree, ensure_ascii=False, indent=2)
         except Exception as e:
             import traceback
 
@@ -195,49 +176,141 @@ class IndexRetriever:
         except Exception as e:
             return f"Error in pageindex search: {str(e)}"
 
-    def warmup_llamaindex_engine(self) -> None:
-        """Force LlamaIndex initialization during backend startup."""
-        self._get_llamaindex_engine()
-
-    async def build_llamaindex_index(self, markdown_content: str) -> str:
-        """Build a LlamaIndex vector index from markdown content."""
+    async def build_contract_llamaindex_index(self, markdown_content: str) -> str:
+        """Build a temporary in-memory LlamaIndex contract index for this run."""
         try:
-            engine = self._get_llamaindex_engine()
-            sink = io.StringIO()
-
-            def _build_index() -> str:
-                with contextlib.redirect_stderr(sink):
-                    return engine.build_index_from_markdown(markdown_content)
-
-            return await asyncio.to_thread(_build_index)
+            engine = self._get_contract_llamaindex_engine()
+            node_count = await asyncio.to_thread(
+                engine.build_temporary_index_from_text,
+                markdown_content,
+                "current_contract",
+            )
+            return json.dumps(
+                {"status": "built_temporary_index", "num_nodes": node_count},
+                ensure_ascii=False,
+            )
         except Exception as e:
-            return json.dumps({"error": str(e)})
+            return json.dumps({"error": str(e)}, ensure_ascii=False)
 
-    async def search_llamaindex(self, query: str) -> str:
-        """Search the loaded LlamaIndex vector index."""
+    async def search_contract_llamaindex(self, query: str) -> str:
+        """Search the temporary in-memory contract LlamaIndex."""
         try:
-            engine = self._get_llamaindex_engine()
-            sink = io.StringIO()
-
-            def _search_index() -> str:
-                with contextlib.redirect_stderr(sink):
-                    return engine.search(query)
-
-            return await asyncio.to_thread(_search_index)
+            engine = self._get_contract_llamaindex_engine()
+            return await asyncio.to_thread(engine.search, query, "合同检索结果")
         except Exception as e:
-            return f"Error in LlamaIndex search: {str(e)}"
+            return f"Error in contract LlamaIndex search: {str(e)}"
 
-    def _get_llamaindex_engine(self):
-        """Lazily initialize the LlamaIndex RAG engine."""
-        if self._llamaindex_engine is None:
+    async def build_institutional_index(self) -> str:
+        """Incrementally update the persistent institutional-document index."""
+        print("[institutional-index] Loading index state...")
+        engine = self._get_institutional_engine()
+        engine.load_or_create_index()
+
+        print("[institutional-index] Scanning institutional documents...")
+        manifest = self._read_institutional_manifest()
+        current_files = self._scan_institutional_files()
+        previous_files = manifest.get("files", {})
+
+        added = [path for path in current_files if path not in previous_files]
+        modified = [
+            path for path, meta in current_files.items()
+            if path in previous_files and meta["sha256"] != previous_files[path]["sha256"]
+        ]
+        deleted = [path for path in previous_files if path not in current_files]
+        unchanged_count = len(current_files) - len(added) - len(modified)
+        print(
+            "[institutional-index] "
+            f"files={len(current_files)} added={len(added)} "
+            f"modified={len(modified)} deleted={len(deleted)} unchanged={unchanged_count}"
+        )
+
+        for relative_path in deleted:
+            print(f"[institutional-index] deleting: {relative_path}")
+            engine.delete_ref_doc(previous_files[relative_path]["doc_id"])
+
+        parser_name = "mineru" if self._parse_with_mineru() else "local"
+        print(f"[institutional-index] parser={parser_name}")
+        node_counts: dict[str, int] = {}
+        for relative_path in modified:
+            print(f"[institutional-index] updating: {relative_path}")
+            engine.delete_ref_doc(previous_files[relative_path]["doc_id"])
+            node_counts[relative_path] = await self._insert_institutional_file(
+                engine,
+                relative_path,
+                current_files[relative_path]["sha256"],
+                parser_name,
+            )
+            print(f"[institutional-index] nodes={node_counts[relative_path]} file={relative_path}")
+
+        for relative_path in added:
+            print(f"[institutional-index] adding: {relative_path}")
+            node_counts[relative_path] = await self._insert_institutional_file(
+                engine,
+                relative_path,
+                current_files[relative_path]["sha256"],
+                parser_name,
+            )
+            print(f"[institutional-index] nodes={node_counts[relative_path]} file={relative_path}")
+
+        print("[institutional-index] Persisting index...")
+        engine.persist()
+        next_files = {
+            path: previous_files[path]
+            for path in previous_files
+            if path in current_files and path not in modified
+        }
+        for relative_path, meta in current_files.items():
+            if relative_path in added or relative_path in modified:
+                next_files[relative_path] = {
+                    "sha256": meta["sha256"],
+                    "doc_id": self._institutional_doc_id(relative_path),
+                    "parser": parser_name,
+                    "node_count": node_counts[relative_path],
+                    "updated_at": datetime.now().isoformat(timespec="seconds"),
+                }
+
+        next_manifest = {
+            "source_dir": os.path.relpath(self.institutional_docs_dir, self.project_root),
+            "embedding_model": self.embed_name,
+            "chunk_size": 512,
+            "chunk_overlap": 100,
+            "files": dict(sorted(next_files.items())),
+        }
+        os.makedirs(os.path.dirname(self.institutional_manifest_path), exist_ok=True)
+        with open(self.institutional_manifest_path, "w", encoding="utf-8") as f:
+            json.dump(next_manifest, f, ensure_ascii=False, indent=2)
+        print("[institutional-index] Manifest updated.")
+
+        return json.dumps(
+            {
+                "status": "updated",
+                "added": added,
+                "modified": modified,
+                "deleted": deleted,
+                "unchanged_count": unchanged_count,
+                "total_files": len(current_files),
+            },
+            ensure_ascii=False,
+        )
+
+    async def search_institutional_index(self, query: str) -> str:
+        """Search the persistent institutional-document index."""
+        try:
+            engine = self._get_institutional_engine()
+            return await asyncio.to_thread(engine.search, query)
+        except Exception as e:
+            return f"Error in institutional search: {str(e)}"
+
+    def _get_institutional_engine(self):
+        """Lazily initialize the institutional LlamaIndex engine."""
+        if self._institutional_engine is None:
             try:
                 llamaindex_rag = load_llamaindex_rag()
             except Exception as e:
                 raise build_llamaindex_env_error(e) from e
 
-            self._llamaindex_engine = llamaindex_rag(
-                persist_dir=os.path.join(self.project_root, "RAG_persist", "index"),
-                manifest_path=os.path.join(self.project_root, "RAG_persist", "manifest.json"),
+            self._institutional_engine = llamaindex_rag(
+                persist_dir=self.institutional_index_dir,
                 llm_api_key=self.llm_api_key,
                 llm_base_url=self.llm_base_url,
                 llm_name=self.llm_name,
@@ -248,7 +321,84 @@ class IndexRetriever:
                 rerank_base_url=self.rerank_base_url,
                 rerank_name=self.rerank_name,
             )
-        return self._llamaindex_engine
+        return self._institutional_engine
+
+    def _get_contract_llamaindex_engine(self):
+        """Lazily initialize the temporary contract LlamaIndex engine."""
+        if self._contract_llamaindex_engine is None:
+            try:
+                llamaindex_rag = load_llamaindex_rag()
+            except Exception as e:
+                raise build_llamaindex_env_error(e) from e
+
+            self._contract_llamaindex_engine = llamaindex_rag(
+                persist_dir="",
+                llm_api_key=self.llm_api_key,
+                llm_base_url=self.llm_base_url,
+                llm_name=self.llm_name,
+                embed_api_key=self.embed_api_key,
+                embed_base_url=self.embed_base_url,
+                embed_name=self.embed_name,
+                rerank_api_key=self.rerank_api_key,
+                rerank_base_url=self.rerank_base_url,
+                rerank_name=self.rerank_name,
+            )
+        return self._contract_llamaindex_engine
+
+    def _read_institutional_manifest(self) -> dict:
+        if not os.path.exists(self.institutional_manifest_path):
+            return {"files": {}}
+        with open(self.institutional_manifest_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def _scan_institutional_files(self) -> dict[str, dict[str, str]]:
+        supported_suffixes = {".docx", ".pdf", ".md", ".txt"}
+        files: dict[str, dict[str, str]] = {}
+        for root, _, filenames in os.walk(self.institutional_docs_dir):
+            for filename in filenames:
+                path = os.path.join(root, filename)
+                if os.path.splitext(filename)[1].lower() not in supported_suffixes:
+                    continue
+                relative_path = os.path.relpath(path, self.institutional_docs_dir).replace(os.sep, "/")
+                files[relative_path] = {"sha256": self._file_sha256(path)}
+        return dict(sorted(files.items()))
+
+    async def _insert_institutional_file(
+        self,
+        engine,
+        relative_path: str,
+        source_hash: str,
+        parser_name: str,
+    ) -> int:
+        absolute_path = os.path.join(self.institutional_docs_dir, relative_path)
+        if parser_name == "mineru":
+            content = await FileParser.parse_file_with_mineru(absolute_path)
+        else:
+            content = FileParser.parse_file(absolute_path)
+        return await asyncio.to_thread(
+            engine.insert_text,
+            content=content,
+            relative_path=relative_path,
+            doc_id=self._institutional_doc_id(relative_path),
+            source_hash=source_hash,
+            parser=parser_name,
+        )
+
+    @staticmethod
+    def _file_sha256(path: str) -> str:
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
+    @staticmethod
+    def _institutional_doc_id(relative_path: str) -> str:
+        return f"institutional:{relative_path}"
+
+    @staticmethod
+    def _parse_with_mineru() -> bool:
+        return str(os.getenv("PARSE_FILE_WITH_MINERU")).lower() in ("1", "true", "yes", "on")
 
     def _collect_all_nodes(self, tree) -> dict[str, dict]:
         """Build a flat node_id -> node map from the tree."""

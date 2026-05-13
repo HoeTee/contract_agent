@@ -2,14 +2,17 @@
 .env
 
 # Private documents
-docs/contracts/
-docs/contract_review_criteria/
+# docs/contracts/
+# docs/contract_review_criteria/
 
 # Runtime output
-docs/
+docs/reports_md/
+docs/reports_docx/
+docs/reports_pdf/
 logs/
-RAG_persist/manifest/
-RAG_persist/persist/
+RAG_persist/
+docx_comment_test/
+md2pdf_test/
 !docs/**/.gitkeep
 !logs/**/.gitkeep
 
@@ -22,14 +25,13 @@ dist/
 build/
 *.egg
 
-*.docx
-*.doc
-*.pdf
+.venv/
 .claude/
 .codex/
-.venv/
 frontend/
+uploads/
 src/
 api/
 介绍.md
 PLAN.md
+DEPLOYMENT.md

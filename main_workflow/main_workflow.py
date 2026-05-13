@@ -14,11 +14,11 @@ import json
 import os
 import re
 import time
-from collections import OrderedDict
 from typing import Any, Awaitable, Callable
 
 from config import (
     MCP_SERVER_PATH,
+    get_default_institutional_rag_enabled,
     get_default_retrieval_mode,
     get_default_web_search_enabled,
     get_retrieval_mode,
@@ -29,6 +29,7 @@ from agents.planner import PlannerAgent
 from agents.orchestrator import OrchestratorAgent
 from agents.summarizer import SummarizerAgent
 from mcp_service.mcp_client.mcp_minimal import MinimalMCPClient
+from main_workflow.report_renderer import build_review_items, flatten_issues, render_report_markdown
 
 
 class ContractReviewWorkflow:
@@ -49,15 +50,22 @@ class ContractReviewWorkflow:
         self,
         contract_path: str,
         criteria_path: str,
+        retrieval_mode: str | None = None,
+        web_search_enabled: bool | None = None,
+        institutional_rag_enabled: bool | None = None,
         progress_callback: Callable[[dict[str, Any]], Awaitable[None] | None] | None = None,
     ) -> dict[str, Any]:
         """
         Execute the full review workflow.
         Returns: structured review data for the API layer.
-        Retrieval mode and web-search availability are taken solely from .env.
         """
-        retrieval_mode = get_default_retrieval_mode()
-        web_search_enabled = get_default_web_search_enabled()
+        retrieval_mode = retrieval_mode or get_default_retrieval_mode()
+        web_search_enabled = get_default_web_search_enabled() if web_search_enabled is None else web_search_enabled
+        institutional_rag_enabled = (
+            get_default_institutional_rag_enabled()
+            if institutional_rag_enabled is None
+            else institutional_rag_enabled
+        )
         mode_label = get_retrieval_mode(retrieval_mode)
         workflow_start = time.time()
         print("=" * 60)
@@ -65,6 +73,7 @@ class ContractReviewWorkflow:
         print("=" * 60)
         print(f"Selected retrieval mode: {retrieval_mode} ({mode_label})")
         print(f"Web search enabled: {web_search_enabled}")
+        print(f"Institutional RAG enabled: {institutional_rag_enabled}")
 
         # Initialize MCP client
         await self.mcp_client.connect()
@@ -76,14 +85,13 @@ class ContractReviewWorkflow:
 
             # Phase 2: Build index / tree
             if retrieval_mode == "llamaindex":
-                await self._emit_progress(progress_callback, "building_index", "Building LlamaIndex vector index")
-                # Direct in-process LlamaIndex calls are disabled; use MCP tools instead.
-                # llamaindex_engine = self._create_llamaindex_engine()
-                # await self._phase_build_llamaindex(contract_md, llamaindex_engine)
+                await self._emit_progress(progress_callback, "building_index", "Building temporary LlamaIndex contract index")
                 await self._phase_build_llamaindex(contract_md)
-                tree_json = None  # Not used in LlamaIndex mode
-            else:
+                tree_json = None
+            elif retrieval_mode == "pageindex":
                 await self._emit_progress(progress_callback, "building_tree", "Building the contract structure tree")
+                tree_json = await self._phase_build_tree(contract_md)
+            else:
                 tree_json = await self._phase_build_tree(contract_md)
 
             # Phase 3: Plan tasks
@@ -100,11 +108,19 @@ class ContractReviewWorkflow:
             results = await self._phase_execute(
                 criteria_list,
                 tree_json,
+                retrieval_mode,
+                web_search_enabled,
+                institutional_rag_enabled,
             )
+            debug_results_path = os.path.join("logs", "workflow", "last_results.json")
+            os.makedirs(os.path.dirname(debug_results_path), exist_ok=True)
+            with open(debug_results_path, "w", encoding="utf-8") as f:
+                json.dump(results, f, ensure_ascii=False, indent=2)
 
             # Phase 5: Summarize
             await self._emit_progress(progress_callback, "summarizing", "Compiling the final report")
-            report_text = await self._phase_summarize(results)
+            summary_sections = await self._phase_summarize(results)
+            report_text = render_report_markdown(summary_sections, results)
 
             token_stats = self._collect_token_stats(results)
             total_tokens = token_stats["total"]
@@ -123,8 +139,8 @@ class ContractReviewWorkflow:
                 report_text, contract_path,
                 elapsed_seconds=elapsed, results=results,
             )
-            issues = self._extract_issues(results)
-            review_items = self._extract_review_items(results)
+            issues = flatten_issues(results)
+            review_items = build_review_items(results)
 
             # Save workflow log
             log_path = self.logger.save()
@@ -144,6 +160,7 @@ class ContractReviewWorkflow:
                 "total_tokens": total_tokens,
                 "retrieval_mode": retrieval_mode,
                 "web_search_enabled": web_search_enabled,
+                "institutional_rag_enabled": institutional_rag_enabled,
                 "workflow_log": log_path,
             }
 
@@ -231,12 +248,10 @@ class ContractReviewWorkflow:
         return tree_json
 
     async def _phase_build_llamaindex(self, contract_md: str) -> str:
-        """Phase 2 (LlamaIndex mode): Build vector index from contract markdown."""
-        print("\n[Phase 2] Building LlamaIndex vector index...")
+        """Phase 2 (LlamaIndex mode): Build a temporary contract vector index."""
+        print("\n[Phase 2] Building temporary LlamaIndex contract index...")
         start = time.time()
 
-        # Keep index building behind the MCP boundary so workflow execution uses
-        # the same tool surface regardless of the selected retrieval mode.
         result = await self.mcp_client.call_tool(
             "llamaindex_build_index", {"markdown_content": contract_md}
         )
@@ -249,15 +264,11 @@ class ContractReviewWorkflow:
             duration=round(time.time() - start, 2)
         )
 
-        try:
-            parsed = json.loads(result)
-        except json.JSONDecodeError:
-            parsed = None
-
-        if isinstance(parsed, dict) and parsed.get("error"):
+        parsed = json.loads(result)
+        if parsed.get("error"):
             raise RuntimeError(f"LlamaIndex index build failed: {parsed['error']}")
 
-        print(f"  Index built in {round(time.time()-start,1)}s: {result[:200]}")
+        print(f"  Temporary index built in {round(time.time()-start,1)}s: {result[:200]}")
         return result
 
     async def _phase_plan(self, criteria_md: str) -> list[dict]:
@@ -288,6 +299,9 @@ class ContractReviewWorkflow:
         self,
         criteria_list: list[dict],
         tree_json: str | None,
+        retrieval_mode: str,
+        web_search_enabled: bool,
+        institutional_rag_enabled: bool,
     ) -> list[dict]:
         """Phase 4: Orchestrator runs sub-agents with PageIndex retrieval + reflection."""
         print(f"\n[Phase 4] Executing {len(criteria_list)} criteria reviews...")
@@ -297,6 +311,9 @@ class ContractReviewWorkflow:
             mcp_client=self.mcp_client,
             logger=self.logger,
             settings=self.settings,
+            retrieval_mode=retrieval_mode,
+            web_search_enabled=web_search_enabled,
+            institutional_rag_enabled=institutional_rag_enabled,
         )
         results = await orchestrator.execute_criteria(criteria_list, tree_json)
         self._retrieval_tokens = getattr(orchestrator, 'retrieval_tokens', 0)
@@ -312,26 +329,26 @@ class ContractReviewWorkflow:
         print(f"  Completed: {len(results)} reviews")
         return results
 
-    async def _phase_summarize(self, results: list[dict]) -> str:
-        """Phase 5: Summarizer compiles all results into report text."""
+    async def _phase_summarize(self, results: list[dict]) -> dict[str, str]:
+        """Phase 5: Summarizer produces overview and priority advice sections."""
         print("\n[Phase 5] Summarizing...")
         start = time.time()
 
         summarizer = SummarizerAgent(settings=self.settings)
-        report_text = await summarizer.compile_report(results)
+        summary_sections = await summarizer.compile_report(results)
 
         self._summarizer_tokens = summarizer.token_usage.get("total_tokens", 0)
         self.logger.log(
             phase="Summarization", sender="Summarizer", receiver="Workflow",
             action="compile_report",
             input_summary=f"{len(results)} criterion results",
-            output_summary=f"{len(report_text)} chars report",
+            output_summary=f"{len(json.dumps(summary_sections, ensure_ascii=False))} chars summary",
             tokens=self._summarizer_tokens,
             duration=round(time.time() - start, 2)
         )
 
-        print(f"  Report: {len(report_text)} chars")
-        return report_text
+        print(f"  Summary sections: {len(summary_sections)}")
+        return summary_sections
 
     def _build_checklist(self, criteria_list: list[dict], results: list[dict]) -> str:
         """Build a markdown checklist showing which extracted criteria were reviewed."""
@@ -501,254 +518,3 @@ class ContractReviewWorkflow:
 
         return paths
 
-    def _extract_issues(self, results: list[dict]) -> list[dict[str, Any]]:
-        """Flatten parsed review issues for legacy API consumers and counts."""
-        issues: list[dict[str, Any]] = []
-
-        for result in results:
-            issues.extend(self._extract_result_issues(result))
-
-        return issues
-
-    def _extract_review_items(self, results: list[dict]) -> list[dict[str, Any]]:
-        """Build the section/criterion hierarchy consumed by the structured UI."""
-        review_items: list[dict[str, Any]] = []
-        section_order: OrderedDict[str, int] = OrderedDict()
-        section_counts: dict[str, int] = {}
-
-        for result in results:
-            section_name = result.get("section", "其他") or "其他"
-            if section_name not in section_order:
-                section_order[section_name] = len(section_order) + 1
-                section_counts[section_name] = 0
-            section_counts[section_name] += 1
-            criterion_issues = self._extract_result_issues(result)
-            review_items.append(
-                {
-                    "criterion_id": result.get("criterion_id", ""),
-                    "section": section_name,
-                    "criterion": result.get("criterion", ""),
-                    "section_order": section_order[section_name],
-                    "criterion_order": section_counts[section_name],
-                    "check_points": result.get("check_points", []),
-                    "status": self._normalize_review_item_status(result.get("status")),
-                    "issue_count": len(criterion_issues),
-                    "issues": criterion_issues,
-                    "error_message": result.get("error_message"),
-                }
-            )
-
-        return review_items
-
-    def _extract_result_issues(self, result: dict[str, Any]) -> list[dict[str, Any]]:
-        """Parse all structured issues from one criterion review result."""
-        if result.get("status") != "ISSUES_FOUND":
-            return []
-
-        review_output = result.get("review_output", "").strip()
-        if not review_output:
-            return []
-
-        issues: list[dict[str, Any]] = []
-        for section in self._split_review_output_sections(review_output):
-            if not self._looks_like_issue_section(section):
-                continue
-
-            issue = self._build_issue_from_section(section, result)
-            if self._issue_has_content(issue):
-                issues.append(issue)
-
-        return issues
-
-    def _split_review_output_sections(self, review_output: str) -> list[str]:
-        """Split markdown issue output into per-issue sections."""
-        structured_sections = re.split(
-            r"(?=^#{3,4}\s*检查要点[:：])",
-            review_output,
-            flags=re.MULTILINE,
-        )
-        structured_sections = [section.strip() for section in structured_sections if section.strip()]
-        if structured_sections:
-            return structured_sections
-
-        sections = re.split(r"(?=^#{3,4}\s)", review_output, flags=re.MULTILINE)
-        sections = [section.strip() for section in sections if section.strip()]
-        return sections or [review_output]
-
-    def _looks_like_issue_section(self, section: str) -> bool:
-        """Return whether a markdown block looks like one actionable issue."""
-        if not section or "[ALL_COMPLIANT]" in section:
-            return False
-
-        has_heading = bool(
-            re.search(r"^#{3,4}\s*(检查要点[:：]\s*)?.+$", section, flags=re.MULTILINE)
-        )
-        field_markers = [
-            r"(?:\*\*)?风险等级(?:\*\*)?[:：]",
-            r"(?:\*\*)?(?:审查)?结论(?:\*\*)?[:：]",
-            r"(?:\*\*)?原文引用(?:\*\*)?[:：]",
-            r"(?:\*\*)?所在位置(?:\*\*)?[:：]",
-            r"(?:\*\*)?问题分析(?:\*\*)?[:：]",
-            r"(?:\*\*)?法律依据(?:\*\*)?[:：]",
-            r"(?:\*\*)?修改建议(?:\*\*)?[:：]",
-        ]
-        matched_markers = sum(
-            1 for pattern in field_markers if re.search(pattern, section, flags=re.MULTILINE)
-        )
-
-        if has_heading:
-            return matched_markers >= 1
-        return matched_markers >= 2
-
-    def _issue_has_content(self, issue: dict[str, Any]) -> bool:
-        """Return whether an extracted issue carries any real issue detail."""
-        content_fields = [
-            issue.get("conclusion"),
-            issue.get("analysis"),
-            issue.get("legal_basis"),
-            issue.get("suggestion"),
-            issue.get("clause_location"),
-        ]
-        return any(value and str(value).strip() for value in content_fields)
-
-    def _build_issue_from_section(self, section: str, result: dict[str, Any]) -> dict[str, Any]:
-        """Extract a single issue card from semi-structured reviewer markdown."""
-        return {
-            "section": result.get("section", "其他") or "其他",
-            "criterion_id": result.get("criterion_id", ""),
-            "criterion": result.get("criterion", ""),
-            "clause_location": self._normalize_clause_location(
-                self._extract_field(
-                    section,
-                    [
-                        r"\*\*所在位置\*\*[:：]\s*([^\n]+)",
-                        r"所在位置[:：]\s*([^\n]+)",
-                    ],
-                    default="",
-                )
-            ),
-            "page": None,
-            "risk_level": self._normalize_risk_level(
-                self._extract_field(
-                    section,
-                    [
-                        r"\*\*风险等级\*\*[:：]\s*([^\n]+)",
-                        r"风险等级[:：]\s*([^\n]+)",
-                    ],
-                    default="low",
-                )
-            ),
-            "violated_criteria": self._extract_field(
-                section,
-                [
-                    r"^#{3,4}\s*检查要点[:：]\s*(.+)$",
-                    r"^#{3,4}\s*(.+)$",
-                ],
-                default=result.get("criterion", ""),
-            ),
-            "conclusion": self._extract_field(
-                section,
-                [
-                    r"\*\*审查结论\*\*[:：]\s*([^\n]+)",
-                    r"\*\*结论\*\*[:：]\s*([^\n]+)",
-                    r"审查结论[:：]\s*([^\n]+)",
-                    r"结论[:：]\s*([^\n]+)",
-                ],
-                default="",
-            ),
-            "analysis": self._extract_field(
-                section,
-                [
-                    r"\*\*问题分析\*\*[:：]\s*([^\n]+)",
-                    r"问题分析[:：]\s*([^\n]+)",
-                ],
-                default=section,
-            ),
-            "legal_basis": self._extract_field(
-                section,
-                [
-                    r"\*\*法律依据\*\*[:：]\s*([^\n]+)",
-                    r"法律依据[:：]\s*([^\n]+)",
-                ],
-                default=None,
-            ),
-            "suggestion": self._extract_quoted_field(section, "修改建议"),
-        }
-
-    def _extract_field(
-        self,
-        text: str,
-        patterns: list[str],
-        default: str | None = "",
-    ) -> str | None:
-        """Return the first regex capture that matches, or the provided default."""
-        for pattern in patterns:
-            match = re.search(pattern, text, flags=re.MULTILINE)
-            if match:
-                return match.group(1).strip()
-        return default
-
-    def _extract_quoted_field(self, text: str, field_name: str) -> str:
-        """Extract a markdown blockquote field, with inline fallback support."""
-        block_pattern = (
-            rf"(?:- )?(?:\*\*)?{re.escape(field_name)}(?:\*\*)?[:：]?\s*\n"
-            rf"((?:>\s?.*(?:\n|$))+)"
-        )
-        block_match = re.search(block_pattern, text, flags=re.MULTILINE)
-        if block_match:
-            quoted_lines = [
-                re.sub(r"^>\s?", "", line).rstrip()
-                for line in block_match.group(1).splitlines()
-            ]
-            return "\n".join(line for line in quoted_lines if line).strip()
-
-        inline_match = re.search(
-            rf"(?:- )?(?:\*\*)?{re.escape(field_name)}(?:\*\*)?[:：]?\s*(.+)",
-            text,
-            flags=re.MULTILINE,
-        )
-        if inline_match:
-            return inline_match.group(1).strip()
-
-        return ""
-
-    def _normalize_risk_level(self, value: str | None) -> str:
-        """Normalize free-form risk labels into the API's fixed enum values."""
-        if not value:
-            return "low"
-
-        normalized = value.lower()
-        if "high" in normalized or "高" in value:
-            return "high"
-        if "medium" in normalized or "中" in value:
-            return "medium"
-        if "none" in normalized or "无" in value:
-            return "none"
-        return "low"
-
-    def _normalize_review_item_status(self, value: str | None) -> str:
-        """Normalize internal orchestrator statuses into API-friendly values."""
-        normalized = (value or "").upper()
-        if normalized == "COMPLIANT":
-            return "compliant"
-        if normalized == "ERROR":
-            return "error"
-        return "issues_found"
-
-    def _normalize_clause_location(self, value: str | None) -> str:
-        """Drop retrieval wrapper labels from clause locations exposed to the UI."""
-        cleaned = re.sub(r"\s+", " ", (value or "")).strip()
-        if not cleaned:
-            return ""
-
-        retrieval_artifacts = (
-            "检索结果",
-            "相关度",
-            "命中片段",
-            "检索片段",
-            "搜索结果",
-        )
-        if any(token in cleaned for token in retrieval_artifacts):
-            return ""
-
-        return cleaned

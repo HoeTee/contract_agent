@@ -3,6 +3,10 @@ Entry point for the contract review workflow.
 """
 import asyncio
 import os
+from offline_bootstrap import configure_offline_tiktoken
+
+configure_offline_tiktoken()
+
 from main_workflow.main_workflow import ContractReviewWorkflow
 
 # Project root
@@ -42,7 +46,7 @@ MCP_SERVER_PATH = os.path.join(
 )
 
 
-async def main(filename: str=doc_1):
+async def main(filename: str=doc_3):
 
     CONTRACT_PATH = contract_path(filename) 
 

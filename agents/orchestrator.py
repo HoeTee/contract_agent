@@ -1,19 +1,14 @@
 """
 OrchestratorAgent - dispatches sub-agents per criterion with retrieval + reflection.
 
-Retrieval mode and web-search availability are derived solely from .env via
-config.get_default_retrieval_mode / config.get_default_web_search_enabled.
+Supports contract retrieval modes plus optional institutional-document RAG.
 """
 import asyncio
 import json
 import re
 import time
 
-from config import (
-    MAX_REFLECTION_ROUNDS,
-    get_default_retrieval_mode,
-    get_default_web_search_enabled,
-)
+from config import MAX_REFLECTION_ROUNDS
 from agents.base_agent import Agent
 from agents.reflector import ReflectorAgent
 from agents.evidence_collector import EvidenceCollectorAgent
@@ -28,14 +23,18 @@ class OrchestratorAgent:
         mcp_client=None,
         logger=None,
         settings=None,
+        retrieval_mode: str = "pageindex",
+        web_search_enabled: bool = False,
+        institutional_rag_enabled: bool = False,
     ):
         self.mcp_client = mcp_client
         self.logger = logger
         self.settings = settings
-        self.retrieval_mode = get_default_retrieval_mode()
-        self.web_search_enabled = get_default_web_search_enabled()
+        self.retrieval_mode = retrieval_mode
+        self.web_search_enabled = web_search_enabled
+        self.institutional_rag_enabled = institutional_rag_enabled
         self.tools = None
-        self.collector = EvidenceCollectorAgent(settings=self.settings) if self.retrieval_mode == "evidence" else None
+        self.collector = EvidenceCollectorAgent(settings=self.settings) if retrieval_mode == "evidence" else None
         self.reflector = ReflectorAgent(settings=self.settings)
         self.retrieval_tokens = 0  # Track MCP tool internal LLM tokens
 
@@ -61,22 +60,18 @@ class OrchestratorAgent:
         retrieval_tokens = 0
 
         if self.retrieval_mode == "llamaindex":
-            # Mode C: LlamaIndex vector search
-            print(f"[Orchestrator] {cid}: Searching via LlamaIndex...")
-            # Direct callable injection is disabled; always use MCP for LlamaIndex.
+            print(f"[Orchestrator] {cid}: Searching contract via temporary LlamaIndex...")
             search_result = await self.mcp_client.call_tool(
                 "llamaindex_search", {"query": search_query}
             )
-            receiver = "MCP:llamaindex_search"
-            action = f"llamaindex_search({cid})"
             if isinstance(search_result, str) and search_result.startswith("Error"):
                 raise RuntimeError(search_result)
             context = search_result if search_result else "未找到相关内容。"
 
             if self.logger:
                 self.logger.log(
-                    phase="Execute", sender="Orchestrator", receiver=receiver,
-                    action=action,
+                    phase="Execute", sender="Orchestrator", receiver="MCP:llamaindex_search",
+                    action=f"llamaindex_search({cid})",
                     input_summary=criterion_text,
                     output_summary=f"{len(context)} chars retrieved",
                     duration=round(time.time() - start, 2)
@@ -110,7 +105,7 @@ class OrchestratorAgent:
         else:
             # Mode B: EvidenceCollector per-section LLM iteration
             print(f"[Orchestrator] {cid}: Collecting evidence from contract sections...")
-            evidence = await self.collector.collect_evidence(criterion, tree_json)
+            evidence = await self.collector.collect_evidence(criterion_text, tree_json)
             context = EvidenceCollectorAgent.format_evidence(evidence)
             retrieval_tokens = self.collector.token_usage.get("total_tokens", 0)
 
@@ -125,6 +120,37 @@ class OrchestratorAgent:
                 )
 
         return self._prepare_review_context(context), retrieval_tokens
+
+    async def _retrieve_institutional_context(
+        self,
+        cid: str,
+        criterion_text: str,
+        check_points_text: str,
+        start: float,
+    ) -> str:
+        """Retrieve institutional policy passages for one criterion."""
+        if not self.institutional_rag_enabled:
+            return ""
+
+        search_query = f"{criterion_text}\n检查要点：{check_points_text}"
+        print(f"[Orchestrator] {cid}: Searching institutional docs...")
+        context = await self.mcp_client.call_tool(
+            "institutional_search",
+            {"query": search_query},
+        )
+        if isinstance(context, str) and context.startswith("Error"):
+            raise RuntimeError(context)
+
+        if self.logger:
+            self.logger.log(
+                phase="Execute", sender="Orchestrator", receiver="MCP:institutional_search",
+                action=f"institutional_search({cid})",
+                input_summary=criterion_text,
+                output_summary=f"{len(context)} chars retrieved",
+                duration=round(time.time() - start, 2)
+            )
+
+        return context
 
     def _prepare_review_context(self, context: str) -> str:
         """Add guardrails so retrieval wrapper text is not mistaken for contract locations."""
@@ -158,9 +184,12 @@ class OrchestratorAgent:
         start = time.time()
         evidence_tokens = 0
 
-        # Step 1: Retrieve relevant contract sections
+        # Step 1: Retrieve relevant contract sections and institutional rules
         context, evidence_tokens = await self._retrieve_context(
             cid, criterion_text, check_points_text, tree_json, start
+        )
+        institutional_context = await self._retrieve_institutional_context(
+            cid, criterion_text, check_points_text, start
         )
 
         # Step 2: Create sub-agent with retrieved context
@@ -176,7 +205,8 @@ class OrchestratorAgent:
         task_prompt = (
             f"审查标准：{criterion_text}\n"
             f"检查要点：\n{check_points_text}\n\n"
-            f"以下是合同中与此标准相关的内容：\n\n{context}"
+            f"以下是合同原文中与此标准相关的内容：\n\n{context}\n\n"
+            f"以下是制度文件中与此标准相关的内容：\n\n{institutional_context}"
         )
         sub_agent_opinion = await sub_agent.chat(task_prompt)
 
@@ -190,8 +220,10 @@ class OrchestratorAgent:
                 duration=round(time.time() - start, 2)
             )
 
+        parsed_opinion = json.loads(sub_agent_opinion)
+
         # If sub-agent found no issues at all across all check points, short-circuit
-        if "[ALL_COMPLIANT]" in sub_agent_opinion or not sub_agent_opinion.strip():
+        if parsed_opinion["status"] == "compliant":
             print(f"[Orchestrator] {cid}: All check points compliant, skipping reflection.")
             return {
                 "criterion_id": cid,
@@ -199,6 +231,7 @@ class OrchestratorAgent:
                 "section": criterion.get("section", "其他"),
                 "check_points": check_points,
                 "review_output": "",
+                "issues": parsed_opinion["issues"],
                 "status": "COMPLIANT",
                 "reflection_rounds": 0,
                 "tokens": sub_agent.token_usage.get("total_tokens", 0) + evidence_tokens,
@@ -236,13 +269,15 @@ class OrchestratorAgent:
             print(f"[Orchestrator] {cid}: Max {MAX_REFLECTION_ROUNDS} rounds reached")
 
         total_tokens = evidence_tokens + sub_agent.token_usage.get("total_tokens", 0) + reflector.token_usage.get("total_tokens", 0)
-        is_compliant = "[ALL_COMPLIANT]" in sub_agent_opinion
+        parsed_opinion = json.loads(sub_agent_opinion)
+        is_compliant = parsed_opinion["status"] == "compliant"
         return {
             "criterion_id": cid,
             "criterion": criterion_text,
             "section": criterion.get("section", "其他"),
             "check_points": check_points,
             "review_output": "" if is_compliant else sub_agent_opinion,
+            "issues": parsed_opinion["issues"],
             "status": "COMPLIANT" if is_compliant else "ISSUES_FOUND",
             "reflection_rounds": round_num + 1 if 'round_num' in dir() else 0,
             "tokens": total_tokens,
@@ -266,6 +301,7 @@ class OrchestratorAgent:
                         "section": criteria_list[i].get("section", "其他"),
                         "check_points": criteria_list[i].get("check_points", []),
                         "review_output": "",
+                        "issues": [],
                         "status": "ERROR",
                         "reflection_rounds": 0,
                         "tokens": 0,
