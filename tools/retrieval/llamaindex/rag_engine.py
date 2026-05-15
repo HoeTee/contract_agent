@@ -1,0 +1,206 @@
+"""
+LlamaIndex RAG engine.
+
+Supports two uses:
+- temporary in-memory contract indexes for one workflow run
+- persistent institutional-document indexes with incremental updates
+"""
+import os
+
+from llama_index.core import (
+    Document,
+    Settings,
+    StorageContext,
+    VectorStoreIndex,
+    load_index_from_storage,
+)
+from llama_index.core.node_parser import SentenceSplitter
+from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.embeddings.openai_like import OpenAILikeEmbedding
+from llama_index.llms.openai_like import OpenAILike
+
+from tools.retrieval.llamaindex.qwen_reranker import QwenRerankPostprocessor
+from transformers import AutoTokenizer
+from pathlib import Path
+
+
+class LlamaIndexRAG:
+    """Vector index engine for temporary contract RAG and persistent institutional RAG."""
+
+    def __init__(
+        self,
+        *,
+        persist_dir: str,
+        llm_api_key: str,
+        llm_base_url: str,
+        llm_name: str,
+        embed_api_key: str,
+        embed_base_url: str,
+        embed_name: str,
+        rerank_api_key: str = None,
+        rerank_base_url: str = None,
+        rerank_name: str = None,
+        similarity_top_k: int = 5,
+        rerank_top_n: int = 3,
+        chunk_size: int = 512,
+        chunk_overlap: int = 100,
+    ) -> None:
+        self.persist_dir = persist_dir
+        self.embed_name = embed_name
+        self.similarity_top_k = similarity_top_k
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+
+        Settings.llm = OpenAILike(
+            model=llm_name,
+            api_key=llm_api_key,
+            api_base=llm_base_url,
+            is_chat_model=True,
+            is_function_calling_model=True,
+        )
+        Settings.embed_model = OpenAILikeEmbedding(
+            model_name=embed_name,
+            api_key=embed_api_key,
+            api_base=embed_base_url,
+        )
+
+        self.reranker = None
+        if rerank_api_key and rerank_name:
+            self.reranker = QwenRerankPostprocessor(
+                api_key=rerank_api_key,
+                base_url=rerank_base_url or embed_base_url,
+                model=rerank_name,
+                top_n=rerank_top_n,
+                instruct="Given a contract review query, retrieve relevant institutional policy passages.",
+            )
+
+        self._index = None
+
+    def build_temporary_index_from_text(self, content: str, source_name: str = "current_contract") -> int:
+        document = Document(
+            text=content,
+            id_=source_name,
+            metadata={
+                "source_file": source_name,
+                "doc_id": source_name,
+                "index_scope": "temporary_contract",
+            },
+        )
+        splitter = SentenceSplitter(
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.chunk_overlap,
+        )
+        nodes = splitter.get_nodes_from_documents([document])
+        self._index = VectorStoreIndex(nodes)
+        return len(nodes)
+
+    def load_or_create_index(self) -> None:
+        if self._has_persisted_index():
+            self.load_index()
+            return
+        os.makedirs(self.persist_dir, exist_ok=True)
+        self._index = None
+
+    def _has_persisted_index(self) -> bool:
+        required_files = (
+            "docstore.json",
+            "index_store.json",
+            "default__vector_store.json",
+        )
+        return all(
+            os.path.exists(os.path.join(self.persist_dir, filename))
+            for filename in required_files
+        )
+
+    def load_index(self) -> None:
+        storage_context = StorageContext.from_defaults(persist_dir=self.persist_dir)
+        self._index = load_index_from_storage(storage_context)
+
+    def build_nodes_for_text(
+        self,
+        *,
+        content: str,
+        relative_path: str,
+        doc_id: str,
+        source_hash: str,
+        parser: str,
+    ):
+        document = Document(
+            text=content,
+            id_=doc_id,
+            metadata={
+                "source_file": relative_path,
+                "source_hash": source_hash,
+                "doc_id": doc_id,
+                "parser": parser,
+            },
+        )
+
+        tokenizer_path = Path(__file__).resolve().parents[3] / "local_tokenizers" / "Qwen3-Embedding-8B"
+        tokenizer = AutoTokenizer.from_pretrained(str(tokenizer_path), local_files_only=True)
+
+        splitter = SentenceSplitter(
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.chunk_overlap,
+            tokenizer=lambda text: tokenizer.encode(text)
+        )
+
+        return splitter.get_nodes_from_documents([document])
+
+    def insert_text(
+        self,
+        *,
+        content: str,
+        relative_path: str,
+        doc_id: str,
+        source_hash: str,
+        parser: str,
+    ) -> int:
+        nodes = self.build_nodes_for_text(
+            content=content,
+            relative_path=relative_path,
+            doc_id=doc_id,
+            source_hash=source_hash,
+            parser=parser,
+        )
+        if self._index is None:
+            self._index = VectorStoreIndex(nodes)
+        else:
+            self._index.insert_nodes(nodes)
+        return len(nodes)
+
+    def delete_ref_doc(self, doc_id: str) -> None:
+        self._index.delete_ref_doc(doc_id, delete_from_docstore=True)
+
+    def persist(self) -> None:
+        os.makedirs(self.persist_dir, exist_ok=True)
+        if self._index is not None:
+            self._index.storage_context.persist(persist_dir=self.persist_dir)
+
+    def search(self, query: str, result_title: str = "检索结果") -> str:
+        """Search the loaded index. Returns text with source metadata."""
+        if self._index is None:
+            self.load_index()
+
+        retriever = self._index.as_retriever(similarity_top_k=self.similarity_top_k)
+        postprocessors = [self.reranker] if self.reranker else []
+        query_engine = RetrieverQueryEngine.from_args(
+            retriever=retriever,
+            node_postprocessors=postprocessors,
+        )
+        response = query_engine.query(query)
+
+        parts = []
+        for i, source_node in enumerate(response.source_nodes, 1):
+            score = getattr(source_node, "score", None)
+            text = source_node.get_content()
+            metadata = getattr(source_node, "metadata", None) or {}
+            header = f"## {result_title} {i}"
+            source_file = metadata.get("source_file")
+            if source_file:
+                header += f"\n来源文件：{source_file}"
+            if score is not None:
+                header += f"\n相关度：{score:.3f}"
+            parts.append(f"{header}\n内容：\n{text}")
+
+        return "\n\n---\n\n".join(parts) if parts else "No relevant institutional sections found."

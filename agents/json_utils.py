@@ -1,0 +1,73 @@
+"""
+Helpers for extracting, validating, and repairing JSON agent outputs.
+"""
+
+import json
+from typing import TypeVar
+
+from pydantic import BaseModel, ValidationError
+
+
+ModelT = TypeVar("ModelT", bound=BaseModel)
+
+
+def extract_json(text: str) -> dict:
+    """Extract a JSON object from raw LLM output."""
+    stripped = text.strip()
+
+    if "```json" in stripped:
+        stripped = stripped.split("```json", 1)[1].split("```", 1)[0].strip()
+    elif "```" in stripped:
+        stripped = stripped.split("```", 1)[1].split("```", 1)[0].strip()
+
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError:
+        start = stripped.find("{")
+        end = stripped.rfind("}") + 1
+        if start == -1 or end <= start:
+            raise
+        parsed = json.loads(stripped[start:end])
+
+    if not isinstance(parsed, dict):
+        raise ValueError("agent output JSON must be an object")
+    return parsed
+
+
+def _repair_prompt(error: Exception, expected_format: str) -> str:
+    return (
+        "你的上一次输出没有通过 JSON 格式校验。\n\n"
+        f"校验错误如下：\n{error}\n\n"
+        "请严格修正为下面要求的数据结构，只返回 JSON，不要返回 Markdown、解释、代码块或额外字段：\n\n"
+        f"{expected_format}"
+    )
+
+
+async def chat_until_valid_json(
+    agent,
+    initial_prompt: str,
+    schema: type[ModelT],
+    expected_format: str,
+    *,
+    max_attempts: int = 3,
+) -> tuple[dict, str]:
+    """Chat with one agent until its output validates against the given schema."""
+    prompt = initial_prompt
+    last_error: Exception | None = None
+    raw_output = ""
+
+    for attempt in range(1, max_attempts + 1):
+        raw_output = await agent.chat(prompt)
+        try:
+            parsed = extract_json(raw_output)
+            validated = schema.model_validate(parsed)
+            return validated.model_dump(), raw_output
+        except (json.JSONDecodeError, ValidationError, ValueError) as exc:
+            last_error = exc
+            if attempt == max_attempts:
+                break
+            prompt = _repair_prompt(exc, expected_format)
+
+    raise ValueError(
+        f"{agent.name} output failed schema validation after {max_attempts} attempts: {last_error}"
+    )

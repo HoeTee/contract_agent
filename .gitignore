@@ -1,0 +1,63 @@
+# Secrets / local config
+.env
+.env.local
+.env.*.local
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python cache / build
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Logs
+logs/
+*.log
+
+# Runtime outputs
+docs/reports_docx/
+docs/reports_md/
+docs/reports_pdf/
+RAG_persist/
+
+# Input/private documents
+docs/contracts/
+docs/contract_review_criteria/
+docs/institutional_docs/
+
+# Local tokenizer/model cache
+local_tokenizers/
+.cache/
+*.tiktoken
+
+# Temporary Word/Office files
+~$*.docx
+*.tmp
+*.bak
+
+# Ad-hoc generated DOCX files in repo root
+/*.docx
+
+# Local tool/editor state
+.claude/
+.codex/
+.vscode/
+.idea/
+
+# Old or external app folders if not part of this repo
+frontend/
+uploads/
+src/
+api/
+
+# Keep placeholder files when needed
+!docs/**/.gitkeep
+!logs/**/.gitkeep

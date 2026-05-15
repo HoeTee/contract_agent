@@ -1,0 +1,249 @@
+﻿"""
+OrchestratorAgent - dispatches sub-agents per criterion with retrieval + reflection.
+
+"""
+import asyncio
+import re
+import time
+
+from config import MAX_REFLECTION_ROUNDS
+from agents.base_agent import Agent
+from agents.json_utils import chat_until_valid_json
+from agents.reflector import ReflectorAgent
+from agents.prompts.cn_prompts import SUB_AGENT_BASE_PROMPT
+from agents.schemas import SubAgentOutput
+
+
+SUB_AGENT_EXPECTED_JSON = """
+{
+  "status": "compliant 或 issues_found",
+  "issues": [
+    {
+      "issue_id": "当前criterion_id.序号",
+      "risk_level": "high | medium | low",
+      "quoted_text": "逐字摘录的合同原文；合同未出现对应内容时为空字符串",
+      "comment_text": "可直接写入 Word 批注的修改意见，100字以内"
+    }
+  ]
+}
+"""
+
+
+class OrchestratorAgent:
+    """Coordinates per-criterion sub-agents with retrieval and reflection."""
+
+    def __init__(
+        self,
+        mcp_client=None,
+        logger=None,
+        settings=None
+    ):
+        self.mcp_client = mcp_client
+        self.logger = logger
+        self.settings = settings
+        self.tools = None
+        self.reflector = ReflectorAgent(settings=self.settings)
+        self.retrieval_tokens = 0  # Track MCP tool internal LLM tokens
+
+    async def _get_tools(self) -> list[str]:
+        """Cache MCP tools list."""
+        if self.tools is None:
+            tools = await self.mcp_client.get_available_tools()
+            self.tools = tools
+        return self.tools
+
+    async def _retrieve_context(
+        self, cid: str,
+        criterion_text: str,
+        check_points_text: str,
+        start: float,
+    ) -> tuple[str, int]:
+        """Unified retrieval: returns (context_text, retrieval_tokens)."""
+        search_query = f"{criterion_text}\n检查要点：{check_points_text}"
+        retrieval_tokens = 0
+
+        print(f"[Orchestrator] {cid}: Searching contract via temporary LlamaIndex...")
+        search_result = await self.mcp_client.call_tool(
+            "llamaindex_search",
+            {"query": search_query}
+        )
+        if isinstance(search_result, str) and search_result.startswith("Error"):
+            raise RuntimeError(search_result)
+        context = search_result if search_result else "未找到相关内容。"
+
+        if self.logger:
+            self.logger.log(
+                phase="Execute", sender="Orchestrator", receiver="MCP:llamaindex_search",
+                action=f"llamaindex_search({cid})",
+                input_summary=criterion_text,
+                output_summary=f"{len(context)} chars retrieved",
+                duration=round(time.time() - start, 2)
+            )
+
+        return self._prepare_review_context(context), retrieval_tokens
+
+    def _prepare_review_context(
+            self,
+            context: str
+    ) -> str:
+        """Add guardrails so retrieval wrapper text is not mistaken for contract locations."""
+        normalized_context = context or "未找到相关内容。"
+        normalized_context = re.sub(
+            r"^##\s*检索结果\s*\d+(?:\s*\([^)]*\))?\s*$",
+            "",
+            normalized_context,
+            flags=re.MULTILINE,
+        )
+        normalized_context = re.sub(r"\n{3,}", "\n\n", normalized_context).strip()
+        guidance = (
+            '注意：下面内容中的”检索结果1/2””相关度分数””检索片段标题”等仅是检索系统包装信息，'
+            '不是合同原始条款标题或所在位置。输出”所在位置”时只能填写合同原文中真实出现的条款、'
+            '章节或段落位置；若合同原文未标明具体条款编号，请写”合同缺失审查要点要求书写的内容”，'
+            '绝对不要照抄检索包装标题。'
+        )
+        return f"{guidance}\n\n{normalized_context}"
+
+    async def execute_single_criterion(
+            self,
+            criterion: dict
+    ) -> dict:
+        """
+        Review a single criterion:
+        1. Retrieve relevant contract sections from the temporary LlamaIndex index
+        2. Create sub-agent with context
+        3. Run reflector loop until PASS or max rounds
+        """
+        cid = criterion["id"]
+        criterion_text = criterion["criterion"]
+        check_points = criterion.get("check_points", [])
+        check_points_text = "\n".join(f"- {cp}" for cp in check_points)
+        start = time.time()
+        evidence_tokens = 0
+
+        # Step 1: Retrieve relevant contract sections
+        context, evidence_tokens = await self._retrieve_context(
+            cid,
+            criterion_text,
+            check_points_text, start
+        )
+
+        # Step 2: Create sub-agent with retrieved context
+        tools = await self._get_tools()
+        sub_agent = Agent(
+            system_prompt=SUB_AGENT_BASE_PROMPT,
+            name=f"SubAgent_{cid}",
+            mcp_client=self.mcp_client,
+            tools=tools,
+            settings=self.settings,
+        )
+
+        task_prompt = (
+            f"审查标准：{criterion_text}\n"
+            f"检查要点：\n{check_points_text}\n\n"
+            f"以下是合同原文中与此标准相关的内容：\n\n{context}\n\n"
+        )
+        parsed_opinion, sub_agent_opinion = await chat_until_valid_json(
+            sub_agent,
+            task_prompt,
+            SubAgentOutput,
+            SUB_AGENT_EXPECTED_JSON,
+        )
+
+        if self.logger:
+            self.logger.log(
+                phase="Execute", sender=f"SubAgent_{cid}", receiver="LLM",
+                action=f"review({cid})",
+                input_summary=f"criterion + {len(context)} chars context",
+                output_summary=sub_agent_opinion,
+                tokens=sub_agent.token_usage.get("total_tokens", 0),
+                duration=round(time.time() - start, 2)
+            )
+
+        # If sub-agent found no issues at all across all check points, short-circuit
+        if parsed_opinion["status"] == "compliant":
+            print(f"[Orchestrator] {cid}: All check points compliant, skipping reflection.")
+            return {
+                "criterion_id": cid,
+                "criterion": criterion_text,
+                "section": criterion.get("section", "其他"),
+                "issues": parsed_opinion["issues"],
+                "status": "COMPLIANT",
+                "tokens": sub_agent.token_usage.get("total_tokens", 0) + evidence_tokens,
+                "error_message": None,
+            }
+
+        # Step 3: Reflection loop
+        reflector = self.reflector
+        for round_num in range(MAX_REFLECTION_ROUNDS):
+            review = await reflector.review(
+                agent_output=sub_agent_opinion,
+                evaluation_criteria=f"审查标准：{criterion_text}\n检查要点：\n{check_points_text}"
+            )
+
+            status = review["status"]
+            if self.logger:
+                self.logger.log(
+                    phase="Reflect", sender="Reflector", receiver=f"SubAgent_{cid}",
+                    action=f"reflect({cid}, round={round_num+1})",
+                    input_summary=sub_agent_opinion,
+                    output_summary=f"{status}: {review.get('feedback', '')}",
+                    tokens=reflector.token_usage.get("total_tokens", 0),
+                    duration=round(time.time() - start, 2)
+                )
+            if status == "PASS":
+                print(f"[Orchestrator] {cid}: PASS after {round_num+1} round(s)")
+                break
+            else:
+                print(f"[Orchestrator] {cid}: REJECT round {round_num+1}, refining...")
+                parsed_opinion, sub_agent_opinion = await chat_until_valid_json(
+                    sub_agent,
+                    f"请根据以下质量审查反馈，补充和完善你的审查结果：\n\n{review.get('feedback', '')}",
+                    SubAgentOutput,
+                    SUB_AGENT_EXPECTED_JSON,
+                )
+        else:
+            print(f"[Orchestrator] {cid}: Max {MAX_REFLECTION_ROUNDS} rounds reached")
+
+        total_tokens = evidence_tokens + sub_agent.token_usage.get("total_tokens", 0) + reflector.token_usage.get("total_tokens", 0)
+        final_status = "COMPLIANT" if parsed_opinion["status"] == "compliant" else "ISSUES_FOUND"
+
+        return {
+            "criterion_id": cid,
+            "criterion": criterion_text,
+            "section": criterion.get("section", "其他"),
+            "issues": parsed_opinion["issues"],
+            "status": final_status,
+            "tokens": total_tokens,
+            "error_message": None,
+        }
+
+    async def execute_criteria(
+            self,
+            criteria_list: list[dict]
+    ) -> list[dict]:
+        """Execute criteria with concurrency control and auto-retry for failures."""
+        execute_tasks = [self.execute_single_criterion(criterion) for criterion in criteria_list]
+        results = await asyncio.gather(*execute_tasks, return_exceptions=True)
+
+        final_results = []
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                print(f"[Orchestrator] Error on criterion {criteria_list[i]['id']}: {result}")
+                final_results.append(
+                    {
+                        "criterion_id": criteria_list[i]["id"],
+                        "criterion": criteria_list[i]["criterion"],
+                        "section": criteria_list[i].get("section", "其他"),
+                        "issues": [],
+                        "status": "ERROR",
+                        "tokens": 0,
+                        "error_message": str(result),
+                    }
+                )
+            else:
+                final_results.append(result)
+
+        total_tokens = sum(r.get("tokens", 0) for r in final_results)
+        print(f"  Completed: {len(final_results)} reviews, Total tokens: {total_tokens:,}")
+
+        return final_results
