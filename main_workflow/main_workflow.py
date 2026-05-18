@@ -16,6 +16,7 @@ import time
 from typing import Any, Awaitable, Callable
 
 from config import (
+    ENABLE_WORKFLOW_LOGS,
     MCP_SERVER_PATH,
 )
 from main_workflow.workflow_logger import WorkflowLogger
@@ -45,11 +46,18 @@ class ContractReviewWorkflow:
         contract_path: str,
         criteria_path: str,
         progress_callback: Callable[[dict[str, Any]], Awaitable[None] | None] | None = None,
+        output_dir: str | None = None,
     ) -> dict[str, Any]:
         """
         Execute the full review workflow.
         Returns: structured review data for the API layer.
         """
+        if not output_dir:
+            raise ValueError(
+                "output_dir is required. Pass a request temp directory for API runs "
+                "or a CLI output directory for local test runs."
+            )
+
         workflow_start = time.time()
         print("=" * 60)
         print("Contract Review Workflow Started")
@@ -97,6 +105,7 @@ class ContractReviewWorkflow:
                 contract_path=contract_path,
                 results=results,
                 summary_sections=summary_sections,
+                output_dir=output_dir,
             )
 
             # Save workflow log
@@ -310,8 +319,11 @@ class ContractReviewWorkflow:
             "total": planner_tokens + retrieval_tokens + execute_tokens + summarizer_tokens,
         }
 
-    def _save_last_results(self, results: list[dict]) -> str:
+    def _save_last_results(self, results: list[dict]) -> str | None:
         """Persist the raw criterion review results for debugging."""
+        if not ENABLE_WORKFLOW_LOGS:
+            return None
+
         results_path = os.path.join("logs", "workflow", "last_results.json")
         os.makedirs(os.path.dirname(results_path), exist_ok=True)
         with open(results_path, "w", encoding="utf-8") as f:
@@ -323,6 +335,7 @@ class ContractReviewWorkflow:
         contract_path: str,
         results: list[dict],
         summary_sections: dict,
+        output_dir: str | None = None,
     ) -> str:
         """Phase 6: Generate only the annotated original-contract DOCX."""
         print("\n[Phase 6] Generating annotated DOCX...")
@@ -335,6 +348,7 @@ class ContractReviewWorkflow:
                 "contract_path": contract_path,
                 "results_json": json.dumps(results, ensure_ascii=False),
                 "summary_sections_json": json.dumps(summary_sections, ensure_ascii=False),
+                "output_dir": output_dir,
             },
         )
 
@@ -361,8 +375,11 @@ class ContractReviewWorkflow:
         elapsed_seconds: float,
         results_path: str,
         workflow_log: str,
-    ) -> str:
+    ) -> str | None:
         """Persist a compact run summary for debugging and audit."""
+        if not ENABLE_WORKFLOW_LOGS:
+            return None
+
         summary_path = os.path.join("logs", "workflow", "last_run_summary.json")
         os.makedirs(os.path.dirname(summary_path), exist_ok=True)
         summary = {

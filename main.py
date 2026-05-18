@@ -3,10 +3,12 @@ Entry point for the contract review workflow.
 """
 import asyncio
 import os
+from dotenv import load_dotenv
 from main_workflow.main_workflow import ContractReviewWorkflow
 
 # Project root
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 doc_1 = "【已审查】（214号）浙江农商与移动浙江公司集团固话业务协议-修订4(1).docx"
 doc_2 = "【已审查】（528号）2026年至2028年贵宾医疗服务合作协议-邵逸夫医院.docx"
@@ -40,6 +42,10 @@ MCP_SERVER_PATH = os.path.join(
     "mcp_server", 
     "mcp_server.py"
 )
+CLI_OUTPUT_DIR = os.getenv(
+    "CLI_OUTPUT_DIR",
+    os.path.join(PROJECT_ROOT, "docs", "reports_docx"),
+)
 
 
 async def main(filename: str=doc_2):
@@ -50,6 +56,7 @@ async def main(filename: str=doc_2):
     result = await workflow.run(
         contract_path=CONTRACT_PATH,
         criteria_path=CRITERIA_PATH,
+        output_dir=CLI_OUTPUT_DIR,
     )
     # print(f"\nResult: {result}")
 

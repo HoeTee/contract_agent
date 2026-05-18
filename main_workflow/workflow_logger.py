@@ -5,7 +5,7 @@ a Markdown report with Mermaid sequence diagram.
 import os
 import time
 from datetime import datetime
-from config import LOGS_DIR, MAX_CONTEXT_TOKENS
+from config import ENABLE_WORKFLOW_LOGS, LOGS_DIR, MAX_CONTEXT_TOKENS
 
 
 class WorkflowLogger:
@@ -15,10 +15,19 @@ class WorkflowLogger:
         self.steps = []
         self.start_time = time.time()
 
-    def log(self, phase: str, sender: str, receiver: str,
-            action: str, input_summary: str = "", output_summary: str = "",
-            tokens: int = 0, duration: float = 0.0):
+    def log(self, phase: str, 
+            sender: str, 
+            receiver: str,
+            action: str, 
+            input_summary: str = "", 
+            output_summary: str = "",
+            tokens: int = 0, 
+            duration: float = 0.0
+    ) -> None:
         """Record one info-flow step."""
+        if not ENABLE_WORKFLOW_LOGS:
+            return
+
         ctx_pct = ""
         if tokens > 0 and MAX_CONTEXT_TOKENS > 0:
             pct = int((tokens / MAX_CONTEXT_TOKENS) * 100)
@@ -89,8 +98,11 @@ class WorkflowLogger:
             blocks.append(block)
         return "\n".join(blocks)
 
-    def save(self) -> str:
+    def save(self) -> str | None:
         """Write the complete log to a Markdown file."""
+        if not ENABLE_WORKFLOW_LOGS:
+            return None
+
         os.makedirs(LOGS_DIR, exist_ok=True)
 
         total_time = round(time.time() - self.start_time, 2)

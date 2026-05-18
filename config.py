@@ -17,6 +17,21 @@ DOCS_DIR = os.path.join(PROJECT_ROOT, "docs")
 REPORTS_DIR = os.path.join(PROJECT_ROOT, "reports")
 LOGS_DIR = os.path.join(PROJECT_ROOT, "logs", "workflow")
 
+def _required_env_bool(name: str) -> bool:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        raise RuntimeError(f"{name} is required. Set it to true or false in .env.")
+
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    raise RuntimeError(f"{name} must be true or false, got {raw!r}.")
+
+
+ENABLE_WORKFLOW_LOGS = _required_env_bool("ENABLE_WORKFLOW_LOGS")
+
 MAX_REFLECTION_ROUNDS = int(os.getenv("MAX_REFLECTION_ROUNDS", "3"))
 
 LLM_NAME = os.getenv("LLM_NAME", "qwen-plus").lower()

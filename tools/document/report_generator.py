@@ -102,10 +102,13 @@ class ReportGenerator:
         contract_path: str,
         results: list,
         summary_sections: dict | None = None,
+        output_dir: str | Path | None = None,
     ) -> str | None:
         """Generate only the annotated original-contract DOCX."""
-        project_root = Path(__file__).resolve().parents[2]
-        docx_dir = project_root / "docs" / "reports_docx"
+        if not output_dir:
+            raise ValueError("output_dir is required for DOCX report generation.")
+
+        docx_dir = Path(output_dir)
         docx_dir.mkdir(parents=True, exist_ok=True)
 
         output_path = docx_dir / f"{ReportGenerator._build_report_base_name(contract_name)}.docx"

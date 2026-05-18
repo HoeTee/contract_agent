@@ -10,6 +10,8 @@ import json
 import os
 from datetime import datetime
 
+from config import ENABLE_WORKFLOW_LOGS
+
 # Project root for log paths
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -66,6 +68,9 @@ def log_conversation(agent_name: str, messages: list) -> None:
         agent_name: Name of the agent (used in filename).
         messages: List of conversation messages.
     """
+    if not ENABLE_WORKFLOW_LOGS:
+        return
+
     os.makedirs(SESSION_DIR, exist_ok=True)
 
     serializable = _serialize_messages(messages)

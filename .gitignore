@@ -4,6 +4,8 @@
 .env.*.local
 
 # Virtual environments
+.wheel-venv/
+.venv_old/
 .venv/
 venv/
 env/
@@ -61,3 +63,11 @@ api/
 # Keep placeholder files when needed
 !docs/**/.gitkeep
 !logs/**/.gitkeep
+
+# Specific files
+专利材料/
+scripts/
+packages/
+.tmp_patents/
+runtime_temp/
+image.tar
