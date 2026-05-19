@@ -1,5 +1,7 @@
 import shutil
+import asyncio
 import uuid
+from config import MAX_API_CONCURRENT_REVIEWS
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote
@@ -46,15 +48,16 @@ def safe_upload_filename(filename: str | None) -> str:
     safe_name = Path(filename.replace("\\", "/")).name # This processes various dir separators and ensures we only get the final filename
     return safe_name
 
-@app.post("/review")
-async def review_contract(file: UploadFile = File(...)):
+async def do_review(file: UploadFile = File(...)):
     filename = safe_upload_filename(file.filename) # file.filename is the filename
+    
     if not filename.lower().endswith(".docx"):
         raise HTTPException(status_code=400, detail="Only .docx files are supported.")
 
     if not CRITERIA_PATH.exists():
         raise HTTPException(status_code=500, detail="Review criteria file was not found.")
 
+    # create a temp dir under the parent temp dir
     request_dir = REVIEWS_TMP_DIR / uuid.uuid4().hex
     request_dir.mkdir(parents=True, exist_ok=False)
 
@@ -77,6 +80,7 @@ async def review_contract(file: UploadFile = File(...)):
         content = output_path.read_bytes()
         output_name = output_path.name
 
+        # return body with correct headers
         return Response(
             content=content, # download content of the generated DOCX file at the dir where you send the request
             media_type=DOCX_MEDIA_TYPE,
@@ -87,6 +91,28 @@ async def review_contract(file: UploadFile = File(...)):
                 )
             },
         )
+    # remove the uplaoded file from temp dir
     finally:
         await file.close()
         shutil.rmtree(request_dir, ignore_errors=True)
+
+
+review_semaphore = (
+    asyncio.Semaphore(MAX_API_CONCURRENT_REVIEWS)
+    if MAX_API_CONCURRENT_REVIEWS > 0 
+    else None
+)
+
+@app.post("/review")
+async def review_contract(file: UploadFile = File(...)): 
+    # allow unlimited concurrency.
+    if review_semaphore is None: 
+        return await do_review(file)
+
+    # control API concurrency with semaphore
+    # async with review_semaphore: 
+    await review_semaphore.acquire()
+    try:
+        return await do_review(file)
+    finally:        
+        review_semaphore.release()

@@ -6,7 +6,7 @@ import asyncio
 import re
 import time
 
-from config import MAX_REFLECTION_ROUNDS
+from config import MAX_REFLECTION_ROUNDS, MAX_ORCHESTRATOR_CONCURRENCY
 from agents.base_agent import Agent
 from agents.json_utils import chat_until_valid_json
 from agents.reflector import ReflectorAgent
@@ -222,7 +222,18 @@ class OrchestratorAgent:
             criteria_list: list[dict]
     ) -> list[dict]:
         """Execute criteria with concurrency control and auto-retry for failures."""
-        execute_tasks = [self.execute_single_criterion(criterion) for criterion in criteria_list]
+        # execute_tasks = [self.execute_single_criterion(criterion) for criterion in criteria_list]
+        semaphore = asyncio.Semaphore(MAX_ORCHESTRATOR_CONCURRENCY)
+
+        async def execute_with_limit(criterion: dict) -> dict:
+            # async with semaphore:
+            await semaphore.acquire()
+            try: 
+                return await self.execute_single_criterion(criterion)
+            finally: 
+                semaphore.release()
+
+        execute_tasks = [execute_with_limit(criterion) for criterion in criteria_list]
         results = await asyncio.gather(*execute_tasks, return_exceptions=True)
 
         final_results = []

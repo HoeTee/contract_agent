@@ -64,6 +64,8 @@ RERANK_NAME=qwen3-rerank
 PARSE_FILE_WITH_MINERU=True
 CLI_OUTPUT_DIR=docs/reports_docx
 ENABLE_WORKFLOW_LOGS=False
+MAX_ORCHESTRATOR_CONCURRENCY=8
+MAX_API_CONCURRENT_REVIEWS=1
 ```
 
 `ENABLE_WORKFLOW_LOGS` 是必填项。未填写时程序会启动失败。它控制文件日志是否落盘：
@@ -72,6 +74,22 @@ ENABLE_WORKFLOW_LOGS=False
 - `True`：本地调试推荐值，保留日志文件便于排查。
 
 控制台输出不受该变量完全关闭，Docker/uvicorn 仍可看到基础运行信息。
+
+## 并发控制
+
+当前服务有两层并发控制：
+
+- `MAX_ORCHESTRATOR_CONCURRENCY`：单个合同审查内部，同时执行的审查标准数量。默认值为 `8`。
+- `MAX_API_CONCURRENT_REVIEWS`：API 层同时处理的完整合同审查请求数量。默认值为 `1`；显式设置为 `0` 时表示 API 层不限制并发。
+
+根据 `results/` 中的模型压测结果，当前推荐配置为：
+
+```env
+MAX_ORCHESTRATOR_CONCURRENCY=8
+MAX_API_CONCURRENT_REVIEWS=1
+```
+
+如果 API 层不限制并发，总模型压力大约会随同时处理的合同数线性放大。例如 `MAX_ORCHESTRATOR_CONCURRENCY=8` 且同时处理 3 个合同审查请求时，最多可能有约 24 条审查标准并发执行。
 
 ## Agent 架构
 
@@ -277,4 +295,3 @@ local_tokenizers/              离线 tokenizer 资源
 runtime_temp/                  API 请求临时目录，不应提交
 logs/                          可选调试日志目录
 ```
-

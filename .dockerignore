@@ -14,7 +14,9 @@ __pycache__
 
 logs
 scripts
+results
 专利材料
+docker 运行所需文件
 runtime_temp
 image.tar
 .tmp_patents

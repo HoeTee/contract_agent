@@ -66,6 +66,8 @@ api/
 
 # Specific files
 专利材料/
+docker 运行所需文件/
+results/
 scripts/
 packages/
 .tmp_patents/

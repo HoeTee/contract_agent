@@ -33,6 +33,8 @@ def _required_env_bool(name: str) -> bool:
 ENABLE_WORKFLOW_LOGS = _required_env_bool("ENABLE_WORKFLOW_LOGS")
 
 MAX_REFLECTION_ROUNDS = int(os.getenv("MAX_REFLECTION_ROUNDS", "3"))
+MAX_ORCHESTRATOR_CONCURRENCY = int(os.getenv("MAX_ORCHESTRATOR_CONCURRENCY", "8"))
+MAX_API_CONCURRENT_REVIEWS = int(os.getenv("MAX_API_CONCURRENT_REVIEWS", "1"))
 
 LLM_NAME = os.getenv("LLM_NAME", "qwen-plus").lower()
 
