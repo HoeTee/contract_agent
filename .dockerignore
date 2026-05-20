@@ -17,9 +17,13 @@ scripts
 results
 专利材料
 docker 运行所需文件
+api_review_test
 runtime_temp
 image.tar
+docker 运行所需文件.zip
+results.docx
 .tmp_patents
+.tmp_compare
 .cache
 
 docs/contracts

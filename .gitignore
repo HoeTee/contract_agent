@@ -67,9 +67,13 @@ api/
 # Specific files
 专利材料/
 docker 运行所需文件/
+api_review_test/
 results/
 scripts/
 packages/
 .tmp_patents/
+.tmp_compare/
 runtime_temp/
 image.tar
+docker 运行所需文件.zip
+results.docx

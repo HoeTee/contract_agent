@@ -1,6 +1,7 @@
 import shutil
 import asyncio
 import uuid
+import zipfile
 from config import MAX_API_CONCURRENT_REVIEWS
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -18,6 +19,12 @@ REVIEWS_TMP_DIR = RUNTIME_TMP_DIR / "reviews"
 CRITERIA_PATH = PROJECT_ROOT / "docs" / "contract_review_criteria" / "审核要点（初稿）(2).docx"
 MCP_SERVER_PATH = PROJECT_ROOT / "mcp_service" / "mcp_server" / "mcp_server.py"
 DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+OLE_DOC_SIGNATURE = bytes.fromhex("D0 CF 11 E0 A1 B1 1A E1")
+REQUIRED_DOCX_PARTS = {
+    "[Content_Types].xml",
+    "_rels/.rels",
+    "word/document.xml",
+}
 
 
 def reset_runtime_temp_dir() -> None:
@@ -48,6 +55,44 @@ def safe_upload_filename(filename: str | None) -> str:
     safe_name = Path(filename.replace("\\", "/")).name # This processes various dir separators and ensures we only get the final filename
     return safe_name
 
+def validate_uploaded_docx(path: Path) -> None:
+    with path.open("rb") as f:
+        header = f.read(8)
+
+    if header.startswith(OLE_DOC_SIGNATURE):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "The uploaded file is a legacy .doc/OLE document, not a real .docx file. "
+                "Please convert it to .docx with Word or LibreOffice before uploading."
+            ),
+        )
+
+    if not zipfile.is_zipfile(path):
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded file is not a valid .docx ZIP package.",
+        )
+
+    try:
+        with zipfile.ZipFile(path) as archive:
+            names = set(archive.namelist())
+    except zipfile.BadZipFile:
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded file is not a valid .docx ZIP package.",
+        )
+
+    missing_parts = sorted(REQUIRED_DOCX_PARTS - names)
+    if missing_parts:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "The uploaded file has a .docx extension, but its internal structure "
+                f"is not a valid Word DOCX package. Missing parts: {missing_parts}"
+            ),
+        )
+
 async def do_review(file: UploadFile = File(...)):
     filename = safe_upload_filename(file.filename) # file.filename is the filename
     
@@ -65,6 +110,7 @@ async def do_review(file: UploadFile = File(...)):
         input_path = request_dir / filename
         with input_path.open("wb") as f:
             shutil.copyfileobj(file.file, f) # file.file is the actual file content
+        validate_uploaded_docx(input_path)
 
         workflow = ContractReviewWorkflow(server_script_path=str(MCP_SERVER_PATH))
         result = await workflow.run(
