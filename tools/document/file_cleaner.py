@@ -21,6 +21,17 @@ class DocxCleaner:
     """清理 DOCX 文件中的修订和批注，返回临时文件路径"""
 
     WORD_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    MC_NS = "http://schemas.openxmlformats.org/markup-compatibility/2006"
+    KNOWN_IGNORABLE_NS = {
+        "w14": "http://schemas.microsoft.com/office/word/2010/wordml",
+        "w15": "http://schemas.microsoft.com/office/word/2012/wordml",
+        "w16se": "http://schemas.microsoft.com/office/word/2015/wordml/symex",
+        "w16cid": "http://schemas.microsoft.com/office/word/2016/wordml/cid",
+        "w16": "http://schemas.microsoft.com/office/word/2018/wordml",
+        "w16cex": "http://schemas.microsoft.com/office/word/2018/wordml/cex",
+        "w16sdtdh": "http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash",
+        "wp14": "http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing",
+    }
 
     COMMENT_PART_RE = re.compile(r"^word/comments[^/]*\.xml$")
     PEOPLE_PART_RE = re.compile(r"^word/people\.xml$")
@@ -195,11 +206,39 @@ class DocxCleaner:
             index += 1
 
     def _clean_word_xml(self, data: bytes, *, is_settings: bool = False) -> bytes:
-        from xml.etree import ElementTree as ET
+        from lxml import etree as ET
 
         root = ET.fromstring(data)
         self._clean_word_element(root, is_settings=is_settings)
+        self._repair_mc_ignorable(root)
         return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+    def _repair_mc_ignorable(self, root) -> None:
+        """Keep mc:Ignorable aligned with prefixes declared after XML cleanup."""
+        attr_name = f"{{{self.MC_NS}}}Ignorable"
+        for element in root.iter():
+            value = element.attrib.get(attr_name)
+            if not value:
+                continue
+
+            uri_to_prefix = {
+                uri: prefix
+                for prefix, uri in element.nsmap.items()
+                if prefix and uri
+            }
+            repaired = []
+            seen = set()
+            for old_prefix in value.split():
+                uri = element.nsmap.get(old_prefix) or self.KNOWN_IGNORABLE_NS.get(old_prefix)
+                new_prefix = uri_to_prefix.get(uri)
+                if new_prefix and new_prefix not in seen:
+                    repaired.append(new_prefix)
+                    seen.add(new_prefix)
+
+            if repaired:
+                element.attrib[attr_name] = " ".join(repaired)
+            else:
+                element.attrib.pop(attr_name, None)
 
     def _clean_content_types_xml(self, data: bytes, removed_parts: set) -> bytes:
         from xml.etree import ElementTree as ET

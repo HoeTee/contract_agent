@@ -13,6 +13,8 @@ load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 doc_1 = "【已审查】（214号）浙江农商与移动浙江公司集团固话业务协议-修订4(1).docx"
 doc_2 = "【已审查】（528号）2026年至2028年贵宾医疗服务合作协议-邵逸夫医院.docx"
 doc_3 = "【已审核】（262号）产品单次销售合同-卡券、实物、定点配送（东福、东乐通用型模版） (4).docx"
+doc_4 = "【已审查】（312号）关于联合开展普惠金融服务共同富裕课题研究及推广宣传活动服务采购合同（ZRUB-2025-08-28-19-E001）.docx"
+doc_5 = "【已审查】（355号）省行IaaS云计算平台扩容及驻场运维服务采购（二期）合同-初稿.docx"
 
 # File Format Exam
 def contract_path(filename):
@@ -48,7 +50,7 @@ CLI_OUTPUT_DIR = os.getenv(
 )
 
 
-async def main(filename: str=doc_2):
+async def main(filename: str=doc_5):
 
     CONTRACT_PATH = contract_path(filename) 
 

@@ -67,6 +67,7 @@ api/
 # Specific files
 专利材料/
 docker 运行所需文件/
+相关合同智能体系列文件/
 api_review_test/
 results/
 scripts/

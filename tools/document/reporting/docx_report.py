@@ -175,6 +175,13 @@ class DocxReportGenerator:
         return anchors[0] if anchors else None
 
     @staticmethod
+    def _paragraph_content_start_index(para_element) -> int:
+        """Return the first valid child index after paragraph properties."""
+        if len(para_element) and para_element[0].tag == qn('w:pPr'):
+            return 1
+        return 0
+
+    @staticmethod
     def _build_unmatched_comment_text(unmatched_comments: list[dict]) -> str:
         """Build one document-start comment for issues without a reliable anchor."""
         lines = ["当前合同缺失部分内容，具体如下："]
@@ -277,7 +284,10 @@ class DocxReportGenerator:
 
             range_start = OxmlElement('w:commentRangeStart')
             range_start.set(qn('w:id'), str(comment_id))
-            para_element.insert(0, range_start)
+            para_element.insert(
+                DocxReportGenerator._paragraph_content_start_index(para_element),
+                range_start,
+            )
 
             range_end = OxmlElement('w:commentRangeEnd')
             range_end.set(qn('w:id'), str(comment_id))
