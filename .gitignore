@@ -25,6 +25,7 @@ logs/
 *.log
 
 # Runtime outputs
+docs/漏检问题分析.md
 docs/reports_docx/
 docs/reports_md/
 docs/reports_pdf/
@@ -78,3 +79,4 @@ runtime_temp/
 image.tar
 docker 运行所需文件.zip
 results.docx
+project_experience/

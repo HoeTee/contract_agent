@@ -16,6 +16,10 @@ doc_3 = "【已审核】（262号）产品单次销售合同-卡券、实物、�
 doc_4 = "【已审查】（312号）关于联合开展普惠金融服务共同富裕课题研究及推广宣传活动服务采购合同（ZRUB-2025-08-28-19-E001）.docx"
 doc_5 = "【已审查】（355号）省行IaaS云计算平台扩容及驻场运维服务采购（二期）合同-初稿.docx"
 doc_6 = "【已审查】（397号）2025年世界互联网大会“互联网之光”博览会网络安全主题展服务项目申购协议书.docx"
+doc_7 = "【已审查】（433号）ZRUBXC软件开发类采购合同-人行支付系统重构项目-20251110.docx"
+doc_8 = "【已审查】（408号）浙江农商联合银行2025年体检服务协议.docx"
+doc_9 = "【已审查】（456号）农商财富大厦办公场地租赁合同11.17.docx"
+doc_10 = "【已审查】（370号）浙江农商联合银行科技大楼绿植墙优化及养护合同V1.0.docx"
 
 # File Format Exam
 def contract_path(filename):
@@ -51,7 +55,7 @@ CLI_OUTPUT_DIR = os.getenv(
 )
 
 
-async def main(filename: str=doc_6):
+async def main(filename: str=doc_10):
 
     CONTRACT_PATH = contract_path(filename) 
 

@@ -27,6 +27,7 @@ results.docx
 .tmp_compare
 .cache
 
+docs/漏检问题分析.md
 docs/contracts
 docs/reports_docx
 docs/reports_pdf
