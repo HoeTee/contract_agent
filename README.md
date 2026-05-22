@@ -207,6 +207,70 @@ ingest_file
 
 代码中保留了制度文档 persistent index 能力，但当前主工作流没有启用制度库 RAG。
 
+## LlamaIndex 参数调优经验
+
+`SentenceSplitter` 与 `VectorStoreIndex` 的默认参数在中英文混排的合同场景下会产生几类隐性 bug，下面是 2026-05 排查过程中的真实结论与对应配置，全部以环境变量暴露在 `.env` 中：
+
+```env
+CHUNK_SIZE=512
+CHUNK_OVERLAP=100
+SIMILARITY_TOP_K=10
+RERANK_TOP_N=5
+```
+
+参数链路：`.env` → `mcp_server.py` 读 `os.getenv()` → `IndexRetriever.__init__` → `LlamaIndexRAG.__init__` → 两处 `SentenceSplitter` 构造（`rag_engine.py` 的 `build_temporary_index_from_text` / `build_nodes_for_text`）。
+
+### 关键决定 1：`paragraph_separator="\n\n"`
+
+默认 `paragraph_separator="\n\n\n"`（三换行），加上默认 `secondary_chunking_regex` 会把 `.` 当句末标点。结果是合同里的英文域名、邮箱、版本号、IP、文件名都可能在 `.` 处被切成两段：
+
+```
+合同原文:    联系人：谭路 邮箱地址：jackylutan@tencent.com
+node 0 末尾:                       jackylutan@tencent.
+node 1 开头:                                          com
+```
+
+Sub-agent 收到 `jackylutan@tencent.` 作为"原文"，再次诚实地生成"邮箱不完整"批注 — **AI 没幻觉，是 splitter 把证据切坏了**。
+
+修法是把 `paragraph_separator` 显式设为 `"\n\n"`：合同 Markdown 字段之间就是双换行，每个字段成为独立 paragraph，根本不进入二次切分，邮箱/域名/IP 全身完好。已在 `tools/retrieval/llamaindex/rag_engine.py` 两处 `SentenceSplitter(...)` 构造中硬编码。
+
+### 关键决定 2：`chunk_overlap` 的语义陷阱
+
+`SentenceSplitter.chunk_overlap` 是 **句子级** 而非字符级 — 它要在新 chunk 开头装回上一个 chunk 的**最后几个完整句子**。如果 overlap budget 不够装下"上一个完整句子"，**直接跳过 overlap，实际 0 重叠**。
+
+实测 355 号合同：
+
+| `chunk_overlap` | 实际重叠字符数 |
+|---|---|
+| 0 | 0 |
+| 100（很多教程的默认）| **0**（看起来设了，其实没生效）|
+| 160 | ~30 |
+| 200 | 200 |
+
+如果只靠 overlap 兜底英文 `.` 切断问题，至少要 200。但配合上面的 `paragraph_separator="\n\n"` 后，overlap 不再是必需，所以保留默认 100 即可。
+
+### 关键决定 3：`similarity_top_k=10` / `rerank_top_n=5`
+
+默认 5/3 在合同长尾段落时召回不足。典型坏 case：
+
+- criteria 问"项目负责人信息是否齐全"
+- 合同 para#98 有"乙方变更项目负责人..."（程序条款）
+- 合同 para#110 有"乙方项目负责人姓名【叶升鹏】身份证号【320821...】"（实际指派）
+- top_k=5 + top_n=3：retriever 只把 para#98 召回 → AI 误报"未明确项目负责人姓名、身份证号"
+- top_k=10 + top_n=5：para#110 进入候选 → AI 看见实际填写，不再误报
+
+这类**事实错误类批注**靠 prompt 和黑名单都治不了，只能给 retriever 更宽的视野。
+
+### 调参诊断方法
+
+排查类似问题先验证三件事，不要先调 prompt：
+
+1. **解析层**：直接 `FileParser.parse_file(path)`，搜关键字段（邮箱、关键人名、关键数字），确认 markdown 里完整存在
+2. **切块层**：用同一份 markdown 跑 `SentenceSplitter(...).get_nodes_from_documents(...)`，遍历 nodes 看关键字段是否被切坏；尤其测 `node.content.endswith('.')` 这类截断
+3. **检索层**：跑 `engine.search(query)` 看返回的 top-k node 里是否包含正确证据；如果证据进不来，调高 `similarity_top_k` 或换 query 措辞
+
+**先解析、再切块、再检索、最后才轮到 prompt**。把 AI 在错误证据上的"合理批注"误判成 prompt 问题，会浪费大量调试时间。
+
 ## 批注设计
 
 批注输出基于原合同 DOCX 副本：

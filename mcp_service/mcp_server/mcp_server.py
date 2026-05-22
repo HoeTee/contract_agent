@@ -37,6 +37,10 @@ index_retriever = IndexRetriever(
     rerank_api_key=os.getenv("RERANK_API_KEY"),
     rerank_base_url=os.getenv("RERANK_BASE_URL"),
     rerank_name=os.getenv("RERANK_NAME"),
+    chunk_size=int(os.getenv("CHUNK_SIZE", "512")),
+    chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "200")),
+    similarity_top_k=int(os.getenv("SIMILARITY_TOP_K", "5")),
+    rerank_top_n=int(os.getenv("RERANK_TOP_N", "3")),
 )
 index_retriever._get_contract_llamaindex_engine()
 

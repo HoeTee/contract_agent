@@ -89,6 +89,7 @@ class LlamaIndexRAG:
         splitter = SentenceSplitter(
             chunk_size=self.chunk_size,
             chunk_overlap=self.chunk_overlap,
+            paragraph_separator="\n\n",
         )
         nodes = splitter.get_nodes_from_documents([document])
         self._index = VectorStoreIndex(nodes)
@@ -142,6 +143,7 @@ class LlamaIndexRAG:
         splitter = SentenceSplitter(
             chunk_size=self.chunk_size,
             chunk_overlap=self.chunk_overlap,
+            paragraph_separator="\n\n",
             tokenizer=lambda text: tokenizer.encode(text)
         )
 

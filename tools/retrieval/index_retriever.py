@@ -26,6 +26,10 @@ class IndexRetriever:
         rerank_api_key: str | None,
         rerank_base_url: str | None,
         rerank_name: str | None,
+        chunk_size: int = 512,
+        chunk_overlap: int = 200,
+        similarity_top_k: int = 5,
+        rerank_top_n: int = 3,
     ) -> None:
         self.project_root = project_root
         self.llm_api_key = llm_api_key
@@ -37,6 +41,10 @@ class IndexRetriever:
         self.rerank_api_key = rerank_api_key
         self.rerank_base_url = rerank_base_url
         self.rerank_name = rerank_name
+        self.chunk_size = chunk_size
+        self.chunk_overlap = chunk_overlap
+        self.similarity_top_k = similarity_top_k
+        self.rerank_top_n = rerank_top_n
         self._contract_llamaindex_engine = None
         self._institutional_engine = None
         self.institutional_docs_dir = os.path.join(
@@ -198,6 +206,10 @@ class IndexRetriever:
                 rerank_api_key=self.rerank_api_key,
                 rerank_base_url=self.rerank_base_url,
                 rerank_name=self.rerank_name,
+                chunk_size=self.chunk_size,
+                chunk_overlap=self.chunk_overlap,
+                similarity_top_k=self.similarity_top_k,
+                rerank_top_n=self.rerank_top_n,
             )
         return self._institutional_engine
 
@@ -220,6 +232,10 @@ class IndexRetriever:
                 rerank_api_key=self.rerank_api_key,
                 rerank_base_url=self.rerank_base_url,
                 rerank_name=self.rerank_name,
+                chunk_size=self.chunk_size,
+                chunk_overlap=self.chunk_overlap,
+                similarity_top_k=self.similarity_top_k,
+                rerank_top_n=self.rerank_top_n,
             )
         return self._contract_llamaindex_engine
 
