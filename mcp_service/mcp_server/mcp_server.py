@@ -90,8 +90,8 @@ async def generate_markdown_report(
 async def generate_docx_report(
     contract_name: str,
     contract_path: str,
-    results: list,
-    summary_sections: dict | None = None,
+    results_json: str | list,
+    summary_sections_json: str | dict | None = None,
     output_dir: str | None = None,
     output_path: str | None = None,
 ) -> str:
@@ -100,6 +100,12 @@ async def generate_docx_report(
         if not output_dir and not output_path:
             return json.dumps({"error": "output_dir or output_path is required"}, ensure_ascii=False)
 
+        results = json.loads(results_json) if isinstance(results_json, str) else results_json
+        summary_sections = (
+            json.loads(summary_sections_json)
+            if isinstance(summary_sections_json, str) and summary_sections_json
+            else summary_sections_json
+        )
         with redirect_stdout(sys.stderr):
             path = ReportGenerator.generate_docx_report(
                 contract_name=contract_name,

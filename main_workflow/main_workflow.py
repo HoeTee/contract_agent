@@ -351,8 +351,8 @@ class ContractReviewWorkflow:
         tool_args = {
             "contract_name": contract_name,
             "contract_path": contract_path,
-            "results": results,
-            "summary_sections": summary_sections,
+            "results_json": json.dumps(results, ensure_ascii=False),
+            "summary_sections_json": json.dumps(summary_sections, ensure_ascii=False),
         }
         if output_dir is not None:
             tool_args["output_dir"] = output_dir
