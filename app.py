@@ -19,7 +19,7 @@ app.add_middleware(
     session_cookie="contract_review_session",
     max_age=None,
     same_site="lax",
-    https_only=False,
+    https_only=False
 )
 
 app.mount("/static", StaticFiles(directory=str(Path(PROJECT_ROOT) / "web" / "static")), name="static")

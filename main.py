@@ -4,6 +4,7 @@ Local CLI entry point for the contract review workflow.
 import argparse
 import asyncio
 from pathlib import Path
+import shutil
 
 from dotenv import load_dotenv
 

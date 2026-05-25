@@ -54,7 +54,7 @@ _LLM_PROFILES = {
 }
 MAX_CONTEXT_TOKENS, MAX_RESULT_TOKENS, MAX_TOOL_CALLS = _LLM_PROFILES.get(
     LLM_NAME,
-    (100_000, 5_000, 10),
+    (128_000, 5_000, 10),
 )
 
 print("[config] Retrieval mode : LlamaIndex temporary contract RAG (MCP)")

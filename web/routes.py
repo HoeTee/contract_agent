@@ -32,7 +32,7 @@ router = APIRouter()
 review_semaphore = (
     asyncio.Semaphore(MAX_API_CONCURRENT_REVIEWS)
     if MAX_API_CONCURRENT_REVIEWS > 0
-    else None
+    else None # It could be None if MAX_API_CONCURRENT_REVIEWS is not set, meaning no concurrency limit.
 )
 
 
@@ -49,7 +49,10 @@ def get_current_username(request: Request) -> str | None:
 def require_current_username(request: Request) -> str:
     username = get_current_username(request)
     if not username:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        raise HTTPException(
+            status_code=401, 
+            detail="Not authenticated"
+        )
     return username
 
 
@@ -57,7 +60,7 @@ def validate_uploaded_docx(path: Path) -> None:
     with path.open("rb") as f:
         header = f.read(8)
 
-    if header.startswith(OLE_DOC_SIGNATURE):
+    if header.startswith(OLE_DOC_SIGNATURE): # Check for legacy .doc/OLE signature
         raise HTTPException(
             status_code=400,
             detail=(
@@ -66,17 +69,23 @@ def validate_uploaded_docx(path: Path) -> None:
             ),
         )
 
-    if not zipfile.is_zipfile(path):
-        raise HTTPException(status_code=400, detail="The uploaded file is not a valid .docx ZIP package.")
+    if not zipfile.is_zipfile(path): # Check if it's a valid ZIP file (basic check for .docx structure)
+        raise HTTPException(
+            status_code=400, 
+            detail="The uploaded file is not a valid .docx ZIP package."
+        )
 
     try:
         with zipfile.ZipFile(path) as archive:
             names = set(archive.namelist())
-    except zipfile.BadZipFile:
-        raise HTTPException(status_code=400, detail="The uploaded file is not a valid .docx ZIP package.")
+    except zipfile.BadZipFile: # If the file is not a valid ZIP archive, treat it as an invalid .docx
+        raise HTTPException(
+            status_code=400, 
+            detail="The uploaded file is not a valid .docx ZIP package."
+        )
 
     missing_parts = sorted(REQUIRED_DOCX_PARTS - names)
-    if missing_parts:
+    if missing_parts: # Check for required .docx parts to ensure it's not just any ZIP file
         raise HTTPException(
             status_code=400,
             detail=(
@@ -87,21 +96,23 @@ def validate_uploaded_docx(path: Path) -> None:
 
 
 def list_history(username: str) -> list[dict]:
-    report_dir = Path(DATA_DIR) / username / "reports_docx"
-    contract_dir = Path(DATA_DIR) / username / "contracts"
+    report_dir = Path(DATA_DIR) / username / "reports_docx" # Pathlib object
+    contract_dir = Path(DATA_DIR) / username / "contracts" # Pathlib object
     if not report_dir.exists():
         return []
 
     rows = []
-    for report in sorted(report_dir.glob("*.docx"), key=lambda p: p.stat().st_mtime, reverse=True):
+    # p.stat() obtains file metadata; p.stat().st_mtime gives the last modification time of the file.
+    # p is a Pathlib object.
+    for report in sorted(report_dir.glob("*.docx"), key=lambda p: p.stat().st_mtime, reverse=True):  
         prefix = "_".join(report.name.split("_")[:3])
-        contract = next(contract_dir.glob(f"{prefix}_*.docx"), None) if contract_dir.exists() else None
+        contract = next(contract_dir.glob(f"{prefix}_*.docx"), None) if contract_dir.exists() else None # next() retrieves the first item from the list of Pathlib objects
         rows.append({
             "report_name": report.name,
             "contract_name": contract.name if contract else "",
             "mtime": report.stat().st_mtime,
         })
-    return rows[:20]
+    return rows[:20] # Return the 20 most recent reports metadata. 
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -117,14 +128,18 @@ async def login_page(request: Request):
 
 
 @router.post("/login", response_class=HTMLResponse)
-async def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    user = verify_login(USERS_FILE, username, password)
+async def login(
+    request: Request, 
+    username: str = Form(...), 
+    password: str = Form(...)
+):
+    user = verify_login(USERS_FILE, username, password) # obtain user dict of metdata if login is successful, otherwise None
     if not user:
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "Invalid username or password."},
-            status_code=401,
+            {"error": "用户名或密码错误哦~"},
+            status_code=401, # Return 401 unauthorized for failed login attempts
         )
 
     request.session["username"] = user["username"]
@@ -148,7 +163,7 @@ async def entry_page(request: Request):
 async def index(request: Request):
     username = get_current_username(request)
     if not username:
-        return RedirectResponse("/login", status_code=303)
+        return RedirectResponse("/login", status_code=303) # happens when user tries to access /work without logging in, redirect them to login page
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -157,7 +172,7 @@ async def index(request: Request):
             "display_name": request.session.get("display_name", username),
             "history": list_history(username),
             "error": None,
-            "result_name": None,
+            "result_name": None
         },
     )
 
@@ -174,20 +189,31 @@ async def review_page(request: Request, file: UploadFile = File(...)):
         original_filename=filename,
         data_dir=Path(DATA_DIR),
     )
-    paths.ensure_task_dirs()
-    append_api_event(paths.api_events_path, "upload_received", username=username, filename=filename)
+    paths.ensure_task_dirs() # create necessary directories
+    # api event I - file received for review, with metadata of username and filename (after sanitization)
+    append_api_event(
+        paths.api_events_path, 
+        "upload_received", 
+        username=username, 
+        filename=filename
+    )
 
     try:
         if not filename.lower().endswith(".docx"):
-            raise HTTPException(status_code=400, detail="Only .docx files are supported.")
+            raise HTTPException(
+                status_code=400, 
+                detail="系统支持的文件格式是 DOCX 哦~"
+            )
         if not paths.criteria_path.exists():
             raise HTTPException(
                 status_code=500,
-                detail=f"Review criteria file was not found: {paths.criteria_path}",
+                detail=f"审核要点文件未发现： {paths.criteria_path}",
             )
 
         with paths.stored_contract_path.open("wb") as f:
             shutil.copyfileobj(file.file, f)
+        
+        # api event II - file saved and ready for validation and review
         append_api_event(
             paths.api_events_path,
             "contract_saved",
@@ -195,10 +221,15 @@ async def review_page(request: Request, file: UploadFile = File(...)):
             size_bytes=paths.stored_contract_path.stat().st_size,
         )
 
-        validate_uploaded_docx(paths.stored_contract_path)
-        append_api_event(paths.api_events_path, "docx_validation_passed")
+        validate_uploaded_docx(paths.stored_contract_path) # Check if the uploaded file is a valid .docx file, otherwise raise HTTPException with 400 status code and error message.
 
-        token = set_conversation_log_dir(paths.conversation_log_dir)
+        # api event III - file passed validation and review is about to start
+        append_api_event(
+            paths.api_events_path, 
+            "docx_validation_passed"
+        )
+
+        token = set_conversation_log_dir(paths.conversation_log_dir) # Set the conversation log directory for this review task
         try:
             workflow = ContractReviewWorkflow(
                 server_script_path=str(MCP_SERVER_PATH),
@@ -206,14 +237,21 @@ async def review_page(request: Request, file: UploadFile = File(...)):
                 conversation_log_dir=str(paths.conversation_log_dir),
                 mcp_log_file=str(paths.mcp_log_dir / "mcp_client.log"),
             )
-            append_api_event(paths.api_events_path, "review_started", task_id=paths.task_id)
-            if review_semaphore is None:
+
+            # api event IV - review workflow is starting, with metadata of task_id
+            append_api_event(
+                paths.api_events_path, 
+                "review_started", 
+                task_id=paths.task_id
+            )
+
+            if review_semaphore is None: # No concurrency limit, run directly
                 result = await workflow.run(
                     contract_path=str(paths.stored_contract_path),
                     criteria_path=str(paths.criteria_path),
                     output_path=str(paths.final_report_path),
                 )
-            else:
+            else: # Concurrency limit is set, acquire semaphore before running the review workflow
                 async with review_semaphore:
                     result = await workflow.run(
                         contract_path=str(paths.stored_contract_path),
@@ -221,7 +259,7 @@ async def review_page(request: Request, file: UploadFile = File(...)):
                         output_path=str(paths.final_report_path),
                     )
         finally:
-            reset_conversation_log_dir(token)
+            reset_conversation_log_dir(token) # Reset the conversation log directory for this review task
 
         output_path = Path(result["report_docx"])
         if not output_path.exists():
