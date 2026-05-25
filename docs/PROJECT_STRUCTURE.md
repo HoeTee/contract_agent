@@ -1,4 +1,4 @@
-# Project Structure
+# 项目结构
 
 ```text
 deep_research_agent/
@@ -45,4 +45,38 @@ deep_research_agent/
       logs/
 ```
 
-`data/` is persistent user data. `docs/` is Markdown documentation only.
+## 入口文件
+
+- `app.py`：FastAPI Web 服务入口，负责创建应用、启用 session middleware、挂载静态文件和注册路由。
+- `main.py`：本地 CLI 审查入口，按用户分区读取合同和审查要点。
+- `config.py`：集中读取项目路径和环境变量。
+
+## Web 目录
+
+- `web/routes.py`：登录、工作台、上传审查、历史记录、下载等 Web 路由。
+- `web/auth.py`：用户读取、密码哈希、登录校验。
+- `web/templates/`：HTML 模板。
+- `web/static/`：CSS 和前端脚本。
+
+## 数据目录
+
+`data/` 是运行时持久化目录，按用户名分区：
+
+```text
+data/<username>/
+  contract_review_criteria/
+  institutional_docs/
+  contracts/
+  reports_docx/
+  logs/
+```
+
+- `contract_review_criteria/`：该用户的审查要点，当前固定读取 `criteria.docx`。
+- `institutional_docs/`：该用户的制度文档预留目录。
+- `contracts/`：上传合同原件。
+- `reports_docx/`：批注版合同输出。
+- `logs/`：审查任务日志。
+
+## 文档目录
+
+`docs/` 只用于存放 Markdown 文档，不作为程序运行时输入或输出目录。

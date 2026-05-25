@@ -1,16 +1,16 @@
-# Logger Design
+# 日志设计
 
-Logger code lives in `loggers/`. The module `resolve_review_task_paths.py` resolves task IDs and file paths; the other logger modules only write logs.
+日志相关代码统一放在 `loggers/` 目录下。`resolve_review_task_paths.py` 负责生成任务编号和所有输入、输出、日志路径；其他 logger 模块只负责写日志。
 
-## Task Directory
+## 任务目录
 
-Each review task writes logs to:
+每次合同审查都会创建一个独立任务目录：
 
 ```text
 data/<username>/logs/<YYYY-MM-DD>/<HHMMSS_shortid_contractname>/
 ```
 
-The task directory is split by log source:
+任务目录按日志来源拆分：
 
 ```text
 workflow/
@@ -19,21 +19,21 @@ mcp/
 api_events.jsonl
 ```
 
-## Path Resolution
+## 路径解析
 
-Module:
+模块：
 
 ```text
 loggers/resolve_review_task_paths.py
 ```
 
-Purpose:
+职责：
 
 ```text
-Resolve the task ID and all input, output, and log paths for one review task.
+为单次审查任务生成任务 ID，以及上传合同、批注输出、审查要点和各类日志的完整路径。
 ```
 
-It resolves:
+主要生成：
 
 ```text
 stored_contract_path
@@ -46,15 +46,15 @@ mcp_log_dir
 api_events_path
 ```
 
-## Workflow Logs
+## Workflow 日志
 
-Module:
+模块：
 
 ```text
 loggers/workflow_logger.py
 ```
 
-Files:
+文件：
 
 ```text
 workflow/workflow_YYYYMMDD_HHMMSS.md
@@ -62,15 +62,21 @@ workflow/results.json
 workflow/run_summary.json
 ```
 
-## Agent Conversation Logs
+记录内容：
 
-Module:
+```text
+workflow 阶段流转、阶段输入输出摘要、耗时、token 统计、最终审查结果和任务摘要。
+```
+
+## Agent 对话日志
+
+模块：
 
 ```text
 loggers/agent_logger.py
 ```
 
-Files:
+文件：
 
 ```text
 conversations/Planner_*.json
@@ -79,32 +85,54 @@ conversations/Reflector_*.json
 conversations/Summarizer_*.json
 ```
 
-## MCP Logs
+记录内容：
 
-Module:
+```text
+agent 调用大模型时的 messages、system prompt、user prompt、assistant response、tool message 等对话上下文。
+```
+
+## MCP 日志
+
+模块：
 
 ```text
 loggers/mcp_logger.py
 ```
 
-File:
+文件：
 
 ```text
 mcp/mcp_client.log
 ```
 
-## API Events
+记录内容：
 
-Module:
+```text
+MCP client 的连接、断开、工具列表和异常信息。
+```
+
+## API 事件日志
+
+模块：
 
 ```text
 loggers/api_event_logger.py
 ```
 
-File:
+文件：
 
 ```text
 api_events.jsonl
 ```
 
-`jsonl` is one JSON object per line. It is used for append-only API events such as upload, validation, review start, review completion, and failure.
+`jsonl` 表示每一行都是一个独立 JSON 对象。这里用于追加记录 API 层事件，例如上传文件、DOCX 校验通过、审查开始、审查完成和失败原因。
+
+## 日志开关
+
+`.env` 中的配置控制是否写入 workflow、conversations 和 mcp 文件日志：
+
+```env
+ENABLE_WORKFLOW_LOGS=True
+```
+
+如果设置为 `False`，任务目录仍可能被创建，但 `workflow/`、`conversations/`、`mcp/` 下不会写入日志文件；`api_events.jsonl` 仍用于记录 API 层事件。

@@ -1,8 +1,8 @@
 # Deep Research Agent
 
-Deep Research Agent is a contract review web service. It supports login, DOCX upload, contract review, annotated DOCX download, user-scoped storage, and task-scoped logs.
+Deep Research Agent 是一个合同智能审查 Web 服务，支持用户登录、DOCX 合同上传、合同审查、批注版 DOCX 下载、按用户分区存储，以及按任务分区记录日志。
 
-## Runtime Layout
+## 运行目录
 
 ```text
 data/
@@ -19,76 +19,77 @@ docs/
   USER_MANAGEMENT.md
   PROJECT_STRUCTURE.md
   DEPLOYMENT.md
+  QUICK_START.md
 ```
 
-- `data/`: persistent user data. Mount this directory on the server.
-- `docs/`: Markdown documentation only. It is not used for runtime inputs or outputs.
-- `users.json`: user account config. Passwords are stored as hashes, not plaintext.
+- `data/`：运行时持久化数据目录。部署到服务器时应挂载这个目录。
+- `docs/`：只存放 Markdown 文档，不作为程序输入或输出目录。
+- `users.json`：用户账号配置文件。密码只保存哈希值，不保存明文。
 
-## User Management
+## 用户管理
 
-Create a user:
+创建用户：
 
 ```powershell
 python scripts/manage_users.py create --username user001 --password Abc123456 --display-name ZhangSan
 ```
 
-Reset a password:
+重置密码：
 
 ```powershell
 python scripts/manage_users.py reset-password --username user001 --password NewPass123
 ```
 
-Disable a user:
+禁用用户：
 
 ```powershell
 python scripts/manage_users.py disable --username user001
 ```
 
-Each user needs a review criteria file:
+每个用户都需要自己的审查要点文件：
 
 ```text
 data/user001/contract_review_criteria/criteria.docx
 ```
 
-## Web Service
+## Web 服务
 
-Start locally:
+本地启动：
 
 ```powershell
 uvicorn app:app --host 0.0.0.0 --port 5000
 ```
 
-Open:
+本机浏览器访问：
 
 ```text
-http://localhost:5000
+http://127.0.0.1:5000
 ```
 
-For a step-by-step smoke test, see [docs/QUICK_START.md](docs/QUICK_START.md).
+完整冒烟测试见 [docs/QUICK_START.md](docs/QUICK_START.md)。
 
-After login, the service:
+用户登录后，服务会：
 
-1. Saves the uploaded contract to `data/<username>/contracts/`
-2. Reads the contract directly from `data/<username>/contracts/`
-3. Writes the annotated DOCX directly to `data/<username>/reports_docx/`
-4. Writes task logs to `data/<username>/logs/<YYYY-MM-DD>/<task>/`
+1. 将上传合同保存到 `data/<username>/contracts/`
+2. 直接从 `data/<username>/contracts/` 读取合同
+3. 将批注版 DOCX 写入 `data/<username>/reports_docx/`
+4. 将任务日志写入 `data/<username>/logs/<YYYY-MM-DD>/<task>/`
 
 ## CLI
 
-The CLI uses a user partition. The default user comes from `.env`:
+CLI 也按用户分区运行。默认用户来自 `.env`：
 
 ```env
 DEFAULT_CLI_USERNAME=default
 ```
 
-Run:
+运行示例：
 
 ```powershell
 python main.py --username default --contract sample.docx
 ```
 
-If `--contract` is relative, it is read from:
+如果 `--contract` 是相对路径，程序会从下面的位置读取：
 
 ```text
 data/default/contracts/sample.docx
@@ -96,7 +97,7 @@ data/default/contracts/sample.docx
 
 ## Docker
 
-`docker-compose.yaml` mounts:
+`docker-compose.yaml` 挂载：
 
 ```yaml
 volumes:
@@ -104,29 +105,35 @@ volumes:
   - ./users.json:/app/users.json:ro
 ```
 
-The container listens on `5000`. The compose file maps:
+容器内部监听 `5000`。当前 compose 映射：
 
 ```yaml
 ports:
   - "127.0.0.1:8000:5000"
 ```
 
-Server-local access:
+服务器本机访问：
 
 ```text
 http://127.0.0.1:8000
 ```
 
-For external access, change the port mapping to:
+如果要允许外部机器访问，改成：
 
 ```yaml
 ports:
   - "8000:5000"
 ```
 
-## Logs
+然后访问：
 
-Each review task writes logs to:
+```text
+http://服务器IP:8000
+```
+
+## 日志
+
+每个审查任务的日志目录：
 
 ```text
 data/<username>/logs/<YYYY-MM-DD>/<task>/
@@ -136,11 +143,11 @@ data/<username>/logs/<YYYY-MM-DD>/<task>/
   api_events.jsonl
 ```
 
-See [docs/LOGGER_DESIGN.md](docs/LOGGER_DESIGN.md).
+日志设计见 [docs/LOGGER_DESIGN.md](docs/LOGGER_DESIGN.md)。
 
-## Required Env
+## 必要环境变量
 
-Create `.env` from `.env.example` and set at least:
+从 `.env.example` 创建 `.env`，至少配置：
 
 ```env
 LLM_API_KEY=...
