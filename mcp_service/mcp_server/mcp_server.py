@@ -90,17 +90,16 @@ async def generate_markdown_report(
 async def generate_docx_report(
     contract_name: str,
     contract_path: str,
-    results_json: str,
-    summary_sections_json: str = None,
-    output_dir: str = None,
+    results: list,
+    summary_sections: dict | None = None,
+    output_dir: str | None = None,
+    output_path: str | None = None,
 ) -> str:
     """Generate only the annotated original-contract DOCX."""
     try:
-        if not output_dir:
-            return json.dumps({"error": "output_dir is required"}, ensure_ascii=False)
+        if not output_dir and not output_path:
+            return json.dumps({"error": "output_dir or output_path is required"}, ensure_ascii=False)
 
-        results = json.loads(results_json) if results_json else []
-        summary_sections = json.loads(summary_sections_json) if summary_sections_json else None
         with redirect_stdout(sys.stderr):
             path = ReportGenerator.generate_docx_report(
                 contract_name=contract_name,
@@ -108,6 +107,7 @@ async def generate_docx_report(
                 results=results,
                 summary_sections=summary_sections,
                 output_dir=output_dir,
+                output_path=output_path,
             )
         if not path:
             return json.dumps({"error": "DOCX report generation failed."}, ensure_ascii=False)

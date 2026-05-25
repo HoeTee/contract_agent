@@ -1,0 +1,11 @@
+{
+  "users": [
+    {
+      "username": "default",
+      "password_hash": "generate-with-scripts-manage-users",
+      "display_name": "Default CLI User",
+      "enabled": true,
+      "created_at": "2026-05-24 00:00:00"
+    }
+  ]
+}

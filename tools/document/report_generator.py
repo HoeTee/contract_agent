@@ -35,12 +35,16 @@ class ReportGenerator:
         elapsed_seconds: float = None,
         contract_path: str = None,
         results: list = None,
+        output_dir: str | Path | None = None,
     ) -> dict:
         """Generate MD, DOCX, and PDF reports from markdown content."""
-        project_root = Path(__file__).resolve().parents[2]
-        md_dir = project_root / "docs" / "reports_md"
-        docx_dir = project_root / "docs" / "reports_docx"
-        pdf_dir = project_root / "docs" / "reports_pdf"
+        if not output_dir:
+            raise ValueError("output_dir is required for report generation.")
+
+        report_dir = Path(output_dir)
+        md_dir = report_dir / "reports_md"
+        docx_dir = report_dir / "reports_docx"
+        pdf_dir = report_dir / "reports_pdf"
         for directory in (md_dir, docx_dir, pdf_dir):
             directory.mkdir(parents=True, exist_ok=True)
 
@@ -86,10 +90,13 @@ class ReportGenerator:
         content: str,
         contract_name: str,
         elapsed_seconds: float = None,
+        output_dir: str | Path | None = None,
     ) -> str:
         """Generate only a markdown report."""
-        project_root = Path(__file__).resolve().parents[2]
-        md_dir = project_root / "docs" / "reports_md"
+        if not output_dir:
+            raise ValueError("output_dir is required for markdown report generation.")
+
+        md_dir = Path(output_dir)
         md_dir.mkdir(parents=True, exist_ok=True)
 
         report_content = ReportGenerator._append_generation_info(content, elapsed_seconds)
@@ -103,15 +110,19 @@ class ReportGenerator:
         results: list,
         summary_sections: dict | None = None,
         output_dir: str | Path | None = None,
+        output_path: str | Path | None = None,
     ) -> str | None:
         """Generate only the annotated original-contract DOCX."""
-        if not output_dir:
-            raise ValueError("output_dir is required for DOCX report generation.")
+        if output_path:
+            output_path = Path(output_path)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            if not output_dir:
+                raise ValueError("output_dir or output_path is required for DOCX report generation.")
+            docx_dir = Path(output_dir)
+            docx_dir.mkdir(parents=True, exist_ok=True)
+            output_path = docx_dir / f"{ReportGenerator._build_report_base_name(contract_name)}.docx"
 
-        docx_dir = Path(output_dir)
-        docx_dir.mkdir(parents=True, exist_ok=True)
-
-        output_path = docx_dir / f"{ReportGenerator._build_report_base_name(contract_name)}.docx"
         docx_path = DocxReportGenerator.generate_annotated_docx(
             contract_path=contract_path,
             results=results,
@@ -125,11 +136,15 @@ class ReportGenerator:
         content: str,
         contract_name: str,
         elapsed_seconds: float = None,
+        output_dir: str | Path | None = None,
     ) -> str:
         """Generate only a PDF report from markdown content."""
-        project_root = Path(__file__).resolve().parents[2]
-        md_dir = project_root / "docs" / "reports_md"
-        pdf_dir = project_root / "docs" / "reports_pdf"
+        if not output_dir:
+            raise ValueError("output_dir is required for PDF report generation.")
+
+        report_dir = Path(output_dir)
+        md_dir = report_dir / "reports_md"
+        pdf_dir = report_dir / "reports_pdf"
         md_dir.mkdir(parents=True, exist_ok=True)
         pdf_dir.mkdir(parents=True, exist_ok=True)
 

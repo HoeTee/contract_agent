@@ -6,7 +6,7 @@ import traceback # help show where the error happended
 from contextlib import AsyncExitStack
 from typing import Any, Dict, List, Optional
 
-from mcp_service.mcp_client.mcp_logger import logger
+from loggers.mcp_logger import create_mcp_logger
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.client.sse import sse_client
@@ -21,12 +21,12 @@ class MinimalMCPClient:
     - executes tool calls and returns Chat Completions tool messages
     """
 
-    def __init__(self, server_script_path: str = "") -> None:
+    def __init__(self, server_script_path: str = "", log_file: str | None = None) -> None:
         self.server_script_path = server_script_path
         self.session: Optional[ClientSession] = None
         self.exit_stack = AsyncExitStack()
         self.tools: List[Dict[str, Any]] = []
-        self.logger = logger
+        self.logger = create_mcp_logger(log_file)
 
     async def connect(
         self,

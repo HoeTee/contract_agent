@@ -1,72 +1,89 @@
 """
-Entry point for the contract review workflow.
+Local CLI entry point for the contract review workflow.
 """
+import argparse
 import asyncio
-import os
+from pathlib import Path
+
 from dotenv import load_dotenv
+
+from config import DATA_DIR, DEFAULT_CLI_USERNAME, ENV_PATH, MCP_SERVER_PATH
+from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
+from loggers.resolve_review_task_paths import resolve_review_task_paths
 from main_workflow.main_workflow import ContractReviewWorkflow
+from web.routes import validate_uploaded_docx
 
-# Project root
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
-doc_1 = "【已审查】（214号）浙江农商与移动浙江公司集团固话业务协议-修订4(1).docx"
-doc_2 = "【已审查】（528号）2026年至2028年贵宾医疗服务合作协议-邵逸夫医院.docx"
-doc_3 = "【已审核】（262号）产品单次销售合同-卡券、实物、定点配送（东福、东乐通用型模版） (4).docx"
-doc_4 = "【已审查】（312号）关于联合开展普惠金融服务共同富裕课题研究及推广宣传活动服务采购合同（ZRUB-2025-08-28-19-E001）.docx"
-doc_5 = "【已审查】（355号）省行IaaS云计算平台扩容及驻场运维服务采购（二期）合同-初稿.docx"
-doc_6 = "【已审查】（397号）2025年世界互联网大会“互联网之光”博览会网络安全主题展服务项目申购协议书.docx"
-doc_7 = "【已审查】（433号）ZRUBXC软件开发类采购合同-人行支付系统重构项目-20251110.docx"
-doc_8 = "【已审查】（408号）浙江农商联合银行2025年体检服务协议.docx"
-doc_9 = "【已审查】（456号）农商财富大厦办公场地租赁合同11.17.docx"
-doc_10 = "【已审查】（370号）浙江农商联合银行科技大楼绿植墙优化及养护合同V1.0.docx"
+load_dotenv(ENV_PATH)
 
-# File Format Exam
-def contract_path(filename):
 
-    ALLOWED_FORMATS = {".pdf", ".docx"} # a set
-    def extract_ext(filename):
-        return os.path.splitext(filename)[1].lower()
-
-    if extract_ext(filename) not in ALLOWED_FORMATS:
-        raise ValueError(f".{os.path.splitext(filename)[1].lower()} is not in an allowed format.")
-    
-    return os.path.join(
-        PROJECT_ROOT, 
-        "docs/contracts", 
-        filename
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Run a local contract review.")
+    parser.add_argument(
+        "--username",
+        default=DEFAULT_CLI_USERNAME,
+        help="User partition under data/. Defaults to DEFAULT_CLI_USERNAME.",
     )
-
-# File paths — change these to your actual files
-CRITERIA_PATH = os.path.join(
-    PROJECT_ROOT, 
-    "docs/contract_review_criteria", 
-    "审核要点（初稿）(2).docx"
-)
-MCP_SERVER_PATH = os.path.join(
-    PROJECT_ROOT, 
-    "mcp_service", 
-    "mcp_server", 
-    "mcp_server.py"
-)
-CLI_OUTPUT_DIR = os.getenv(
-    "CLI_OUTPUT_DIR",
-    os.path.join(PROJECT_ROOT, "docs", "reports_docx"),
-)
-
-
-async def main(filename: str=doc_10):
-
-    CONTRACT_PATH = contract_path(filename) 
-
-    workflow = ContractReviewWorkflow(server_script_path=MCP_SERVER_PATH)
-    result = await workflow.run(
-        contract_path=CONTRACT_PATH,
-        criteria_path=CRITERIA_PATH,
-        output_dir=CLI_OUTPUT_DIR,
+    parser.add_argument(
+        "--contract",
+        required=True,
+        help="Contract filename under data/<username>/contracts or an absolute path.",
     )
-    # print(f"\nResult: {result}")
+    return parser
+
+
+def resolve_contract_path(username: str, contract: str) -> Path:
+    path = Path(contract)
+    if path.is_absolute():
+        return path
+    return Path(DATA_DIR) / username / "contracts" / contract
+
+
+async def run_cli(username: str, contract: str) -> dict:
+    contract_path = resolve_contract_path(username, contract)
+    if not contract_path.exists():
+        raise FileNotFoundError(f"Contract file was not found: {contract_path}")
+
+    paths = resolve_review_task_paths(
+        username=username,
+        original_filename=contract_path.name,
+        data_dir=Path(DATA_DIR),
+    )
+    paths.ensure_task_dirs()
+
+    if not paths.criteria_path.exists():
+        raise FileNotFoundError(f"Review criteria file was not found: {paths.criteria_path}")
+
+    if contract_path.resolve() != paths.stored_contract_path.resolve():
+        shutil.copy2(contract_path, paths.stored_contract_path)
+
+    validate_uploaded_docx(paths.stored_contract_path)
+
+    token = set_conversation_log_dir(paths.conversation_log_dir)
+    try:
+        workflow = ContractReviewWorkflow(
+            server_script_path=MCP_SERVER_PATH,
+            workflow_log_dir=str(paths.workflow_log_dir),
+            conversation_log_dir=str(paths.conversation_log_dir),
+            mcp_log_file=str(paths.mcp_log_dir / "mcp_client.log"),
+        )
+        result = await workflow.run(
+            contract_path=str(paths.stored_contract_path),
+            criteria_path=str(paths.criteria_path),
+            output_path=str(paths.final_report_path),
+        )
+    finally:
+        reset_conversation_log_dir(token)
+
+    result["final_report_docx"] = str(paths.final_report_path)
+    print(f"Final report: {paths.final_report_path}")
+    return result
+
+
+def main() -> None:
+    args = build_parser().parse_args()
+    asyncio.run(run_cli(args.username, args.contract))
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

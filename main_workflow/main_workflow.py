@@ -19,7 +19,7 @@ from config import (
     ENABLE_WORKFLOW_LOGS,
     MCP_SERVER_PATH,
 )
-from main_workflow.workflow_logger import WorkflowLogger
+from loggers.workflow_logger import WorkflowLogger, save_results_json, save_run_summary_json
 from agents.base_agent import Settings
 from agents.planner import PlannerAgent
 from agents.orchestrator import OrchestratorAgent
@@ -36,9 +36,17 @@ class ContractReviewWorkflow:
     agents and MCP tools.
     """
 
-    def __init__(self, server_script_path: str = MCP_SERVER_PATH):
-        self.mcp_client = MinimalMCPClient(server_script_path)
-        self.logger = WorkflowLogger()
+    def __init__(
+        self,
+        server_script_path: str = MCP_SERVER_PATH,
+        workflow_log_dir: str | None = None,
+        conversation_log_dir: str | None = None,
+        mcp_log_file: str | None = None,
+    ):
+        self.mcp_client = MinimalMCPClient(server_script_path, log_file=mcp_log_file)
+        self.logger = WorkflowLogger(log_dir=workflow_log_dir)
+        self.workflow_log_dir = workflow_log_dir
+        self.conversation_log_dir = conversation_log_dir
         self.settings = Settings()
 
     async def run(
@@ -47,15 +55,15 @@ class ContractReviewWorkflow:
         criteria_path: str,
         progress_callback: Callable[[dict[str, Any]], Awaitable[None] | None] | None = None,
         output_dir: str | None = None,
+        output_path: str | None = None,
     ) -> dict[str, Any]:
         """
         Execute the full review workflow.
         Returns: structured review data for the API layer.
         """
-        if not output_dir:
+        if not output_dir and not output_path:
             raise ValueError(
-                "output_dir is required. Pass a request temp directory for API runs "
-                "or a CLI output directory for local test runs."
+                "output_dir or output_path is required for report generation."
             )
 
         workflow_start = time.time()
@@ -106,6 +114,7 @@ class ContractReviewWorkflow:
                 results=results,
                 summary_sections=summary_sections,
                 output_dir=output_dir,
+                output_path=output_path,
             )
 
             # Save workflow log
@@ -323,12 +332,9 @@ class ContractReviewWorkflow:
         """Persist the raw criterion review results for debugging."""
         if not ENABLE_WORKFLOW_LOGS:
             return None
-
-        results_path = os.path.join("logs", "workflow", "last_results.json")
-        os.makedirs(os.path.dirname(results_path), exist_ok=True)
-        with open(results_path, "w", encoding="utf-8") as f:
-            json.dump(results, f, ensure_ascii=False, indent=2)
-        return results_path
+        if not self.workflow_log_dir:
+            raise ValueError("workflow_log_dir is required when file logging is enabled.")
+        return save_results_json(results, self.workflow_log_dir)
 
     async def _phase_generate_annotated_docx(
         self,
@@ -336,20 +342,26 @@ class ContractReviewWorkflow:
         results: list[dict],
         summary_sections: dict,
         output_dir: str | None = None,
+        output_path: str | None = None,
     ) -> str:
         """Phase 6: Generate only the annotated original-contract DOCX."""
         print("\n[Phase 6] Generating annotated DOCX...")
         start = time.time()
         contract_name = os.path.splitext(os.path.basename(contract_path))[0]
+        tool_args = {
+            "contract_name": contract_name,
+            "contract_path": contract_path,
+            "results": results,
+            "summary_sections": summary_sections,
+        }
+        if output_dir is not None:
+            tool_args["output_dir"] = output_dir
+        if output_path is not None:
+            tool_args["output_path"] = output_path
+
         result = await self.mcp_client.call_tool(
             "generate_docx_report",
-            {
-                "contract_name": contract_name,
-                "contract_path": contract_path,
-                "results_json": json.dumps(results, ensure_ascii=False),
-                "summary_sections_json": json.dumps(summary_sections, ensure_ascii=False),
-                "output_dir": output_dir,
-            },
+            tool_args,
         )
 
         self.logger.log(
@@ -379,9 +391,6 @@ class ContractReviewWorkflow:
         """Persist a compact run summary for debugging and audit."""
         if not ENABLE_WORKFLOW_LOGS:
             return None
-
-        summary_path = os.path.join("logs", "workflow", "last_run_summary.json")
-        os.makedirs(os.path.dirname(summary_path), exist_ok=True)
         summary = {
             "annotated_docx_path": annotated_docx_path,
             "results_path": results_path,
@@ -401,9 +410,9 @@ class ContractReviewWorkflow:
                 for result in results
             ],
         }
-        with open(summary_path, "w", encoding="utf-8") as f:
-            json.dump(summary, f, ensure_ascii=False, indent=2)
-        return summary_path
+        if not self.workflow_log_dir:
+            raise ValueError("workflow_log_dir is required when file logging is enabled.")
+        return save_run_summary_json(summary, self.workflow_log_dir)
 
     def _print_completion_summary(
         self,

@@ -5,7 +5,7 @@ management, token tracking, and conversation logging.
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from openai import AsyncOpenAI, RateLimitError, APITimeoutError, APIConnectionError, InternalServerError
-from agents.agent_logger import log_conversation
+from loggers.agent_logger import log_conversation
 from config import MAX_TOOL_CALLS, MAX_CONTEXT_TOKENS, MAX_RESULT_TOKENS
 import asyncio
 import json

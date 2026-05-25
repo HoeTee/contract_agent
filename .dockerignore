@@ -11,31 +11,27 @@ __pycache__
 .env
 .env.local
 .env.*.local
+users.json
 
+data
 logs
-scripts
 results
-专利材料
-docker 运行所需文件
-相关合同智能体系列文件
 api_review_test
-runtime_temp
-image.tar
-docker 运行所需文件.zip
-results.docx
 .tmp_patents
 .tmp_compare
 .cache
-
-docs/漏检问题分析.md
-docs/contracts
-docs/reports_docx
-docs/reports_pdf
-docs/reports_md
 RAG_persist
 
+local_tokenizers
+专利材料
+相关合同智能体系列文件
+docker 运行所需文件
+docker 运行所需文件.zip
+image.tar
+results.docx
 
 *.log
 *.tmp
 *.bak
 ~$*.docx
+/*.docx

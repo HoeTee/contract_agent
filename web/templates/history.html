@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>审核历史 - 合同智能审核系统</title>
+    <link rel="stylesheet" href="/static/app.css?v=20260525-ui3">
+  </head>
+  <body class="app-page">
+    <div class="app-frame">
+      <aside class="sidebar" aria-label="主导航">
+        <div class="sidebar-brand">
+          <span class="brand-icon small" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M7 3.5h7.2L18.5 7.8v12.7H7z" fill="none" stroke="currentColor" stroke-width="1.9"/>
+              <path d="M14 4v4h4" fill="none" stroke="currentColor" stroke-width="1.9"/>
+              <path d="M9.6 12.1h5M9.6 15.5h5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <div>
+            <strong>合同审核</strong>
+            <span>Review Console</span>
+          </div>
+        </div>
+        <nav class="nav-list">
+          <a class="nav-item" href="/">上传审核</a>
+          <a class="nav-item active" href="/history">审核历史</a>
+        </nav>
+      </aside>
+
+      <div class="main-area">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">历史记录</p>
+            <h1>审核历史</h1>
+          </div>
+          <div class="user-box">
+            <div>
+              <span>当前用户</span>
+              <strong>{{ display_name }} · {{ username }}</strong>
+            </div>
+            <a class="secondary-button compact-button" href="/">返回工作台</a>
+          </div>
+        </header>
+
+        <main class="content-grid single">
+          <section class="panel history-panel full-width">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">全部结果</p>
+                <h2>历史输出</h2>
+              </div>
+            </div>
+            <div class="table-frame">
+              <table>
+                <thead>
+                  <tr>
+                    <th>输入文件</th>
+                    <th>输出文件</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in history %}
+                  <tr>
+                    <td>{{ item.contract_name or "-" }}</td>
+                    <td>{{ item.report_name }}</td>
+                    <td><a class="table-action" href="/download/{{ item.report_name }}">下载</a></td>
+                  </tr>
+                  {% else %}
+                  <tr><td colspan="3" class="empty-state">暂无审核结果</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>合同智能审核系统 - 登录</title>
+    <link rel="stylesheet" href="/static/app.css?v=20260525-ui3">
+  </head>
+  <body class="auth-page">
+    <main class="auth-shell">
+      <section class="auth-card" aria-labelledby="login-title">
+        <div class="auth-brand">
+          <span class="brand-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M7 3.5h7.2L18.5 7.8v12.7H7z" fill="none" stroke="currentColor" stroke-width="1.9"/>
+              <path d="M14 4v4h4" fill="none" stroke="currentColor" stroke-width="1.9"/>
+              <path d="M9.6 12.1h5M9.6 15.5h5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <div>
+            <p class="eyebrow">内部业务系统</p>
+            <h1 id="login-title">合同智能审核系统</h1>
+          </div>
+        </div>
+
+        <form method="post" action="/login" class="form-stack">
+          <label>
+            <span>账号</span>
+            <input name="username" type="text" autocomplete="username" required>
+          </label>
+          <label>
+            <span>密码</span>
+            <input name="password" type="password" autocomplete="current-password" required>
+          </label>
+          {% if error %}
+          <div class="alert" role="alert">{{ error }}</div>
+          {% endif %}
+          <button type="submit">登录</button>
+        </form>
+
+        {% if username %}
+        <div class="signed-in-panel">
+          <p>当前已登录：<strong>{{ display_name }}</strong></p>
+          <div class="inline-actions">
+            <a class="button-link" href="/">进入工作台</a>
+            <form method="post" action="/logout">
+              <button class="secondary-button" type="submit">退出登录</button>
+            </form>
+          </div>
+        </div>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>

@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+users.json
 
 # Virtual environments
 .wheel-venv/
@@ -20,21 +21,22 @@ dist/
 build/
 *.egg
 
-# Logs
+# Runtime data and logs
+data/
+!data/.gitkeep
+!data/default/
+!data/default/.gitkeep
+!data/default/contract_review_criteria/
+!data/default/contract_review_criteria/.gitkeep
+!data/default/contracts/
+!data/default/contracts/.gitkeep
+!data/default/reports_docx/
+!data/default/reports_docx/.gitkeep
+!data/default/logs/
+!data/default/logs/.gitkeep
 logs/
 *.log
-
-# Runtime outputs
-docs/漏检问题分析.md
-docs/reports_docx/
-docs/reports_md/
-docs/reports_pdf/
 RAG_persist/
-
-# Input/private documents
-docs/contracts/
-docs/contract_review_criteria/
-docs/institutional_docs/
 
 # Local tokenizer/model cache
 local_tokenizers/
@@ -60,23 +62,21 @@ frontend/
 uploads/
 src/
 api/
+api_review_test/
+results/
+.tmp_patents/
+.tmp_compare/
+project_experience/
+project_intro/
+packages/
+scripts/*
+!scripts/manage_users.py
+专利材料/
+相关合同智能体系列文件/
+docker 运行所需文件/
+docker 运行所需文件.zip
+image.tar
+results.docx
 
 # Keep placeholder files when needed
 !docs/**/.gitkeep
-!logs/**/.gitkeep
-
-# Specific files
-专利材料/
-docker 运行所需文件/
-相关合同智能体系列文件/
-api_review_test/
-results/
-scripts/
-packages/
-.tmp_patents/
-.tmp_compare/
-runtime_temp/
-image.tar
-docker 运行所需文件.zip
-results.docx
-project_experience/

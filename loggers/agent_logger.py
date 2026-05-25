@@ -1,27 +1,29 @@
 """
-AgentLogger — handles per-agent conversation logging to JSON files.
-Saves full LLM I/O (system prompt, user messages, assistant responses, tool calls)
-to logs/conversations/<run_timestamp>/ for debugging and auditing.
-
-Each run of main.py creates a separate timestamped folder so logs from
-different runs don't mix together.
+Agent conversation logging to task-scoped JSON files.
 """
 import json
-import os
+from contextvars import ContextVar
 from datetime import datetime
+from pathlib import Path
 
 from config import ENABLE_WORKFLOW_LOGS
 
-# Project root for log paths
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Create a unique session folder for this run (set once at import time)
-_SESSION_TS = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-SESSION_DIR = os.path.join(PROJECT_ROOT, "logs", "conversations", f"run_{_SESSION_TS}")
+_CONVERSATION_LOG_DIR: ContextVar[Path | None] = ContextVar(
+    "conversation_log_dir",
+    default=None,
+)
+
+
+def set_conversation_log_dir(path: str | Path | None):
+    return _CONVERSATION_LOG_DIR.set(Path(path) if path else None)
+
+
+def reset_conversation_log_dir(token) -> None:
+    _CONVERSATION_LOG_DIR.reset(token)
 
 
 def _serialize_messages(messages: list) -> list:
-    """Convert conversation messages to JSON-serializable format."""
     serializable = []
     for msg in messages:
         try:
@@ -29,8 +31,8 @@ def _serialize_messages(messages: list) -> list:
             out = {"role": role}
 
             if "content" in msg:
-                c = msg["content"]
-                out["content"] = c if (c is None or isinstance(c, str)) else str(c)
+                content = msg["content"]
+                out["content"] = content if (content is None or isinstance(content, str)) else str(content)
 
             if role == "assistant" and "tool_calls" in msg:
                 tool_calls = msg["tool_calls"] or []
@@ -54,31 +56,30 @@ def _serialize_messages(messages: list) -> list:
                 out["tool_call_id"] = msg.get("tool_call_id")
 
             serializable.append(out)
-        except Exception as e:
-            print(f"Error processing message: {e}")
+        except Exception as exc:
+            print(f"Error processing message: {exc}")
 
     return serializable
 
 
 def log_conversation(agent_name: str, messages: list) -> None:
-    """
-    Save agent conversation to a JSON file in the current run's folder.
-
-    Args:
-        agent_name: Name of the agent (used in filename).
-        messages: List of conversation messages.
-    """
     if not ENABLE_WORKFLOW_LOGS:
         return
 
-    os.makedirs(SESSION_DIR, exist_ok=True)
+    log_dir = _CONVERSATION_LOG_DIR.get()
+    if log_dir is None:
+        print("Conversation log directory is not set; skipping agent conversation log.")
+        return
 
+    log_dir.mkdir(parents=True, exist_ok=True)
     serializable = _serialize_messages(messages)
-
     ts = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    filepath = os.path.join(SESSION_DIR, f"{agent_name}_{ts}.json")
+    filepath = log_dir / f"{agent_name}_{ts}.json"
+
     try:
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(serializable, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        print(f"Error writing conversation log: {e}")
+        filepath.write_text(
+            json.dumps(serializable, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except Exception as exc:
+        print(f"Error writing conversation log: {exc}")

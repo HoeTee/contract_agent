@@ -1,0 +1,148 @@
+"""
+Task-scoped workflow logging.
+"""
+import json
+import time
+from datetime import datetime
+from pathlib import Path
+
+from config import ENABLE_WORKFLOW_LOGS, MAX_CONTEXT_TOKENS
+
+
+class WorkflowLogger:
+    """Records workflow steps and generates a Markdown log with Mermaid."""
+
+    def __init__(self, log_dir: str | Path | None = None):
+        self.steps = []
+        self.start_time = time.time()
+        self.log_dir = Path(log_dir) if log_dir else None
+
+    def log(
+        self,
+        phase: str,
+        sender: str,
+        receiver: str,
+        action: str,
+        input_summary: str = "",
+        output_summary: str = "",
+        tokens: int = 0,
+        duration: float = 0.0,
+    ) -> None:
+        if not ENABLE_WORKFLOW_LOGS:
+            return
+
+        ctx_pct = ""
+        if tokens > 0 and MAX_CONTEXT_TOKENS > 0:
+            pct = int((tokens / MAX_CONTEXT_TOKENS) * 100)
+            ctx_pct = f" ({pct}%)"
+
+        self.steps.append({
+            "step": len(self.steps) + 1,
+            "timestamp": datetime.now().strftime("%H:%M:%S"),
+            "phase": phase,
+            "sender": sender,
+            "receiver": receiver,
+            "action": action,
+            "input": input_summary,
+            "output": output_summary,
+            "tokens": f"{tokens}{ctx_pct}" if tokens else "-",
+            "raw_tokens": tokens,
+            "duration": round(duration, 2),
+        })
+
+    def _build_mermaid(self) -> str:
+        def sanitize_id(name: str) -> str:
+            return name.replace(" ", "_").replace(":", "_").replace("-", "_")
+
+        seen = {}
+        for step in self.steps:
+            for name in [step["sender"], step["receiver"]]:
+                if name not in seen:
+                    seen[name] = len(seen)
+
+        lines = ["```mermaid", "sequenceDiagram"]
+        for name in seen:
+            alias = sanitize_id(name)
+            lines.append(f"    participant {alias} as \"{name}\"")
+
+        for step in self.steps:
+            src = sanitize_id(step["sender"])
+            dst = sanitize_id(step["receiver"])
+            label = step["action"]
+            if step["duration"]:
+                label += f" ({step['duration']}s)"
+            lines.append(f"    {src}->>{dst}: {label}")
+
+        lines.append("```")
+        return "\n".join(lines)
+
+    def _build_steps_md(self) -> str:
+        blocks = []
+        for step in self.steps:
+            input_text = f"\n```text\n{step['input']}\n```\n" if step["input"] else "-"
+            output_text = f"\n```text\n{step['output']}\n```\n" if step["output"] else "-"
+
+            blocks.append(f"""### Step {step['step']} - {step['action']}
+
+- **Time**: {step['timestamp']}
+- **Phase**: {step['phase']}
+- **Sender**: {step['sender']}
+- **Receiver**: {step['receiver']}
+- **Action**: {step['action']}
+- **Input**: {input_text}
+- **Output**: {output_text}
+- **Tokens**: {step['tokens']}
+- **Duration**: {step['duration']}s
+""")
+        return "\n".join(blocks)
+
+    def save(self) -> str | None:
+        if not ENABLE_WORKFLOW_LOGS:
+            return None
+        if self.log_dir is None:
+            raise ValueError("WorkflowLogger.log_dir is required when file logging is enabled.")
+
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        total_time = round(time.time() - self.start_time, 2)
+        total_tokens = sum(step.get("raw_tokens", 0) for step in self.steps)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filepath = self.log_dir / f"workflow_{ts}.md"
+
+        content = f"""# Workflow Log - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+**Total Steps**: {len(self.steps)} | **Total Time**: {total_time}s | **Total Tokens**: {total_tokens}
+
+---
+
+## Flow Diagram
+
+{self._build_mermaid()}
+
+---
+
+## Detailed Steps
+
+{self._build_steps_md()}
+"""
+        filepath.write_text(content, encoding="utf-8")
+        print(f"[Logger] Workflow log saved: {filepath}")
+        return str(filepath)
+
+
+def save_results_json(results: list[dict], log_dir: str | Path) -> str | None:
+    if not ENABLE_WORKFLOW_LOGS:
+        return None
+    path = Path(log_dir) / "results.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+    return str(path)
+
+
+def save_run_summary_json(summary: dict, log_dir: str | Path) -> str | None:
+    if not ENABLE_WORKFLOW_LOGS:
+        return None
+    path = Path(log_dir) / "run_summary.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+    return str(path)

@@ -47,9 +47,17 @@ class IndexRetriever:
         self.rerank_top_n = rerank_top_n
         self._contract_llamaindex_engine = None
         self._institutional_engine = None
+        institutional_docs_dir = os.getenv("INSTITUTIONAL_DOCS_DIR")
+        if institutional_docs_dir is None:
+            institutional_username = os.getenv("INSTITUTIONAL_DOCS_USERNAME", "default")
+            institutional_docs_dir = os.path.join(
+                "data",
+                institutional_username,
+                "institutional_docs",
+            )
         self.institutional_docs_dir = os.path.join(
             self.project_root,
-            os.getenv("INSTITUTIONAL_DOCS_DIR", os.path.join("docs", "institutional_docs")),
+            institutional_docs_dir,
         )
         self.institutional_index_dir = os.path.join(
             self.project_root,
