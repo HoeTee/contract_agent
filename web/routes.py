@@ -106,14 +106,12 @@ def list_history(username: str) -> list[dict]:
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    username = get_current_username(request)
+    request.session.clear()
     return templates.TemplateResponse(
         request,
         "login.html",
         {
             "error": None,
-            "username": username,
-            "display_name": request.session.get("display_name", username) if username else None,
         },
     )
 
@@ -131,16 +129,22 @@ async def login(request: Request, username: str = Form(...), password: str = For
 
     request.session["username"] = user["username"]
     request.session["display_name"] = user.get("display_name") or user["username"]
-    return RedirectResponse("/", status_code=303)
-
-
-@router.post("/logout")
-async def logout(request: Request):
-    request.session.clear()
-    return RedirectResponse("/login", status_code=303)
+    return RedirectResponse("/work", status_code=303)
 
 
 @router.get("/", response_class=HTMLResponse)
+async def entry_page(request: Request):
+    request.session.clear()
+    return templates.TemplateResponse(
+        request,
+        "login.html",
+        {
+            "error": None,
+        },
+    )
+
+
+@router.get("/work", response_class=HTMLResponse)
 async def index(request: Request):
     username = get_current_username(request)
     if not username:

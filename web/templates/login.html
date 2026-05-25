@@ -37,18 +37,6 @@
           {% endif %}
           <button type="submit">登录</button>
         </form>
-
-        {% if username %}
-        <div class="signed-in-panel">
-          <p>当前已登录：<strong>{{ display_name }}</strong></p>
-          <div class="inline-actions">
-            <a class="button-link" href="/">进入工作台</a>
-            <form method="post" action="/logout">
-              <button class="secondary-button" type="submit">退出登录</button>
-            </form>
-          </div>
-        </div>
-        {% endif %}
       </section>
     </main>
   </body>
