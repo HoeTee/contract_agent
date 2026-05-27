@@ -51,7 +51,7 @@ def verify_password(
     except Exception:
         return False
 
-
+# json.loads(Pathlib.read_text())
 def load_users(users_file: str | Path) -> list[dict[str, Any]]:
     path = Path(users_file)
     if not path.exists():
@@ -62,17 +62,17 @@ def load_users(users_file: str | Path) -> list[dict[str, Any]]:
         raise ValueError("users.json must contain a users list.")
     return users # list of dicts, each dict contains user metadata like username, password_hash, enabled status, etc.
 
-
+# Pathlib.write_text(json.dumps(...))
 def save_users(
     users_file: str | Path, 
     users: list[dict[str, Any]]
 ) -> None:
     path = Path(users_file)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(parents=True, exist_ok=True) # if the dir with users.json does not exist
     path.write_text(
         json.dumps({"users": users}, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
-    )
+    ) # save by writing into users.json
 
 
 def find_user(

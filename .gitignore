@@ -72,9 +72,12 @@ packages/
 scripts/*
 !scripts/manage_users.py
 专利材料/
+专利文件/
 相关合同智能体系列文件/
-docker 运行所需文件/
+docker 运行所需文件_v.1.0/
+docker 运行所需文件_v.2.0/
 docker 运行所需文件.zip
+docker 运行所需文件_v.2.0.rar
 image.tar
 results.docx
 

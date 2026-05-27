@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import shutil
 import zipfile
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -29,11 +30,66 @@ REQUIRED_DOCX_PARTS = {
 
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "web" / "templates"))
 router = APIRouter()
+review_tasks: dict[str, dict] = {}
 review_semaphore = (
     asyncio.Semaphore(MAX_API_CONCURRENT_REVIEWS)
     if MAX_API_CONCURRENT_REVIEWS > 0
     else None # It could be None if MAX_API_CONCURRENT_REVIEWS is not set, meaning no concurrency limit.
 )
+
+
+def get_running_task(username: str) -> dict | None:
+    task = review_tasks.get(username)
+    if task and task.get("status") in {"queued", "running"}:
+        return task
+    return None
+
+
+async def run_review_task(username: str, paths) -> None:
+    task = review_tasks[username]
+    task["status"] = "running"
+    task["message"] = "Review is running."
+
+    token = set_conversation_log_dir(paths.conversation_log_dir)
+    try:
+        workflow = ContractReviewWorkflow(
+            server_script_path=str(MCP_SERVER_PATH),
+            workflow_log_dir=str(paths.workflow_log_dir),
+            conversation_log_dir=str(paths.conversation_log_dir),
+            mcp_log_file=str(paths.mcp_log_dir / "mcp_client.log"),
+        )
+
+        append_api_event(paths.api_events_path, "review_started", task_id=paths.task_id)
+
+        async def run_workflow():
+            return await workflow.run(
+                contract_path=str(paths.stored_contract_path),
+                criteria_path=str(paths.criteria_path),
+                output_path=str(paths.final_report_path),
+            )
+
+        if review_semaphore is None:
+            result = await run_workflow()
+        else:
+            async with review_semaphore:
+                result = await run_workflow()
+
+        output_path = Path(result["report_docx"])
+        if not output_path.exists():
+            raise RuntimeError("Output DOCX was not found.")
+
+        task["status"] = "completed"
+        task["message"] = "Review completed."
+        task["result_name"] = output_path.name
+        task["completed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        append_api_event(paths.api_events_path, "review_completed", result_file=str(output_path))
+    except Exception as exc:
+        task["status"] = "failed"
+        task["message"] = "Review failed. Check the task logs."
+        task["error"] = str(exc)
+        append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
+    finally:
+        reset_conversation_log_dir(token)
 
 
 def safe_upload_filename(filename: str | None) -> str:
@@ -164,6 +220,15 @@ async def index(request: Request):
     username = get_current_username(request)
     if not username:
         return RedirectResponse("/login", status_code=303) # happens when user tries to access /work without logging in, redirect them to login page
+    task = review_tasks.get(username)
+    error = request.session.pop("flash_error", None)
+    result_name = None
+    if task:
+        if task.get("status") == "failed":
+            error = task.get("message") or error
+        elif task.get("status") == "completed":
+            result_name = task.get("result_name")
+            review_tasks.pop(username, None)
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -171,8 +236,9 @@ async def index(request: Request):
             "username": username,
             "display_name": request.session.get("display_name", username),
             "history": list_history(username),
-            "error": None,
-            "result_name": None
+            "error": error,
+            "result_name": result_name,
+            "active_task": get_running_task(username),
         },
     )
 
@@ -182,6 +248,11 @@ async def review_page(request: Request, file: UploadFile = File(...)):
     username = get_current_username(request)
     if not username:
         return RedirectResponse("/login", status_code=303)
+
+    if get_running_task(username):
+        request.session["flash_error"] = "A review is already running. Please wait for it to finish."
+        await file.close()
+        return RedirectResponse("/work", status_code=303)
 
     filename = safe_upload_filename(file.filename)
     paths = resolve_review_task_paths(
@@ -205,11 +276,8 @@ async def review_page(request: Request, file: UploadFile = File(...)):
                 detail="系统支持的文件格式是 DOCX 哦~"
             )
         if not paths.criteria_path.exists():
-            raise HTTPException(
-                status_code=500,
-                detail=f"审核要点文件未发现： {paths.criteria_path}",
-            )
-
+            request.session["flash_error"] = f"Review criteria file was not found: {paths.criteria_path}"
+            return RedirectResponse("/work", status_code=303)
         with paths.stored_contract_path.open("wb") as f:
             shutil.copyfileobj(file.file, f)
         
@@ -229,83 +297,26 @@ async def review_page(request: Request, file: UploadFile = File(...)):
             "docx_validation_passed"
         )
 
-        token = set_conversation_log_dir(paths.conversation_log_dir) # Set the conversation log directory for this review task
-        try:
-            workflow = ContractReviewWorkflow(
-                server_script_path=str(MCP_SERVER_PATH),
-                workflow_log_dir=str(paths.workflow_log_dir),
-                conversation_log_dir=str(paths.conversation_log_dir),
-                mcp_log_file=str(paths.mcp_log_dir / "mcp_client.log"),
-            )
+        # This is where review_tasks is written within
+        review_tasks[username] = {
+            "status": "queued",
+            "message": "Review is queued.",
+            "task_id": paths.task_id,
+            "filename": filename,
+            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        }
+        # This is where Semaphore comes into play.
+        asyncio.create_task(run_review_task(username, paths))
+        return RedirectResponse("/work", status_code=303)
 
-            # api event IV - review workflow is starting, with metadata of task_id
-            append_api_event(
-                paths.api_events_path, 
-                "review_started", 
-                task_id=paths.task_id
-            )
-
-            if review_semaphore is None: # No concurrency limit, run directly
-                result = await workflow.run(
-                    contract_path=str(paths.stored_contract_path),
-                    criteria_path=str(paths.criteria_path),
-                    output_path=str(paths.final_report_path),
-                )
-            else: # Concurrency limit is set, acquire semaphore before running the review workflow
-                async with review_semaphore:
-                    result = await workflow.run(
-                        contract_path=str(paths.stored_contract_path),
-                        criteria_path=str(paths.criteria_path),
-                        output_path=str(paths.final_report_path),
-                    )
-        finally:
-            reset_conversation_log_dir(token) # Reset the conversation log directory for this review task
-
-        output_path = Path(result["report_docx"])
-        if not output_path.exists():
-            raise HTTPException(status_code=500, detail="Output DOCX was not found.")
-
-        append_api_event(paths.api_events_path, "review_completed", result_file=str(output_path))
-
-        return templates.TemplateResponse(
-            request,
-            "index.html",
-            {
-                "username": username,
-                "display_name": request.session.get("display_name", username),
-                "history": list_history(username),
-                "error": None,
-                "result_name": output_path.name,
-            },
-        )
     except HTTPException as exc:
         append_api_event(paths.api_events_path, "review_failed", status_code=exc.status_code, detail=exc.detail)
-        return templates.TemplateResponse(
-            request,
-            "index.html",
-            {
-                "username": username,
-                "display_name": request.session.get("display_name", username),
-                "history": list_history(username),
-                "error": exc.detail,
-                "result_name": None,
-            },
-            status_code=exc.status_code,
-        )
+        request.session["flash_error"] = exc.detail
+        return RedirectResponse("/work", status_code=303)
     except Exception as exc:
         append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
-        return templates.TemplateResponse(
-            request,
-            "index.html",
-            {
-                "username": username,
-                "display_name": request.session.get("display_name", username),
-                "history": list_history(username),
-                "error": "Review failed. Check the task logs.",
-                "result_name": None,
-            },
-            status_code=500,
-        )
+        request.session["flash_error"] = "Review failed. Check the task logs."
+        return RedirectResponse("/work", status_code=303)
     finally:
         await file.close()
 

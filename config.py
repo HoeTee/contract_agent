@@ -14,6 +14,7 @@ load_dotenv(ENV_PATH)
 MCP_SERVER_PATH = os.path.join(PROJECT_ROOT, "mcp_service", "mcp_server", "mcp_server.py")
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp")
 DOCS_DIR = os.path.join(PROJECT_ROOT, "docs")
+
 DATA_DIR = os.getenv("DATA_DIR", os.path.join(PROJECT_ROOT, "data"))
 if not os.path.isabs(DATA_DIR):
     DATA_DIR = os.path.join(PROJECT_ROOT, DATA_DIR)
@@ -21,6 +22,7 @@ if not os.path.isabs(DATA_DIR):
 USERS_FILE = os.getenv("USERS_FILE", os.path.join(PROJECT_ROOT, "users.json"))
 if not os.path.isabs(USERS_FILE):
     USERS_FILE = os.path.join(PROJECT_ROOT, USERS_FILE)
+
 DEFAULT_CLI_USERNAME = os.getenv("DEFAULT_CLI_USERNAME", "default")
 SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY", "change-this-session-secret")
 REPORTS_DIR = os.path.join(PROJECT_ROOT, "reports")

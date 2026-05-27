@@ -53,10 +53,17 @@
             </div>
             <p class="panel-copy">支持真实 DOCX 合同文件。上传后系统会读取用户审核要点并生成批注版合同。</p>
 
+            {% if active_task %}
+            <div class="status-box" role="status">
+              <strong class="loading-label">Reviewing<span class="loading-dots" aria-hidden="true"><span></span><span></span><span></span></span></strong>
+              <span>{{ active_task.filename }}</span>
+            </div>
+            {% endif %}
+
             <form method="post" action="/review" enctype="multipart/form-data" class="upload-form" data-loading-form>
               <label class="file-picker">
                 <span>选择合同文件</span>
-                <input name="file" type="file" accept=".docx" required>
+                <input name="file" type="file" accept=".docx" required {% if active_task %}disabled{% endif %}>
               </label>
               <button type="submit" data-loading-label="审核中...">开始审核</button>
             </form>
@@ -69,42 +76,11 @@
             <div class="success" role="status">
               <strong>审核完成</strong>
               <a class="button-link success-action" href="/download/{{ result_name }}">下载批注合同</a>
+              <a class="text-button" href="/history">查看审核历史</a>
             </div>
             {% endif %}
           </section>
 
-          <section class="panel history-panel" aria-labelledby="recent-title">
-            <div class="section-head">
-              <div>
-                <p class="eyebrow">最近结果</p>
-                <h2 id="recent-title">审核输出</h2>
-              </div>
-              <a class="text-button" href="/history">查看全部</a>
-            </div>
-
-            <div class="table-frame">
-              <table>
-                <thead>
-                  <tr>
-                    <th>输入文件</th>
-                    <th>输出文件</th>
-                    <th>操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for item in history %}
-                  <tr>
-                    <td>{{ item.contract_name or "-" }}</td>
-                    <td>{{ item.report_name }}</td>
-                    <td><a class="table-action" href="/download/{{ item.report_name }}">下载</a></td>
-                  </tr>
-                  {% else %}
-                  <tr><td colspan="3" class="empty-state">暂无审核结果</td></tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-          </section>
         </main>
       </div>
     </div>

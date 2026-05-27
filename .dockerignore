@@ -29,6 +29,9 @@ local_tokenizers
 docker 运行所需文件
 docker 运行所需文件.zip
 docker 运行所需文件_v.2.0.rar
+docker 运行所需文件_*
+*.rar
+*.tar
 image.tar
 results.docx
 

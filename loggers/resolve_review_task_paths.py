@@ -7,9 +7,9 @@ from datetime import datetime
 from pathlib import Path
 
 
-def safe_path_part(value: str, fallback: str = "item") -> str:
-    cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", value).strip().strip(".")
-    cleaned = re.sub(r"\s+", "_", cleaned)
+def safe_path_part(value: str, fallback: str = "item") -> str: # 文件/文件夹名
+    cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", value).strip().strip(".") # 
+    cleaned = re.sub(r"\s+", "_", cleaned) # \s 空白字符 \s+ 一个或多个空白字符 \t TAB \n 换行 \r 回车
     return cleaned or fallback
 
 
@@ -122,12 +122,12 @@ def resolve_review_task_paths(
 
 
 def initialize_user_data_dir(data_dir: Path, username: str) -> Path:
-    user_root = data_dir / safe_path_part(username, "user")
+    user_root = data_dir / safe_path_part(username, "user") # 用户文件夹名
     for child in (
         "contract_review_criteria",
         "contracts",
         "reports_docx",
         "logs",
     ):
-        (user_root / child).mkdir(parents=True, exist_ok=True)
+        (user_root / child).mkdir(parents=True, exist_ok=True) # 建立用户文件夹及一系列子文件夹
     return user_root

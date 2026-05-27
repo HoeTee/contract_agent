@@ -28,5 +28,4 @@ llama-index-llms-openai-like
 llama-index-embeddings-openai-like
 llama-index-readers-file
 docx2txt
-python-dotenv
 transformers

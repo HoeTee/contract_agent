@@ -1,14 +1,16 @@
 services:
   deep-research-agent:
-    image: deep-research-agent:latest
-    container_name: deep-research-agent
+    image: southernbanker/lexora:latest
+    container_name: lexora
     restart: unless-stopped
 
     env_file:
       - .env
+
+    command: ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
     
     ports:
-      - "127.0.0.1:8000:5000"
+      - "0.0.0.0:5000:5000"
     
     cpus: "4"
     mem_limit: 8g
@@ -20,7 +22,7 @@ services:
       - ./data:/app/data
 
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=5).read()"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()"]
       interval: 30s
       timeout: 10s
       retries: 3

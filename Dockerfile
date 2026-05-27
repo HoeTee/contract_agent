@@ -1,3 +1,4 @@
+# This file is unrelated to image name.
 FROM python:3.12-slim
 
 # 不生成 __pycache__ 和 .pyc 文件，减少容器里的临时文件
@@ -7,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-# 容器目录
+# 容器目录 -w /app
 WORKDIR /app
 
 # 复制到容器目录下
@@ -17,7 +18,7 @@ COPY packages/ /packages/
 # 在构建镜像时安装 Python 依赖
 RUN python -m pip install --no-index --find-links=/packages -r requirements.txt
 
-# 把当前项目目录复制到容器 /app 目录下
+# 把当前项目所有目录复制到容器 /app 目录下
 COPY . .
 
 # 容器监听 5000 端口

@@ -13,6 +13,7 @@ app = FastAPI(
     description="Web UI and API for uploading contracts and receiving review results.",
 )
 
+# Have session pass on the user id information across APIs
 app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET_KEY,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -15,7 +16,7 @@ from web.auth import hash_password, load_users, save_users
 
 
 def find_index(users: list[dict], username: str) -> int | None:
-    for index, user in enumerate(users):
+    for index, user in enumerate(users): # enumerate to find repetition
         if user.get("username") == username:
             return index
     return None
@@ -23,7 +24,7 @@ def find_index(users: list[dict], username: str) -> int | None:
 
 def create_user(args) -> None:
     username = safe_path_part(args.username, "user")
-    users = load_users(USERS_FILE)
+    users = load_users(USERS_FILE) # [] if no users.json exists
     if find_index(users, username) is not None:
         raise SystemExit(f"User already exists: {username}")
 
@@ -34,8 +35,8 @@ def create_user(args) -> None:
         "enabled": True,
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     })
-    save_users(USERS_FILE, users)
-    initialize_user_data_dir(Path(DATA_DIR), username)
+    save_users(USERS_FILE, users) # update users.json
+    initialize_user_data_dir(Path(DATA_DIR), username) # create user data dir right afterward
     print(f"Created user: {username}")
 
 
@@ -73,6 +74,33 @@ def enable_user(args) -> None:
     print(f"Enabled user: {args.username}")
 
 
+def delete_user(args) -> None:
+    username = safe_path_part(args.username, "user")
+    users = load_users(USERS_FILE)
+    index = find_index(users, username)
+    if index is None:
+        raise SystemExit(f"User not found: {username}")
+
+    del users[index]
+    save_users(USERS_FILE, users)
+    print(f"Deleted user account: {username}")
+
+    if args.keep_data:
+        print(f"Kept user data directory: {Path(DATA_DIR) / username}")
+        return
+
+    data_root = Path(DATA_DIR).resolve()
+    user_root = (data_root / username).resolve()
+    if data_root == user_root or data_root not in user_root.parents:
+        raise SystemExit(f"Refusing to delete unsafe path: {user_root}")
+
+    if user_root.exists():
+        shutil.rmtree(user_root)
+        print(f"Deleted user data directory: {user_root}")
+    else:
+        print(f"User data directory not found: {user_root}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Manage web users.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -95,6 +123,15 @@ def build_parser() -> argparse.ArgumentParser:
     enable = subparsers.add_parser("enable", help="Enable a user")
     enable.add_argument("--username", required=True)
     enable.set_defaults(func=enable_user)
+
+    delete = subparsers.add_parser("delete", help="Delete a user")
+    delete.add_argument("--username", required=True)
+    delete.add_argument(
+        "--keep-data",
+        action="store_true",
+        help="Keep data/<username> instead of deleting it.",
+    )
+    delete.set_defaults(func=delete_user)
 
     return parser
 
