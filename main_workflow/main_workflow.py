@@ -260,7 +260,7 @@ class ContractReviewWorkflow:
 
         print(f"  Criteria: {len(criteria_list)} tasks")
         for c in criteria_list:
-            print(f"    {c['id']}: {c['criterion'][:50]}...")
+            print(f"    {c['id']}: {c['criterion'][:200]}...")
         return criteria_list
 
     async def _phase_execute(

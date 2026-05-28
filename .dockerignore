@@ -20,6 +20,7 @@ api_review_test
 .tmp_patents
 .tmp_compare
 .cache
+.codegraph
 RAG_persist
 
 local_tokenizers

@@ -36,7 +36,7 @@ class Agent:
         name: str = "Agent",
         mcp_client=None,
         tools=None,
-        settings: Settings = None,
+        settings: Settings | None = None,
         debug: bool = False,
         max_tool_calls: int = MAX_TOOL_CALLS,
         max_context_tokens: int = MAX_CONTEXT_TOKENS,

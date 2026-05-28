@@ -56,6 +56,7 @@ local_tokenizers/
 .codex/
 .vscode/
 .idea/
+.codegraph/
 
 # Old or external app folders if not part of this repo
 frontend/
