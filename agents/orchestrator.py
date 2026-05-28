@@ -3,6 +3,7 @@ OrchestratorAgent - dispatches sub-agents per criterion with retrieval + reflect
 
 """
 import asyncio
+import json
 import re
 import time
 
@@ -22,7 +23,10 @@ SUB_AGENT_EXPECTED_JSON = """
       "issue_id": "当前criterion_id.序号",
       "risk_level": "high | medium | low",
       "quoted_text": "逐字摘录的合同原文；合同未出现对应内容时为空字符串",
-      "comment_text": "可直接写入 Word 批注的修改意见，100字以内"
+      "comment_text": "可直接写入 Word 批注的修改意见，100字以内",
+      "reasoning": "说明为什么构成实质风险，以及如何对应 check_point",
+      "criterion": "当前审查标准原文",
+      "check_point": "该 issue 对应的具体检查点"
     }
   ]
 }
@@ -103,6 +107,41 @@ class OrchestratorAgent:
         )
         return f"{guidance}\n\n{normalized_context}"
 
+    async def _build_missing_text_review_notes(self, parsed_opinion: dict) -> str:
+        """Search again for issues that claim a missing contract provision."""
+        notes = []
+        for issue in parsed_opinion.get("issues", []):
+            if str(issue.get("quoted_text", "")).strip():
+                continue
+
+            issue_id = issue.get("issue_id", "")
+            check_point = issue.get("check_point", "")
+            criterion_text = issue.get("criterion", "")
+            search_query = (
+                f"查找合同中是否约定以下检查要点：{check_point}\n"
+                f"所属审查标准：{criterion_text}"
+            )
+            search_result = await self.mcp_client.call_tool(
+                "llamaindex_search",
+                {"query": search_query},
+            )
+            if isinstance(search_result, str) and search_result.startswith("Error"):
+                raise RuntimeError(search_result)
+
+            context = self._prepare_review_context(search_result or "未找到相关内容。")
+            notes.append(
+                {
+                    "issue_id": issue_id,
+                    "check_point": check_point,
+                    "search_query": search_query,
+                    "search_result": context,
+                }
+            )
+
+        if not notes:
+            return "无 quoted_text 为空的缺失类 issue，无补充检索结果。"
+        return json.dumps(notes, ensure_ascii=False, indent=2)
+
     async def execute_single_criterion(
             self,
             criterion: dict
@@ -175,9 +214,10 @@ class OrchestratorAgent:
         # Step 3: Reflection loop
         reflector = self.reflector
         for round_num in range(MAX_REFLECTION_ROUNDS):
+            missing_text_review_notes = await self._build_missing_text_review_notes(parsed_opinion)
             review = await reflector.review(
                 agent_output=sub_agent_opinion,
-                evaluation_criteria=f"审查标准：{criterion_text}\n检查要点：\n{check_points_text}"
+                missing_text_review_notes=missing_text_review_notes,
             )
 
             status = review["status"]

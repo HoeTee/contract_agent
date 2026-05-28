@@ -26,15 +26,17 @@ class ReflectorAgent(Agent):
             **kwargs,
         )
 
-    async def review(self, agent_output: str, evaluation_criteria: str) -> dict:
+    async def review(self, agent_output: str, missing_text_review_notes: str = "") -> dict:
         """
         Review a sub-agent's output.
         Returns: {"status": "PASS"/"REJECT", "feedback": "..."}
         """
         prompt = (
             "请审核以下审查结果的质量：\n\n"
-            f"评估标准：\n{evaluation_criteria}\n\n"
-            f"审查结果：\n{agent_output}"
+            f"SubAgent 输出：\n{agent_output}\n\n"
+            "以下是系统针对 quoted_text 为空的缺失类 issue 做的补充检索结果，"
+            "仅用于判断缺失判断是否需要退回重审，不是 Reflector 输出字段：\n"
+            f"{missing_text_review_notes}"
         )
         parsed, _ = await chat_until_valid_json(
             self,

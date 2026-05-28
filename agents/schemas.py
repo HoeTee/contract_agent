@@ -29,13 +29,16 @@ class PlannerOutput(StrictOutputModel):
     criteria: list[PlannerCriterion] = Field(min_length=1)
 
 
-class ReviewIssue(StrictOutputModel):
+class SubAgentIssue(StrictOutputModel):
     issue_id: str = Field(min_length=1)
     risk_level: Literal["high", "medium", "low"]
     quoted_text: str
     comment_text: str = Field(min_length=1, max_length=100)
+    reasoning: str = Field(min_length=1)
+    criterion: str = Field(min_length=1)
+    check_point: str = Field(min_length=1)
 
-    @field_validator("issue_id", "comment_text")
+    @field_validator("issue_id", "comment_text", "reasoning", "criterion", "check_point")
     @classmethod
     def required_text_not_blank(cls, value: str) -> str:
         if not value.strip():
@@ -45,7 +48,7 @@ class ReviewIssue(StrictOutputModel):
 
 class SubAgentOutput(StrictOutputModel):
     status: Literal["compliant", "issues_found"]
-    issues: list[ReviewIssue]
+    issues: list[SubAgentIssue]
 
     @model_validator(mode="after")
     def validate_status_issues(self):
