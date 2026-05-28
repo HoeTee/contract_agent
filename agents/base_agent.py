@@ -5,7 +5,7 @@ management, token tracking, and conversation logging.
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from openai import AsyncOpenAI, RateLimitError, APITimeoutError, APIConnectionError, InternalServerError
-from loggers.agent_logger import log_conversation
+from loggers.agent_logger import log_agent_step, log_conversation
 from config import MAX_TOOL_CALLS, MAX_CONTEXT_TOKENS, MAX_RESULT_TOKENS
 import asyncio
 import json
@@ -72,6 +72,7 @@ class Agent:
 
         # Token tracking
         self.token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        self.step_count = 0
         self.tool_call_count = 0
 
         if system_prompt:
@@ -116,6 +117,12 @@ class Agent:
 
     def get_token_usage(self) -> dict:
         return self.token_usage.copy()
+
+    def get_step_usage(self) -> dict:
+        return {
+            "steps": self.step_count,
+            "tool_calls": self.tool_call_count,
+        }
 
     # ==================== Tool Calls ====================
 
@@ -196,6 +203,8 @@ class Agent:
     async def execute(self) -> str:
         while True:
             self._check_context_limits()
+            self.step_count += 1
+            current_step = self.step_count
 
             completion = await self.client.chat.completions.create(
                 model=self.settings.model,
@@ -208,12 +217,29 @@ class Agent:
             )
 
             response_message = completion.choices[0].message
+            finish_reason = completion.choices[0].finish_reason
             self._update_token_usage(completion.usage)
+            tool_calls = response_message.tool_calls or []
+            log_agent_step(
+                self.name,
+                {
+                    "agent_step": current_step,
+                    "finish_reason": finish_reason,
+                    "message_count": len(self.messages),
+                    "tool_calls_in_step": len(tool_calls),
+                    "tool_call_names": [
+                        tool_call.function.name for tool_call in tool_calls
+                    ],
+                    "tool_calls_total_before_processing": self.tool_call_count,
+                    "max_tool_calls": self.MAX_TOOL_CALLS,
+                    "token_usage_total": self.token_usage.get("total_tokens", 0),
+                },
+            )
 
-            if response_message.tool_calls:
+            if tool_calls:
                 self.messages.append(response_message.model_dump(exclude_unset=True)) # Append tool calls onto history
                 log_conversation(self.name, self.messages)
-                forced = await self._process_tool_calls(response_message.tool_calls)
+                forced = await self._process_tool_calls(tool_calls)
                 if forced:
                     self.messages.pop()  # Remove unresolved tool_calls message preventing API errors
                     self.messages.append(

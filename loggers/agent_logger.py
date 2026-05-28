@@ -83,3 +83,27 @@ def log_conversation(agent_name: str, messages: list) -> None:
         )
     except Exception as exc:
         print(f"Error writing conversation log: {exc}")
+
+
+def log_agent_step(agent_name: str, step: dict) -> None:
+    if not ENABLE_WORKFLOW_LOGS:
+        return
+
+    log_dir = _CONVERSATION_LOG_DIR.get()
+    if log_dir is None:
+        print("Conversation log directory is not set; skipping agent step log.")
+        return
+
+    log_dir.mkdir(parents=True, exist_ok=True)
+    entry = {
+        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "agent_name": agent_name,
+        **step,
+    }
+    filepath = log_dir / "agent_steps.jsonl"
+
+    try:
+        with filepath.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    except Exception as exc:
+        print(f"Error writing agent step log: {exc}")
