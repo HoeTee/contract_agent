@@ -47,8 +47,14 @@ class SubAgentIssue(StrictOutputModel):
 
 
 class SubAgentOutput(StrictOutputModel):
-    status: Literal["compliant", "issues_found"]
+    status: Literal["compliant", "issues_found", "not_applicable"]
+    applicability_reason: str = ""
     issues: list[SubAgentIssue]
+
+    @field_validator("applicability_reason")
+    @classmethod
+    def applicability_reason_trimmed(cls, value: str) -> str:
+        return value.strip()
 
     @model_validator(mode="after")
     def validate_status_issues(self):
@@ -56,6 +62,11 @@ class SubAgentOutput(StrictOutputModel):
             raise ValueError("status is compliant, so issues must be empty")
         if self.status == "issues_found" and not self.issues:
             raise ValueError("status is issues_found, so issues must not be empty")
+        if self.status == "not_applicable":
+            if self.issues:
+                raise ValueError("status is not_applicable, so issues must be empty")
+            if not self.applicability_reason:
+                raise ValueError("status is not_applicable, so applicability_reason must not be blank")
         return self
 
 

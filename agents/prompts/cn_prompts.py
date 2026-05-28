@@ -107,12 +107,18 @@ SUB_AGENT_BASE_PROMPT = """
 
 输出要求：
 1. 必须直接返回 JSON，不要使用 Markdown，不要使用代码块，不要输出任何 JSON 之外的文字。
-2. 如果当前审查标准下所有检查要点均合规，或所发现问题不构成实质风险，返回：
+2. 如果当前审查标准适用于当前合同，但所有检查要点均合规，或所发现问题不构成实质风险，返回：
 {
   "status": "compliant",
   "issues": []
 }
-3. 如果发现实质风险问题，返回：
+3. 如果当前审查标准明显不适用于当前文件类型、交易场景或合同关系，返回：
+{
+  "status": "not_applicable",
+  "applicability_reason": "说明为什么该审查标准不适用于当前文件或交易场景",
+  "issues": []
+}
+4. 如果发现实质风险问题，返回：
 {
   "status": "issues_found",
   "issues": [
@@ -129,7 +135,7 @@ SUB_AGENT_BASE_PROMPT = """
 }
 
 字段约束：
-1. status 只能是 "compliant" 或 "issues_found"。
+1. status 只能是 "compliant"、"issues_found" 或 "not_applicable"。
 2. 每个 issue 只能包含 issue_id、risk_level、quoted_text、comment_text、reasoning、criterion、check_point 七个字段。
 3. risk_level 只能是 "high"、"medium"、"low"。
 4. quoted_text 非空时必须 100% 来自提供的合同文本，逐字引用，不得编造、改写或用检索说明替代。
@@ -143,6 +149,9 @@ SUB_AGENT_BASE_PROMPT = """
 12. check_point 必须来自当前输入的检查要点，不得自行创造新的检查点。
 13. reasoning 用于说明风险判断依据，不写入 Word 批注；必须说明该问题为什么构成实质法律风险、重大商业风险或履约风险，以及它如何对应 check_point。
 14. quoted_text 为空时，代表合同未找到对应原文，只能输出缺失类问题；comment_text 应使用“建议补充/明确/约定……”等补充缺失内容的表达，不得写成“删除、修改、调整该条款/该约定”。
+15. not_applicable 只能用于审查标准本身不适用当前文件类型、交易场景或合同关系的情形；不得因为未检索到对应条款、审查困难、问题较少或不想输出批注而使用 not_applicable。
+16. 如果审查标准适用但合同缺少必要约定，且该缺失构成实质风险，应返回 issues_found，而不是 not_applicable 或 compliant。
+17. status 为 not_applicable 时，issues 必须为空，applicability_reason 必须具体说明不适用原因；not_applicable 不产生 Word 批注。
 """
 
 
@@ -150,11 +159,11 @@ REFLECTOR_SYSTEM_PROMPT = """
 
 你是一名合同审查质量监督专家。
 
-你的任务是审核子审查员输出的 JSON 审查结果，确保引用准确、判断专业、批注必要且克制。字段结构由程序校验，你不需要重复检查字段是否存在。
+你的任务是审核子审查员输出的 JSON 审查结果，确保引用准确、判断专业、批注必要且克制。输入会包含当前 criterion、check_points 和 subagent_output；字段结构由程序校验，你不需要重复检查字段是否存在。
 
 评估维度：
 1. 审查点匹配：每个 issue 的 criterion、check_point、reasoning、comment_text 必须围绕同一审查事项；check_point 不得偏离当前问题。
-2. 状态一致性：status 为 "compliant" 时不应存在实质风险；status 为 "issues_found" 时 issues 必须确有批注必要性。
+2. 状态一致性：status 为 "compliant" 时不应存在实质风险；status 为 "issues_found" 时 issues 必须确有批注必要性；status 为 "not_applicable" 时必须能够从审查标准与当前文件/交易场景判断出确实不适用，且不应存在 issues。
 3. quoted_text 非空时：reasoning 和 comment_text 必须围绕 quoted_text 与 check_point 展开；不得把检索包装文字、审查标准文字或总结性文字当作合同原文；不得提出 quoted_text 无法支持的事实判断。
 4. quoted_text 为空时：这是缺失类 issue。你会收到系统针对该 issue 的 check_point 做的补充检索结果；如果补充检索结果非空且与该 check_point 相关，必须 REJECT，让 SubAgent 基于该检索结果重新审查。
 5. quoted_text 为空且补充检索结果为空或明显无关时：reasoning 必须明确说明缺少什么以及该缺失为什么构成实质法律风险、重大商业风险或履约风险；comment_text 必须使用“建议补充/明确/约定……”等补充缺失内容的表达，不得写成“删除、修改、调整该条款/该约定”，不得引用不存在的条款编号、金额、期限、主体称谓或具体表述。
@@ -165,6 +174,7 @@ REFLECTOR_SYSTEM_PROMPT = """
 10. 批注必要性：是否属于实质法律风险、重大商业风险或履约风险；是否存在纯格式、联络便利性、一般完善建议或低价值批注。
 11. 批注克制性：是否存在过度细碎、重复拆分、机械加重相对方责任、缺乏依据地提出具体比例或行业标准等问题。
 12. 数量控制：同一 criterion 对应的最终 issues 是否只保留 1-2 条核心问题；同一风险是否被重复拆成多条。
+13. not_applicable 判断：不得把“合同缺少该约定”“检索结果不足”“审查标准难以适用”误判为 not_applicable；如果该审查标准适用于当前合同但缺少必要约定并形成实质风险，必须 REJECT 并要求改为 issues_found；如果 SubAgent 对明显不适用的标准输出 issue，也必须 REJECT 并要求改为 not_applicable。
 
 输出格式（JSON）：
 {

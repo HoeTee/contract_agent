@@ -17,7 +17,8 @@ from agents.schemas import SubAgentOutput
 
 SUB_AGENT_EXPECTED_JSON = """
 {
-  "status": "compliant 或 issues_found",
+  "status": "compliant 或 issues_found 或 not_applicable",
+  "applicability_reason": "仅当 status 为 not_applicable 时填写不适用理由；其他状态可省略",
   "issues": [
     {
       "issue_id": "当前criterion_id.序号",
@@ -142,6 +143,23 @@ class OrchestratorAgent:
             return "无 quoted_text 为空的缺失类 issue，无补充检索结果。"
         return json.dumps(notes, ensure_ascii=False, indent=2)
 
+    def _build_reflector_input(
+        self,
+        criterion_text: str,
+        check_points: list[str],
+        parsed_opinion: dict,
+    ) -> str:
+        """Give Reflector the current criterion plus the exact sub-agent output."""
+        return json.dumps(
+            {
+                "criterion": criterion_text,
+                "check_points": check_points,
+                "subagent_output": parsed_opinion,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+
     async def execute_single_criterion(
             self,
             criterion: dict
@@ -207,6 +225,7 @@ class OrchestratorAgent:
                 "section": criterion.get("section", "其他"),
                 "issues": parsed_opinion["issues"],
                 "status": "COMPLIANT",
+                "applicability_reason": parsed_opinion.get("applicability_reason", ""),
                 "tokens": sub_agent.token_usage.get("total_tokens", 0) + evidence_tokens,
                 "error_message": None,
             }
@@ -215,8 +234,13 @@ class OrchestratorAgent:
         reflector = self.reflector
         for round_num in range(MAX_REFLECTION_ROUNDS):
             missing_text_review_notes = await self._build_missing_text_review_notes(parsed_opinion)
+            reflector_input = self._build_reflector_input(
+                criterion_text,
+                check_points,
+                parsed_opinion,
+            )
             review = await reflector.review(
-                agent_output=sub_agent_opinion,
+                agent_output=reflector_input,
                 missing_text_review_notes=missing_text_review_notes,
             )
 
@@ -225,7 +249,7 @@ class OrchestratorAgent:
                 self.logger.log(
                     phase="Reflect", sender="Reflector", receiver=f"SubAgent_{cid}",
                     action=f"reflect({cid}, round={round_num+1})",
-                    input_summary=sub_agent_opinion,
+                    input_summary=reflector_input,
                     output_summary=f"{status}: {review.get('feedback', '')}",
                     tokens=reflector.token_usage.get("total_tokens", 0),
                     duration=round(time.time() - start, 2)
@@ -245,7 +269,12 @@ class OrchestratorAgent:
             print(f"[Orchestrator] {cid}: Max {MAX_REFLECTION_ROUNDS} rounds reached")
 
         total_tokens = evidence_tokens + sub_agent.token_usage.get("total_tokens", 0) + reflector.token_usage.get("total_tokens", 0)
-        final_status = "COMPLIANT" if parsed_opinion["status"] == "compliant" else "ISSUES_FOUND"
+        status_map = {
+            "compliant": "COMPLIANT",
+            "issues_found": "ISSUES_FOUND",
+            "not_applicable": "NOT_APPLICABLE",
+        }
+        final_status = status_map[parsed_opinion["status"]]
 
         return {
             "criterion_id": cid,
@@ -253,6 +282,7 @@ class OrchestratorAgent:
             "section": criterion.get("section", "其他"),
             "issues": parsed_opinion["issues"],
             "status": final_status,
+            "applicability_reason": parsed_opinion.get("applicability_reason", ""),
             "tokens": total_tokens,
             "error_message": None,
         }
@@ -287,6 +317,7 @@ class OrchestratorAgent:
                         "section": criteria_list[i].get("section", "其他"),
                         "issues": [],
                         "status": "ERROR",
+                        "applicability_reason": "",
                         "tokens": 0,
                         "error_message": str(result),
                     }
