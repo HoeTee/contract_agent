@@ -14,6 +14,27 @@ document.querySelectorAll("[data-loading-form]").forEach((form) => {
   });
 });
 
+document.querySelectorAll("[data-confirm-delete]").forEach((form) => {
+  form.addEventListener("submit", (event) => {
+    const username = form.dataset.confirmUsername || "该用户";
+    const first = window.confirm(`确认删除用户 ${username}？此操作会移除账号登录权限。`);
+    if (!first) {
+      event.preventDefault();
+      return;
+    }
+
+    const keepDataInput = form.querySelector("input[name='keep_data']");
+    const keepsData = keepDataInput && keepDataInput.checked;
+    const dataMessage = keepsData
+      ? "当前选择会保留用户数据目录，但账号会被删除。"
+      : "当前未选择保留用户数据，用户目录也会被删除。";
+    const second = window.confirm(`${dataMessage}\n再次确认删除用户 ${username}？`);
+    if (!second) {
+      event.preventDefault();
+    }
+  });
+});
+
 if (document.body.dataset.authCheck === "true") {
   const checkSession = async () => {
     try {

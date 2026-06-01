@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>用户详情 - 合同智能审核系统</title>
     <link rel="stylesheet" href="/static/app.css?v=20260601-admin-ui">
-    <script src="/static/app.js?v=20260601-force-logout" defer></script>
+    <script src="/static/app.js?v=20260601-delete-confirm" defer></script>
   </head>
   <body class="app-page" data-auth-check="true">
     <div class="app-frame">
@@ -108,7 +108,7 @@
                   </form>
                   {% endif %}
                 </div>
-                <form method="post" action="/admin/users/{{ target_user.username }}/delete" class="admin-inline-form admin-delete-form">
+                <form method="post" action="/admin/users/{{ target_user.username }}/delete" class="admin-inline-form admin-delete-form" data-confirm-delete="true" data-confirm-username="{{ target_user.username }}">
                   <label class="checkbox-label">
                     <input name="keep_data" type="checkbox" value="true" checked>
                     <span>保留用户数据</span>

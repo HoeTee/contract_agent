@@ -25,7 +25,7 @@ from loggers.review_history import (
     load_history_records,
 )
 from main_workflow.main_workflow import ContractReviewWorkflow
-from web.auth import load_users, normalize_role, save_users, sync_session_user, verify_login
+from web.auth import find_user, load_users, normalize_role, save_users, sync_session_user, verify_login, verify_password
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -331,12 +331,25 @@ async def login(
     username: str = Form(...), 
     password: str = Form(...)
 ):
+    existing_user = find_user(USERS_FILE, username)
+    if (
+        existing_user
+        and verify_password(password, existing_user.get("password_hash", ""))
+        and not existing_user.get("enabled", True)
+    ):
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {"error": "账号已被禁用，请联系管理员。"},
+            status_code=403,
+        )
+
     user = verify_login(USERS_FILE, username, password) # obtain user dict of metdata if login is successful, otherwise None
     if not user:
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "用户名或密码错误哦~"},
+            {"error": "用户名或密码错误。"},
             status_code=401, # Return 401 unauthorized for failed login attempts
         )
 

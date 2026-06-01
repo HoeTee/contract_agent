@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>审核历史 - 合同智能审核系统</title>
-    <link rel="stylesheet" href="/static/app.css?v=20260525-ui4">
-    <script src="/static/app.js?v=20260601-force-logout" defer></script>
+    <link rel="stylesheet" href="/static/app.css?v=20260601-user-ui">
+    <script src="/static/app.js?v=20260601-delete-confirm" defer></script>
   </head>
   <body class="app-page" data-auth-check="true">
     <div class="app-frame">
@@ -48,7 +48,7 @@
           </div>
         </header>
 
-        <main class="content-grid single">
+        <main class="content-grid single user-console">
           <section class="panel history-panel full-width">
             <div class="section-head">
               <div>
@@ -56,7 +56,7 @@
                 <h2>历史输出</h2>
               </div>
             </div>
-            <div class="table-frame">
+            <div class="table-frame user-table-frame">
               <table>
                 <thead>
                   <tr>
@@ -76,7 +76,7 @@
                     <td>{{ item.contract_display_name or "-" }}</td>
                     <td>{{ item.contract_size }}</td>
                     <td>{{ item.contract_uploaded_at or "-" }}</td>
-                    <td>{{ item.criteria_label }}</td>
+                    <td><span class="status-pill role-user">{{ item.criteria_label }}</span></td>
                     <td>{{ item.report_display_name or "-" }}</td>
                     <td>{{ item.report_size }}</td>
                     <td>{{ item.report_created_at or "-" }}</td>

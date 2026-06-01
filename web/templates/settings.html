@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>用户设置 - 合同智能审核系统</title>
-    <link rel="stylesheet" href="/static/app.css?v=20260525-ui4">
-    <script src="/static/app.js?v=20260601-force-logout" defer></script>
+    <link rel="stylesheet" href="/static/app.css?v=20260601-user-ui">
+    <script src="/static/app.js?v=20260601-delete-confirm" defer></script>
   </head>
   <body class="app-page" data-auth-check="true">
     <div class="app-frame">
@@ -47,12 +47,22 @@
           </div>
         </header>
 
-        <main class="content-grid single">
+        <main class="content-grid single user-console">
           <section class="panel settings-panel" aria-labelledby="settings-title">
             <div class="section-head">
               <div>
                 <p class="eyebrow">个人资料</p>
                 <h2 id="settings-title">账户资料</h2>
+              </div>
+            </div>
+            <div class="settings-summary">
+              <div>
+                <span>用户名</span>
+                <strong>{{ username }}</strong>
+              </div>
+              <div>
+                <span>当前名称</span>
+                <strong>{{ display_name }}</strong>
               </div>
             </div>
 

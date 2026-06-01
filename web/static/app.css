@@ -603,12 +603,21 @@ input[type="file"] {
   width: min(1180px, calc(100vw - 320px));
   margin: 30px auto;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
 }
 
 .content-grid.single {
   grid-template-columns: 1fr;
+}
+
+.workbench-grid {
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+  align-items: start;
+}
+
+.user-console {
+  gap: 20px;
 }
 
 .panel {
@@ -621,6 +630,59 @@ input[type="file"] {
 
 .upload-panel {
   align-self: start;
+  border-top: 4px solid var(--primary);
+}
+
+.workbench-side-panel {
+  position: sticky;
+  top: 24px;
+}
+
+.workbench-metrics {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.workbench-metrics div,
+.settings-summary div {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff, var(--surface-soft));
+}
+
+.workbench-metrics span,
+.settings-summary span {
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.workbench-metrics strong,
+.settings-summary strong {
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.settings-panel {
+  max-width: 760px;
+}
+
+.settings-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.settings-form {
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
 }
 
 .section-head {
@@ -747,6 +809,10 @@ input[type="file"] {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
+.user-table-frame {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -804,6 +870,14 @@ td:last-child {
   .content-grid {
     width: min(100vw - 32px, 900px);
     grid-template-columns: 1fr;
+  }
+
+  .workbench-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workbench-side-panel {
+    position: static;
   }
 
   .admin-management-grid {
@@ -867,6 +941,10 @@ td:last-child {
   }
 
   .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-summary {
     grid-template-columns: 1fr;
   }
 

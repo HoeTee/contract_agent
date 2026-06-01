@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>合同智能审核系统</title>
-    <link rel="stylesheet" href="/static/app.css?v=20260525-ui4">
-    <script src="/static/app.js?v=20260601-force-logout" defer></script>
+    <link rel="stylesheet" href="/static/app.css?v=20260601-user-ui">
+    <script src="/static/app.js?v=20260601-delete-confirm" defer></script>
   </head>
   <body class="app-page" data-auth-check="true">
     <div class="app-frame">
@@ -47,13 +47,14 @@
           </div>
         </header>
 
-        <main class="content-grid">
+        <main class="content-grid workbench-grid">
           <section class="panel upload-panel" aria-labelledby="upload-title">
             <div class="section-head">
               <div>
                 <p class="eyebrow">新建任务</p>
                 <h2 id="upload-title">上传合同原件</h2>
               </div>
+              <span class="status-pill role-user">DOCX</span>
             </div>
             <p class="panel-copy">支持真实 DOCX 合同文件。上传后系统会读取用户审核要点并生成批注版合同。</p>
 
@@ -94,6 +95,29 @@
             {% endif %}
           </section>
 
+          <aside class="panel workbench-side-panel" aria-label="审查配置">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">配置</p>
+                <h2>审查设置</h2>
+              </div>
+            </div>
+            <div class="workbench-metrics">
+              <div>
+                <span>审查要点</span>
+                <strong>默认 / 自定义</strong>
+              </div>
+              <div>
+                <span>输出类型</span>
+                <strong>批注合同</strong>
+              </div>
+              <div>
+                <span>记录方式</span>
+                <strong>自动留存</strong>
+              </div>
+            </div>
+            <a class="secondary-button compact-button user-link-button" href="/history">查看历史</a>
+          </aside>
         </main>
       </div>
     </div>
