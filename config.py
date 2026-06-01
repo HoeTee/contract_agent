@@ -19,6 +19,8 @@ DATA_DIR = os.getenv("DATA_DIR", os.path.join(PROJECT_ROOT, "data"))
 if not os.path.isabs(DATA_DIR):
     DATA_DIR = os.path.join(PROJECT_ROOT, DATA_DIR)
 
+DEFAULT_REVIEW_CRITERIA_PATH = os.path.join(PROJECT_ROOT, "resources", "review_criteria", "criteria.docx")
+
 USERS_FILE = os.getenv("USERS_FILE", os.path.join(PROJECT_ROOT, "users.json"))
 if not os.path.isabs(USERS_FILE):
     USERS_FILE = os.path.join(PROJECT_ROOT, USERS_FILE)

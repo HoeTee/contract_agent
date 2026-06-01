@@ -1,16 +1,29 @@
 from __future__ import annotations
 
 import re
+import shutil
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+
+from config import DEFAULT_REVIEW_CRITERIA_PATH
 
 
 def safe_path_part(value: str, fallback: str = "item") -> str: # 文件/文件夹名
     cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", value).strip().strip(".") # 
     cleaned = re.sub(r"\s+", "_", cleaned) # \s 空白字符 \s+ 一个或多个空白字符 \t TAB \n 换行 \r 回车
     return cleaned or fallback
+
+
+def ensure_default_criteria_file(user_root: Path) -> Path:
+    criteria_path = user_root / "contract_review_criteria" / "criteria.docx"
+    default_criteria_path = Path(DEFAULT_REVIEW_CRITERIA_PATH)
+    if not criteria_path.exists():
+        if not default_criteria_path.exists():
+            raise FileNotFoundError(f"Default review criteria file was not found: {default_criteria_path}")
+        shutil.copy2(default_criteria_path, criteria_path)
+    return criteria_path
 
 
 @dataclass(frozen=True)
@@ -41,6 +54,10 @@ class ResolvedReviewTaskPaths:
     @property
     def criteria_path(self) -> Path:
         return self.user_root / "contract_review_criteria" / "criteria.docx"
+
+    @property
+    def uploaded_criteria_path(self) -> Path:
+        return self.task_log_dir / "criteria.docx"
 
     @property
     def contracts_dir(self) -> Path:
@@ -90,6 +107,7 @@ class ResolvedReviewTaskPaths:
             self.logs_dir,
         ):
             path.mkdir(parents=True, exist_ok=True)
+        ensure_default_criteria_file(self.user_root)
 
     def ensure_task_dirs(self) -> None:
         self.ensure_user_dirs()
@@ -130,4 +148,5 @@ def initialize_user_data_dir(data_dir: Path, username: str) -> Path:
         "logs",
     ):
         (user_root / child).mkdir(parents=True, exist_ok=True) # 建立用户文件夹及一系列子文件夹
+    ensure_default_criteria_file(user_root)
     return user_root

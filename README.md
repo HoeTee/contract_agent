@@ -23,6 +23,7 @@ docs/
 ```
 
 - `data/`：运行时持久化数据目录。部署到服务器时应挂载这个目录。
+- `resources/review_criteria/criteria.docx`：系统默认审查要点模板，新建用户时会复制到用户目录。
 - `docs/`：只存放 Markdown 文档，不作为程序输入或输出目录。
 - `users.json`：用户账号配置文件。密码只保存哈希值，不保存明文。
 
@@ -46,7 +47,7 @@ python scripts/manage_users.py reset-password --username user001 --password NewP
 python scripts/manage_users.py disable --username user001
 ```
 
-每个用户都需要自己的审查要点文件：
+创建用户时会自动生成用户目录，并从系统默认模板复制审查要点：
 
 ```text
 data/user001/contract_review_criteria/criteria.docx
@@ -71,9 +72,10 @@ http://127.0.0.1:5000
 用户登录后，服务会：
 
 1. 将上传合同保存到 `data/<username>/contracts/`
-2. 直接从 `data/<username>/contracts/` 读取合同
-3. 将批注版 DOCX 写入 `data/<username>/reports_docx/`
-4. 将任务日志写入 `data/<username>/logs/<YYYY-MM-DD>/<task>/`
+2. 如果本次上传了审查要点，则使用本次上传的 DOCX；否则使用 `data/<username>/contract_review_criteria/criteria.docx`
+3. 直接从 `data/<username>/contracts/` 读取合同
+4. 将批注版 DOCX 写入 `data/<username>/reports_docx/`
+5. 将任务日志写入 `data/<username>/logs/<YYYY-MM-DD>/<task>/`
 
 ## CLI
 
@@ -103,6 +105,8 @@ data/default/contracts/sample.docx
 volumes:
   - ./data:/app/data
   - ./users.json:/app/users.json:ro
+  # 可选：自定义新用户默认审查要点模板
+  # - ./resources/review_criteria/criteria.docx:/app/resources/review_criteria/criteria.docx:ro
 ```
 
 容器内部监听 `5000`。当前 compose 映射：

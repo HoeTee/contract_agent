@@ -16,6 +16,10 @@ deep_research_agent/
   scripts/
     manage_users.py
 
+  resources/
+    review_criteria/
+      criteria.docx
+
   loggers/
     resolve_review_task_paths.py
     workflow_logger.py
@@ -49,7 +53,7 @@ deep_research_agent/
 
 - `app.py`：FastAPI Web 服务入口，负责创建应用、启用 session middleware、挂载静态文件和注册路由。
 - `main.py`：本地 CLI 审查入口，按用户分区读取合同和审查要点。
-- `config.py`：集中读取项目路径和环境变量。
+- `config.py`：集中读取项目路径和环境变量，包括系统默认审查要点路径。
 
 ## Web 目录
 
@@ -71,11 +75,15 @@ data/<username>/
   logs/
 ```
 
-- `contract_review_criteria/`：该用户的审查要点，当前固定读取 `criteria.docx`。
+- `contract_review_criteria/`：该用户的默认审查要点，默认文件名为 `criteria.docx`。
 - `institutional_docs/`：该用户的制度文档预留目录。
 - `contracts/`：上传合同原件。
 - `reports_docx/`：批注版合同输出。
 - `logs/`：审查任务日志。
+
+## 资源目录
+
+`resources/review_criteria/criteria.docx` 是系统默认审查要点模板。创建用户目录时，程序会把它复制到 `data/<username>/contract_review_criteria/criteria.docx`。
 
 ## 文档目录
 

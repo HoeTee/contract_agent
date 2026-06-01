@@ -45,7 +45,7 @@ def get_running_task(username: str) -> dict | None:
     return None
 
 
-async def run_review_task(username: str, paths) -> None:
+async def run_review_task(username: str, paths, criteria_path: Path) -> None:
     task = review_tasks[username]
     task["status"] = "running"
     task["message"] = "Review is running."
@@ -64,7 +64,7 @@ async def run_review_task(username: str, paths) -> None:
         async def run_workflow():
             return await workflow.run(
                 contract_path=str(paths.stored_contract_path),
-                criteria_path=str(paths.criteria_path),
+                criteria_path=str(criteria_path),
                 output_path=str(paths.final_report_path),
             )
 
@@ -244,7 +244,11 @@ async def index(request: Request):
 
 
 @router.post("/review", response_class=HTMLResponse)
-async def review_page(request: Request, file: UploadFile = File(...)):
+async def review_page(
+    request: Request,
+    file: UploadFile = File(...),
+    criteria_file: UploadFile | None = File(None),
+):
     username = get_current_username(request)
     if not username:
         return RedirectResponse("/login", status_code=303)
@@ -252,6 +256,8 @@ async def review_page(request: Request, file: UploadFile = File(...)):
     if get_running_task(username):
         request.session["flash_error"] = "A review is already running. Please wait for it to finish."
         await file.close()
+        if criteria_file:
+            await criteria_file.close()
         return RedirectResponse("/work", status_code=303)
 
     filename = safe_upload_filename(file.filename)
@@ -275,7 +281,30 @@ async def review_page(request: Request, file: UploadFile = File(...)):
                 status_code=400, 
                 detail="系统支持的文件格式是 DOCX 哦~"
             )
-        if not paths.criteria_path.exists():
+        selected_criteria_path = paths.criteria_path
+        criteria_source = "default"
+        has_uploaded_criteria = bool(criteria_file and criteria_file.filename)
+        if has_uploaded_criteria:
+            criteria_filename = safe_upload_filename(criteria_file.filename)
+            if not criteria_filename.lower().endswith(".docx"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="审查要点文件格式必须是 DOCX。",
+                )
+            with paths.uploaded_criteria_path.open("wb") as f:
+                shutil.copyfileobj(criteria_file.file, f)
+            validate_uploaded_docx(paths.uploaded_criteria_path)
+            selected_criteria_path = paths.uploaded_criteria_path
+            criteria_source = "uploaded"
+
+            append_api_event(
+                paths.api_events_path,
+                "criteria_uploaded",
+                file_path=str(paths.uploaded_criteria_path),
+                original_filename=criteria_filename,
+                size_bytes=paths.uploaded_criteria_path.stat().st_size,
+            )
+        elif not paths.criteria_path.exists():
             request.session["flash_error"] = f"Review criteria file was not found: {paths.criteria_path}"
             return RedirectResponse("/work", status_code=303)
         with paths.stored_contract_path.open("wb") as f:
@@ -303,10 +332,11 @@ async def review_page(request: Request, file: UploadFile = File(...)):
             "message": "Review is queued.",
             "task_id": paths.task_id,
             "filename": filename,
+            "criteria_source": criteria_source,
             "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
         # This is where Semaphore comes into play.
-        asyncio.create_task(run_review_task(username, paths))
+        asyncio.create_task(run_review_task(username, paths, selected_criteria_path))
         return RedirectResponse("/work", status_code=303)
 
     except HTTPException as exc:
@@ -319,6 +349,8 @@ async def review_page(request: Request, file: UploadFile = File(...)):
         return RedirectResponse("/work", status_code=303)
     finally:
         await file.close()
+        if criteria_file:
+            await criteria_file.close()
 
 
 @router.get("/download/{filename}")

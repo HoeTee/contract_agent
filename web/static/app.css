@@ -189,6 +189,13 @@ label {
   font-weight: 800;
 }
 
+.field-note {
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 input[type="text"],
 input[type="password"],
 input[type="file"] {

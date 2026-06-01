@@ -65,6 +65,11 @@
                 <span>选择合同文件</span>
                 <input name="file" type="file" accept=".docx" required {% if active_task %}disabled{% endif %}>
               </label>
+              <label class="file-picker">
+                <span>上传审查要点（可选）</span>
+                <input name="criteria_file" type="file" accept=".docx" {% if active_task %}disabled{% endif %}>
+                <small class="field-note">如果不提供审查要点，将按照默认的审查要点对于合同进行审查。</small>
+              </label>
               <button type="submit" data-loading-label="审核中...">开始审核</button>
             </form>
 
