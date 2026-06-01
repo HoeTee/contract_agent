@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from docx import Document
 
@@ -25,7 +25,7 @@ from loggers.review_history import (
     load_history_records,
 )
 from main_workflow.main_workflow import ContractReviewWorkflow
-from web.auth import load_users, normalize_role, save_users, verify_login
+from web.auth import load_users, normalize_role, save_users, sync_session_user, verify_login
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -185,6 +185,8 @@ def safe_upload_filename(filename: str | None) -> str:
 
 
 def get_current_username(request: Request) -> str | None:
+    if not sync_session_user(USERS_FILE, request.session):
+        return None
     return request.session.get("username")
 
 
@@ -196,6 +198,14 @@ def require_current_username(request: Request) -> str:
             detail="未登录。"
         )
     return username
+
+
+@router.get("/session/status")
+async def session_status(request: Request):
+    user = sync_session_user(USERS_FILE, request.session)
+    if not user:
+        return JSONResponse({"active": False}, status_code=401)
+    return {"active": True, "role": request.session.get("role")}
 
 
 def update_display_name(users_file: str | Path, username: str, display_name: str) -> str:

@@ -8,7 +8,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 
-from config import DATA_DIR, DEFAULT_REVIEW_CRITERIA_PATH, PROJECT_ROOT
+from config import DATA_DIR, DEFAULT_REVIEW_CRITERIA_PATH, PROJECT_ROOT, USERS_FILE
 from web.admin_services import (
     admin_summary,
     get_admin_user,
@@ -17,6 +17,7 @@ from web.admin_services import (
     list_user_log_tasks,
     list_user_review_history,
 )
+from web.auth import sync_session_user
 from web.routes import DOCX_MEDIA_TYPE, safe_upload_filename, validate_review_criteria_content, validate_uploaded_docx
 from services.user_management import (
     UserManagementError,
@@ -37,7 +38,7 @@ def is_current_admin(request: Request) -> bool:
 
 
 def require_admin(request: Request) -> None:
-    if not request.session.get("username"):
+    if not sync_session_user(USERS_FILE, request.session):
         raise HTTPException(status_code=401, detail="未登录。")
     if not is_current_admin(request):
         raise HTTPException(status_code=403, detail="无管理员权限。")

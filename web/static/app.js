@@ -13,3 +13,21 @@ document.querySelectorAll("[data-loading-form]").forEach((form) => {
     button.disabled = true;
   });
 });
+
+if (document.body.dataset.authCheck === "true") {
+  const checkSession = async () => {
+    try {
+      const response = await fetch("/session/status", {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (response.status === 401) {
+        window.location.replace("/login");
+      }
+    } catch (error) {
+      // Keep the current page usable if the network check itself fails.
+    }
+  };
+
+  window.setInterval(checkSession, 10000);
+}
