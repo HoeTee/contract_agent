@@ -383,6 +383,8 @@ async def index(request: Request):
     username = get_current_username(request)
     if not username:
         return RedirectResponse("/login", status_code=303) # happens when user tries to access /work without logging in, redirect them to login page
+    if request.session.get("role") == "admin":
+        return RedirectResponse("/admin", status_code=303)
     task = review_tasks.get(username)
     error = request.session.pop("flash_error", None)
     success = request.session.pop("flash_success", None)
@@ -413,6 +415,8 @@ async def settings(request: Request):
     username = get_current_username(request)
     if not username:
         return RedirectResponse("/login", status_code=303)
+    if request.session.get("role") == "admin":
+        return RedirectResponse("/admin", status_code=303)
 
     return templates.TemplateResponse(
         request,
@@ -562,6 +566,8 @@ async def history(request: Request):
     username = get_current_username(request)
     if not username:
         return RedirectResponse("/login", status_code=303)
+    if request.session.get("role") == "admin":
+        return RedirectResponse("/admin", status_code=303)
     return templates.TemplateResponse(
         request,
         "history.html",

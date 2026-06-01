@@ -25,7 +25,6 @@
         <nav class="nav-list">
           <a class="nav-item" href="/admin">后台首页</a>
           <a class="nav-item active" href="/admin/users">用户管理</a>
-          <a class="nav-item" href="/work">普通工作台</a>
         </nav>
       </aside>
 
@@ -51,6 +50,60 @@
           {% if success %}
           <div class="success" role="status">{{ success }}</div>
           {% endif %}
+
+          <section class="panel">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">账号管理</p>
+                <h2>用户状态</h2>
+              </div>
+            </div>
+            <div class="summary-grid">
+              <div><strong>{{ target_user.username }}</strong><span>用户名</span></div>
+              <div><strong>{{ target_user.role }}</strong><span>角色</span></div>
+              <div><strong>{{ "启用" if target_user.enabled else "禁用" }}</strong><span>状态</span></div>
+              <div><strong>{{ target_user.display_name }}</strong><span>显示名</span></div>
+            </div>
+            <div class="admin-form-sections">
+              <form method="post" action="/admin/users/{{ target_user.username }}/role" class="admin-inline-form">
+                <label>
+                  <span>角色</span>
+                  <select name="role">
+                    <option value="user" {% if target_user.role == "user" %}selected{% endif %}>user</option>
+                    <option value="admin" {% if target_user.role == "admin" %}selected{% endif %}>admin</option>
+                  </select>
+                </label>
+                <button type="submit" class="secondary-button compact-button">更新角色</button>
+              </form>
+
+              <form method="post" action="/admin/users/{{ target_user.username }}/password" class="admin-inline-form">
+                <label>
+                  <span>新密码</span>
+                  <input name="password" type="password" required>
+                </label>
+                <button type="submit" class="secondary-button compact-button">重置密码</button>
+              </form>
+
+              <div class="admin-actions">
+                {% if target_user.enabled %}
+                <form method="post" action="/admin/users/{{ target_user.username }}/disable">
+                  <button type="submit" class="secondary-button compact-button">禁用用户</button>
+                </form>
+                {% else %}
+                <form method="post" action="/admin/users/{{ target_user.username }}/enable">
+                  <button type="submit" class="secondary-button compact-button">启用用户</button>
+                </form>
+                {% endif %}
+                <form method="post" action="/admin/users/{{ target_user.username }}/delete" class="admin-inline-form">
+                  <label class="checkbox-label">
+                    <input name="keep_data" type="checkbox" value="true" checked>
+                    <span>保留用户数据</span>
+                  </label>
+                  <button type="submit" class="secondary-button compact-button danger-button">删除用户</button>
+                </form>
+              </div>
+            </div>
+          </section>
 
           <section class="panel">
             <div class="section-head">

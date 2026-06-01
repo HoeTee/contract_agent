@@ -1,123 +1,81 @@
 from __future__ import annotations
 
 import argparse
-import shutil
 import sys
-from datetime import datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from config import DATA_DIR, USERS_FILE
-from loggers.resolve_review_task_paths import initialize_user_data_dir, safe_path_part
-from web.auth import VALID_ROLES, hash_password, load_users, normalize_role, save_users
-
-
-def find_index(users: list[dict], username: str) -> int | None:
-    for index, user in enumerate(users): # enumerate to find repetition
-        if user.get("username") == username:
-            return index
-    return None
+from web.auth import VALID_ROLES
+from services.user_management import (
+    UserManagementError,
+    create_user_account,
+    delete_user_account,
+    reset_user_password,
+    set_user_enabled,
+    set_user_role,
+)
 
 
 def create_user(args) -> None:
-    username = safe_path_part(args.username, "user")
-    role = normalize_role(args.role)
-    if role not in VALID_ROLES:
-        raise SystemExit(f"角色必须是 user 或 admin：{args.role}")
-    users = load_users(USERS_FILE) # [] if no users.json exists
-    if find_index(users, username) is not None:
-        raise SystemExit(f"用户已存在：{username}")
-
-    users.append({
-        "username": username,
-        "password_hash": hash_password(args.password),
-        "display_name": args.display_name or username,
-        "role": role,
-        "enabled": True,
-        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    })
-    save_users(USERS_FILE, users) # update users.json
-    initialize_user_data_dir(Path(DATA_DIR), username) # create user data dir right afterward
-    print(f"Created user: {username}")
+    try:
+        username = create_user_account(
+            username=args.username,
+            password=args.password,
+            display_name=args.display_name,
+            role=args.role,
+        )
+    except UserManagementError as exc:
+        raise SystemExit(str(exc))
+    print(f"已创建用户：{username}")
 
 
 def set_role(args) -> None:
-    role = normalize_role(args.role)
-    if role not in VALID_ROLES:
-        raise SystemExit(f"角色必须是 user 或 admin：{args.role}")
-
-    users = load_users(USERS_FILE)
-    index = find_index(users, args.username)
-    if index is None:
-        raise SystemExit(f"未找到用户：{args.username}")
-    users[index]["role"] = role
-    users[index]["role_updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    save_users(USERS_FILE, users)
-    print(f"Updated role for user: {args.username} -> {role}")
+    try:
+        role = set_user_role(username=args.username, role=args.role)
+    except UserManagementError as exc:
+        raise SystemExit(str(exc))
+    print(f"已更新用户角色：{args.username} -> {role}")
 
 
 def reset_password(args) -> None:
-    users = load_users(USERS_FILE)
-    index = find_index(users, args.username)
-    if index is None:
-        raise SystemExit(f"未找到用户：{args.username}")
-    users[index]["password_hash"] = hash_password(args.password)
-    users[index]["password_updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    save_users(USERS_FILE, users)
-    print(f"Password reset for user: {args.username}")
+    try:
+        reset_user_password(username=args.username, password=args.password)
+    except UserManagementError as exc:
+        raise SystemExit(str(exc))
+    print(f"已重置用户密码：{args.username}")
 
 
 def disable_user(args) -> None:
-    users = load_users(USERS_FILE)
-    index = find_index(users, args.username)
-    if index is None:
-        raise SystemExit(f"未找到用户：{args.username}")
-    users[index]["enabled"] = False
-    users[index]["disabled_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    save_users(USERS_FILE, users)
-    print(f"Disabled user: {args.username}")
+    try:
+        set_user_enabled(username=args.username, enabled=False)
+    except UserManagementError as exc:
+        raise SystemExit(str(exc))
+    print(f"已禁用用户：{args.username}")
 
 
 def enable_user(args) -> None:
-    users = load_users(USERS_FILE)
-    index = find_index(users, args.username)
-    if index is None:
-        raise SystemExit(f"未找到用户：{args.username}")
-    users[index]["enabled"] = True
-    users[index]["enabled_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    save_users(USERS_FILE, users)
-    initialize_user_data_dir(Path(DATA_DIR), args.username)
-    print(f"Enabled user: {args.username}")
+    try:
+        set_user_enabled(username=args.username, enabled=True)
+    except UserManagementError as exc:
+        raise SystemExit(str(exc))
+    print(f"已启用用户：{args.username}")
 
 
 def delete_user(args) -> None:
-    username = safe_path_part(args.username, "user")
-    users = load_users(USERS_FILE)
-    index = find_index(users, username)
-    if index is None:
-        raise SystemExit(f"未找到用户：{username}")
-
-    del users[index]
-    save_users(USERS_FILE, users)
-    print(f"Deleted user account: {username}")
-
+    try:
+        data_path = delete_user_account(username=args.username, keep_data=args.keep_data)
+    except UserManagementError as exc:
+        raise SystemExit(str(exc))
+    print(f"已删除用户账号：{args.username}")
     if args.keep_data:
-        print(f"Kept user data directory: {Path(DATA_DIR) / username}")
-        return
-
-    data_root = Path(DATA_DIR).resolve()
-    user_root = (data_root / username).resolve()
-    if data_root == user_root or data_root not in user_root.parents:
-        raise SystemExit(f"拒绝删除不安全路径：{user_root}")
-
-    if user_root.exists():
-        shutil.rmtree(user_root)
-        print(f"Deleted user data directory: {user_root}")
+        print(f"已保留用户数据目录：{data_path}")
+    elif data_path:
+        print(f"已删除用户数据目录：{data_path}")
     else:
-        print(f"未找到用户数据目录：{user_root}")
+        print("未找到用户数据目录。")
 
 
 def build_parser() -> argparse.ArgumentParser:

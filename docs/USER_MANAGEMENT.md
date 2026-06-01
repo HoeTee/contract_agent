@@ -23,6 +23,12 @@ python scripts/manage_users.py set-role --username user001 --role admin
 python scripts/manage_users.py set-role --username user001 --role user
 ```
 
+管理员后台也提供同等用户管理能力，包括创建用户、修改角色、重置密码、启用/禁用、删除用户。管理员登录后访问：
+
+```text
+/admin
+```
+
 脚本会创建：
 
 ```text

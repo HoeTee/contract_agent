@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 
@@ -18,6 +18,14 @@ from web.admin_services import (
     list_user_review_history,
 )
 from web.routes import DOCX_MEDIA_TYPE, safe_upload_filename, validate_review_criteria_content, validate_uploaded_docx
+from services.user_management import (
+    UserManagementError,
+    create_user_account,
+    delete_user_account,
+    reset_user_password,
+    set_user_enabled,
+    set_user_role,
+)
 
 
 templates = Jinja2Templates(directory=str(Path(PROJECT_ROOT) / "web" / "templates"))
@@ -47,6 +55,13 @@ def admin_user_redirect(username: str) -> RedirectResponse:
     return RedirectResponse(f"/admin/users/{quote(username)}", status_code=303)
 
 
+def set_admin_flash(request: Request, *, success: str | None = None, error: str | None = None) -> None:
+    if success:
+        request.session["admin_flash_success"] = success
+    if error:
+        request.session["admin_flash_error"] = error
+
+
 @admin_router.get("", response_class=HTMLResponse)
 async def admin_index(request: Request):
     try:
@@ -69,8 +84,35 @@ async def admin_users(request: Request):
     return templates.TemplateResponse(
         request,
         "admin_users.html",
-        admin_template_context(request, users=list_admin_users()),
+        admin_template_context(
+            request,
+            users=list_admin_users(),
+            error=request.session.pop("admin_flash_error", None),
+            success=request.session.pop("admin_flash_success", None),
+        ),
     )
+
+
+@admin_router.post("/users/create")
+async def admin_create_user(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    display_name: str = Form(""),
+    role: str = Form("user"),
+):
+    require_admin(request)
+    try:
+        created = create_user_account(
+            username=username,
+            password=password,
+            display_name=display_name,
+            role=role,
+        )
+        set_admin_flash(request, success=f"已创建用户：{created}")
+    except UserManagementError as exc:
+        set_admin_flash(request, error=str(exc))
+    return RedirectResponse("/admin/users", status_code=303)
 
 
 @admin_router.get("/users/{target_username}", response_class=HTMLResponse)
@@ -95,6 +137,83 @@ async def admin_user_detail(request: Request, target_username: str):
             success=success,
         ),
     )
+
+
+@admin_router.post("/users/{target_username}/role")
+async def admin_set_user_role(
+    request: Request,
+    target_username: str,
+    role: str = Form(...),
+):
+    require_admin(request)
+    if target_username == request.session.get("username") and role != "admin":
+        set_admin_flash(request, error="不能移除当前管理员自己的管理员角色。")
+        return admin_user_redirect(target_username)
+    try:
+        updated_role = set_user_role(username=target_username, role=role)
+        set_admin_flash(request, success=f"已更新用户角色：{updated_role}")
+    except UserManagementError as exc:
+        set_admin_flash(request, error=str(exc))
+    return admin_user_redirect(target_username)
+
+
+@admin_router.post("/users/{target_username}/password")
+async def admin_reset_user_password(
+    request: Request,
+    target_username: str,
+    password: str = Form(...),
+):
+    require_admin(request)
+    try:
+        reset_user_password(username=target_username, password=password)
+        set_admin_flash(request, success="已重置用户密码。")
+    except UserManagementError as exc:
+        set_admin_flash(request, error=str(exc))
+    return admin_user_redirect(target_username)
+
+
+@admin_router.post("/users/{target_username}/enable")
+async def admin_enable_user(request: Request, target_username: str):
+    require_admin(request)
+    try:
+        set_user_enabled(username=target_username, enabled=True)
+        set_admin_flash(request, success="已启用用户。")
+    except UserManagementError as exc:
+        set_admin_flash(request, error=str(exc))
+    return admin_user_redirect(target_username)
+
+
+@admin_router.post("/users/{target_username}/disable")
+async def admin_disable_user(request: Request, target_username: str):
+    require_admin(request)
+    if target_username == request.session.get("username"):
+        set_admin_flash(request, error="不能禁用当前登录的管理员账号。")
+        return admin_user_redirect(target_username)
+    try:
+        set_user_enabled(username=target_username, enabled=False)
+        set_admin_flash(request, success="已禁用用户。")
+    except UserManagementError as exc:
+        set_admin_flash(request, error=str(exc))
+    return admin_user_redirect(target_username)
+
+
+@admin_router.post("/users/{target_username}/delete")
+async def admin_delete_user(
+    request: Request,
+    target_username: str,
+    keep_data: bool = Form(False),
+):
+    require_admin(request)
+    if target_username == request.session.get("username"):
+        set_admin_flash(request, error="不能删除当前登录的管理员账号。")
+        return admin_user_redirect(target_username)
+    try:
+        delete_user_account(username=target_username, keep_data=keep_data)
+        set_admin_flash(request, success=f"已删除用户：{target_username}")
+        return RedirectResponse("/admin/users", status_code=303)
+    except UserManagementError as exc:
+        set_admin_flash(request, error=str(exc))
+        return admin_user_redirect(target_username)
 
 
 @admin_router.get("/users/{target_username}/criteria/download")

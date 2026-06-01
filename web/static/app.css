@@ -198,7 +198,8 @@ label {
 
 input[type="text"],
 input[type="password"],
-input[type="file"] {
+input[type="file"],
+select {
   width: 100%;
   min-height: 58px;
   border: 1px solid var(--line-strong);
@@ -414,6 +415,53 @@ input[type="file"] {
 
 .admin-upload-form {
   margin-top: 8px;
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.admin-form-sections {
+  display: grid;
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.admin-inline-form {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.admin-inline-form label {
+  min-width: 220px;
+}
+
+.checkbox-label {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+}
+
+.checkbox-label input {
+  width: 18px;
+  height: 18px;
+}
+
+.danger-button {
+  color: var(--danger);
+  border-color: rgba(190, 18, 60, 0.35);
+}
+
+.danger-button:hover {
+  color: var(--danger);
+  background: var(--danger-bg);
 }
 
 .content-grid {
@@ -678,9 +726,14 @@ td:last-child {
     grid-template-columns: 1fr;
   }
 
+  .admin-form-grid {
+    grid-template-columns: 1fr;
+  }
+
   input[type="text"],
   input[type="password"],
   input[type="file"],
+  select,
   button,
   .button-link,
   .secondary-button {
