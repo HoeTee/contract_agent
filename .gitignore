@@ -3,6 +3,8 @@
 .env.local
 .env.*.local
 users.json
+user_profiles/*
+!user_profiles/.gitkeep
 
 # Virtual environments
 .wheel-venv/

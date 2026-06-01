@@ -12,6 +12,7 @@ __pycache__
 .env.local
 .env.*.local
 users.json
+user_profiles
 
 data
 logs

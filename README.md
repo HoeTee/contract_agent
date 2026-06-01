@@ -16,6 +16,9 @@ data/
       review_history.json
     logs/
 
+user_profiles/
+  users.json
+
 docs/
   LOGGER_DESIGN.md
   USER_MANAGEMENT.md
@@ -25,9 +28,10 @@ docs/
 ```
 
 - `data/`：运行时持久化数据目录。部署到服务器时应挂载这个目录。
+- `user_profiles/`：用户账号数据目录。首次创建用户时会自动生成 `users.json`。
 - `resources/review_criteria/criteria.docx`：系统默认审查要点模板，新建用户时会复制到用户目录。
 - `docs/`：只存放 Markdown 文档，不作为程序输入或输出目录。
-- `users.json`：用户账号配置文件。密码只保存哈希值，不保存明文；也可通过 `USERS_FILE` 改到挂载数据目录内。
+- `user_profiles/users.json`：用户账号配置文件。密码只保存哈希值，不保存明文。
 
 ## 用户管理
 
@@ -128,12 +132,12 @@ data/default/contracts/sample.docx
 ```yaml
 volumes:
   - ./data:/app/data
-  - ./users.json:/app/users.json
+  - ./user_profiles:/app/user_profiles
   # 可选：自定义新用户默认审查要点模板
   # - ./resources/review_criteria/criteria.docx:/app/resources/review_criteria/criteria.docx:ro
 ```
 
-`users.json` 需要可写挂载，因为用户可以在前端修改显示名称。
+`user_profiles/` 可以是空目录。程序首次创建用户时会自动写入 `user_profiles/users.json`。
 
 当前 compose 中容器内部 Uvicorn 监听 `8000`，宿主机端口映射为：
 

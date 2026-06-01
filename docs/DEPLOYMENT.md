@@ -16,26 +16,26 @@ docker compose up -d
 
 ```text
 .env
-users.json
+user_profiles/
 data/
 ```
 
-当前 `docker-compose.yaml` 会把 `.env`、`users.json` 和 `data/` 挂载进容器：
+当前 `docker-compose.yaml` 会把 `.env`、`user_profiles/` 和 `data/` 挂载进容器：
 
 ```yaml
 volumes:
   - ./.env:/app/.env:ro
-  - ./users.json:/app/users.json
+  - ./user_profiles:/app/user_profiles
   - ./data:/app/data
 ```
 
-`users.json` 会被挂载到容器中：
+`user_profiles/` 可以是空目录。首次创建用户时，程序会自动生成：
 
-```yaml
-- ./users.json:/app/users.json
+```text
+user_profiles/users.json
 ```
 
-`users.json` 需要可写挂载，因为前端支持用户修改显示名称。
+`user_profiles/` 需要可写挂载，因为管理员后台和 CLI 会创建账号，普通用户也可以在前端修改显示名称。
 
 用户运行数据会被挂载到容器中：
 
@@ -43,7 +43,13 @@ volumes:
 - ./data:/app/data
 ```
 
-如果希望账号 JSON 也放入统一数据挂载目录，可以把 `.env` 中的 `USERS_FILE` 设置为 `/app/data/users.json`，并相应移除单独的 `users.json` 挂载。当前仓库默认 compose 仍使用 `/app/users.json`。
+如果从旧部署迁移，原来的 `users.json` 需要手动移动到：
+
+```text
+user_profiles/users.json
+```
+
+也可以在 `.env` 中继续设置 `USERS_FILE=users.json` 临时兼容旧路径，但新部署推荐使用 `user_profiles/` 目录挂载。
 
 如果要自定义新用户默认审查要点模板，可以挂载单个文件：
 

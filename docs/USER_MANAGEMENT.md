@@ -178,13 +178,13 @@ web/static/app.js
 默认值：
 
 ```text
-<PROJECT_ROOT>/users.json
+<PROJECT_ROOT>/user_profiles/users.json
 ```
 
 可以通过环境变量覆盖：
 
 ```env
-USERS_FILE=/app/data/users.json
+USERS_FILE=/app/user_profiles/users.json
 ```
 
 账号 JSON 结构：
@@ -398,34 +398,40 @@ request.session["role"] = normalize_role(user.get("role"))
 
 ```env
 DATA_DIR=data
-USERS_FILE=users.json
+USERS_FILE=user_profiles/users.json
 ```
 
 当前 `docker-compose.yaml` 挂载后，容器内实际等价于：
 
 ```text
 DATA_DIR=/app/data
-USERS_FILE=/app/users.json
+USERS_FILE=/app/user_profiles/users.json
 ```
 
 compose 挂载：
 
 ```yaml
 volumes:
-  - ./users.json:/app/users.json
+  - ./user_profiles:/app/user_profiles
   - ./data:/app/data
 ```
 
 此时 Web 后台和 CLI 创建用户后，最终写到远端宿主机：
 
 ```text
-./users.json
+./user_profiles/users.json
 ./data/<username>/
 ```
 
 如果没有挂载 `DATA_DIR`，这些数据会写进服务容器内部文件系统，容器重建后有丢失风险。
 
-如果希望账号 JSON 也放入统一数据挂载目录，可以设置：
+如果从旧部署迁移，原来的 `users.json` 需要手动移动到：
+
+```text
+user_profiles/users.json
+```
+
+如果希望账号 JSON 放入统一数据挂载目录，可以设置：
 
 ```env
 DATA_DIR=/app/data

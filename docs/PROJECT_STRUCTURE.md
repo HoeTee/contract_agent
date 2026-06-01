@@ -7,7 +7,8 @@ deep_research_agent/
   main.py
   config.py
   users.example.json
-  users.json
+  user_profiles/
+    users.json
 
   agents/
   main_workflow/
@@ -94,6 +95,16 @@ data/<username>/
 - `reports_docx/`：批注版合同输出。
 - `records/`：跨任务结构化记录，当前存放 `review_history.json`，用于历史记录页面。
 - `logs/`：审查任务日志。
+
+## 用户账号目录
+
+`user_profiles/` 是用户账号持久化目录。默认账号文件为：
+
+```text
+user_profiles/users.json
+```
+
+该文件由程序在首次创建用户时自动生成，不应提交真实账号数据。
 
 ## 资源目录
 

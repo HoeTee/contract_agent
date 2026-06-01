@@ -117,9 +117,11 @@ curl.exe -i -b cookies.txt `
 
 ```text
 .env
-users.json
+user_profiles/
 data/
 ```
+
+`user_profiles/` 和 `data/` 都可以是空目录。首次创建用户时，程序会自动生成 `user_profiles/users.json`。
 
 构建并启动：
 
