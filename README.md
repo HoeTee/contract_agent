@@ -12,6 +12,8 @@ data/
     institutional_docs/
     contracts/
     reports_docx/
+    records/
+      review_history.json
     logs/
 
 docs/
@@ -75,7 +77,8 @@ http://127.0.0.1:5000
 2. 如果本次上传了审查要点，则使用本次上传的 DOCX；否则使用 `data/<username>/contract_review_criteria/criteria.docx`
 3. 直接从 `data/<username>/contracts/` 读取合同
 4. 将批注版 DOCX 写入 `data/<username>/reports_docx/`
-5. 将任务日志写入 `data/<username>/logs/<YYYY-MM-DD>/<task>/`
+5. 将成功审查的历史索引写入 `data/<username>/records/review_history.json`
+6. 将任务日志写入 `data/<username>/logs/<YYYY-MM-DD>/<task>/`
 
 ## CLI
 

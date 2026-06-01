@@ -26,6 +26,7 @@ deep_research_agent/
     agent_logger.py
     mcp_logger.py
     api_event_logger.py
+    review_history.py
 
   web/
     auth.py
@@ -46,6 +47,7 @@ deep_research_agent/
       institutional_docs/
       contracts/
       reports_docx/
+      records/
       logs/
 ```
 
@@ -72,6 +74,7 @@ data/<username>/
   institutional_docs/
   contracts/
   reports_docx/
+  records/
   logs/
 ```
 
@@ -79,6 +82,7 @@ data/<username>/
 - `institutional_docs/`：该用户的制度文档预留目录。
 - `contracts/`：上传合同原件。
 - `reports_docx/`：批注版合同输出。
+- `records/`：跨任务结构化记录，当前存放 `review_history.json`，用于历史记录页面。
 - `logs/`：审查任务日志。
 
 ## 资源目录

@@ -56,19 +56,29 @@
                 <thead>
                   <tr>
                     <th>输入文件</th>
+                    <th>输入大小</th>
+                    <th>上传时间</th>
+                    <th>审查要点</th>
                     <th>输出文件</th>
+                    <th>输出大小</th>
+                    <th>输出时间</th>
                     <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   {% for item in history %}
                   <tr>
-                    <td>{{ item.contract_name or "-" }}</td>
-                    <td>{{ item.report_name }}</td>
-                    <td><a class="table-action" href="/download/{{ item.report_name }}">下载</a></td>
+                    <td>{{ item.contract_original_name or "-" }}</td>
+                    <td>{{ item.contract_size }}</td>
+                    <td>{{ item.contract_uploaded_at or "-" }}</td>
+                    <td>{{ item.criteria_label }}</td>
+                    <td>{{ item.report_display_name or item.report_stored_name }}</td>
+                    <td>{{ item.report_size }}</td>
+                    <td>{{ item.report_created_at or "-" }}</td>
+                    <td><a class="table-action" href="/download/{{ item.download_name }}">下载</a></td>
                   </tr>
                   {% else %}
-                  <tr><td colspan="3" class="empty-state">暂无审核结果</td></tr>
+                  <tr><td colspan="8" class="empty-state">暂无审核结果</td></tr>
                   {% endfor %}
                 </tbody>
               </table>

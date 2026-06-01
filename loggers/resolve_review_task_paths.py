@@ -105,6 +105,7 @@ class ResolvedReviewTaskPaths:
             self.contracts_dir,
             self.reports_docx_dir,
             self.logs_dir,
+            self.user_root / "records",
         ):
             path.mkdir(parents=True, exist_ok=True)
         ensure_default_criteria_file(self.user_root)
@@ -146,6 +147,7 @@ def initialize_user_data_dir(data_dir: Path, username: str) -> Path:
         "contracts",
         "reports_docx",
         "logs",
+        "records",
     ):
         (user_root / child).mkdir(parents=True, exist_ok=True) # 建立用户文件夹及一系列子文件夹
     ensure_default_criteria_file(user_root)

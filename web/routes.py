@@ -15,6 +15,13 @@ from config import DATA_DIR, MAX_API_CONCURRENT_REVIEWS, MCP_SERVER_PATH, USERS_
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
 from loggers.api_event_logger import append_api_event
 from loggers.resolve_review_task_paths import resolve_review_task_paths
+from loggers.review_history import (
+    HISTORY_SCHEMA_VERSION,
+    append_history_record,
+    format_file_size,
+    format_timestamp,
+    load_history_records,
+)
 from main_workflow.main_workflow import ContractReviewWorkflow
 from web.auth import verify_login
 
@@ -43,6 +50,32 @@ def get_running_task(username: str) -> dict | None:
     if task and task.get("status") in {"queued", "running"}:
         return task
     return None
+
+
+def build_report_display_name(contract_original_name: str) -> str:
+    stem = Path(contract_original_name).stem or "审核结果"
+    return f"{stem}_批注版.docx"
+
+
+def build_history_record(paths, output_path: Path, task: dict) -> dict:
+    contract_stat = paths.stored_contract_path.stat()
+    report_stat = output_path.stat()
+    criteria_source = task.get("criteria_source", "default")
+    return {
+        "schema_version": HISTORY_SCHEMA_VERSION,
+        "task_id": paths.task_id,
+        "status": "completed",
+        "contract_original_name": paths.original_filename,
+        "contract_stored_name": paths.stored_contract_path.name,
+        "contract_size_bytes": contract_stat.st_size,
+        "contract_uploaded_at": task.get("contract_uploaded_at") or format_timestamp(contract_stat.st_mtime),
+        "criteria_source": criteria_source,
+        "criteria_original_name": task.get("criteria_original_name") if criteria_source == "uploaded" else None,
+        "report_display_name": build_report_display_name(paths.original_filename),
+        "report_stored_name": output_path.name,
+        "report_size_bytes": report_stat.st_size,
+        "report_created_at": format_timestamp(report_stat.st_mtime),
+    }
 
 
 async def run_review_task(username: str, paths, criteria_path: Path) -> None:
@@ -82,6 +115,11 @@ async def run_review_task(username: str, paths, criteria_path: Path) -> None:
         task["message"] = "审核完成。"
         task["result_name"] = output_path.name
         task["completed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        append_history_record(
+            Path(DATA_DIR),
+            username,
+            build_history_record(paths, output_path, task),
+        )
         append_api_event(paths.api_events_path, "review_completed", result_file=str(output_path))
     except Exception as exc:
         task["status"] = "failed"
@@ -152,23 +190,31 @@ def validate_uploaded_docx(path: Path) -> None:
 
 
 def list_history(username: str) -> list[dict]:
-    report_dir = Path(DATA_DIR) / username / "reports_docx" # Pathlib object
-    contract_dir = Path(DATA_DIR) / username / "contracts" # Pathlib object
-    if not report_dir.exists():
-        return []
-
+    data_dir = Path(DATA_DIR)
+    user_root = data_dir / username
     rows = []
-    # p.stat() obtains file metadata; p.stat().st_mtime gives the last modification time of the file.
-    # p is a Pathlib object.
-    for report in sorted(report_dir.glob("*.docx"), key=lambda p: p.stat().st_mtime, reverse=True):  
-        prefix = "_".join(report.name.split("_")[:3])
-        contract = next(contract_dir.glob(f"{prefix}_*.docx"), None) if contract_dir.exists() else None # next() retrieves the first item from the list of Pathlib objects
+    for record in load_history_records(data_dir, username):
+        report_stored_name = record.get("report_stored_name")
+        if not report_stored_name:
+            continue
+        report_path = user_root / "reports_docx" / safe_upload_filename(report_stored_name)
+        if not report_path.exists():
+            continue
+
+        criteria_source = record.get("criteria_source")
+        criteria_label = "默认审查要点"
+        if criteria_source == "uploaded":
+            criteria_label = f"本次上传：{record.get('criteria_original_name') or '-'}"
+
         rows.append({
-            "report_name": report.name,
-            "contract_name": contract.name if contract else "",
-            "mtime": report.stat().st_mtime,
+            **record,
+            "contract_size": format_file_size(record.get("contract_size_bytes")),
+            "report_size": format_file_size(record.get("report_size_bytes")),
+            "criteria_label": criteria_label,
+            "download_name": report_path.name,
         })
-    return rows[:20] # Return the 20 most recent reports metadata. 
+    rows.sort(key=lambda item: item.get("report_created_at") or "", reverse=True)
+    return rows[:20]
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -284,6 +330,7 @@ async def review_page(
             )
         selected_criteria_path = paths.criteria_path
         criteria_source = "default"
+        criteria_filename = None
         has_uploaded_criteria = bool(criteria_file and criteria_file.filename)
         if has_uploaded_criteria:
             criteria_filename = safe_upload_filename(criteria_file.filename)
@@ -328,13 +375,16 @@ async def review_page(
         )
 
         # This is where review_tasks is written within
+        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         review_tasks[username] = {
             "status": "queued",
             "message": "审核任务已排队。",
             "task_id": paths.task_id,
             "filename": filename,
             "criteria_source": criteria_source,
-            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "criteria_original_name": criteria_filename,
+            "contract_uploaded_at": created_at,
+            "created_at": created_at,
         }
         # This is where Semaphore comes into play.
         asyncio.create_task(run_review_task(username, paths, selected_criteria_path))
