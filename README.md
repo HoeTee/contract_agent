@@ -74,7 +74,7 @@ http://127.0.0.1:5000
 用户登录后，服务会：
 
 1. 将上传合同保存到 `data/<username>/contracts/`
-2. 如果本次上传了审查要点，则使用本次上传的 DOCX；否则使用 `data/<username>/contract_review_criteria/criteria.docx`
+2. 如果本次上传了审查要点，则先校验 DOCX 内容是否包含编号审查要点，通过后使用本次上传的 DOCX；否则使用 `data/<username>/contract_review_criteria/criteria.docx`
 3. 直接从 `data/<username>/contracts/` 读取合同
 4. 将批注版 DOCX 写入 `data/<username>/reports_docx/`
 5. 将成功审查的历史索引写入 `data/<username>/records/review_history.json`

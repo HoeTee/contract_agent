@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import shutil
 import zipfile
 from datetime import datetime
@@ -10,6 +11,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from docx import Document
 
 from config import DATA_DIR, MAX_API_CONCURRENT_REVIEWS, MCP_SERVER_PATH, USERS_FILE
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
@@ -34,6 +36,29 @@ REQUIRED_DOCX_PARTS = {
     "_rels/.rels",
     "word/document.xml",
 }
+CRITERIA_VALIDATION_ERROR = (
+    "上传的审查要点文件内容不符合要求：未识别到足够的审查关键词或编号审查项。"
+    "请上传包含具体编号审查要点的 DOCX 文件。"
+)
+CRITERIA_KEYWORDS = {
+    "审查",
+    "审核",
+    "要点",
+    "合同",
+    "条款",
+    "风险",
+    "责任",
+    "违约",
+    "付款",
+    "期限",
+    "义务",
+    "权利",
+    "金额",
+    "争议",
+}
+CRITERIA_NUMBERED_ITEM_RE = re.compile(
+    r"(?m)^\s*(?:\d+[.、．]|[一二三四五六七八九十]+[、.．]|第[一二三四五六七八九十\d]+条)"
+)
 
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "web" / "templates"))
 router = APIRouter()
@@ -204,6 +229,24 @@ def validate_uploaded_docx(path: Path) -> None:
                 f"不是有效的 Word DOCX 结构。缺少内部文件：{missing_parts}"
             ),
         )
+
+
+def validate_review_criteria_content(path: Path) -> None:
+    try:
+        doc = Document(path)
+        criteria_text = "\n".join(
+            paragraph.text.strip()
+            for paragraph in doc.paragraphs
+            if paragraph.text and paragraph.text.strip()
+        )
+    except Exception:
+        raise HTTPException(status_code=400, detail="审查要点文件解析失败，请上传可正常读取的 DOCX 文件。")
+
+    normalized_text = criteria_text.strip()
+    keyword_hits = sum(1 for keyword in CRITERIA_KEYWORDS if keyword in normalized_text)
+    numbered_items = CRITERIA_NUMBERED_ITEM_RE.findall(normalized_text)
+    if len(normalized_text) < 100 or keyword_hits < 2 or len(numbered_items) < 2:
+        raise HTTPException(status_code=400, detail=CRITERIA_VALIDATION_ERROR)
 
 
 def list_history(username: str) -> list[dict]:
@@ -389,6 +432,7 @@ async def review_page(
             with paths.uploaded_criteria_path.open("wb") as f:
                 shutil.copyfileobj(criteria_file.file, f)
             validate_uploaded_docx(paths.uploaded_criteria_path)
+            validate_review_criteria_content(paths.uploaded_criteria_path)
             selected_criteria_path = paths.uploaded_criteria_path
             criteria_source = "uploaded"
 
