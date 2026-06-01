@@ -25,7 +25,7 @@ from loggers.review_history import (
     load_history_records,
 )
 from main_workflow.main_workflow import ContractReviewWorkflow
-from web.auth import load_users, save_users, verify_login
+from web.auth import load_users, normalize_role, save_users, verify_login
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -332,6 +332,9 @@ async def login(
 
     request.session["username"] = user["username"]
     request.session["display_name"] = user.get("display_name") or user["username"]
+    request.session["role"] = normalize_role(user.get("role"))
+    if request.session["role"] == "admin":
+        return RedirectResponse("/admin", status_code=303)
     return RedirectResponse("/work", status_code=303)
 
 

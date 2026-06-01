@@ -12,7 +12,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from config import DATA_DIR, USERS_FILE
 from loggers.resolve_review_task_paths import initialize_user_data_dir, safe_path_part
-from web.auth import hash_password, load_users, save_users
+from web.auth import VALID_ROLES, hash_password, load_users, normalize_role, save_users
 
 
 def find_index(users: list[dict], username: str) -> int | None:
@@ -24,6 +24,9 @@ def find_index(users: list[dict], username: str) -> int | None:
 
 def create_user(args) -> None:
     username = safe_path_part(args.username, "user")
+    role = normalize_role(args.role)
+    if role not in VALID_ROLES:
+        raise SystemExit(f"角色必须是 user 或 admin：{args.role}")
     users = load_users(USERS_FILE) # [] if no users.json exists
     if find_index(users, username) is not None:
         raise SystemExit(f"用户已存在：{username}")
@@ -32,12 +35,28 @@ def create_user(args) -> None:
         "username": username,
         "password_hash": hash_password(args.password),
         "display_name": args.display_name or username,
+        "role": role,
         "enabled": True,
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     })
     save_users(USERS_FILE, users) # update users.json
     initialize_user_data_dir(Path(DATA_DIR), username) # create user data dir right afterward
     print(f"Created user: {username}")
+
+
+def set_role(args) -> None:
+    role = normalize_role(args.role)
+    if role not in VALID_ROLES:
+        raise SystemExit(f"角色必须是 user 或 admin：{args.role}")
+
+    users = load_users(USERS_FILE)
+    index = find_index(users, args.username)
+    if index is None:
+        raise SystemExit(f"未找到用户：{args.username}")
+    users[index]["role"] = role
+    users[index]["role_updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    save_users(USERS_FILE, users)
+    print(f"Updated role for user: {args.username} -> {role}")
 
 
 def reset_password(args) -> None:
@@ -109,7 +128,13 @@ def build_parser() -> argparse.ArgumentParser:
     create.add_argument("--username", required=True)
     create.add_argument("--password", required=True)
     create.add_argument("--display-name", default="")
+    create.add_argument("--role", choices=sorted(VALID_ROLES), default="user")
     create.set_defaults(func=create_user)
+
+    role = subparsers.add_parser("set-role", help="Set a user's role")
+    role.add_argument("--username", required=True)
+    role.add_argument("--role", choices=sorted(VALID_ROLES), required=True)
+    role.set_defaults(func=set_role)
 
     reset = subparsers.add_parser("reset-password", help="Reset a user's password")
     reset.add_argument("--username", required=True)

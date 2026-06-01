@@ -37,6 +37,19 @@ docs/
 python scripts/manage_users.py create --username user001 --password Abc123456 --display-name ZhangSan
 ```
 
+创建管理员：
+
+```powershell
+python scripts/manage_users.py create --username admin --password Admin123456 --display-name 管理员 --role admin
+```
+
+调整角色：
+
+```powershell
+python scripts/manage_users.py set-role --username user001 --role admin
+python scripts/manage_users.py set-role --username user001 --role user
+```
+
 重置密码：
 
 ```powershell
@@ -67,6 +80,12 @@ uvicorn app:app --host 0.0.0.0 --port 5000
 
 ```text
 http://127.0.0.1:5000
+```
+
+管理员登录后进入：
+
+```text
+http://127.0.0.1:5000/admin
 ```
 
 完整冒烟测试见 [docs/QUICK_START.md](docs/QUICK_START.md)。

@@ -10,6 +10,19 @@
 python scripts/manage_users.py create --username user001 --password Abc123456 --display-name ZhangSan
 ```
 
+默认创建普通用户。如果要创建管理员：
+
+```powershell
+python scripts/manage_users.py create --username admin --password Admin123456 --display-name 管理员 --role admin
+```
+
+已有用户可以调整角色：
+
+```powershell
+python scripts/manage_users.py set-role --username user001 --role admin
+python scripts/manage_users.py set-role --username user001 --role user
+```
+
 脚本会创建：
 
 ```text
@@ -18,6 +31,7 @@ data/user001/
   institutional_docs/
   contracts/
   reports_docx/
+  records/
   logs/
 ```
 
@@ -56,6 +70,7 @@ app.add_middleware(
 ```python
 request.session["username"] = user["username"]
 request.session["display_name"] = user.get("display_name") or user["username"]
+request.session["role"] = user.get("role") or "user"
 ```
 
 `SessionMiddleware` 会将这份 session 数据签名后写入浏览器的 `contract_review_session` cookie。之后浏览器访问 `/work`、`/review`、`/history`、`/download/...` 时会自动携带这个 cookie。服务端再从 cookie 还原 `request.session`，并读取：

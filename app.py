@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from config import PROJECT_ROOT, SESSION_SECRET_KEY
+from web.admin_routes import admin_router
 from web.routes import router
 
 
@@ -25,6 +26,7 @@ app.add_middleware(
 
 app.mount("/static", StaticFiles(directory=str(Path(PROJECT_ROOT) / "web" / "static")), name="static")
 app.include_router(router)
+app.include_router(admin_router)
 
 
 @app.get("/health")

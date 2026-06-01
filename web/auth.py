@@ -10,6 +10,7 @@ from typing import Any
 
 
 PBKDF2_ITERATIONS = 260_000
+VALID_ROLES = {"user", "admin"}
 
 
 def hash_password(
@@ -85,6 +86,15 @@ def find_user(
     return None
 
 
+def normalize_role(role: str | None) -> str:
+    value = (role or "user").strip().lower()
+    return value if value in VALID_ROLES else "user"
+
+
+def is_admin_user(user: dict[str, Any] | None) -> bool:
+    return bool(user and normalize_role(user.get("role")) == "admin")
+
+
 def verify_login(
     users_file: str | Path, 
     username: str, 
@@ -95,6 +105,7 @@ def verify_login(
         return None
     if not verify_password(password, user.get("password_hash", "")):
         return None
+    user["role"] = normalize_role(user.get("role"))
     return user
 
 

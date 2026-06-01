@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>用户详情 - 合同智能审核系统</title>
+    <link rel="stylesheet" href="/static/app.css?v=20260525-ui4">
+  </head>
+  <body class="app-page">
+    <div class="app-frame">
+      <aside class="sidebar" aria-label="管理员导航">
+        <div class="sidebar-brand">
+          <span class="brand-icon small" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M7 3.5h7.2L18.5 7.8v12.7H7z" fill="none" stroke="currentColor" stroke-width="1.9"/>
+              <path d="M14 4v4h4" fill="none" stroke="currentColor" stroke-width="1.9"/>
+              <path d="M9.6 12.1h5M9.6 15.5h5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <div>
+            <strong>管理后台</strong>
+            <span>审查控制台</span>
+          </div>
+        </div>
+        <nav class="nav-list">
+          <a class="nav-item" href="/admin">后台首页</a>
+          <a class="nav-item active" href="/admin/users">用户管理</a>
+          <a class="nav-item" href="/work">普通工作台</a>
+        </nav>
+      </aside>
+
+      <div class="main-area">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">用户详情</p>
+            <h1>{{ target_user.display_name }} · {{ target_user.username }}</h1>
+          </div>
+          <div class="user-box">
+            <a class="secondary-button compact-button user-link-button" href="/admin/users">返回用户列表</a>
+            <form method="post" action="/logout" class="user-action-form">
+              <button type="submit" class="secondary-button compact-button">退出登录</button>
+            </form>
+          </div>
+        </header>
+
+        <main class="content-grid single">
+          {% if error %}
+          <div class="alert" role="alert">{{ error }}</div>
+          {% endif %}
+
+          {% if success %}
+          <div class="success" role="status">{{ success }}</div>
+          {% endif %}
+
+          <section class="panel">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">审查要点</p>
+                <h2>默认审查要点</h2>
+              </div>
+            </div>
+            <div class="admin-actions">
+              <span>状态：{{ "存在" if criteria.exists else "缺失" }} · 大小：{{ criteria.size }} · 更新时间：{{ criteria.updated_at }}</span>
+              {% if criteria.exists %}
+              <a class="secondary-button compact-button" href="/admin/users/{{ target_user.username }}/criteria/download">下载</a>
+              {% endif %}
+              <form method="post" action="/admin/users/{{ target_user.username }}/criteria/restore">
+                <button type="submit" class="secondary-button compact-button">恢复系统默认</button>
+              </form>
+            </div>
+            <form method="post" action="/admin/users/{{ target_user.username }}/criteria/upload" enctype="multipart/form-data" class="upload-form admin-upload-form">
+              <label>
+                <span>上传覆盖审查要点</span>
+                <input name="criteria_file" type="file" accept=".docx" required>
+              </label>
+              <button type="submit">上传并覆盖</button>
+            </form>
+          </section>
+
+          <section class="panel">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">审查历史</p>
+                <h2>成功任务</h2>
+              </div>
+            </div>
+            <div class="table-frame">
+              <table>
+                <thead>
+                  <tr>
+                    <th>输入文件</th>
+                    <th>上传时间</th>
+                    <th>输出文件</th>
+                    <th>输出时间</th>
+                    <th>输出状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in history %}
+                  <tr>
+                    <td>{{ item.contract_display_name }}</td>
+                    <td>{{ item.contract_uploaded_at or "-" }}</td>
+                    <td>{{ item.report_display_name }}</td>
+                    <td>{{ item.report_created_at or "-" }}</td>
+                    <td>{{ "存在" if item.report_exists else "缺失" }}</td>
+                  </tr>
+                  {% else %}
+                  <tr><td colspan="5" class="empty-state">暂无审查历史</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">任务日志</p>
+                <h2>日志目录</h2>
+              </div>
+            </div>
+            <div class="table-frame">
+              <table>
+                <thead>
+                  <tr>
+                    <th>日期</th>
+                    <th>任务</th>
+                    <th>更新时间</th>
+                    <th>API 事件</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in logs %}
+                  <tr>
+                    <td>{{ item.date }}</td>
+                    <td>{{ item.task_name }}</td>
+                    <td>{{ item.updated_at }}</td>
+                    <td>
+                      {% if item.has_api_events %}
+                      <a class="table-action" href="/admin/users/{{ target_user.username }}/logs/{{ item.date }}/{{ item.task_name }}/api-events">查看</a>
+                      {% else %}
+                      -
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% else %}
+                  <tr><td colspan="4" class="empty-state">暂无日志目录</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

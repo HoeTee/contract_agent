@@ -29,6 +29,8 @@ deep_research_agent/
     review_history.py
 
   web/
+    admin_routes.py
+    admin_services.py
     auth.py
     routes.py
     templates/
