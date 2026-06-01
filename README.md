@@ -107,10 +107,12 @@ data/default/contracts/sample.docx
 ```yaml
 volumes:
   - ./data:/app/data
-  - ./users.json:/app/users.json:ro
+  - ./users.json:/app/users.json
   # 可选：自定义新用户默认审查要点模板
   # - ./resources/review_criteria/criteria.docx:/app/resources/review_criteria/criteria.docx:ro
 ```
+
+`users.json` 需要可写挂载，因为用户可以在前端修改显示名称。
 
 容器内部监听 `5000`。当前 compose 映射：
 

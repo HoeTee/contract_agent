@@ -23,7 +23,7 @@ from loggers.review_history import (
     load_history_records,
 )
 from main_workflow.main_workflow import ContractReviewWorkflow
-from web.auth import verify_login
+from web.auth import load_users, save_users, verify_login
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -150,6 +150,23 @@ def require_current_username(request: Request) -> str:
     return username
 
 
+def update_display_name(users_file: str | Path, username: str, display_name: str) -> str:
+    cleaned = display_name.strip()
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="显示名称不能为空。")
+    if len(cleaned) > 40:
+        raise HTTPException(status_code=400, detail="显示名称不能超过 40 个字符。")
+
+    users = load_users(users_file)
+    for user in users:
+        if user.get("username") == username:
+            user["display_name"] = cleaned
+            save_users(users_file, users)
+            return cleaned
+
+    raise HTTPException(status_code=404, detail="未找到当前用户。")
+
+
 def validate_uploaded_docx(path: Path) -> None:
     with path.open("rb") as f:
         header = f.read(8)
@@ -249,6 +266,34 @@ async def login(
     return RedirectResponse("/work", status_code=303)
 
 
+@router.post("/logout")
+async def logout(request: Request):
+    request.session.clear()
+    response = RedirectResponse("/login", status_code=303)
+    response.delete_cookie("contract_review_session")
+    return response
+
+
+@router.post("/profile/display-name")
+async def update_profile_display_name(
+    request: Request,
+    display_name: str = Form(...),
+):
+    username = get_current_username(request)
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    try:
+        cleaned = update_display_name(USERS_FILE, username, display_name)
+        request.session["display_name"] = cleaned
+        request.session["flash_success"] = "显示名称已更新。"
+    except HTTPException as exc:
+        request.session["flash_error"] = exc.detail
+    except OSError:
+        request.session["flash_error"] = "显示名称更新失败，请检查用户配置文件是否可写。"
+    return RedirectResponse("/work", status_code=303)
+
+
 @router.get("/", response_class=HTMLResponse)
 async def entry_page(request: Request):
     request.session.clear()
@@ -268,6 +313,7 @@ async def index(request: Request):
         return RedirectResponse("/login", status_code=303) # happens when user tries to access /work without logging in, redirect them to login page
     task = review_tasks.get(username)
     error = request.session.pop("flash_error", None)
+    success = request.session.pop("flash_success", None)
     result_name = None
     if task:
         if task.get("status") == "failed":
@@ -283,6 +329,7 @@ async def index(request: Request):
             "display_name": request.session.get("display_name", username),
             "history": list_history(username),
             "error": error,
+            "success": success,
             "result_name": result_name,
             "active_task": get_running_task(username),
         },

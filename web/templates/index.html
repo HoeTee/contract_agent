@@ -40,6 +40,13 @@
               <span>当前用户</span>
               <strong>{{ display_name }} · {{ username }}</strong>
             </div>
+            <form method="post" action="/profile/display-name" class="display-name-form">
+              <input name="display_name" type="text" value="{{ display_name }}" maxlength="40" aria-label="显示名称" required>
+              <button type="submit" class="secondary-button compact-button">修改名称</button>
+            </form>
+            <form method="post" action="/logout">
+              <button type="submit" class="secondary-button compact-button">退出登录</button>
+            </form>
           </div>
         </header>
 
@@ -75,6 +82,10 @@
 
             {% if error %}
             <div class="alert" role="alert">{{ error }}</div>
+            {% endif %}
+
+            {% if success %}
+            <div class="success" role="status">{{ success }}</div>
             {% endif %}
 
             {% if result_name %}

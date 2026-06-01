@@ -23,8 +23,10 @@ data/
 `users.json` 会被挂载到容器中：
 
 ```yaml
-- ./users.json:/app/users.json:ro
+- ./users.json:/app/users.json
 ```
+
+`users.json` 需要可写挂载，因为前端支持用户修改显示名称。
 
 用户运行数据会被挂载到容器中：
 

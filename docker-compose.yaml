@@ -18,7 +18,7 @@ services:
 
     volumes: 
       - ./.env:/app/.env:ro
-      - ./users.json:/app/users.json:ro
+      - ./users.json:/app/users.json
       - ./data:/app/data
 
     healthcheck:

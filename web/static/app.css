@@ -311,6 +311,8 @@ input[type="file"] {
   display: flex;
   align-items: center;
   gap: 18px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .user-box span,
@@ -326,6 +328,18 @@ input[type="file"] {
 
 .user-box strong {
   font-size: 18px;
+}
+
+.display-name-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.display-name-form input[type="text"] {
+  width: 180px;
+  min-height: 48px;
+  font-size: 17px;
 }
 
 .content-grid {
@@ -562,13 +576,22 @@ td:last-child {
 
   .user-box {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: flex-start;
   }
 
   .user-box span,
   .user-box strong {
     text-align: left;
+  }
+
+  .display-name-form {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .display-name-form input[type="text"] {
+    width: min(100%, 260px);
   }
 
   input[type="text"],
