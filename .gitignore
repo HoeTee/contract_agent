@@ -51,6 +51,10 @@ local_tokenizers/
 # Ad-hoc generated DOCX files in repo root
 /*.docx
 
+# Default review criteria template; ignore accidental extra DOCX files nearby
+resources/review_criteria/*.docx
+!resources/review_criteria/criteria.docx
+
 # Local tool/editor state
 .claude/
 .codex/
