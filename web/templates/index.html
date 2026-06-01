@@ -26,6 +26,7 @@
         <nav class="nav-list">
           <a class="nav-item active" href="/work">上传审核</a>
           <a class="nav-item" href="/history">审核历史</a>
+          <a class="nav-item" href="/settings">用户设置</a>
         </nav>
       </aside>
 
@@ -40,10 +41,6 @@
               <span>当前用户</span>
               <strong>{{ display_name }} · {{ username }}</strong>
             </div>
-            <form method="post" action="/profile/display-name" class="display-name-form">
-              <input name="display_name" type="text" value="{{ display_name }}" maxlength="40" aria-label="显示名称" required>
-              <button type="submit" class="compact-button display-name-button">保存</button>
-            </form>
             <form method="post" action="/logout" class="user-action-form">
               <button type="submit" class="secondary-button compact-button">退出登录</button>
             </form>

@@ -25,6 +25,7 @@
         <nav class="nav-list">
           <a class="nav-item" href="/work">上传审核</a>
           <a class="nav-item active" href="/history">审核历史</a>
+          <a class="nav-item" href="/settings">用户设置</a>
         </nav>
       </aside>
 
@@ -39,10 +40,6 @@
               <span>当前用户</span>
               <strong>{{ display_name }} · {{ username }}</strong>
             </div>
-            <form method="post" action="/profile/display-name" class="display-name-form">
-              <input name="display_name" type="text" value="{{ display_name }}" maxlength="40" aria-label="显示名称" required>
-              <button type="submit" class="compact-button display-name-button">保存</button>
-            </form>
             <a class="secondary-button compact-button user-link-button" href="/work">返回工作台</a>
             <form method="post" action="/logout" class="user-action-form">
               <button type="submit" class="secondary-button compact-button">退出登录</button>
@@ -75,11 +72,11 @@
                 <tbody>
                   {% for item in history %}
                   <tr>
-                    <td>{{ item.contract_original_name or "-" }}</td>
+                    <td>{{ item.contract_display_name or "-" }}</td>
                     <td>{{ item.contract_size }}</td>
                     <td>{{ item.contract_uploaded_at or "-" }}</td>
                     <td>{{ item.criteria_label }}</td>
-                    <td>{{ item.report_display_name or item.report_stored_name }}</td>
+                    <td>{{ item.report_display_name or "-" }}</td>
                     <td>{{ item.report_size }}</td>
                     <td>{{ item.report_created_at or "-" }}</td>
                     <td><a class="table-action" href="/download/{{ item.download_name }}">下载</a></td>

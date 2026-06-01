@@ -59,6 +59,7 @@ CRITERIA_KEYWORDS = {
 CRITERIA_NUMBERED_ITEM_RE = re.compile(
     r"(?m)^\s*(?:\d+[.、．]|[一二三四五六七八九十]+[、.．]|第[一二三四五六七八九十\d]+条)"
 )
+TASK_FILE_PREFIX_RE = re.compile(r"^\d{8}_\d{6}_[0-9a-f]{8}_")
 
 templates = Jinja2Templates(directory=str(PROJECT_ROOT / "web" / "templates"))
 router = APIRouter()
@@ -80,6 +81,28 @@ def get_running_task(username: str) -> dict | None:
 def build_report_display_name(contract_original_name: str) -> str:
     stem = Path(contract_original_name).stem or "审核结果"
     return f"{stem}_批注版.docx"
+
+
+def strip_task_file_prefix(filename: str | None) -> str:
+    if not filename:
+        return ""
+    return TASK_FILE_PREFIX_RE.sub("", safe_upload_filename(filename))
+
+
+def build_history_display_names(record: dict) -> tuple[str, str]:
+    contract_name = (
+        record.get("contract_original_name")
+        or strip_task_file_prefix(record.get("contract_stored_name"))
+        or "-"
+    )
+    report_name = record.get("report_display_name")
+    if not report_name:
+        report_name = (
+            build_report_display_name(contract_name)
+            if contract_name != "-"
+            else strip_task_file_prefix(record.get("report_stored_name"))
+        )
+    return strip_task_file_prefix(contract_name), strip_task_file_prefix(report_name)
 
 
 def build_history_record(paths, output_path: Path, task: dict) -> dict:
@@ -266,8 +289,11 @@ def list_history(username: str) -> list[dict]:
         if criteria_source == "uploaded":
             criteria_label = f"本次上传：{record.get('criteria_original_name') or '-'}"
 
+        contract_display_name, report_display_name = build_history_display_names(record)
         rows.append({
             **record,
+            "contract_display_name": contract_display_name,
+            "report_display_name": report_display_name,
             "contract_size": format_file_size(record.get("contract_size_bytes")),
             "report_size": format_file_size(record.get("report_size_bytes")),
             "criteria_label": criteria_label,
@@ -334,7 +360,7 @@ async def update_profile_display_name(
         request.session["flash_error"] = exc.detail
     except OSError:
         request.session["flash_error"] = "显示名称更新失败，请检查用户配置文件是否可写。"
-    return RedirectResponse("/work", status_code=303)
+    return RedirectResponse("/settings", status_code=303)
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -375,6 +401,24 @@ async def index(request: Request):
             "success": success,
             "result_name": result_name,
             "active_task": get_running_task(username),
+        },
+    )
+
+
+@router.get("/settings", response_class=HTMLResponse)
+async def settings(request: Request):
+    username = get_current_username(request)
+    if not username:
+        return RedirectResponse("/login", status_code=303)
+
+    return templates.TemplateResponse(
+        request,
+        "settings.html",
+        {
+            "username": username,
+            "display_name": request.session.get("display_name", username),
+            "error": request.session.pop("flash_error", None),
+            "success": request.session.pop("flash_success", None),
         },
     )
 
