@@ -310,9 +310,14 @@ input[type="file"] {
 .user-box {
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 12px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.user-summary {
+  min-width: 190px;
+  margin-right: 6px;
 }
 
 .user-box span,
@@ -333,13 +338,35 @@ input[type="file"] {
 .display-name-form {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
 }
 
 .display-name-form input[type="text"] {
-  width: 180px;
-  min-height: 48px;
+  width: 168px;
+  min-height: 38px;
+  padding: 0 10px;
+  background: #ffffff;
+  border-color: transparent;
   font-size: 17px;
+}
+
+.display-name-button {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 16px;
+}
+
+.user-action-form {
+  display: flex;
+}
+
+.user-link-button {
+  white-space: nowrap;
 }
 
 .content-grid {
@@ -580,6 +607,12 @@ td:last-child {
     align-items: flex-start;
   }
 
+  .user-summary {
+    width: 100%;
+    min-width: 0;
+    margin-right: 0;
+  }
+
   .user-box span,
   .user-box strong {
     text-align: left;
@@ -587,11 +620,11 @@ td:last-child {
 
   .display-name-form {
     width: 100%;
-    flex-wrap: wrap;
   }
 
   .display-name-form input[type="text"] {
-    width: min(100%, 260px);
+    width: 100%;
+    min-width: 0;
   }
 
   input[type="text"],

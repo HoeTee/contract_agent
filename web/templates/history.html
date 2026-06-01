@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>审核历史 - 合同智能审核系统</title>
-    <link rel="stylesheet" href="/static/app.css?v=20260525-ui3">
+    <link rel="stylesheet" href="/static/app.css?v=20260525-ui4">
   </head>
   <body class="app-page">
     <div class="app-frame">
@@ -35,16 +35,16 @@
             <h1>审核历史</h1>
           </div>
           <div class="user-box">
-            <div>
+            <div class="user-summary">
               <span>当前用户</span>
               <strong>{{ display_name }} · {{ username }}</strong>
             </div>
             <form method="post" action="/profile/display-name" class="display-name-form">
               <input name="display_name" type="text" value="{{ display_name }}" maxlength="40" aria-label="显示名称" required>
-              <button type="submit" class="secondary-button compact-button">修改名称</button>
+              <button type="submit" class="compact-button display-name-button">保存</button>
             </form>
-            <a class="secondary-button compact-button" href="/work">返回工作台</a>
-            <form method="post" action="/logout">
+            <a class="secondary-button compact-button user-link-button" href="/work">返回工作台</a>
+            <form method="post" action="/logout" class="user-action-form">
               <button type="submit" class="secondary-button compact-button">退出登录</button>
             </form>
           </div>
