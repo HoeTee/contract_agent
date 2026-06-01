@@ -13,6 +13,8 @@ deep_research_agent/
   main_workflow/
   mcp_service/
   tools/
+  services/
+    user_management.py
   scripts/
     manage_users.py
 
@@ -62,9 +64,15 @@ deep_research_agent/
 ## Web 目录
 
 - `web/routes.py`：登录、工作台、上传审查、历史记录、下载等 Web 路由。
+- `web/admin_routes.py`：管理员后台路由，包括用户管理、审查要点管理和日志查看。
+- `web/admin_services.py`：管理员后台展示所需的数据聚合。
 - `web/auth.py`：用户读取、密码哈希、登录校验。
 - `web/templates/`：HTML 模板。
 - `web/static/`：CSS 和前端脚本。
+
+## 服务模块
+
+- `services/user_management.py`：Web 管理员后台和 `scripts/manage_users.py` 共用的用户管理服务，负责创建用户、修改角色、重置密码、启用/禁用、删除用户。
 
 ## 数据目录
 
@@ -94,3 +102,5 @@ data/<username>/
 ## 文档目录
 
 `docs/` 只用于存放 Markdown 文档，不作为程序运行时输入或输出目录。
+
+用户管理的完整说明见 `docs/USER_MANAGEMENT.md`。

@@ -14,27 +14,37 @@ pip install -r requirements.txt
 python scripts/manage_users.py create --username testuser --password Test123456 --display-name TestUser
 ```
 
+创建用户时会自动初始化用户目录，并从 `resources/review_criteria/criteria.docx` 复制默认审查要点。
+
 如果用户已经存在，可以重置密码：
 
 ```powershell
 python scripts/manage_users.py reset-password --username testuser --password Test123456
 ```
 
-## 3. 放置审查要点
+## 3. 确认审查要点
 
-将审查要点 DOCX 放到：
+默认审查要点应已经存在于：
 
 ```text
 data/testuser/contract_review_criteria/criteria.docx
 ```
 
-文件名必须是：
+如果要临时使用其他审查要点，可以在 `/work` 页面上传合同的同时上传本次审查要点；如果要修改该用户默认审查要点，可以用管理员后台进入用户详情页上传覆盖。
 
-```text
-criteria.docx
+## 4. 创建管理员用户
+
+```powershell
+python scripts/manage_users.py create --username admin --password Admin123456 --display-name 管理员 --role admin
 ```
 
-## 4. 启动 Web 服务
+如果管理员已经存在，可以重置密码：
+
+```powershell
+python scripts/manage_users.py reset-password --username admin --password Admin123456
+```
+
+## 5. 启动 Web 服务
 
 ```powershell
 uvicorn app:app --host 0.0.0.0 --port 5000
@@ -53,7 +63,13 @@ username: testuser
 password: Test123456
 ```
 
-## 5. 上传合同
+管理员后台：
+
+```text
+http://127.0.0.1:5000/admin
+```
+
+## 6. 上传合同
 
 在页面中上传真实 `.docx` 合同文件。
 
@@ -62,12 +78,13 @@ password: Test123456
 ```text
 data/testuser/contracts/
 data/testuser/reports_docx/
+data/testuser/records/review_history.json
 data/testuser/logs/
 ```
 
 页面会显示批注版 DOCX 的下载链接。
 
-## 6. 使用 curl 测试
+## 7. 使用 curl 测试
 
 先保存登录 cookie：
 
@@ -94,7 +111,7 @@ curl.exe -i -b cookies.txt `
 
 `cookies.txt` 是 curl 用来模拟浏览器保存登录态的临时文件，正常 Web 运行时不会由程序生成这个文件。
 
-## 7. Docker 冒烟测试
+## 8. Docker 冒烟测试
 
 确认服务器上存在：
 
@@ -114,23 +131,23 @@ docker compose up -d
 当前 compose 映射：
 
 ```text
-http://127.0.0.1:8000
+http://<server-ip>:5000
 ```
 
-如果需要通过服务器 IP 对外访问，修改 `docker-compose.yaml`：
+如果只允许服务器本机访问，修改 `docker-compose.yaml`：
 
 ```yaml
 ports:
-  - "8000:5000"
+  - "127.0.0.1:5000:8000"
 ```
 
 然后访问：
 
 ```text
-http://<server-ip>:8000
+http://127.0.0.1:5000
 ```
 
-## 8. 预期输出
+## 9. 预期输出
 
 上传合同：
 
@@ -148,4 +165,10 @@ data/testuser/reports_docx/<task_prefix>_<contract_name>_批注版.docx
 
 ```text
 data/testuser/logs/<YYYY-MM-DD>/<task>/
+```
+
+历史索引：
+
+```text
+data/testuser/records/review_history.json
 ```

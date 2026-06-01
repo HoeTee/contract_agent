@@ -27,7 +27,7 @@ docs/
 - `data/`：运行时持久化数据目录。部署到服务器时应挂载这个目录。
 - `resources/review_criteria/criteria.docx`：系统默认审查要点模板，新建用户时会复制到用户目录。
 - `docs/`：只存放 Markdown 文档，不作为程序输入或输出目录。
-- `users.json`：用户账号配置文件。密码只保存哈希值，不保存明文。
+- `users.json`：用户账号配置文件。密码只保存哈希值，不保存明文；也可通过 `USERS_FILE` 改到挂载数据目录内。
 
 ## 用户管理
 
@@ -90,7 +90,7 @@ http://127.0.0.1:5000/admin
 
 管理员后台支持创建用户、修改角色、重置密码、启用/禁用、删除用户，以及管理用户默认审查要点。
 
-完整冒烟测试见 [docs/QUICK_START.md](docs/QUICK_START.md)。
+完整冒烟测试见 [docs/QUICK_START.md](docs/QUICK_START.md)，用户管理细节见 [docs/USER_MANAGEMENT.md](docs/USER_MANAGEMENT.md)。
 
 用户登录后，服务会：
 
@@ -135,30 +135,24 @@ volumes:
 
 `users.json` 需要可写挂载，因为用户可以在前端修改显示名称。
 
-容器内部监听 `5000`。当前 compose 映射：
+当前 compose 中容器内部 Uvicorn 监听 `8000`，宿主机端口映射为：
 
 ```yaml
 ports:
-  - "127.0.0.1:8000:5000"
+  - "0.0.0.0:5000:8000"
 ```
 
-服务器本机访问：
+访问：
 
 ```text
-http://127.0.0.1:8000
+http://服务器IP:5000
 ```
 
-如果要允许外部机器访问，改成：
+如果只允许服务器本机访问，可以改成：
 
 ```yaml
 ports:
-  - "8000:5000"
-```
-
-然后访问：
-
-```text
-http://服务器IP:8000
+  - "127.0.0.1:5000:8000"
 ```
 
 ## 日志
