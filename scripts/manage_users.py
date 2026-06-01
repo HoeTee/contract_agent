@@ -26,7 +26,7 @@ def create_user(args) -> None:
     username = safe_path_part(args.username, "user")
     users = load_users(USERS_FILE) # [] if no users.json exists
     if find_index(users, username) is not None:
-        raise SystemExit(f"User already exists: {username}")
+        raise SystemExit(f"用户已存在：{username}")
 
     users.append({
         "username": username,
@@ -44,7 +44,7 @@ def reset_password(args) -> None:
     users = load_users(USERS_FILE)
     index = find_index(users, args.username)
     if index is None:
-        raise SystemExit(f"User not found: {args.username}")
+        raise SystemExit(f"未找到用户：{args.username}")
     users[index]["password_hash"] = hash_password(args.password)
     users[index]["password_updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_users(USERS_FILE, users)
@@ -55,7 +55,7 @@ def disable_user(args) -> None:
     users = load_users(USERS_FILE)
     index = find_index(users, args.username)
     if index is None:
-        raise SystemExit(f"User not found: {args.username}")
+        raise SystemExit(f"未找到用户：{args.username}")
     users[index]["enabled"] = False
     users[index]["disabled_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_users(USERS_FILE, users)
@@ -66,7 +66,7 @@ def enable_user(args) -> None:
     users = load_users(USERS_FILE)
     index = find_index(users, args.username)
     if index is None:
-        raise SystemExit(f"User not found: {args.username}")
+        raise SystemExit(f"未找到用户：{args.username}")
     users[index]["enabled"] = True
     users[index]["enabled_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_users(USERS_FILE, users)
@@ -79,7 +79,7 @@ def delete_user(args) -> None:
     users = load_users(USERS_FILE)
     index = find_index(users, username)
     if index is None:
-        raise SystemExit(f"User not found: {username}")
+        raise SystemExit(f"未找到用户：{username}")
 
     del users[index]
     save_users(USERS_FILE, users)
@@ -92,13 +92,13 @@ def delete_user(args) -> None:
     data_root = Path(DATA_DIR).resolve()
     user_root = (data_root / username).resolve()
     if data_root == user_root or data_root not in user_root.parents:
-        raise SystemExit(f"Refusing to delete unsafe path: {user_root}")
+        raise SystemExit(f"拒绝删除不安全路径：{user_root}")
 
     if user_root.exists():
         shutil.rmtree(user_root)
         print(f"Deleted user data directory: {user_root}")
     else:
-        print(f"User data directory not found: {user_root}")
+        print(f"未找到用户数据目录：{user_root}")
 
 
 def build_parser() -> argparse.ArgumentParser:

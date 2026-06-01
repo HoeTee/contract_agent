@@ -43,7 +43,7 @@ def resolve_contract_path(username: str, contract: str) -> Path:
 async def run_cli(username: str, contract: str) -> dict:
     contract_path = resolve_contract_path(username, contract)
     if not contract_path.exists():
-        raise FileNotFoundError(f"Contract file was not found: {contract_path}")
+        raise FileNotFoundError(f"未找到合同文件：{contract_path}")
 
     paths = resolve_review_task_paths(
         username=username,
@@ -53,7 +53,7 @@ async def run_cli(username: str, contract: str) -> dict:
     paths.ensure_task_dirs()
 
     if not paths.criteria_path.exists():
-        raise FileNotFoundError(f"Review criteria file was not found: {paths.criteria_path}")
+        raise FileNotFoundError(f"未找到审查要点文件：{paths.criteria_path}")
 
     if contract_path.resolve() != paths.stored_contract_path.resolve():
         shutil.copy2(contract_path, paths.stored_contract_path)

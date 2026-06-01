@@ -48,7 +48,7 @@ def get_running_task(username: str) -> dict | None:
 async def run_review_task(username: str, paths, criteria_path: Path) -> None:
     task = review_tasks[username]
     task["status"] = "running"
-    task["message"] = "Review is running."
+    task["message"] = "正在审核。"
 
     token = set_conversation_log_dir(paths.conversation_log_dir)
     try:
@@ -76,16 +76,16 @@ async def run_review_task(username: str, paths, criteria_path: Path) -> None:
 
         output_path = Path(result["report_docx"])
         if not output_path.exists():
-            raise RuntimeError("Output DOCX was not found.")
+            raise RuntimeError("未找到输出的 DOCX 文件。")
 
         task["status"] = "completed"
-        task["message"] = "Review completed."
+        task["message"] = "审核完成。"
         task["result_name"] = output_path.name
         task["completed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         append_api_event(paths.api_events_path, "review_completed", result_file=str(output_path))
     except Exception as exc:
         task["status"] = "failed"
-        task["message"] = "Review failed. Check the task logs."
+        task["message"] = "审核失败，请查看任务日志。"
         task["error"] = str(exc)
         append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
     finally:
@@ -107,7 +107,7 @@ def require_current_username(request: Request) -> str:
     if not username:
         raise HTTPException(
             status_code=401, 
-            detail="Not authenticated"
+            detail="未登录。"
         )
     return username
 
@@ -120,15 +120,15 @@ def validate_uploaded_docx(path: Path) -> None:
         raise HTTPException(
             status_code=400,
             detail=(
-                "The uploaded file is a legacy .doc/OLE document, not a real .docx file. "
-                "Please convert it to .docx with Word or LibreOffice before uploading."
+                "上传的文件是旧版 .doc/OLE 文档，不是真正的 .docx 文件。"
+                "请先使用 Word 或 LibreOffice 转换为 .docx 后再上传。"
             ),
         )
 
     if not zipfile.is_zipfile(path): # Check if it's a valid ZIP file (basic check for .docx structure)
         raise HTTPException(
             status_code=400, 
-            detail="The uploaded file is not a valid .docx ZIP package."
+            detail="上传的文件不是有效的 .docx 文件。"
         )
 
     try:
@@ -137,7 +137,7 @@ def validate_uploaded_docx(path: Path) -> None:
     except zipfile.BadZipFile: # If the file is not a valid ZIP archive, treat it as an invalid .docx
         raise HTTPException(
             status_code=400, 
-            detail="The uploaded file is not a valid .docx ZIP package."
+            detail="上传的文件不是有效的 .docx 文件。"
         )
 
     missing_parts = sorted(REQUIRED_DOCX_PARTS - names)
@@ -145,8 +145,8 @@ def validate_uploaded_docx(path: Path) -> None:
         raise HTTPException(
             status_code=400,
             detail=(
-                "The uploaded file has a .docx extension, but its internal structure "
-                f"is not a valid Word DOCX package. Missing parts: {missing_parts}"
+                "上传的文件扩展名是 .docx，但内部结构"
+                f"不是有效的 Word DOCX 结构。缺少内部文件：{missing_parts}"
             ),
         )
 
@@ -254,7 +254,7 @@ async def review_page(
         return RedirectResponse("/login", status_code=303)
 
     if get_running_task(username):
-        request.session["flash_error"] = "A review is already running. Please wait for it to finish."
+        request.session["flash_error"] = "已有审核任务正在运行，请等待完成后再提交。"
         await file.close()
         if criteria_file:
             await criteria_file.close()
@@ -266,16 +266,17 @@ async def review_page(
         original_filename=filename,
         data_dir=Path(DATA_DIR),
     )
-    paths.ensure_task_dirs() # create necessary directories
-    # api event I - file received for review, with metadata of username and filename (after sanitization)
-    append_api_event(
-        paths.api_events_path, 
-        "upload_received", 
-        username=username, 
-        filename=filename
-    )
 
     try:
+        paths.ensure_task_dirs() # create necessary directories
+        # api event I - file received for review, with metadata of username and filename (after sanitization)
+        append_api_event(
+            paths.api_events_path,
+            "upload_received",
+            username=username,
+            filename=filename
+        )
+
         if not filename.lower().endswith(".docx"):
             raise HTTPException(
                 status_code=400, 
@@ -305,7 +306,7 @@ async def review_page(
                 size_bytes=paths.uploaded_criteria_path.stat().st_size,
             )
         elif not paths.criteria_path.exists():
-            request.session["flash_error"] = f"Review criteria file was not found: {paths.criteria_path}"
+            request.session["flash_error"] = f"未找到审查要点文件：{paths.criteria_path}"
             return RedirectResponse("/work", status_code=303)
         with paths.stored_contract_path.open("wb") as f:
             shutil.copyfileobj(file.file, f)
@@ -329,7 +330,7 @@ async def review_page(
         # This is where review_tasks is written within
         review_tasks[username] = {
             "status": "queued",
-            "message": "Review is queued.",
+            "message": "审核任务已排队。",
             "task_id": paths.task_id,
             "filename": filename,
             "criteria_source": criteria_source,
@@ -345,7 +346,7 @@ async def review_page(
         return RedirectResponse("/work", status_code=303)
     except Exception as exc:
         append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
-        request.session["flash_error"] = "Review failed. Check the task logs."
+        request.session["flash_error"] = "审核失败，请查看任务日志。"
         return RedirectResponse("/work", status_code=303)
     finally:
         await file.close()
@@ -359,7 +360,7 @@ async def download_result(request: Request, filename: str):
     safe_name = safe_upload_filename(filename)
     path = Path(DATA_DIR) / username / "reports_docx" / safe_name
     if not path.exists():
-        raise HTTPException(status_code=404, detail="Result file was not found.")
+        raise HTTPException(status_code=404, detail="未找到审核结果文件。")
     return FileResponse(
         path,
         media_type=DOCX_MEDIA_TYPE,

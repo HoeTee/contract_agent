@@ -21,7 +21,7 @@ def ensure_default_criteria_file(user_root: Path) -> Path:
     default_criteria_path = Path(DEFAULT_REVIEW_CRITERIA_PATH)
     if not criteria_path.exists():
         if not default_criteria_path.exists():
-            raise FileNotFoundError(f"Default review criteria file was not found: {default_criteria_path}")
+            raise FileNotFoundError(f"未找到系统默认审查要点文件：{default_criteria_path}")
         shutil.copy2(default_criteria_path, criteria_path)
     return criteria_path
 
