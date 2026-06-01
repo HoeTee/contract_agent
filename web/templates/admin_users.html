@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>用户管理 - 合同智能审核系统</title>
-    <link rel="stylesheet" href="/static/app.css?v=20260525-ui4">
+    <link rel="stylesheet" href="/static/app.css?v=20260601-admin-ui">
   </head>
   <body class="app-page">
     <div class="app-frame">
@@ -45,7 +45,7 @@
           </div>
         </header>
 
-        <main class="content-grid single">
+        <main class="content-grid single admin-console">
           {% if error %}
           <div class="alert" role="alert">{{ error }}</div>
           {% endif %}
@@ -54,12 +54,13 @@
           <div class="success" role="status">{{ success }}</div>
           {% endif %}
 
-          <section class="panel">
+          <section class="panel admin-create-panel">
             <div class="section-head">
               <div>
                 <p class="eyebrow">新建账号</p>
                 <h2>创建用户</h2>
               </div>
+              <span class="admin-panel-note">账号创建后会自动初始化用户目录和默认审查要点。</span>
             </div>
             <form method="post" action="/admin/users/create" class="admin-form-grid">
               <label>
@@ -86,7 +87,14 @@
           </section>
 
           <section class="panel">
-            <div class="table-frame">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">账号清单</p>
+                <h2>全部用户</h2>
+              </div>
+              <span class="admin-panel-note">点击查看后可管理角色、密码、状态、审查要点和日志。</span>
+            </div>
+            <div class="table-frame admin-table-frame">
               <table>
                 <thead>
                   <tr>
@@ -104,11 +112,15 @@
                   <tr>
                     <td>{{ item.username }}</td>
                     <td>{{ item.display_name }}</td>
-                    <td>{{ item.role }}</td>
-                    <td>{{ "启用" if item.enabled else "禁用" }}</td>
+                    <td><span class="status-pill role-{{ item.role }}">{{ item.role }}</span></td>
+                    <td>
+                      <span class="status-pill {{ 'status-enabled' if item.enabled else 'status-disabled' }}">
+                        {{ "启用" if item.enabled else "禁用" }}
+                      </span>
+                    </td>
                     <td>{{ item.history_count }}</td>
                     <td>{{ item.latest_review_at }}</td>
-                    <td><a class="table-action" href="/admin/users/{{ item.username }}">查看</a></td>
+                    <td><a class="table-action" href="/admin/users/{{ item.username }}">管理</a></td>
                   </tr>
                   {% else %}
                   <tr><td colspan="7" class="empty-state">暂无用户</td></tr>

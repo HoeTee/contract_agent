@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>管理员后台 - 合同智能审核系统</title>
-    <link rel="stylesheet" href="/static/app.css?v=20260525-ui4">
+    <link rel="stylesheet" href="/static/app.css?v=20260601-admin-ui">
   </head>
   <body class="app-page">
     <div class="app-frame">
@@ -45,19 +45,20 @@
           </div>
         </header>
 
-        <main class="content-grid single">
-          <section class="panel">
+        <main class="content-grid single admin-console">
+          <section class="panel admin-hero-panel">
             <div class="section-head">
               <div>
                 <p class="eyebrow">概览</p>
                 <h2>运行摘要</h2>
               </div>
+              <a class="secondary-button compact-button user-link-button" href="/admin/users">管理用户</a>
             </div>
-            <div class="summary-grid">
-              <div><strong>{{ summary.user_count }}</strong><span>用户总数</span></div>
-              <div><strong>{{ summary.admin_count }}</strong><span>管理员</span></div>
-              <div><strong>{{ summary.disabled_count }}</strong><span>禁用用户</span></div>
-              <div><strong>{{ summary.review_count }}</strong><span>成功审查</span></div>
+            <div class="summary-grid admin-summary-grid">
+              <div><span>用户总数</span><strong>{{ summary.user_count }}</strong></div>
+              <div><span>管理员</span><strong>{{ summary.admin_count }}</strong></div>
+              <div><span>禁用用户</span><strong>{{ summary.disabled_count }}</strong></div>
+              <div><span>成功审查</span><strong>{{ summary.review_count }}</strong></div>
             </div>
           </section>
 
@@ -68,7 +69,7 @@
                 <h2>最近审查用户</h2>
               </div>
             </div>
-            <div class="table-frame">
+            <div class="table-frame admin-table-frame">
               <table>
                 <thead>
                   <tr>

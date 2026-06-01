@@ -73,7 +73,8 @@ button:hover,
 
 button:focus-visible,
 a:focus-visible,
-input:focus-visible {
+input:focus-visible,
+select:focus-visible {
   outline: 3px solid rgba(3, 105, 161, 0.28);
   outline-offset: 2px;
 }
@@ -391,6 +392,7 @@ input[type="file"] {
 .summary-grid strong {
   font-size: 30px;
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .summary-grid span {
@@ -408,9 +410,74 @@ input[type="file"] {
   margin-bottom: 22px;
 }
 
-.admin-actions span {
+.admin-actions > span {
   color: var(--muted);
   font-weight: 700;
+}
+
+.admin-console {
+  gap: 20px;
+}
+
+.admin-hero-panel {
+  border-top: 4px solid var(--primary);
+}
+
+.admin-create-panel {
+  border-left: 4px solid var(--primary);
+}
+
+.admin-panel-note {
+  max-width: 420px;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.admin-summary-grid div {
+  display: grid;
+  gap: 8px;
+  min-height: 104px;
+  align-content: center;
+  background: linear-gradient(180deg, #ffffff, var(--surface-soft));
+}
+
+.admin-summary-grid span {
+  margin-top: 0;
+}
+
+.admin-management-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 18px;
+  margin-top: 22px;
+}
+
+.admin-control-group {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.admin-control-group h3 {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.25;
+}
+
+.admin-danger-zone {
+  background: linear-gradient(180deg, #ffffff, #fff8f9);
+  border-color: rgba(190, 18, 60, 0.2);
+}
+
+.admin-delete-form {
+  padding-top: 14px;
+  border-top: 1px solid rgba(190, 18, 60, 0.18);
 }
 
 .admin-upload-form {
@@ -462,6 +529,74 @@ input[type="file"] {
 .danger-button:hover {
   color: var(--danger);
   background: var(--danger-bg);
+}
+
+.status-pill {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 4px 11px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.summary-grid .status-pill {
+  display: inline-flex;
+  margin-top: 0;
+}
+
+.status-enabled,
+.role-admin {
+  color: var(--success);
+  background: var(--success-bg);
+  border-color: rgba(4, 120, 87, 0.26);
+}
+
+.status-disabled {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border-color: rgba(190, 18, 60, 0.26);
+}
+
+.role-user {
+  color: var(--primary-dark);
+  background: var(--primary-soft);
+  border-color: rgba(3, 105, 161, 0.26);
+}
+
+.summary-grid .status-enabled,
+.summary-grid .role-admin {
+  color: var(--success);
+}
+
+.summary-grid .status-disabled {
+  color: var(--danger);
+}
+
+.summary-grid .role-user {
+  color: var(--primary-dark);
+}
+
+.criteria-actions {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.criteria-summary {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .content-grid {
@@ -605,6 +740,11 @@ input[type="file"] {
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 9px;
+  background: #ffffff;
+}
+
+.admin-table-frame {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
 table {
@@ -634,7 +774,7 @@ tr:last-child td {
 }
 
 tr:hover td {
-  background: #fbfdff;
+  background: #f8fbff;
 }
 
 th:last-child,
@@ -663,6 +803,10 @@ td:last-child {
 
   .content-grid {
     width: min(100vw - 32px, 900px);
+    grid-template-columns: 1fr;
+  }
+
+  .admin-management-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -726,8 +870,27 @@ td:last-child {
     grid-template-columns: 1fr;
   }
 
+  .section-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-panel-note {
+    max-width: none;
+    text-align: left;
+  }
+
   .admin-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .admin-inline-form label {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .admin-actions {
+    align-items: stretch;
   }
 
   input[type="text"],

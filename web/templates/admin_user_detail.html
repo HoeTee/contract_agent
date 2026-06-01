@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>用户详情 - 合同智能审核系统</title>
-    <link rel="stylesheet" href="/static/app.css?v=20260525-ui4">
+    <link rel="stylesheet" href="/static/app.css?v=20260601-admin-ui">
   </head>
   <body class="app-page">
     <div class="app-frame">
@@ -42,7 +42,7 @@
           </div>
         </header>
 
-        <main class="content-grid single">
+        <main class="content-grid single admin-console">
           {% if error %}
           <div class="alert" role="alert">{{ error }}</div>
           {% endif %}
@@ -51,50 +51,63 @@
           <div class="success" role="status">{{ success }}</div>
           {% endif %}
 
-          <section class="panel">
+          <section class="panel admin-user-overview">
             <div class="section-head">
               <div>
                 <p class="eyebrow">账号管理</p>
                 <h2>用户状态</h2>
               </div>
             </div>
-            <div class="summary-grid">
-              <div><strong>{{ target_user.username }}</strong><span>用户名</span></div>
-              <div><strong>{{ target_user.role }}</strong><span>角色</span></div>
-              <div><strong>{{ "启用" if target_user.enabled else "禁用" }}</strong><span>状态</span></div>
-              <div><strong>{{ target_user.display_name }}</strong><span>显示名</span></div>
+            <div class="summary-grid admin-summary-grid">
+              <div><span>用户名</span><strong>{{ target_user.username }}</strong></div>
+              <div><span>角色</span><strong><span class="status-pill role-{{ target_user.role }}">{{ target_user.role }}</span></strong></div>
+              <div>
+                <span>状态</span>
+                <strong>
+                  <span class="status-pill {{ 'status-enabled' if target_user.enabled else 'status-disabled' }}">
+                    {{ "启用" if target_user.enabled else "禁用" }}
+                  </span>
+                </strong>
+              </div>
+              <div><span>显示名</span><strong>{{ target_user.display_name }}</strong></div>
             </div>
-            <div class="admin-form-sections">
-              <form method="post" action="/admin/users/{{ target_user.username }}/role" class="admin-inline-form">
-                <label>
-                  <span>角色</span>
-                  <select name="role">
-                    <option value="user" {% if target_user.role == "user" %}selected{% endif %}>user</option>
-                    <option value="admin" {% if target_user.role == "admin" %}selected{% endif %}>admin</option>
-                  </select>
-                </label>
-                <button type="submit" class="secondary-button compact-button">更新角色</button>
-              </form>
-
-              <form method="post" action="/admin/users/{{ target_user.username }}/password" class="admin-inline-form">
-                <label>
-                  <span>新密码</span>
-                  <input name="password" type="password" required>
-                </label>
-                <button type="submit" class="secondary-button compact-button">重置密码</button>
-              </form>
-
-              <div class="admin-actions">
-                {% if target_user.enabled %}
-                <form method="post" action="/admin/users/{{ target_user.username }}/disable">
-                  <button type="submit" class="secondary-button compact-button">禁用用户</button>
+            <div class="admin-management-grid">
+              <div class="admin-control-group">
+                <h3>身份与访问</h3>
+                <form method="post" action="/admin/users/{{ target_user.username }}/role" class="admin-inline-form">
+                  <label>
+                    <span>角色</span>
+                    <select name="role">
+                      <option value="user" {% if target_user.role == "user" %}selected{% endif %}>user</option>
+                      <option value="admin" {% if target_user.role == "admin" %}selected{% endif %}>admin</option>
+                    </select>
+                  </label>
+                  <button type="submit" class="secondary-button compact-button">更新角色</button>
                 </form>
-                {% else %}
-                <form method="post" action="/admin/users/{{ target_user.username }}/enable">
-                  <button type="submit" class="secondary-button compact-button">启用用户</button>
+
+                <form method="post" action="/admin/users/{{ target_user.username }}/password" class="admin-inline-form">
+                  <label>
+                    <span>新密码</span>
+                    <input name="password" type="password" required>
+                  </label>
+                  <button type="submit" class="secondary-button compact-button">重置密码</button>
                 </form>
-                {% endif %}
-                <form method="post" action="/admin/users/{{ target_user.username }}/delete" class="admin-inline-form">
+              </div>
+
+              <div class="admin-control-group admin-danger-zone">
+                <h3>账号状态</h3>
+                <div class="admin-actions">
+                  {% if target_user.enabled %}
+                  <form method="post" action="/admin/users/{{ target_user.username }}/disable">
+                    <button type="submit" class="secondary-button compact-button">禁用用户</button>
+                  </form>
+                  {% else %}
+                  <form method="post" action="/admin/users/{{ target_user.username }}/enable">
+                    <button type="submit" class="secondary-button compact-button">启用用户</button>
+                  </form>
+                  {% endif %}
+                </div>
+                <form method="post" action="/admin/users/{{ target_user.username }}/delete" class="admin-inline-form admin-delete-form">
                   <label class="checkbox-label">
                     <input name="keep_data" type="checkbox" value="true" checked>
                     <span>保留用户数据</span>
@@ -112,8 +125,13 @@
                 <h2>默认审查要点</h2>
               </div>
             </div>
-            <div class="admin-actions">
-              <span>状态：{{ "存在" if criteria.exists else "缺失" }} · 大小：{{ criteria.size }} · 更新时间：{{ criteria.updated_at }}</span>
+            <div class="admin-actions criteria-actions">
+              <span class="criteria-summary">
+                <span class="status-pill {{ 'status-enabled' if criteria.exists else 'status-disabled' }}">
+                  {{ "存在" if criteria.exists else "缺失" }}
+                </span>
+                大小：{{ criteria.size }} · 更新时间：{{ criteria.updated_at }}
+              </span>
               {% if criteria.exists %}
               <a class="secondary-button compact-button" href="/admin/users/{{ target_user.username }}/criteria/download">下载</a>
               {% endif %}
@@ -137,7 +155,7 @@
                 <h2>成功任务</h2>
               </div>
             </div>
-            <div class="table-frame">
+            <div class="table-frame admin-table-frame">
               <table>
                 <thead>
                   <tr>
@@ -155,7 +173,11 @@
                     <td>{{ item.contract_uploaded_at or "-" }}</td>
                     <td>{{ item.report_display_name }}</td>
                     <td>{{ item.report_created_at or "-" }}</td>
-                    <td>{{ "存在" if item.report_exists else "缺失" }}</td>
+                    <td>
+                      <span class="status-pill {{ 'status-enabled' if item.report_exists else 'status-disabled' }}">
+                        {{ "存在" if item.report_exists else "缺失" }}
+                      </span>
+                    </td>
                   </tr>
                   {% else %}
                   <tr><td colspan="5" class="empty-state">暂无审查历史</td></tr>
@@ -172,7 +194,7 @@
                 <h2>日志目录</h2>
               </div>
             </div>
-            <div class="table-frame">
+            <div class="table-frame admin-table-frame">
               <table>
                 <thead>
                   <tr>
