@@ -13,7 +13,7 @@ from agents.json_utils import chat_until_valid_json
 from agents.reflector import ReflectorAgent
 from agents.prompts.cn_prompts import SUB_AGENT_BASE_PROMPT
 from agents.schemas import SubAgentOutput
-from errors import ModelCallError, classify_model_call_error
+from web.errors import ModelCallError, classify_model_call_error
 
 
 SUB_AGENT_EXPECTED_JSON = """

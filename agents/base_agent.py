@@ -13,7 +13,7 @@ from config import (
     MODEL_CALL_TIMEOUT_SECONDS,
     MODEL_CALL_MAX_RETRIES,
 )
-from errors import ModelCallError
+from web.errors import ModelCallError
 import json
 import os
 
