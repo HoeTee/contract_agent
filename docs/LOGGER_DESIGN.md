@@ -139,6 +139,7 @@ docx_validation_passed       DOCX 文件格式校验通过
 review_started               后台审查任务开始执行
 agent_model_call_failed      Agent 大模型调用超时或重试失败
 embedding_call_failed        Embedding 模型调用超时或重试失败
+reranker_call_retry          Reranker 模型调用发生一次重试
 reranker_call_failed         Reranker 模型调用超时或重试失败
 review_completed             审查完成并生成批注 DOCX
 review_failed                审查任务失败，记录最终失败原因

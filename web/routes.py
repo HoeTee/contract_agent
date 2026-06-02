@@ -139,6 +139,7 @@ async def run_review_task(username: str, paths, criteria_path: Path) -> None:
             workflow_log_dir=str(paths.workflow_log_dir),
             conversation_log_dir=str(paths.conversation_log_dir),
             mcp_log_file=str(paths.mcp_log_dir / "mcp_client.log"),
+            api_events_path=str(paths.api_events_path),
         )
 
         append_api_event(paths.api_events_path, "review_started", task_id=paths.task_id)

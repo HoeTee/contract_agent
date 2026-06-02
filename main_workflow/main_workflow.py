@@ -43,11 +43,13 @@ class ContractReviewWorkflow:
         workflow_log_dir: str | None = None,
         conversation_log_dir: str | None = None,
         mcp_log_file: str | None = None,
+        api_events_path: str | None = None,
     ):
         self.mcp_client = MinimalMCPClient(server_script_path, log_file=mcp_log_file)
         self.logger = WorkflowLogger(log_dir=workflow_log_dir)
         self.workflow_log_dir = workflow_log_dir
         self.conversation_log_dir = conversation_log_dir
+        self.api_events_path = api_events_path
         self.settings = Settings()
 
     async def run(
@@ -219,7 +221,11 @@ class ContractReviewWorkflow:
         start = time.time()
 
         result = await self.mcp_client.call_tool(
-            "llamaindex_build_index", {"markdown_content": contract_md}
+            "llamaindex_build_index",
+            {
+                "markdown_content": contract_md,
+                "api_events_path": self.api_events_path,
+            },
         )
 
         self.logger.log(
@@ -278,7 +284,8 @@ class ContractReviewWorkflow:
         orchestrator = OrchestratorAgent(
             mcp_client=self.mcp_client,
             logger=self.logger,
-            settings=self.settings
+            settings=self.settings,
+            api_events_path=self.api_events_path,
         )
         results = await orchestrator.execute_criteria(criteria_list)
         self._retrieval_tokens = getattr(orchestrator, 'retrieval_tokens', 0)

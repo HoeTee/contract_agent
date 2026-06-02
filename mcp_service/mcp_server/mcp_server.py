@@ -13,6 +13,7 @@ load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 from tools.document.file_parser import FileParser
 from tools.document.report_generator import ReportGenerator
 from tools.retrieval.index_retriever import IndexRetriever
+from loggers.model_event_context import reset_model_event_path, set_model_event_path
 
 
 API_KEY = os.getenv("LLM_API_KEY")
@@ -143,20 +144,28 @@ async def generate_pdf_report(
 
 # ============ Retrieval Tools ============
 
-async def llamaindex_build_index(markdown_content: str) -> str:
+async def llamaindex_build_index(markdown_content: str, api_events_path: str | None = None) -> str:
     """
     Build a temporary in-memory LlamaIndex index for the current contract.
     This does not persist contract vectors to RAG_persist.
     """
-    return await index_retriever.build_contract_llamaindex_index(markdown_content)
+    token = set_model_event_path(api_events_path)
+    try:
+        return await index_retriever.build_contract_llamaindex_index(markdown_content)
+    finally:
+        reset_model_event_path(token)
 
 
-async def llamaindex_search(query: str) -> str:
+async def llamaindex_search(query: str, api_events_path: str | None = None) -> str:
     """
     Search the temporary in-memory LlamaIndex index for the current contract.
     Must call llamaindex_build_index first in the same workflow run.
     """
-    return await index_retriever.search_contract_llamaindex(query)
+    token = set_model_event_path(api_events_path)
+    try:
+        return await index_retriever.search_contract_llamaindex(query)
+    finally:
+        reset_model_event_path(token)
 
 
 mcp.tool()(llamaindex_build_index)

@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.schema import MetadataMode, NodeWithScore, QueryBundle
+from loggers.model_event_context import append_model_event, safe_endpoint
 
 
 class QwenRerankPostprocessor(BaseNodePostprocessor):
@@ -134,14 +135,37 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
                     raise RuntimeError(
                         f"Reranker request failed after {attempt + 1} attempt(s): HTTP {exc.code}"
                     ) from exc
-                time.sleep(self._calculate_retry_delay(attempt, exc.headers))
+                sleep_seconds = self._calculate_retry_delay(attempt, exc.headers)
+                append_model_event(
+                    "reranker_call_retry",
+                    component="reranker",
+                    attempt=attempt + 1,
+                    max_retries=self.max_retries,
+                    timeout_seconds=self.timeout,
+                    sleep_seconds=round(sleep_seconds, 3),
+                    error_type=type(exc).__name__,
+                    status_code=exc.code,
+                    endpoint=safe_endpoint(url),
+                )
+                time.sleep(sleep_seconds)
             except (TimeoutError, URLError) as exc:
                 last_error = exc
                 if attempt >= self.max_retries:
                     raise RuntimeError(
                         f"Reranker request timed out or failed after {attempt + 1} attempt(s): {exc}"
                     ) from exc
-                time.sleep(self._calculate_retry_delay(attempt))
+                sleep_seconds = self._calculate_retry_delay(attempt)
+                append_model_event(
+                    "reranker_call_retry",
+                    component="reranker",
+                    attempt=attempt + 1,
+                    max_retries=self.max_retries,
+                    timeout_seconds=self.timeout,
+                    sleep_seconds=round(sleep_seconds, 3),
+                    error_type=type(exc).__name__,
+                    endpoint=safe_endpoint(url),
+                )
+                time.sleep(sleep_seconds)
         raise RuntimeError(f"Reranker request failed: {last_error}")
 
     def _postprocess_nodes(

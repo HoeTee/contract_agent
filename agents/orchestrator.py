@@ -42,11 +42,13 @@ class OrchestratorAgent:
         self,
         mcp_client=None,
         logger=None,
-        settings=None
+        settings=None,
+        api_events_path: str | None = None,
     ):
         self.mcp_client = mcp_client
         self.logger = logger
         self.settings = settings
+        self.api_events_path = api_events_path
         self.tools = None
         self.reflector = ReflectorAgent(settings=self.settings)
         self.retrieval_tokens = 0  # Track MCP tool internal LLM tokens
@@ -71,7 +73,10 @@ class OrchestratorAgent:
         print(f"[Orchestrator] {cid}: Searching contract via temporary LlamaIndex...")
         search_result = await self.mcp_client.call_tool(
             "llamaindex_search",
-            {"query": search_query}
+            {
+                "query": search_query,
+                "api_events_path": self.api_events_path,
+            },
         )
         if isinstance(search_result, str) and search_result.startswith("Error"):
             raise classify_model_call_error(search_result, default_component="embedding")
@@ -125,7 +130,10 @@ class OrchestratorAgent:
             )
             search_result = await self.mcp_client.call_tool(
                 "llamaindex_search",
-                {"query": search_query},
+                {
+                    "query": search_query,
+                    "api_events_path": self.api_events_path,
+                },
             )
             if isinstance(search_result, str) and search_result.startswith("Error"):
                 raise classify_model_call_error(search_result, default_component="embedding")
