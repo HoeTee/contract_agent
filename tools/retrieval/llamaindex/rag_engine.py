@@ -22,6 +22,7 @@ from llama_index.llms.openai_like import OpenAILike
 from tools.retrieval.llamaindex.qwen_reranker import QwenRerankPostprocessor
 from transformers import AutoTokenizer
 from pathlib import Path
+from config import MODEL_CALL_TIMEOUT_SECONDS, MODEL_CALL_MAX_RETRIES
 
 
 class LlamaIndexRAG:
@@ -62,6 +63,8 @@ class LlamaIndexRAG:
             model_name=embed_name,
             api_key=embed_api_key,
             api_base=embed_base_url,
+            timeout=MODEL_CALL_TIMEOUT_SECONDS,
+            max_retries=MODEL_CALL_MAX_RETRIES,
         )
 
         self.reranker = None
@@ -71,6 +74,8 @@ class LlamaIndexRAG:
                 base_url=rerank_base_url or embed_base_url,
                 model=rerank_name,
                 top_n=rerank_top_n,
+                timeout=MODEL_CALL_TIMEOUT_SECONDS,
+                max_retries=MODEL_CALL_MAX_RETRIES,
                 instruct="Given a contract review query, retrieve relevant institutional policy passages.",
             )
 

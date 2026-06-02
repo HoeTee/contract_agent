@@ -1,7 +1,11 @@
 import json
+import random
+import time
 import urllib.request
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Optional
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
@@ -17,7 +21,10 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
     instruct: str = (
         "Given a web search query, retrieve relevant passages that answer the query."
     )
-    timeout: int = 30
+    timeout: float = 60
+    max_retries: int = 5
+    initial_retry_delay: float = 0.5
+    max_retry_delay: float = 8.0
 
     def __init__(
         self,
@@ -28,7 +35,10 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         instruct: str = (
             "Given a web search query, retrieve relevant passages that answer the query."
         ),
-        timeout: int = 30,
+        timeout: float = 60,
+        max_retries: int = 5,
+        initial_retry_delay: float = 0.5,
+        max_retry_delay: float = 8.0,
         **kwargs,
     ) -> None:
         if not api_key:
@@ -42,6 +52,9 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
             top_n=top_n,
             instruct=instruct,
             timeout=timeout,
+            max_retries=max_retries,
+            initial_retry_delay=initial_retry_delay,
+            max_retry_delay=max_retry_delay,
             **kwargs,
         )
 
@@ -62,6 +75,74 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         if parsed.scheme and parsed.netloc and not path:
             return value + "/compatible-api/v1/reranks"
         return value
+
+    @staticmethod
+    def _should_retry_http(status_code: int) -> bool:
+        return status_code in {408, 409, 429} or status_code >= 500
+
+    @staticmethod
+    def _parse_retry_after(headers) -> float | None:
+        if not headers:
+            return None
+        raw = headers.get("Retry-After")
+        if not raw:
+            return None
+        try:
+            seconds = float(raw)
+        except ValueError:
+            try:
+                retry_at = parsedate_to_datetime(raw)
+                if retry_at.tzinfo is None:
+                    retry_at = retry_at.replace(tzinfo=timezone.utc)
+                seconds = (retry_at - datetime.now(timezone.utc)).total_seconds()
+            except (TypeError, ValueError):
+                return None
+        if 0 < seconds <= 60:
+            return seconds
+        return None
+
+    def _calculate_retry_delay(self, attempt: int, headers=None) -> float:
+        retry_after = self._parse_retry_after(headers)
+        if retry_after is not None:
+            return retry_after
+        base_delay = min(
+            self.initial_retry_delay * pow(2.0, min(attempt, 1000)),
+            self.max_retry_delay,
+        )
+        return max(base_delay * (1 - 0.25 * random.random()), 0)
+
+    def _request_json_with_retries(self, url: str, payload: dict) -> dict:
+        last_error = None
+        for attempt in range(self.max_retries + 1):
+            request = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except HTTPError as exc:
+                last_error = exc
+                if exc.code == 404:
+                    raise
+                if not self._should_retry_http(exc.code) or attempt >= self.max_retries:
+                    raise RuntimeError(
+                        f"Reranker request failed after {attempt + 1} attempt(s): HTTP {exc.code}"
+                    ) from exc
+                time.sleep(self._calculate_retry_delay(attempt, exc.headers))
+            except (TimeoutError, URLError) as exc:
+                last_error = exc
+                if attempt >= self.max_retries:
+                    raise RuntimeError(
+                        f"Reranker request timed out or failed after {attempt + 1} attempt(s): {exc}"
+                    ) from exc
+                time.sleep(self._calculate_retry_delay(attempt))
+        raise RuntimeError(f"Reranker request failed: {last_error}")
 
     def _postprocess_nodes(
         self,
@@ -94,19 +175,9 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
 
         last_error = None
         for url in candidate_urls:
-            request = urllib.request.Request(
-                url,
-                data=json.dumps(payload).encode("utf-8"),
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                method="POST",
-            )
             try:
-                with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                    body = json.loads(response.read().decode("utf-8"))
-                    break
+                body = self._request_json_with_retries(url, payload)
+                break
             except HTTPError as exc:
                 last_error = exc
                 if exc.code != 404 or url == candidate_urls[-1]:

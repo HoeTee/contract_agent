@@ -25,6 +25,7 @@ from agents.planner import PlannerAgent
 from agents.orchestrator import OrchestratorAgent
 from agents.summarizer import SummarizerAgent
 from mcp_service.mcp_client.mcp_minimal import MinimalMCPClient
+from errors import classify_model_call_error
 
 
 class ContractReviewWorkflow:
@@ -231,7 +232,10 @@ class ContractReviewWorkflow:
 
         parsed = json.loads(result)
         if parsed.get("error"):
-            raise RuntimeError(f"LlamaIndex index build failed: {parsed['error']}")
+            raise classify_model_call_error(
+                f"LlamaIndex index build failed: {parsed['error']}",
+                default_component="embedding",
+            )
 
         print(f"  Temporary index built in {round(time.time()-start,1)}s: {result[:200]}")
         return result

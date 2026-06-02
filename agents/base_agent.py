@@ -4,14 +4,26 @@ management, token tracking, and conversation logging.
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
-from openai import AsyncOpenAI, RateLimitError, APITimeoutError, APIConnectionError, InternalServerError
+from openai import AsyncOpenAI, RateLimitError, APITimeoutError, APIConnectionError, InternalServerError, APIStatusError
 from loggers.agent_logger import log_agent_step, log_conversation
-from config import MAX_TOOL_CALLS, MAX_CONTEXT_TOKENS, MAX_RESULT_TOKENS
-import asyncio
+from config import (
+    MAX_TOOL_CALLS,
+    MAX_CONTEXT_TOKENS,
+    MAX_RESULT_TOKENS,
+    MODEL_CALL_TIMEOUT_SECONDS,
+    MODEL_CALL_MAX_RETRIES,
+)
+from errors import ModelCallError
 import json
 import os
 
-MAX_API_RETRIES = 3
+MODEL_API_ERRORS = (
+    APITimeoutError,
+    APIConnectionError,
+    RateLimitError,
+    InternalServerError,
+    APIStatusError,
+)
 
 
 class Settings(BaseSettings):
@@ -60,6 +72,8 @@ class Agent:
         self.client = AsyncOpenAI(
             api_key=self.settings.api_key,
             base_url=self.settings.base_url,
+            timeout=MODEL_CALL_TIMEOUT_SECONDS,
+            max_retries=MODEL_CALL_MAX_RETRIES,
         )
         self.name = name
         self.mcp_client = mcp_client
@@ -206,15 +220,18 @@ class Agent:
             self.step_count += 1
             current_step = self.step_count
 
-            completion = await self.client.chat.completions.create(
-                model=self.settings.model,
-                temperature=self.settings.temperature,
-                top_p=self.settings.top_p,
-                seed=self.settings.seed,
-                messages=self.messages,
-                tools=self.tools if self.tools else None,
-                tool_choice="auto" if self.tools else None
-            )
+            try:
+                completion = await self.client.chat.completions.create(
+                    model=self.settings.model,
+                    temperature=self.settings.temperature,
+                    top_p=self.settings.top_p,
+                    seed=self.settings.seed,
+                    messages=self.messages,
+                    tools=self.tools if self.tools else None,
+                    tool_choice="auto" if self.tools else None
+                )
+            except MODEL_API_ERRORS as exc:
+                raise ModelCallError("agent", f"{self.name}: {exc}") from exc
 
             response_message = completion.choices[0].message
             finish_reason = completion.choices[0].finish_reason

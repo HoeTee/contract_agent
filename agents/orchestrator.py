@@ -13,6 +13,7 @@ from agents.json_utils import chat_until_valid_json
 from agents.reflector import ReflectorAgent
 from agents.prompts.cn_prompts import SUB_AGENT_BASE_PROMPT
 from agents.schemas import SubAgentOutput
+from errors import ModelCallError, classify_model_call_error
 
 
 SUB_AGENT_EXPECTED_JSON = """
@@ -73,7 +74,7 @@ class OrchestratorAgent:
             {"query": search_query}
         )
         if isinstance(search_result, str) and search_result.startswith("Error"):
-            raise RuntimeError(search_result)
+            raise classify_model_call_error(search_result, default_component="embedding")
         context = search_result if search_result else "未找到相关内容。"
 
         if self.logger:
@@ -127,7 +128,7 @@ class OrchestratorAgent:
                 {"query": search_query},
             )
             if isinstance(search_result, str) and search_result.startswith("Error"):
-                raise RuntimeError(search_result)
+                raise classify_model_call_error(search_result, default_component="embedding")
 
             context = self._prepare_review_context(search_result or "未找到相关内容。")
             notes.append(
@@ -309,6 +310,8 @@ class OrchestratorAgent:
         final_results = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
+                if isinstance(result, ModelCallError):
+                    raise result
                 print(f"[Orchestrator] Error on criterion {criteria_list[i]['id']}: {result}")
                 final_results.append(
                     {

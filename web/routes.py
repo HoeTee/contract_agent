@@ -16,6 +16,7 @@ from docx import Document
 from config import DATA_DIR, MAX_API_CONCURRENT_REVIEWS, MCP_SERVER_PATH, USERS_FILE
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
 from loggers.api_event_logger import append_api_event
+from errors import ModelCallError
 from loggers.resolve_review_task_paths import resolve_review_task_paths
 from loggers.review_history import (
     HISTORY_SCHEMA_VERSION,
@@ -171,7 +172,16 @@ async def run_review_task(username: str, paths, criteria_path: Path) -> None:
         append_api_event(paths.api_events_path, "review_completed", result_file=str(output_path))
     except Exception as exc:
         task["status"] = "failed"
-        task["message"] = "审核失败，请查看任务日志。"
+        if isinstance(exc, ModelCallError):
+            task["message"] = f"审核失败：{exc}"
+            append_api_event(
+                paths.api_events_path,
+                exc.event_type,
+                component=exc.component,
+                error=str(exc),
+            )
+        else:
+            task["message"] = "审核失败，请查看任务日志。"
         task["error"] = str(exc)
         append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
     finally:

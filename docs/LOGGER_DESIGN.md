@@ -127,6 +127,25 @@ api_events.jsonl
 
 `jsonl` 表示每一行都是一个独立 JSON 对象。这里用于追加记录 API 层事件，例如上传文件、DOCX 校验通过、审查开始、审查完成和失败原因。
 
+### API Event 枚举
+
+当前 `api_events.jsonl` 会记录以下事件：
+
+```text
+upload_received              收到上传请求和原始文件名
+criteria_uploaded            本次任务上传了临时审查要点
+contract_saved               合同文件已保存到用户数据目录
+docx_validation_passed       DOCX 文件格式校验通过
+review_started               后台审查任务开始执行
+agent_model_call_failed      Agent 大模型调用超时或重试失败
+embedding_call_failed        Embedding 模型调用超时或重试失败
+reranker_call_failed         Reranker 模型调用超时或重试失败
+review_completed             审查完成并生成批注 DOCX
+review_failed                审查任务失败，记录最终失败原因
+```
+
+模型类失败事件会先记录具体组件事件，再记录 `review_failed`。前端 `/work` 页面会显示模型类失败的具体错误文案；非模型类异常仍显示通用失败提示并要求查看任务日志。
+
 ## 日志开关
 
 `.env` 中的配置控制是否写入 workflow、conversations 和 mcp 文件日志：
@@ -135,4 +154,4 @@ api_events.jsonl
 ENABLE_WORKFLOW_LOGS=True
 ```
 
-如果设置为 `False`，任务目录仍可能被创建，但 `workflow/`、`conversations/`、`mcp/` 下不会写入日志文件；`api_events.jsonl` 仍用于记录 API 层事件。
+如果设置为 `False`，任务目录仍可能被创建，但 `workflow/`、`conversations/`、`mcp/` 下不会写入文件日志；`api_events.jsonl` 仍用于记录 API 层事件。
