@@ -173,7 +173,7 @@ async def run_review_task(username: str, paths, criteria_path: Path) -> None:
     except Exception as exc:
         task["status"] = "failed"
         if isinstance(exc, ModelCallError):
-            task["message"] = f"审核失败：{exc}"
+            task["message"] = f"审核失败：{exc.user_message}"
             append_api_event(
                 paths.api_events_path,
                 exc.event_type,

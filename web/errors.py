@@ -18,6 +18,7 @@ class ModelCallError(RuntimeError):
         self.detail = detail
         self.event_type = self.EVENT_BY_COMPONENT.get(component, "model_call_failed")
         label = self.LABEL_BY_COMPONENT.get(component, "模型")
+        self.user_message = f"模型调用超时或重试失败（{label}）"
         super().__init__(f"模型调用超时或重试失败（{label}）：{detail}")
 
 
