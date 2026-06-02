@@ -10,6 +10,12 @@
 data/<username>/logs/<YYYY-MM-DD>/<HHMMSS_shortid_contractname>/
 ```
 
+无登录 API 审查使用独立日志目录，不写入用户合同、报告和历史记录目录：
+
+```text
+data/api_logs/<YYYY-MM-DD>/<HHMMSS_shortid>/
+```
+
 任务目录按日志来源拆分：
 
 ```text
@@ -133,6 +139,7 @@ api_events.jsonl
 
 ```text
 upload_received              收到上传请求和原始文件名
+api_review_received          收到无登录 API 审查请求和原始文件名
 criteria_uploaded            本次任务上传了临时审查要点
 contract_saved               合同文件已保存到用户数据目录
 docx_validation_passed       DOCX 文件格式校验通过

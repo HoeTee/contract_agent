@@ -11,12 +11,14 @@ from urllib.parse import quote
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from starlette.background import BackgroundTask
 from docx import Document
 
-from config import DATA_DIR, MAX_API_CONCURRENT_REVIEWS, MCP_SERVER_PATH, USERS_FILE
+from config import DATA_DIR, DEFAULT_REVIEW_CRITERIA_PATH, MAX_API_CONCURRENT_REVIEWS, MCP_SERVER_PATH, USERS_FILE
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
 from loggers.api_event_logger import append_api_event
 from web.errors import ModelCallError
+from loggers.resolve_api_review_paths import resolve_api_review_paths
 from loggers.resolve_review_task_paths import resolve_review_task_paths
 from loggers.review_history import (
     HISTORY_SCHEMA_VERSION,
@@ -187,6 +189,165 @@ async def run_review_task(username: str, paths, criteria_path: Path) -> None:
         append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
     finally:
         reset_conversation_log_dir(token)
+
+
+@router.post("/api/review")
+async def api_review(
+    file: UploadFile = File(...),
+    criteria_file: UploadFile | None = File(None),
+):
+    filename = safe_upload_filename(file.filename)
+    paths = resolve_api_review_paths(
+        original_filename=filename,
+        data_dir=Path(DATA_DIR),
+    )
+
+    try:
+        paths.ensure_dirs()
+        append_api_event(
+            paths.api_events_path,
+            "api_review_received",
+            task_id=paths.task_id,
+            filename=filename,
+        )
+
+        if not filename.lower().endswith(".docx"):
+            raise HTTPException(
+                status_code=400,
+                detail="系统支持的合同文件格式是 DOCX。",
+            )
+
+        selected_criteria_path = Path(DEFAULT_REVIEW_CRITERIA_PATH)
+        criteria_source = "default"
+        criteria_filename = None
+
+        has_uploaded_criteria = bool(criteria_file and criteria_file.filename)
+        if has_uploaded_criteria:
+            criteria_filename = safe_upload_filename(criteria_file.filename)
+            if not criteria_filename.lower().endswith(".docx"):
+                raise HTTPException(
+                    status_code=400,
+                    detail="审查要点文件格式必须是 DOCX。",
+                )
+            with paths.uploaded_criteria_path.open("wb") as f:
+                shutil.copyfileobj(criteria_file.file, f)
+            validate_uploaded_docx(paths.uploaded_criteria_path)
+            validate_review_criteria_content(paths.uploaded_criteria_path)
+            selected_criteria_path = paths.uploaded_criteria_path
+            criteria_source = "uploaded"
+            append_api_event(
+                paths.api_events_path,
+                "criteria_uploaded",
+                original_filename=criteria_filename,
+                size_bytes=paths.uploaded_criteria_path.stat().st_size,
+            )
+        elif not selected_criteria_path.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=f"未找到系统默认审查要点文件：{selected_criteria_path}",
+            )
+
+        with paths.stored_contract_path.open("wb") as f:
+            shutil.copyfileobj(file.file, f)
+        append_api_event(
+            paths.api_events_path,
+            "contract_saved",
+            file_path=str(paths.stored_contract_path),
+            size_bytes=paths.stored_contract_path.stat().st_size,
+            criteria_source=criteria_source,
+        )
+
+        validate_uploaded_docx(paths.stored_contract_path)
+        append_api_event(paths.api_events_path, "docx_validation_passed")
+
+        workflow = ContractReviewWorkflow(
+            server_script_path=str(MCP_SERVER_PATH),
+            workflow_log_dir=str(paths.workflow_log_dir),
+            conversation_log_dir=str(paths.conversation_log_dir),
+            mcp_log_file=str(paths.mcp_log_dir / "mcp_client.log"),
+            api_events_path=str(paths.api_events_path),
+        )
+
+        append_api_event(paths.api_events_path, "review_started", task_id=paths.task_id)
+        token = set_conversation_log_dir(paths.conversation_log_dir)
+        try:
+            async def run_workflow():
+                return await workflow.run(
+                    contract_path=str(paths.stored_contract_path),
+                    criteria_path=str(selected_criteria_path),
+                    output_path=str(paths.final_report_path),
+                )
+
+            if review_semaphore is None:
+                result = await run_workflow()
+            else:
+                async with review_semaphore:
+                    result = await run_workflow()
+        finally:
+            reset_conversation_log_dir(token)
+
+        output_path = Path(result["report_docx"])
+        if not output_path.exists():
+            raise RuntimeError("未找到输出的 DOCX 文件。")
+
+        append_api_event(paths.api_events_path, "review_completed", result_file=str(output_path))
+        response_filename = build_report_display_name(filename)
+        return FileResponse(
+            path=output_path,
+            media_type=DOCX_MEDIA_TYPE,
+            filename=response_filename,
+            background=BackgroundTask(paths.cleanup_temp_dir),
+            headers={
+                "X-Review-Task-Id": paths.task_id,
+                "X-Review-Log-Path": str(paths.api_events_path),
+                "X-Review-Criteria-Source": criteria_source,
+            },
+        )
+
+    except HTTPException as exc:
+        append_api_event(
+            paths.api_events_path,
+            "review_failed",
+            status_code=exc.status_code,
+            detail=exc.detail,
+        )
+        paths.cleanup_temp_dir()
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "task_id": paths.task_id,
+                "status": "failed",
+                "message": exc.detail,
+                "api_events_path": str(paths.api_events_path),
+            },
+        )
+    except Exception as exc:
+        status_code = 503 if isinstance(exc, ModelCallError) else 500
+        if isinstance(exc, ModelCallError):
+            message = f"审核失败：{exc.user_message}"
+            append_api_event(
+                paths.api_events_path,
+                exc.event_type,
+                component=exc.component,
+                error=str(exc),
+            )
+        else:
+            message = "审核失败，请查看任务日志。"
+        append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
+        paths.cleanup_temp_dir()
+        return JSONResponse(
+            status_code=status_code,
+            content={
+                "task_id": paths.task_id,
+                "status": "failed",
+                "message": message,
+                "api_events_path": str(paths.api_events_path),
+            },
+        )
+    finally:
+        await file.close()
+        if criteria_file:
+            await criteria_file.close()
 
 
 def safe_upload_filename(filename: str | None) -> str:
