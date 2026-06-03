@@ -559,11 +559,16 @@ input[type="file"] {
 
 .criteria-pill {
   max-width: 100%;
+  width: 100%;
+  display: block;
+  box-sizing: border-box;
+  border-radius: 8px;
+  padding: 7px 10px;
   white-space: normal;
   overflow-wrap: anywhere;
   word-break: break-word;
   text-align: left;
-  justify-content: flex-start;
+  line-height: 1.35;
 }
 
 .status-enabled,
