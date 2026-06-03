@@ -487,7 +487,6 @@ def list_history(username: str) -> list[dict]:
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    request.session.clear()
     return templates.TemplateResponse(
         request,
         "login.html",
@@ -525,6 +524,7 @@ async def login(
             status_code=401, # Return 401 unauthorized for failed login attempts
         )
 
+    request.session.clear()
     request.session["username"] = user["username"]
     request.session["display_name"] = user.get("display_name") or user["username"]
     request.session["role"] = normalize_role(user.get("role"))
@@ -563,7 +563,11 @@ async def update_profile_display_name(
 
 @router.get("/", response_class=HTMLResponse)
 async def entry_page(request: Request):
-    request.session.clear()
+    if sync_session_user(USERS_FILE, request.session):
+        if request.session.get("role") == "admin":
+            return RedirectResponse("/admin", status_code=303)
+        return RedirectResponse("/work", status_code=303)
+
     return templates.TemplateResponse(
         request,
         "login.html",
