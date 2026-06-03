@@ -553,6 +553,19 @@ input[type="file"] {
   margin-top: 0;
 }
 
+.criteria-cell {
+  min-width: 180px;
+}
+
+.criteria-pill {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-align: left;
+  justify-content: flex-start;
+}
+
 .status-enabled,
 .role-admin {
   color: var(--success);
