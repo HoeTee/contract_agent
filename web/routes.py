@@ -466,6 +466,19 @@ def require_current_username(request: Request) -> str:
 @router.get("/session/status")
 async def session_status(request: Request):
     user = sync_context_user(request)
+    if not user and not get_request_ctx(request):
+        contexts = request.session.get("auth_contexts")
+        if isinstance(contexts, dict):
+            for ctx in list(contexts):
+                context = contexts.get(ctx)
+                if not isinstance(context, dict):
+                    continue
+                stored_user = find_user(USERS_FILE, context.get("username", ""))
+                if stored_user and stored_user.get("enabled", True):
+                    return {
+                        "active": True,
+                        "role": normalize_role(stored_user.get("role")),
+                    }
     if not user:
         return JSONResponse({"active": False}, status_code=401)
     return {"active": True, "role": user["role"]}
