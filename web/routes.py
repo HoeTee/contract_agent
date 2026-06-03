@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import secrets
 import shutil
 import zipfile
 from datetime import datetime
@@ -79,6 +80,28 @@ def get_running_task(username: str) -> dict | None:
     if task and task.get("status") in {"queued", "running"}:
         return task
     return None
+
+
+def issue_login_token(request: Request) -> str:
+    token = secrets.token_urlsafe(32)
+    tokens = request.session.get("login_tokens")
+    if not isinstance(tokens, list):
+        tokens = []
+    tokens.append(token)
+    request.session["login_tokens"] = tokens[-5:]
+    return token
+
+
+def consume_login_token(request: Request, token: str) -> bool:
+    tokens = request.session.get("login_tokens")
+    if not isinstance(tokens, list):
+        return False
+    matched = any(secrets.compare_digest(token, item) for item in tokens)
+    if matched:
+        request.session["login_tokens"] = [
+            item for item in tokens if not secrets.compare_digest(token, item)
+        ]
+    return matched
 
 
 def build_report_display_name(contract_original_name: str) -> str:
@@ -487,11 +510,18 @@ def list_history(username: str) -> list[dict]:
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
+    if sync_session_user(USERS_FILE, request.session):
+        if request.session.get("role") == "admin":
+            return RedirectResponse("/admin", status_code=303)
+        return RedirectResponse("/work", status_code=303)
+
+    login_token = issue_login_token(request)
     return templates.TemplateResponse(
         request,
         "login.html",
         {
             "error": None,
+            "login_token": login_token,
         },
     )
 
@@ -500,8 +530,24 @@ async def login_page(request: Request):
 async def login(
     request: Request, 
     username: str = Form(...), 
-    password: str = Form(...)
+    password: str = Form(...),
+    login_token: str = Form(...)
 ):
+    if sync_session_user(USERS_FILE, request.session):
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {
+                "error": "当前浏览器已经登录。请先退出当前账号，再登录其他账号。",
+                "login_token": issue_login_token(request),
+            },
+            status_code=409,
+        )
+
+    if not consume_login_token(request, login_token):
+        return RedirectResponse("/login", status_code=303)
+
+    next_login_token = issue_login_token(request)
     existing_user = find_user(USERS_FILE, username)
     if (
         existing_user
@@ -568,11 +614,13 @@ async def entry_page(request: Request):
             return RedirectResponse("/admin", status_code=303)
         return RedirectResponse("/work", status_code=303)
 
+    login_token = issue_login_token(request)
     return templates.TemplateResponse(
         request,
         "login.html",
         {
             "error": None,
+            "login_token": login_token,
         },
     )
 

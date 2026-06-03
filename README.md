@@ -25,6 +25,7 @@ docs/
   PROJECT_STRUCTURE.md
   DEPLOYMENT.md
   QUICK_START.md
+  FRONTEND_USER_JOURNEY.md
 ```
 
 - `data/`：运行时持久化数据目录。部署到服务器时应挂载这个目录。
@@ -94,7 +95,7 @@ http://127.0.0.1:5000/admin
 
 管理员后台支持创建用户、修改角色、重置密码、启用/禁用、删除用户，以及管理用户默认审查要点。
 
-完整冒烟测试见 [docs/QUICK_START.md](docs/QUICK_START.md)，用户管理细节见 [docs/USER_MANAGEMENT.md](docs/USER_MANAGEMENT.md)。
+完整冒烟测试见 [docs/QUICK_START.md](docs/QUICK_START.md)，用户管理细节见 [docs/USER_MANAGEMENT.md](docs/USER_MANAGEMENT.md)，前端用户旅程见 [docs/FRONTEND_USER_JOURNEY.md](docs/FRONTEND_USER_JOURNEY.md)。
 
 用户登录后，服务会：
 

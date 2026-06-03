@@ -84,32 +84,45 @@ data/testuser/logs/
 
 页面会显示批注版 DOCX 的下载链接。
 
+前端完整用户旅程、页面状态和多标签页行为见 `docs/FRONTEND_USER_JOURNEY.md`。
+
 ## 7. 使用 curl 测试
 
 先保存登录 cookie：
 
 ```powershell
-curl.exe -i -c cookies.txt http://127.0.0.1:5000/
+$loginPage = Invoke-WebRequest -Uri http://127.0.0.1:5000/login -SessionVariable webSession
+$loginToken = [regex]::Match($loginPage.Content, 'name="login_token" type="hidden" value="([^"]+)"').Groups[1].Value
 ```
 
 登录：
 
 ```powershell
-curl.exe -i -c cookies.txt -b cookies.txt `
-  -X POST http://127.0.0.1:5000/login `
-  -d "username=testuser" `
-  -d "password=Test123456"
+Invoke-WebRequest `
+  -Uri http://127.0.0.1:5000/login `
+  -Method Post `
+  -WebSession $webSession `
+  -Body @{
+    username = "testuser"
+    password = "Test123456"
+    login_token = $loginToken
+  }
 ```
 
 上传合同并触发审查：
 
 ```powershell
-curl.exe -i -b cookies.txt `
-  -F "file=@data/testuser/contracts/合同文件名.docx" `
-  http://127.0.0.1:5000/review
+$form = @{
+  file = Get-Item "data/testuser/contracts/合同文件名.docx"
+}
+Invoke-WebRequest `
+  -Uri http://127.0.0.1:5000/review `
+  -Method Post `
+  -WebSession $webSession `
+  -Form $form
 ```
 
-`cookies.txt` 是 curl 用来模拟浏览器保存登录态的临时文件，正常 Web 运行时不会由程序生成这个文件。
+`$webSession` 是 PowerShell 用来模拟浏览器保存登录态的临时对象，正常 Web 运行时浏览器会自动保存和发送 cookie。
 
 ## 8. Docker 冒烟测试
 
