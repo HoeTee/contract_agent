@@ -21,8 +21,8 @@ RUN python -m pip install --no-index --find-links=/packages -r requirements.txt
 # 把当前项目所有目录复制到容器 /app 目录下
 COPY . .
 
-# 容器监听 5000 端口
-EXPOSE 5000
+# 容器监听 8000 端口
+EXPOSE 8000
 
-# 启动命令，使用 uvicorn 运行 FastAPI 应用，容器监听在自己的 5000 端口，单 worker 模式（如果需要生产环境部署，建议使用多 worker 模式或者配合 Gunicorn）
-CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5000", "--workers", "1"]
+# 启动命令，使用 uvicorn 运行 FastAPI 应用，容器监听在自己的 8000 端口，单 worker 模式（如果需要生产环境部署，建议使用多 worker 模式或者配合 Gunicorn）
+CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
