@@ -29,7 +29,7 @@ from loggers.review_history import (
     load_history_records,
 )
 from main_workflow.main_workflow import ContractReviewWorkflow
-from web.auth import find_user, load_users, normalize_role, save_users, sync_session_user, verify_login, verify_password
+from web.auth import find_user, load_users, normalize_role, save_users, verify_login, verify_password
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -102,6 +102,73 @@ def consume_login_token(request: Request, token: str) -> bool:
             item for item in tokens if not secrets.compare_digest(token, item)
         ]
     return matched
+
+
+def create_auth_context(request: Request, user: dict) -> str:
+    ctx = secrets.token_urlsafe(16)
+    contexts = request.session.get("auth_contexts")
+    if not isinstance(contexts, dict):
+        contexts = {}
+    contexts[ctx] = {
+        "username": user["username"],
+        "display_name": user.get("display_name") or user["username"],
+        "role": normalize_role(user.get("role")),
+    }
+    request.session["auth_contexts"] = contexts
+    return ctx
+
+
+def get_request_ctx(request: Request) -> str | None:
+    ctx = request.query_params.get("ctx")
+    if ctx:
+        return ctx
+    return None
+
+
+def sync_context_user(request: Request) -> dict | None:
+    ctx = get_request_ctx(request)
+    if not ctx:
+        return None
+    contexts = request.session.get("auth_contexts")
+    if not isinstance(contexts, dict):
+        return None
+    context = contexts.get(ctx)
+    if not isinstance(context, dict):
+        return None
+
+    user = find_user(USERS_FILE, context.get("username", ""))
+    if not user or not user.get("enabled", True):
+        contexts.pop(ctx, None)
+        request.session["auth_contexts"] = contexts
+        return None
+
+    context["display_name"] = user.get("display_name") or user["username"]
+    context["role"] = normalize_role(user.get("role"))
+    contexts[ctx] = context
+    request.session["auth_contexts"] = contexts
+    return {
+        "ctx": ctx,
+        "username": user["username"],
+        "display_name": context["display_name"],
+        "role": context["role"],
+    }
+
+
+def ctx_path(path: str, ctx: str | None) -> str:
+    if not ctx:
+        return path
+    separator = "&" if "?" in path else "?"
+    return f"{path}{separator}ctx={quote(ctx)}"
+
+
+def remove_auth_context(request: Request, ctx: str | None) -> None:
+    if not ctx:
+        return
+    contexts = request.session.get("auth_contexts")
+    if not isinstance(contexts, dict):
+        return
+    contexts.pop(ctx, None)
+    request.session["auth_contexts"] = contexts
 
 
 def build_report_display_name(contract_original_name: str) -> str:
@@ -380,9 +447,10 @@ def safe_upload_filename(filename: str | None) -> str:
 
 
 def get_current_username(request: Request) -> str | None:
-    if not sync_session_user(USERS_FILE, request.session):
+    user = sync_context_user(request)
+    if not user:
         return None
-    return request.session.get("username")
+    return user["username"]
 
 
 def require_current_username(request: Request) -> str:
@@ -397,10 +465,10 @@ def require_current_username(request: Request) -> str:
 
 @router.get("/session/status")
 async def session_status(request: Request):
-    user = sync_session_user(USERS_FILE, request.session)
+    user = sync_context_user(request)
     if not user:
         return JSONResponse({"active": False}, status_code=401)
-    return {"active": True, "role": request.session.get("role")}
+    return {"active": True, "role": user["role"]}
 
 
 def update_display_name(users_file: str | Path, username: str, display_name: str) -> str:
@@ -510,11 +578,6 @@ def list_history(username: str) -> list[dict]:
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    if sync_session_user(USERS_FILE, request.session):
-        if request.session.get("role") == "admin":
-            return RedirectResponse("/admin", status_code=303)
-        return RedirectResponse("/work", status_code=303)
-
     login_token = issue_login_token(request)
     return templates.TemplateResponse(
         request,
@@ -528,22 +591,11 @@ async def login_page(request: Request):
 
 @router.post("/login", response_class=HTMLResponse)
 async def login(
-    request: Request, 
-    username: str = Form(...), 
+    request: Request,
+    username: str = Form(...),
     password: str = Form(...),
-    login_token: str = Form(...)
+    login_token: str = Form(...),
 ):
-    if sync_session_user(USERS_FILE, request.session):
-        return templates.TemplateResponse(
-            request,
-            "login.html",
-            {
-                "error": "当前浏览器已经登录。请先退出当前账号，再登录其他账号。",
-                "login_token": issue_login_token(request),
-            },
-            status_code=409,
-        )
-
     if not consume_login_token(request, login_token):
         return RedirectResponse("/login", status_code=303)
 
@@ -557,34 +609,35 @@ async def login(
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "账号已被禁用，请联系管理员。"},
+            {
+                "error": "??????????????",
+                "login_token": next_login_token,
+            },
             status_code=403,
         )
 
-    user = verify_login(USERS_FILE, username, password) # obtain user dict of metdata if login is successful, otherwise None
+    user = verify_login(USERS_FILE, username, password)
     if not user:
         return templates.TemplateResponse(
             request,
             "login.html",
-            {"error": "用户名或密码错误。"},
-            status_code=401, # Return 401 unauthorized for failed login attempts
+            {
+                "error": "?????????",
+                "login_token": next_login_token,
+            },
+            status_code=401,
         )
 
-    request.session.clear()
-    request.session["username"] = user["username"]
-    request.session["display_name"] = user.get("display_name") or user["username"]
-    request.session["role"] = normalize_role(user.get("role"))
-    if request.session["role"] == "admin":
-        return RedirectResponse("/admin", status_code=303)
-    return RedirectResponse("/work", status_code=303)
+    ctx = create_auth_context(request, user)
+    if normalize_role(user.get("role")) == "admin":
+        return RedirectResponse(ctx_path("/admin", ctx), status_code=303)
+    return RedirectResponse(ctx_path("/work", ctx), status_code=303)
 
 
 @router.post("/logout")
 async def logout(request: Request):
-    request.session.clear()
-    response = RedirectResponse("/login", status_code=303)
-    response.delete_cookie("contract_review_session")
-    return response
+    remove_auth_context(request, get_request_ctx(request))
+    return RedirectResponse("/login", status_code=303)
 
 
 @router.post("/profile/display-name")
@@ -593,6 +646,7 @@ async def update_profile_display_name(
     display_name: str = Form(...),
 ):
     username = get_current_username(request)
+    ctx = get_request_ctx(request)
     if not username:
         return RedirectResponse("/login", status_code=303)
 
@@ -604,16 +658,11 @@ async def update_profile_display_name(
         request.session["flash_error"] = exc.detail
     except OSError:
         request.session["flash_error"] = "显示名称更新失败，请检查用户配置文件是否可写。"
-    return RedirectResponse("/settings", status_code=303)
+    return RedirectResponse(ctx_path("/settings", ctx), status_code=303)
 
 
 @router.get("/", response_class=HTMLResponse)
 async def entry_page(request: Request):
-    if sync_session_user(USERS_FILE, request.session):
-        if request.session.get("role") == "admin":
-            return RedirectResponse("/admin", status_code=303)
-        return RedirectResponse("/work", status_code=303)
-
     login_token = issue_login_token(request)
     return templates.TemplateResponse(
         request,
@@ -627,11 +676,12 @@ async def entry_page(request: Request):
 
 @router.get("/work", response_class=HTMLResponse)
 async def index(request: Request):
-    username = get_current_username(request)
-    if not username:
+    user = sync_context_user(request)
+    if not user:
         return RedirectResponse("/login", status_code=303) # happens when user tries to access /work without logging in, redirect them to login page
-    if request.session.get("role") == "admin":
-        return RedirectResponse("/admin", status_code=303)
+    if user["role"] == "admin":
+        return RedirectResponse(ctx_path("/admin", user["ctx"]), status_code=303)
+    username = user["username"]
     task = review_tasks.get(username)
     error = request.session.pop("flash_error", None)
     success = request.session.pop("flash_success", None)
@@ -647,7 +697,8 @@ async def index(request: Request):
         "index.html",
         {
             "username": username,
-            "display_name": request.session.get("display_name", username),
+            "display_name": user["display_name"],
+            "ctx": user["ctx"],
             "history": list_history(username),
             "error": error,
             "success": success,
@@ -659,18 +710,19 @@ async def index(request: Request):
 
 @router.get("/settings", response_class=HTMLResponse)
 async def settings(request: Request):
-    username = get_current_username(request)
-    if not username:
+    user = sync_context_user(request)
+    if not user:
         return RedirectResponse("/login", status_code=303)
-    if request.session.get("role") == "admin":
-        return RedirectResponse("/admin", status_code=303)
+    if user["role"] == "admin":
+        return RedirectResponse(ctx_path("/admin", user["ctx"]), status_code=303)
 
     return templates.TemplateResponse(
         request,
         "settings.html",
         {
-            "username": username,
-            "display_name": request.session.get("display_name", username),
+            "username": user["username"],
+            "display_name": user["display_name"],
+            "ctx": user["ctx"],
             "error": request.session.pop("flash_error", None),
             "success": request.session.pop("flash_success", None),
         },
@@ -684,6 +736,7 @@ async def review_page(
     criteria_file: UploadFile | None = File(None),
 ):
     username = get_current_username(request)
+    ctx = get_request_ctx(request)
     if not username:
         return RedirectResponse("/login", status_code=303)
 
@@ -692,7 +745,7 @@ async def review_page(
         await file.close()
         if criteria_file:
             await criteria_file.close()
-        return RedirectResponse("/work", status_code=303)
+        return RedirectResponse(ctx_path("/work", ctx), status_code=303)
 
     filename = safe_upload_filename(file.filename)
     paths = resolve_review_task_paths(
@@ -743,7 +796,7 @@ async def review_page(
             )
         elif not paths.criteria_path.exists():
             request.session["flash_error"] = f"未找到审查要点文件：{paths.criteria_path}"
-            return RedirectResponse("/work", status_code=303)
+            return RedirectResponse(ctx_path("/work", ctx), status_code=303)
         with paths.stored_contract_path.open("wb") as f:
             shutil.copyfileobj(file.file, f)
         
@@ -777,16 +830,16 @@ async def review_page(
         }
         # This is where Semaphore comes into play.
         asyncio.create_task(run_review_task(username, paths, selected_criteria_path))
-        return RedirectResponse("/work", status_code=303)
+        return RedirectResponse(ctx_path("/work", ctx), status_code=303)
 
     except HTTPException as exc:
         append_api_event(paths.api_events_path, "review_failed", status_code=exc.status_code, detail=exc.detail)
         request.session["flash_error"] = exc.detail
-        return RedirectResponse("/work", status_code=303)
+        return RedirectResponse(ctx_path("/work", ctx), status_code=303)
     except Exception as exc:
         append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
         request.session["flash_error"] = "审核失败，请查看任务日志。"
-        return RedirectResponse("/work", status_code=303)
+        return RedirectResponse(ctx_path("/work", ctx), status_code=303)
     finally:
         await file.close()
         if criteria_file:
@@ -810,17 +863,18 @@ async def download_result(request: Request, filename: str):
 
 @router.get("/history", response_class=HTMLResponse)
 async def history(request: Request):
-    username = get_current_username(request)
-    if not username:
+    user = sync_context_user(request)
+    if not user:
         return RedirectResponse("/login", status_code=303)
-    if request.session.get("role") == "admin":
-        return RedirectResponse("/admin", status_code=303)
+    if user["role"] == "admin":
+        return RedirectResponse(ctx_path("/admin", user["ctx"]), status_code=303)
     return templates.TemplateResponse(
         request,
         "history.html",
         {
-            "username": username,
-            "display_name": request.session.get("display_name", username),
-            "history": list_history(username),
+            "username": user["username"],
+            "display_name": user["display_name"],
+            "ctx": user["ctx"],
+            "history": list_history(user["username"]),
         },
     )

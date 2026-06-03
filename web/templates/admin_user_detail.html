@@ -24,8 +24,8 @@
           </div>
         </div>
         <nav class="nav-list">
-          <a class="nav-item" href="/admin">后台首页</a>
-          <a class="nav-item active" href="/admin/users">用户管理</a>
+          <a class="nav-item" href="/admin?ctx={{ ctx }}">后台首页</a>
+          <a class="nav-item active" href="/admin/users?ctx={{ ctx }}">用户管理</a>
         </nav>
       </aside>
 
@@ -36,8 +36,8 @@
             <h1>{{ target_user.display_name }} · {{ target_user.username }}</h1>
           </div>
           <div class="user-box">
-            <a class="secondary-button compact-button user-link-button" href="/admin/users">返回用户列表</a>
-            <form method="post" action="/logout" class="user-action-form">
+            <a class="secondary-button compact-button user-link-button" href="/admin/users?ctx={{ ctx }}">返回用户列表</a>
+            <form method="post" action="/logout?ctx={{ ctx }}" class="user-action-form">
               <button type="submit" class="secondary-button compact-button">退出登录</button>
             </form>
           </div>
@@ -75,7 +75,7 @@
             <div class="admin-management-grid">
               <div class="admin-control-group">
                 <h3>身份与访问</h3>
-                <form method="post" action="/admin/users/{{ target_user.username }}/role" class="admin-inline-form">
+                <form method="post" action="/admin/users/{{ target_user.username }}/role?ctx={{ ctx }}" class="admin-inline-form">
                   <label>
                     <span>角色</span>
                     <select name="role">
@@ -86,7 +86,7 @@
                   <button type="submit" class="secondary-button compact-button">更新角色</button>
                 </form>
 
-                <form method="post" action="/admin/users/{{ target_user.username }}/password" class="admin-inline-form">
+                <form method="post" action="/admin/users/{{ target_user.username }}/password?ctx={{ ctx }}" class="admin-inline-form">
                   <label>
                     <span>新密码</span>
                     <input name="password" type="password" required>
@@ -99,16 +99,16 @@
                 <h3>账号状态</h3>
                 <div class="admin-actions">
                   {% if target_user.enabled %}
-                  <form method="post" action="/admin/users/{{ target_user.username }}/disable">
+                  <form method="post" action="/admin/users/{{ target_user.username }}/disable?ctx={{ ctx }}">
                     <button type="submit" class="secondary-button compact-button">禁用用户</button>
                   </form>
                   {% else %}
-                  <form method="post" action="/admin/users/{{ target_user.username }}/enable">
+                  <form method="post" action="/admin/users/{{ target_user.username }}/enable?ctx={{ ctx }}">
                     <button type="submit" class="secondary-button compact-button">启用用户</button>
                   </form>
                   {% endif %}
                 </div>
-                <form method="post" action="/admin/users/{{ target_user.username }}/delete" class="admin-inline-form admin-delete-form" data-confirm-delete="true" data-confirm-username="{{ target_user.username }}">
+                <form method="post" action="/admin/users/{{ target_user.username }}/delete?ctx={{ ctx }}" class="admin-inline-form admin-delete-form" data-confirm-delete="true" data-confirm-username="{{ target_user.username }}">
                   <label class="checkbox-label">
                     <input name="keep_data" type="checkbox" value="true" checked>
                     <span>保留用户数据</span>
@@ -134,13 +134,13 @@
                 大小：{{ criteria.size }} · 更新时间：{{ criteria.updated_at }}
               </span>
               {% if criteria.exists %}
-              <a class="secondary-button compact-button" href="/admin/users/{{ target_user.username }}/criteria/download">下载</a>
+              <a class="secondary-button compact-button" href="/admin/users/{{ target_user.username }}/criteria/download?ctx={{ ctx }}">下载</a>
               {% endif %}
-              <form method="post" action="/admin/users/{{ target_user.username }}/criteria/restore">
+              <form method="post" action="/admin/users/{{ target_user.username }}/criteria/restore?ctx={{ ctx }}">
                 <button type="submit" class="secondary-button compact-button">恢复系统默认</button>
               </form>
             </div>
-            <form method="post" action="/admin/users/{{ target_user.username }}/criteria/upload" enctype="multipart/form-data" class="upload-form admin-upload-form">
+            <form method="post" action="/admin/users/{{ target_user.username }}/criteria/upload?ctx={{ ctx }}" enctype="multipart/form-data" class="upload-form admin-upload-form">
               <label>
                 <span>上传覆盖审查要点</span>
                 <input name="criteria_file" type="file" accept=".docx" required>
@@ -213,7 +213,7 @@
                     <td>{{ item.updated_at }}</td>
                     <td>
                       {% if item.has_api_events %}
-                      <a class="table-action" href="/admin/users/{{ target_user.username }}/logs/{{ item.date }}/{{ item.task_name }}/api-events">查看</a>
+                      <a class="table-action" href="/admin/users/{{ target_user.username }}/logs/{{ item.date }}/{{ item.task_name }}/api-events?ctx={{ ctx }}">查看</a>
                       {% else %}
                       -
                       {% endif %}

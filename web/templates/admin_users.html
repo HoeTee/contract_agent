@@ -24,8 +24,8 @@
           </div>
         </div>
         <nav class="nav-list">
-          <a class="nav-item" href="/admin">后台首页</a>
-          <a class="nav-item active" href="/admin/users">用户管理</a>
+          <a class="nav-item" href="/admin?ctx={{ ctx }}">后台首页</a>
+          <a class="nav-item active" href="/admin/users?ctx={{ ctx }}">用户管理</a>
         </nav>
       </aside>
 
@@ -40,7 +40,7 @@
               <span>当前管理员</span>
               <strong>{{ display_name }} · {{ username }}</strong>
             </div>
-            <form method="post" action="/logout" class="user-action-form">
+            <form method="post" action="/logout?ctx={{ ctx }}" class="user-action-form">
               <button type="submit" class="secondary-button compact-button">退出登录</button>
             </form>
           </div>
@@ -63,7 +63,7 @@
               </div>
               <span class="admin-panel-note">账号创建后会自动初始化用户目录和默认审查要点。</span>
             </div>
-            <form method="post" action="/admin/users/create" class="admin-form-grid">
+            <form method="post" action="/admin/users/create?ctx={{ ctx }}" class="admin-form-grid">
               <label>
                 <span>用户名</span>
                 <input name="username" type="text" required>
@@ -121,7 +121,7 @@
                     </td>
                     <td>{{ item.history_count }}</td>
                     <td>{{ item.latest_review_at }}</td>
-                    <td><a class="table-action" href="/admin/users/{{ item.username }}">管理</a></td>
+                    <td><a class="table-action" href="/admin/users/{{ item.username }}?ctx={{ ctx }}">管理</a></td>
                   </tr>
                   {% else %}
                   <tr><td colspan="7" class="empty-state">暂无用户</td></tr>

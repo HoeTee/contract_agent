@@ -24,9 +24,9 @@
           </div>
         </div>
         <nav class="nav-list">
-          <a class="nav-item" href="/work">上传审核</a>
-          <a class="nav-item" href="/history">审核历史</a>
-          <a class="nav-item active" href="/settings">用户设置</a>
+          <a class="nav-item" href="/work?ctx={{ ctx }}">上传审核</a>
+          <a class="nav-item" href="/history?ctx={{ ctx }}">审核历史</a>
+          <a class="nav-item active" href="/settings?ctx={{ ctx }}">用户设置</a>
         </nav>
       </aside>
 
@@ -41,7 +41,7 @@
               <span>当前用户</span>
               <strong>{{ display_name }} · {{ username }}</strong>
             </div>
-            <form method="post" action="/logout" class="user-action-form">
+            <form method="post" action="/logout?ctx={{ ctx }}" class="user-action-form">
               <button type="submit" class="secondary-button compact-button">退出登录</button>
             </form>
           </div>
@@ -66,7 +66,7 @@
               </div>
             </div>
 
-            <form method="post" action="/profile/display-name" class="form-stack settings-form">
+            <form method="post" action="/profile/display-name?ctx={{ ctx }}" class="form-stack settings-form">
               <label>
                 <span>显示名称</span>
                 <input name="display_name" type="text" value="{{ display_name }}" maxlength="40" required>

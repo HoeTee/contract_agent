@@ -38,7 +38,10 @@ document.querySelectorAll("[data-confirm-delete]").forEach((form) => {
 if (document.body.dataset.authCheck === "true") {
   const checkSession = async () => {
     try {
-      const response = await fetch("/session/status", {
+      const params = new URLSearchParams(window.location.search);
+      const ctx = params.get("ctx");
+      const statusUrl = ctx ? `/session/status?ctx=${encodeURIComponent(ctx)}` : "/session/status";
+      const response = await fetch(statusUrl, {
         cache: "no-store",
         credentials: "same-origin",
       });

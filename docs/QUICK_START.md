@@ -98,7 +98,7 @@ $loginToken = [regex]::Match($loginPage.Content, 'name="login_token" type="hidde
 登录：
 
 ```powershell
-Invoke-WebRequest `
+$loginResponse = Invoke-WebRequest `
   -Uri http://127.0.0.1:5000/login `
   -Method Post `
   -WebSession $webSession `
@@ -107,6 +107,7 @@ Invoke-WebRequest `
     password = "Test123456"
     login_token = $loginToken
   }
+$ctx = [regex]::Match($loginResponse.Headers.Location, 'ctx=([^&]+)').Groups[1].Value
 ```
 
 上传合同并触发审查：
@@ -116,7 +117,7 @@ $form = @{
   file = Get-Item "data/testuser/contracts/合同文件名.docx"
 }
 Invoke-WebRequest `
-  -Uri http://127.0.0.1:5000/review `
+  -Uri "http://127.0.0.1:5000/review?ctx=$ctx" `
   -Method Post `
   -WebSession $webSession `
   -Form $form

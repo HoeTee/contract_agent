@@ -10,8 +10,7 @@
 /                            未登录用户        显示登录页
 /                            普通用户          重定向到 /work
 /                            管理员            重定向到 /admin
-/login                       未登录用户        显示登录页，不清除已有 session
-/login                       已登录用户        重定向到当前用户页面
+/login                       所有用户          显示登录页；成功登录后创建新的 ctx
 /work                        普通用户          上传审核工作台
 /history                     普通用户          审核历史
 /settings                    普通用户          用户设置
@@ -22,10 +21,10 @@
 
 关键边界：
 
-- 只有 `POST /login` 登录成功和 `POST /logout` 会主动改写或清除 session。
+- `POST /login` 登录成功会创建新的账号上下文 `ctx`，不会覆盖其他 tab 的 ctx。
+- `POST /logout?ctx=...` 只退出当前 ctx。
 - 访问 `/` 或 `GET /login` 不应打断同一浏览器中已有页面。
-- 已登录 session 再提交旧登录页不会切换账号；需要先退出当前账号再登录其他账号。
-- 同一浏览器多个 tab 共享同一个 `contract_review_session` cookie。
+- 同一浏览器多个 tab 共享一个 `contract_review_session` cookie，但每个 tab 通过 URL 中的 `ctx` 区分当前账号。
 - 同一个账号同一时间只允许一个审核任务处于 `queued` 或 `running`。
 
 ## 完整主旅程
@@ -65,8 +64,8 @@
      | 否     | 是
      v        v
 +---------+  +----------------------+
-| 显示错误 |  | 写入 session          |
-+---------+  | username/display/role |
+| 显示错误 |  | 创建 ctx              |
++---------+  | ctx -> username/role  |
              +-----------+----------+
                          |
                          v
@@ -212,42 +211,41 @@ completed              failed
 
 ## 登录和多标签页旅程
 
-浏览器按域名共享 cookie，所以同一个浏览器里的多个 tab 共享同一个 session。这里的行为目标是：打开入口页不踢人，真正登录其他账号时才切换会话。
+浏览器按域名共享 cookie，所以同一个浏览器里的多个 tab 共享同一个 `contract_review_session`。系统用 URL 里的 `ctx` 区分每个 tab 当前绑定的账号。
 
 ```text
-Tab A: 用户 A 已登录并在 /work 审核中
+Tab A: 用户 A 已登录并在 /work?ctx=A 审核中
   |
   | 同一浏览器打开 Tab B
   v
-Tab B: GET /
+Tab B: GET /login
   |
   v
-session 仍然是用户 A
+用户 B 登录成功，后端创建 ctx=B
   |
   v
-Tab B 自动进入 /work
+Tab B 自动进入 /work?ctx=B 或 /admin?ctx=B
   |
   v
-Tab A 不被踢出
+Tab A 仍保持 /work?ctx=A
 ```
 
-如果 Tab B 使用已经打开的旧登录页继续提交：
+如果 Tab A 退出登录：
 
 ```text
-Tab A: 用户 A 页面
-Tab B: POST /login 用户 B
+Tab A: POST /logout?ctx=A
   |
   v
-后端发现当前浏览器已经有有效 session
+后端删除 ctx=A
   |
   v
-返回登录页失效/需先退出的错误提示
+Tab A 回到 /login
   |
   v
-Tab A 保持用户 A 的 session
+Tab B 的 ctx=B 仍然有效
 ```
 
-这个边界来自浏览器 cookie 模型，不是多用户隔离失败。要在同一台电脑同时保持两个用户登录，应使用不同浏览器、隐身窗口，或未来改成前端显式多账号切换机制。
+这个设计允许同一个浏览器同时保留多个账号上下文。边界是：`ctx` 是同一浏览器 session 内的账号上下文，不是跨设备共享登录链接；服务重启或 session cookie 丢失后需要重新登录。
 
 ## 前端自动行为
 
@@ -348,8 +346,8 @@ session 检查分支：
 ## 当前产品边界
 
 - 普通用户不能直接访问管理员页面。
-- 管理员不会进入普通用户 `/work` 工作台。
+- 管理员 ctx 访问普通用户 `/work` 会被重定向回 `/admin?ctx=...`。
 - 同一账号不能同时运行多个审核任务。
 - 不同账号可以分别提交任务，但实际并行数量受 `MAX_API_CONCURRENT_REVIEWS` 控制。
-- 审核任务状态存放在服务进程内存中，服务重启后正在进行的前端任务状态不会保留。
+- 账号 ctx 存在浏览器 session cookie 中；服务重启不需要保留服务端 ctx 状态，但正在进行的审核任务状态仍存放在服务进程内存中，服务重启后不会保留。
 - 历史记录来自 `data/<username>/records/review_history.json`，不是扫描输出目录临时生成。
