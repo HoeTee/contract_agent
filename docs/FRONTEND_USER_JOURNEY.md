@@ -22,7 +22,7 @@
 关键边界：
 
 - `POST /login` 登录成功会创建新的账号上下文 `ctx`，不会覆盖其他 tab 的 ctx。
-- 同一浏览器再次登录同一个账号会复用已有 ctx，不创建第二个同账号 ctx。
+- 同一浏览器再次登录同一个账号会创建新 ctx，并使该账号旧 ctx 失效。
 - `POST /logout?ctx=...` 只退出当前 ctx。
 - 访问 `/` 或 `GET /login` 不应打断同一浏览器中已有页面。
 - 同一浏览器多个 tab 共享一个 `contract_review_session` cookie，但每个 tab 通过 URL 中的 `ctx` 区分当前账号。

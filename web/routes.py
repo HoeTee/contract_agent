@@ -118,20 +118,17 @@ def create_auth_context(request: Request, user: dict) -> str:
     return ctx
 
 
-def find_auth_context_for_username(request: Request, username: str) -> str | None:
+def remove_auth_contexts_for_username(request: Request, username: str) -> None:
     contexts = request.session.get("auth_contexts")
     if not isinstance(contexts, dict):
-        return None
-    for ctx, context in contexts.items():
+        return
+    removed = False
+    for ctx, context in list(contexts.items()):
         if isinstance(context, dict) and context.get("username") == username:
-            user = find_user(USERS_FILE, username)
-            if user and user.get("enabled", True):
-                context["display_name"] = user.get("display_name") or username
-                context["role"] = normalize_role(user.get("role"))
-                contexts[ctx] = context
-                request.session["auth_contexts"] = contexts
-                return ctx
-    return None
+            contexts.pop(ctx, None)
+            removed = True
+    if removed:
+        request.session["auth_contexts"] = contexts
 
 
 def get_request_ctx(request: Request) -> str | None:
@@ -657,7 +654,8 @@ async def login(
             status_code=401,
         )
 
-    ctx = find_auth_context_for_username(request, user["username"]) or create_auth_context(request, user)
+    remove_auth_contexts_for_username(request, user["username"])
+    ctx = create_auth_context(request, user)
     if normalize_role(user.get("role")) == "admin":
         return RedirectResponse(ctx_path("/admin", ctx), status_code=303)
     return RedirectResponse(ctx_path("/work", ctx), status_code=303)
