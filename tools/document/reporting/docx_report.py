@@ -2,7 +2,10 @@ import os
 import re
 import shutil
 import sys
+import copy
+import json
 from dataclasses import dataclass
+from pathlib import Path
 from docx import Document
 from docx.document import Document as DocxDocument
 from docx.oxml.ns import qn
@@ -12,6 +15,7 @@ from docx.oxml.text.paragraph import CT_P
 from docx.opc.packuri import PackURI
 from docx.table import Table, _Cell
 from docx.text.paragraph import Paragraph
+from docx.text.run import Run
 from datetime import datetime
 from lxml import etree
 
@@ -31,6 +35,18 @@ class ParagraphAnchor:
     normalized_text: str
 
 
+@dataclass(frozen=True)
+class TextRangeAnchor:
+    """Resolved text range inside a Word paragraph for a precise comment."""
+
+    paragraph: Paragraph
+    path: str
+    start_char: int
+    end_char: int
+    match_strategy: str
+    matched_text: str
+
+
 class DocxReportGenerator:
     """Generates DOCX reports, including annotated copies of original contracts."""
 
@@ -46,6 +62,59 @@ class DocxReportGenerator:
         text = text.replace('\uff08', '(').replace('\uff09', ')').replace('\uff1a', ':')
         text = text.replace('\uff0c', ',').replace('\u3002', '.').replace('\uff1b', ';')
         return text
+
+    @staticmethod
+    def _normalize_text_with_mapping(text: str) -> tuple[str, list[int]]:
+        """Normalize text and keep each normalized char mapped to original text."""
+        normalized_chars: list[str] = []
+        norm_to_orig: list[int] = []
+        if not text:
+            return "", norm_to_orig
+
+        line_start = True
+        for index, char in enumerate(text):
+            if line_start and char == ">":
+                line_start = False
+                continue
+            if char in ("\n", "\r"):
+                line_start = True
+            elif not char.isspace() and char != "\u3000":
+                line_start = False
+
+            if char.isspace() or char == "\u3000":
+                continue
+
+            normalized = char
+            normalized = normalized.replace('\uff08', '(').replace('\uff09', ')')
+            normalized = normalized.replace('\uff1a', ':').replace('\uff0c', ',')
+            normalized = normalized.replace('\u3002', '.').replace('\uff1b', ';')
+            normalized_chars.append(normalized)
+            norm_to_orig.append(index)
+
+        return "".join(normalized_chars), norm_to_orig
+
+    @staticmethod
+    def _light_clean_reference_variants(reference_text: str) -> list[str]:
+        """Return lightly cleaned quoted-text candidates without punctuation conversion."""
+        clean_ref = re.sub(r'^>\s*', '', reference_text or "", flags=re.MULTILINE)
+        lines = [line.strip() for line in clean_ref.splitlines() if line.strip()]
+        candidates: list[str] = []
+        whole = clean_ref.strip()
+        if whole:
+            candidates.append(whole)
+        if lines:
+            candidates.extend(lines)
+            joined = "".join(lines)
+            if joined:
+                candidates.append(joined)
+
+        unique_candidates: list[str] = []
+        seen: set[str] = set()
+        for candidate in candidates:
+            if candidate and candidate not in seen:
+                seen.add(candidate)
+                unique_candidates.append(candidate)
+        return unique_candidates
 
     @staticmethod
     def _minimum_match_length(text: str) -> int:
@@ -104,69 +173,112 @@ class DocxReportGenerator:
         return anchors
 
     @staticmethod
-    def _score_anchor_match(
-        normalized_reference: str,
+    def _text_range_from_find(
         anchor: ParagraphAnchor,
-        next_anchor: ParagraphAnchor | None = None,
-    ) -> int:
-        """Return a simple relevance score for a reference-to-anchor match."""
-        score = 0
-        anchor_text = anchor.normalized_text
-
-        if normalized_reference in anchor_text or anchor_text in normalized_reference:
-            score = max(score, 100 + min(len(normalized_reference), len(anchor_text)))
-
-        prefix_length = min(20, len(normalized_reference), len(anchor_text))
-        if prefix_length >= 8 and normalized_reference[:prefix_length] == anchor_text[:prefix_length]:
-            score = max(score, 60 + prefix_length)
-
-        if next_anchor is None:
-            return score
-
-        combined_text = anchor_text + next_anchor.normalized_text
-        if normalized_reference in combined_text:
-            score = max(score, 90 + min(len(normalized_reference), len(combined_text)))
-
-        combined_prefix = min(30, len(normalized_reference), len(combined_text))
-        if combined_prefix >= 12 and normalized_reference[:combined_prefix] == combined_text[:combined_prefix]:
-            score = max(score, 50 + combined_prefix)
-
-        return score
+        needle: str,
+        match_strategy: str,
+    ) -> TextRangeAnchor | None:
+        paragraph_text = anchor.paragraph.text
+        if not needle:
+            return None
+        start = paragraph_text.find(needle)
+        if start < 0:
+            return None
+        end = start + len(needle)
+        return TextRangeAnchor(
+            paragraph=anchor.paragraph,
+            path=anchor.path,
+            start_char=start,
+            end_char=end,
+            match_strategy=match_strategy,
+            matched_text=paragraph_text[start:end],
+        )
 
     @staticmethod
-    def _find_matching_anchor(doc: Document, reference_text: str) -> ParagraphAnchor | None:
-        """Find the best matching contract paragraph for a quoted reference."""
+    def _find_exact_text_range_anchor(
+        anchors: list[ParagraphAnchor],
+        reference_text: str,
+    ) -> TextRangeAnchor | None:
+        quoted = (reference_text or "").strip()
+        if not quoted:
+            return None
+        for anchor in anchors:
+            text_anchor = DocxReportGenerator._text_range_from_find(
+                anchor,
+                quoted,
+                "exact",
+            )
+            if text_anchor:
+                return text_anchor
+        return None
+
+    @staticmethod
+    def _find_light_clean_text_range_anchor(
+        anchors: list[ParagraphAnchor],
+        reference_text: str,
+    ) -> TextRangeAnchor | None:
+        for candidate in DocxReportGenerator._light_clean_reference_variants(reference_text):
+            for anchor in anchors:
+                text_anchor = DocxReportGenerator._text_range_from_find(
+                    anchor,
+                    candidate,
+                    "light_clean",
+                )
+                if text_anchor:
+                    return text_anchor
+        return None
+
+    @staticmethod
+    def _find_normalized_text_range_anchor(
+        anchors: list[ParagraphAnchor],
+        reference_text: str,
+    ) -> TextRangeAnchor | None:
+        normalized_reference = DocxReportGenerator._normalize_text(reference_text or "")
+        if (
+            not normalized_reference
+            or len(normalized_reference) < DocxReportGenerator._minimum_match_length(normalized_reference)
+        ):
+            return None
+
+        for anchor in anchors:
+            normalized_text, norm_to_orig = DocxReportGenerator._normalize_text_with_mapping(
+                anchor.paragraph.text
+            )
+            if not normalized_text:
+                continue
+            start = normalized_text.find(normalized_reference)
+            if start < 0:
+                continue
+            end = start + len(normalized_reference)
+            original_start = norm_to_orig[start]
+            original_end = norm_to_orig[end - 1] + 1
+            paragraph_text = anchor.paragraph.text
+            return TextRangeAnchor(
+                paragraph=anchor.paragraph,
+                path=anchor.path,
+                start_char=original_start,
+                end_char=original_end,
+                match_strategy="normalized_fallback",
+                matched_text=paragraph_text[original_start:original_end],
+            )
+        return None
+
+    @staticmethod
+    def _find_text_range_anchor(doc: Document, reference_text: str) -> TextRangeAnchor | None:
+        """Find the quoted text as a precise character range in the DOCX."""
         if not reference_text or not reference_text.strip():
             return None
 
-        clean_ref = re.sub(r'^>\s*', '', reference_text, flags=re.MULTILINE)
-        ref_lines = [l.strip() for l in clean_ref.split('\n') if l.strip()]
-
-        if not ref_lines:
-            return None
-
         anchors = DocxReportGenerator._collect_paragraph_anchors(doc)
-        best_anchor: ParagraphAnchor | None = None
-        best_score = 0
-
-        for index, anchor in enumerate(anchors):
-            next_anchor = anchors[index + 1] if index + 1 < len(anchors) else None
-            for ref_line in ref_lines:
-                normalized_reference = DocxReportGenerator._normalize_text(ref_line)
-                if not normalized_reference:
-                    continue
-                if len(normalized_reference) < DocxReportGenerator._minimum_match_length(normalized_reference):
-                    continue
-                score = DocxReportGenerator._score_anchor_match(
-                    normalized_reference,
-                    anchor,
-                    next_anchor,
-                )
-                if score > best_score:
-                    best_anchor = anchor
-                    best_score = score
-
-        return best_anchor
+        for resolver in (
+            DocxReportGenerator._find_exact_text_range_anchor,
+            DocxReportGenerator._find_light_clean_text_range_anchor,
+            DocxReportGenerator._find_normalized_text_range_anchor,
+        ):
+            text_anchor = resolver(anchors, reference_text)
+            if text_anchor:
+                return text_anchor
+        return None
 
     @staticmethod
     def _get_document_start_anchor(doc: Document) -> ParagraphAnchor | None:
@@ -180,6 +292,106 @@ class DocxReportGenerator:
         if len(para_element) and para_element[0].tag == qn('w:pPr'):
             return 1
         return 0
+
+    @staticmethod
+    def _split_run_at(run: Run, offset: int) -> None:
+        """Split a run in-place at offset, preserving style on the right run."""
+        text = run.text
+        if offset <= 0 or offset >= len(text):
+            return
+
+        left_text = text[:offset]
+        right_text = text[offset:]
+        right_run_element = copy.deepcopy(run._r)
+        run.text = left_text
+        Run(right_run_element, run._parent).text = right_text
+        run._r.addnext(right_run_element)
+
+    @staticmethod
+    def _run_ranges(paragraph: Paragraph) -> list[tuple[Run, int, int]]:
+        ranges: list[tuple[Run, int, int]] = []
+        cursor = 0
+        for run in paragraph.runs:
+            text_length = len(run.text)
+            if text_length <= 0:
+                continue
+            ranges.append((run, cursor, cursor + text_length))
+            cursor += text_length
+        return ranges
+
+    @staticmethod
+    def _split_runs_at_char_boundaries(paragraph: Paragraph, start_char: int, end_char: int) -> None:
+        """Split runs so start_char and end_char fall on run boundaries."""
+        for boundary in sorted({start_char, end_char}, reverse=True):
+            for run, run_start, run_end in DocxReportGenerator._run_ranges(paragraph):
+                if run_start < boundary < run_end:
+                    DocxReportGenerator._split_run_at(run, boundary - run_start)
+                    break
+
+    @staticmethod
+    def _add_comment_markers_to_text_range(anchor: TextRangeAnchor, comment_id: int) -> None:
+        paragraph = anchor.paragraph
+        DocxReportGenerator._split_runs_at_char_boundaries(
+            paragraph,
+            anchor.start_char,
+            anchor.end_char,
+        )
+        selected_runs = [
+            run
+            for run, run_start, run_end in DocxReportGenerator._run_ranges(paragraph)
+            if run_start >= anchor.start_char and run_end <= anchor.end_char
+        ]
+        if not selected_runs:
+            raise ValueError(f"No runs found for comment range {anchor.start_char}:{anchor.end_char}")
+
+        para_element = paragraph._element
+        first_run_element = selected_runs[0]._r
+        last_run_element = selected_runs[-1]._r
+
+        range_start = OxmlElement('w:commentRangeStart')
+        range_start.set(qn('w:id'), str(comment_id))
+        para_element.insert(para_element.index(first_run_element), range_start)
+
+        range_end = OxmlElement('w:commentRangeEnd')
+        range_end.set(qn('w:id'), str(comment_id))
+        para_element.insert(para_element.index(last_run_element) + 1, range_end)
+
+        ref_run = OxmlElement('w:r')
+        ref_rpr = OxmlElement('w:rPr')
+        ref_style = OxmlElement('w:rStyle')
+        ref_style.set(qn('w:val'), 'CommentReference')
+        ref_rpr.append(ref_style)
+        ref_run.append(ref_rpr)
+        ref_mark = OxmlElement('w:commentReference')
+        ref_mark.set(qn('w:id'), str(comment_id))
+        ref_run.append(ref_mark)
+        para_element.insert(para_element.index(range_end) + 1, ref_run)
+
+    @staticmethod
+    def _add_comment_markers_to_paragraph(anchor: ParagraphAnchor, comment_id: int) -> None:
+        para_element = anchor.paragraph._element
+
+        range_start = OxmlElement('w:commentRangeStart')
+        range_start.set(qn('w:id'), str(comment_id))
+        para_element.insert(
+            DocxReportGenerator._paragraph_content_start_index(para_element),
+            range_start,
+        )
+
+        range_end = OxmlElement('w:commentRangeEnd')
+        range_end.set(qn('w:id'), str(comment_id))
+        para_element.append(range_end)
+
+        ref_run = OxmlElement('w:r')
+        ref_rpr = OxmlElement('w:rPr')
+        ref_style = OxmlElement('w:rStyle')
+        ref_style.set(qn('w:val'), 'CommentReference')
+        ref_rpr.append(ref_style)
+        ref_run.append(ref_rpr)
+        ref_mark = OxmlElement('w:commentReference')
+        ref_mark.set(qn('w:id'), str(comment_id))
+        ref_run.append(ref_mark)
+        para_element.append(ref_run)
 
     @staticmethod
     def _build_unmatched_comment_text(unmatched_comments: list[dict]) -> str:
@@ -280,29 +492,10 @@ class DocxReportGenerator:
                 t_el.set(qn('xml:space'), 'preserve')
                 t_el.text = line
 
-            para_element = anchor.paragraph._element
-
-            range_start = OxmlElement('w:commentRangeStart')
-            range_start.set(qn('w:id'), str(comment_id))
-            para_element.insert(
-                DocxReportGenerator._paragraph_content_start_index(para_element),
-                range_start,
-            )
-
-            range_end = OxmlElement('w:commentRangeEnd')
-            range_end.set(qn('w:id'), str(comment_id))
-            para_element.append(range_end)
-
-            ref_run = OxmlElement('w:r')
-            ref_rpr = OxmlElement('w:rPr')
-            ref_style = OxmlElement('w:rStyle')
-            ref_style.set(qn('w:val'), 'CommentReference')
-            ref_rpr.append(ref_style)
-            ref_run.append(ref_rpr)
-            ref_mark = OxmlElement('w:commentReference')
-            ref_mark.set(qn('w:id'), str(comment_id))
-            ref_run.append(ref_mark)
-            para_element.append(ref_run)
+            if isinstance(anchor, TextRangeAnchor):
+                DocxReportGenerator._add_comment_markers_to_text_range(anchor, comment_id)
+            else:
+                DocxReportGenerator._add_comment_markers_to_paragraph(anchor, comment_id)
 
             comment_id += 1
 
@@ -354,17 +547,27 @@ class DocxReportGenerator:
 
             comments_data = []
             unmatched_comments = []
-            matched_count = 0
+            annotation_events: list[dict] = []
+            annotation_stats = {
+                "total_issues": 0,
+                "exact_matched": 0,
+                "light_clean_matched": 0,
+                "normalized_fallback_matched": 0,
+                "missing_text_fallback": 0,
+                "unmatched": 0,
+            }
 
             for result in results:
                 criterion = result.get('criterion', '')
                 cid = result.get('criterion_id', '')
 
                 for issue in result.get('issues', []):
+                    annotation_stats["total_issues"] += 1
                     reference = issue.get('quoted_text', '')
                     comment_text = issue.get('comment_text', '')
+                    issue_id = issue.get('issue_id', '')
 
-                    matched_anchor = DocxReportGenerator._find_matching_anchor(doc, reference)
+                    matched_anchor = DocxReportGenerator._find_text_range_anchor(doc, reference)
 
                     if matched_anchor:
                         comments_data.append({
@@ -372,16 +575,52 @@ class DocxReportGenerator:
                             'comment_text': comment_text,
                             'author': REVIEW_COMMENT_AUTHOR,
                         })
-                        matched_count += 1
+                        stat_key = f"{matched_anchor.match_strategy}_matched"
+                        if stat_key in annotation_stats:
+                            annotation_stats[stat_key] += 1
+                        annotation_events.append({
+                            "event": "annotation_anchor_resolved",
+                            "criterion_id": cid,
+                            "issue_id": issue_id,
+                            "status": "anchored",
+                            "match_strategy": matched_anchor.match_strategy,
+                            "paragraph_path": matched_anchor.path,
+                            "start_char": matched_anchor.start_char,
+                            "end_char": matched_anchor.end_char,
+                            "quoted_text": reference,
+                            "matched_text": matched_anchor.matched_text,
+                            "comment_text": comment_text,
+                        })
                     else:
                         unmatched_comments.append({
                             'criterion_id': cid,
                             'criterion': criterion,
-                            'issue_id': issue['issue_id'],
+                            'issue_id': issue_id,
                             'comment_text': comment_text,
                             'reference_text': reference,
                             'author': REVIEW_COMMENT_AUTHOR,
                         })
+                        if reference and reference.strip():
+                            annotation_stats["unmatched"] += 1
+                            annotation_events.append({
+                                "event": "annotation_anchor_unmatched",
+                                "criterion_id": cid,
+                                "issue_id": issue_id,
+                                "status": "unmatched",
+                                "reason": "all_match_strategies_failed",
+                                "quoted_text": reference,
+                                "comment_text": comment_text,
+                            })
+                        else:
+                            annotation_stats["missing_text_fallback"] += 1
+                            annotation_events.append({
+                                "event": "annotation_missing_text",
+                                "criterion_id": cid,
+                                "issue_id": issue_id,
+                                "status": "missing_text_fallback",
+                                "reason": "quoted_text_is_empty",
+                                "comment_text": comment_text,
+                            })
 
             fallback_anchor = DocxReportGenerator._get_document_start_anchor(doc)
             summary_comment_text = DocxReportGenerator._build_summary_comment_text(summary_sections)
@@ -411,10 +650,23 @@ class DocxReportGenerator:
                 DocxReportGenerator._add_comments_to_doc(doc, comments_data)
 
             doc.save(output_path)
+            events_path = str(Path(output_path).with_name(f"{Path(output_path).stem}_annotation_events.json"))
+            with open(events_path, "w", encoding="utf-8") as events_file:
+                json.dump(
+                    {
+                        "annotation_stats": annotation_stats,
+                        "events": annotation_events,
+                    },
+                    events_file,
+                    ensure_ascii=False,
+                    indent=2,
+                )
             print(
-                f"  DOCX: {matched_count} comments anchored to contract text, "
-                f"{fallback_count} missing-content comments placed at document start, "
-                f"{skipped_count} skipped",
+                f"  DOCX: {annotation_stats['exact_matched']} exact comments, "
+                f"{annotation_stats['light_clean_matched']} light-clean comments, "
+                f"{annotation_stats['normalized_fallback_matched']} normalized fallback comments, "
+                f"{fallback_count} document-start fallback comments, "
+                f"{skipped_count} skipped, annotation events: {events_path}",
                 file=sys.stderr,
             )
             return output_path
