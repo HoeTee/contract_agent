@@ -3,7 +3,7 @@ Base Agent class — handles LLM communication, tool calling, context
 management, token tracking, and conversation logging.
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, field_validator
 from openai import AsyncOpenAI, RateLimitError, APITimeoutError, APIConnectionError, InternalServerError, APIStatusError
 from loggers.agent_logger import log_agent_step, log_conversation
 from config import (
@@ -38,6 +38,24 @@ class Settings(BaseSettings):
     temperature: float = Field(0.0, alias="TEMPERATURE")
     top_p: float = Field(0.01, alias="TOP_P")
     seed: int = Field(42, alias="SEED")
+    enable_thinking: bool | None = Field(None, alias="LLM_ENABLE_THINKING")
+
+    @field_validator("enable_thinking", mode="before")
+    @classmethod
+    def validate_enable_thinking(cls, value):
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return value
+
+        value_text = str(value).strip()
+        if value_text == "":
+            return None
+        if value_text == "True":
+            return True
+        if value_text == "False":
+            return False
+        raise ValueError("LLM_ENABLE_THINKING must be exactly True or False when set.")
 
 
 class Agent:
@@ -221,15 +239,22 @@ class Agent:
             current_step = self.step_count
 
             try:
-                completion = await self.client.chat.completions.create(
-                    model=self.settings.model,
-                    temperature=self.settings.temperature,
-                    top_p=self.settings.top_p,
-                    seed=self.settings.seed,
-                    messages=self.messages,
-                    tools=self.tools if self.tools else None,
-                    tool_choice="auto" if self.tools else None
-                )
+                request_kwargs = {
+                    "model": self.settings.model,
+                    "temperature": self.settings.temperature,
+                    "top_p": self.settings.top_p,
+                    "seed": self.settings.seed,
+                    "messages": self.messages,
+                }
+                if self.tools:
+                    request_kwargs["tools"] = self.tools
+                    request_kwargs["tool_choice"] = "auto"
+                if self.settings.enable_thinking is not None:
+                    request_kwargs["extra_body"] = {
+                        "enable_thinking": self.settings.enable_thinking
+                    }
+
+                completion = await self.client.chat.completions.create(**request_kwargs)
             except MODEL_API_ERRORS as exc:
                 raise ModelCallError("agent", f"{self.name}: {exc}") from exc
 
