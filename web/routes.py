@@ -12,7 +12,6 @@ from urllib.parse import quote
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from starlette.background import BackgroundTask
 from docx import Document
 
 from config import DATA_DIR, DEFAULT_REVIEW_CRITERIA_PATH, MAX_API_CONCURRENT_REVIEWS, MCP_SERVER_PATH, USERS_FILE
@@ -306,7 +305,7 @@ async def api_review(
     )
 
     try:
-        paths.ensure_dirs() # 创建本地 API 任务需要的临时目录
+        paths.ensure_dirs() # 创建本地 API 任务持久目录
         append_api_event( 
             paths.api_events_path,
             "api_review_received",
@@ -320,7 +319,7 @@ async def api_review(
                 detail="系统支持的合同文件格式是 DOCX。",
             )
 
-        selected_criteria_path = Path(DEFAULT_REVIEW_CRITERIA_PATH) # 审查要点来源为 default 目录
+        selected_criteria_path = Path(DEFAULT_REVIEW_CRITERIA_PATH) # 系统默认审查要点来源
         criteria_source = "default"
         criteria_filename = None
 
@@ -332,25 +331,36 @@ async def api_review(
                     status_code=400,
                     detail="审查要点文件格式必须是 DOCX。",
                 )
-            with paths.uploaded_criteria_path.open("wb") as f: # 将上传的审查要点文件保存到本地临时目录
+            selected_criteria_path = paths.stored_criteria_path(criteria_filename)
+            with selected_criteria_path.open("wb") as f: # 将上传的审查要点文件保存到 API 任务目录
                 shutil.copyfileobj(criteria_file.file, f)
-            validate_uploaded_docx(paths.uploaded_criteria_path)
-            validate_review_criteria_content(paths.uploaded_criteria_path) # 校验审查要点内容是否符合系统要求，比如是否包含编号审查要点
-            selected_criteria_path = paths.uploaded_criteria_path # 把本次实际使用的审查要点路径改成上传文件路径
+            validate_uploaded_docx(selected_criteria_path)
+            validate_review_criteria_content(selected_criteria_path) # 校验审查要点内容是否符合系统要求，比如是否包含编号审查要点
             criteria_source = "uploaded"
             append_api_event(
                 paths.api_events_path,
                 "criteria_uploaded",
                 original_filename=criteria_filename,
-                size_bytes=paths.uploaded_criteria_path.stat().st_size,
+                file_path=str(selected_criteria_path),
+                size_bytes=selected_criteria_path.stat().st_size,
             )
         elif not selected_criteria_path.exists():
             raise HTTPException(
                 status_code=404,
                 detail=f"未找到系统默认审查要点文件：{selected_criteria_path}",
             )
+        else:
+            criteria_snapshot_path = paths.stored_criteria_path(selected_criteria_path.name)
+            shutil.copy2(selected_criteria_path, criteria_snapshot_path)
+            selected_criteria_path = criteria_snapshot_path
+            append_api_event(
+                paths.api_events_path,
+                "criteria_default_saved",
+                file_path=str(selected_criteria_path),
+                size_bytes=selected_criteria_path.stat().st_size,
+            )
 
-        with paths.stored_contract_path.open("wb") as f: # 将上传的合同文件保存到本地临时目录
+        with paths.stored_contract_path.open("wb") as f: # 将上传的合同文件保存到 API 任务目录
             shutil.copyfileobj(file.file, f) # 写入 file 
         append_api_event(
             paths.api_events_path,
@@ -376,9 +386,9 @@ async def api_review(
         try:
             async def run_workflow():
                 return await workflow.run(
-                    contract_path=str(paths.stored_contract_path), # 临时目录中的合同文件路径
-                    criteria_path=str(selected_criteria_path), # 临时目录中的审查要点文件路径，使用上传文件如果有的话，否则使用默认审查要点路径
-                    output_path=str(paths.final_report_path), # 临时目录中的审核结果文件路径，最终审核结果会保存在这里
+                    contract_path=str(paths.stored_contract_path), # API 任务目录中的合同文件路径
+                    criteria_path=str(selected_criteria_path), # API 任务目录中的审查要点文件路径
+                    output_path=str(paths.final_report_path), # API 任务目录中的审核结果文件路径，最终审核结果会保存在这里
                 )
 
             if review_semaphore is None:
@@ -399,7 +409,6 @@ async def api_review(
             path=output_path, # 返回审核结果文件
             media_type=DOCX_MEDIA_TYPE, # 设置正确的 DOCX MIME 类型
             filename=response_filename, # 设置下载文件名
-            background=BackgroundTask(paths.cleanup_temp_dir), # 在响应完成后清理临时目录
             headers={
                 "X-Review-Task-Id": paths.task_id,
                 "X-Review-Log-Path": str(paths.api_events_path),
@@ -414,7 +423,6 @@ async def api_review(
             status_code=exc.status_code,
             detail=exc.detail,
         )
-        paths.cleanup_temp_dir() # 销毁临时目录及其中的所有文件，确保不占用磁盘空间
         return JSONResponse(
             status_code=exc.status_code,
             content={
@@ -437,7 +445,6 @@ async def api_review(
         else:
             message = "审核失败，请查看任务日志。"
         append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
-        paths.cleanup_temp_dir()
         return JSONResponse(
             status_code=status_code,
             content={

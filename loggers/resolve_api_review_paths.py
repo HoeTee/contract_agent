@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import shutil
-import tempfile
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,16 +14,16 @@ class ResolvedApiReviewPaths:
     data_dir: Path
     created_at: datetime
     task_id: str
+    run_dir_name: str
     safe_contract_stem: str
-    temp_dir: Path
 
     @property
-    def date_str(self) -> str:
-        return self.created_at.strftime("%Y-%m-%d")
+    def task_dir(self) -> Path:
+        return self.data_dir / "api" / self.run_dir_name
 
     @property
     def task_log_dir(self) -> Path:
-        return self.data_dir / "api_logs" / self.date_str / self.task_id
+        return self.task_dir / "logs"
 
     @property
     def workflow_log_dir(self) -> Path:
@@ -45,27 +43,24 @@ class ResolvedApiReviewPaths:
 
     @property
     def stored_contract_path(self) -> Path:
-        return self.temp_dir / self.original_filename
+        return self.task_dir / self.original_filename
 
-    @property
-    def uploaded_criteria_path(self) -> Path:
-        return self.temp_dir / "criteria.docx"
+    def stored_criteria_path(self, original_filename: str | None) -> Path:
+        safe_filename = Path((original_filename or "criteria.docx").replace("\\", "/")).name
+        return self.task_dir / (safe_filename or "criteria.docx")
 
     @property
     def final_report_path(self) -> Path:
-        return self.temp_dir / f"{self.task_id}_{self.safe_contract_stem}_reviewed.docx"
+        return self.task_dir / f"{self.safe_contract_stem}_reviewed.docx"
 
     def ensure_dirs(self) -> None:
-        self.temp_dir.mkdir(parents=True, exist_ok=True)
         for path in (
+            self.task_dir,
             self.workflow_log_dir,
             self.conversation_log_dir,
             self.mcp_log_dir,
         ):
             path.mkdir(parents=True, exist_ok=True)
-
-    def cleanup_temp_dir(self) -> None: # 销毁临时目录及其中的所有文件，确保不占用磁盘空间
-        shutil.rmtree(self.temp_dir, ignore_errors=True)
 
 
 def resolve_api_review_paths(
@@ -76,13 +71,14 @@ def resolve_api_review_paths(
     created_at = datetime.now()
     safe_filename = Path(original_filename.replace("\\", "/")).name
     stem = safe_path_part(Path(safe_filename).stem, "contract")
-    task_id = f"{created_at.strftime('%H%M%S')}_{uuid.uuid4().hex[:8]}"
-    temp_dir = Path(tempfile.mkdtemp(prefix=f"contract_review_api_{task_id}_"))
+    unique_suffix = uuid.uuid4().hex[:8]
+    task_id = f"{created_at.strftime('%H%M%S')}_{unique_suffix}"
+    run_dir_name = f"{created_at.strftime('%Y%m%d-%H%M%S')}-{unique_suffix[:4]}"
     return ResolvedApiReviewPaths(
         original_filename=safe_filename,
         data_dir=data_dir,
         created_at=created_at,
         task_id=task_id,
+        run_dir_name=run_dir_name,
         safe_contract_stem=stem,
-        temp_dir=temp_dir,
     )
