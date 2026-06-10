@@ -43,7 +43,21 @@ def _required_env_bool(name: str) -> bool:
     raise RuntimeError(f"{name} must be true or false, got {raw!r}.")
 
 
+def _optional_env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    raise RuntimeError(f"{name} must be true or false, got {raw!r}.")
+
+
 ENABLE_WORKFLOW_LOGS = _required_env_bool("ENABLE_WORKFLOW_LOGS")
+API_STORE = _optional_env_bool("API_STORE", True)
 
 MAX_REFLECTION_ROUNDS = int(os.getenv("MAX_REFLECTION_ROUNDS", "3"))
 MAX_ORCHESTRATOR_CONCURRENCY = int(os.getenv("MAX_ORCHESTRATOR_CONCURRENCY", "8"))

@@ -12,9 +12,10 @@ from urllib.parse import quote
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from starlette.background import BackgroundTask
 from docx import Document
 
-from config import DATA_DIR, DEFAULT_REVIEW_CRITERIA_PATH, MAX_API_CONCURRENT_REVIEWS, MCP_SERVER_PATH, USERS_FILE
+from config import API_STORE, DATA_DIR, DEFAULT_REVIEW_CRITERIA_PATH, MAX_API_CONCURRENT_REVIEWS, MCP_SERVER_PATH, USERS_FILE
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
 from loggers.api_event_logger import append_api_event
 from web.errors import ModelCallError
@@ -302,6 +303,7 @@ async def api_review(
     paths = resolve_api_review_paths(
         original_filename=filename,
         data_dir=Path(DATA_DIR),
+        store_enabled=API_STORE,
     )
 
     try:
@@ -409,6 +411,7 @@ async def api_review(
             path=output_path, # 返回审核结果文件
             media_type=DOCX_MEDIA_TYPE, # 设置正确的 DOCX MIME 类型
             filename=response_filename, # 设置下载文件名
+            background=BackgroundTask(paths.cleanup_if_temporary),
             headers={
                 "X-Review-Task-Id": paths.task_id,
                 "X-Review-Log-Path": str(paths.api_events_path),
@@ -423,6 +426,7 @@ async def api_review(
             status_code=exc.status_code,
             detail=exc.detail,
         )
+        paths.cleanup_if_temporary()
         return JSONResponse(
             status_code=exc.status_code,
             content={
@@ -445,6 +449,7 @@ async def api_review(
         else:
             message = "审核失败，请查看任务日志。"
         append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
+        paths.cleanup_if_temporary()
         return JSONResponse(
             status_code=status_code,
             content={

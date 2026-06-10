@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import uuid
+import shutil
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -16,10 +18,16 @@ class ResolvedApiReviewPaths:
     task_id: str
     run_dir_name: str
     safe_contract_stem: str
+    store_enabled: bool
+    temp_dir: Path | None = None
 
     @property
     def task_dir(self) -> Path:
-        return self.data_dir / "api" / self.run_dir_name
+        if self.store_enabled:
+            return self.data_dir / "api" / self.run_dir_name
+        if self.temp_dir is None:
+            raise RuntimeError("temp_dir is required when API_STORE is false.")
+        return self.temp_dir
 
     @property
     def task_log_dir(self) -> Path:
@@ -62,11 +70,16 @@ class ResolvedApiReviewPaths:
         ):
             path.mkdir(parents=True, exist_ok=True)
 
+    def cleanup_if_temporary(self) -> None:
+        if not self.store_enabled and self.temp_dir is not None:
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
+
 
 def resolve_api_review_paths(
     *,
     original_filename: str,
     data_dir: Path,
+    store_enabled: bool = True,
 ) -> ResolvedApiReviewPaths:
     created_at = datetime.now()
     safe_filename = Path(original_filename.replace("\\", "/")).name
@@ -74,6 +87,9 @@ def resolve_api_review_paths(
     unique_suffix = uuid.uuid4().hex[:8]
     task_id = f"{created_at.strftime('%H%M%S')}_{unique_suffix}"
     run_dir_name = f"{created_at.strftime('%Y%m%d-%H%M%S')}-{unique_suffix[:4]}"
+    temp_dir = None
+    if not store_enabled:
+        temp_dir = Path(tempfile.mkdtemp(prefix=f"contract_review_api_{run_dir_name}_"))
     return ResolvedApiReviewPaths(
         original_filename=safe_filename,
         data_dir=data_dir,
@@ -81,4 +97,6 @@ def resolve_api_review_paths(
         task_id=task_id,
         run_dir_name=run_dir_name,
         safe_contract_stem=stem,
+        store_enabled=store_enabled,
+        temp_dir=temp_dir,
     )

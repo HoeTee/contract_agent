@@ -14,7 +14,7 @@ POST /api/review
 
 ## 直接结论
 
-`/api/review` 不使用 `data/default`，也不写入普通用户目录。每次 API 调用会在 `data/api/` 下创建一个独立任务目录，合同、审查标准、输出批注合同和日志都保存在这个目录中。
+`/api/review` 不使用 `data/default`，也不写入普通用户目录。默认情况下，`API_STORE=True`，每次 API 调用会在 `data/api/` 下创建一个独立任务目录，合同、审查标准、输出批注合同和日志都保存在这个目录中。
 
 ```text
 data/
@@ -38,6 +38,21 @@ YYYYMMDD-HHMMSS-xxxx
 ```
 
 其中 `xxxx` 是短随机后缀，用于避免同一秒多次请求冲突。
+
+## `.env` 开关
+
+```env
+API_STORE=True
+```
+
+含义：
+
+| 值 | 行为 |
+| --- | --- |
+| `True` | 默认行为。输入文件、输出文件和日志持久保存在 `DATA_DIR/api/<任务目录>/`。 |
+| `False` | 使用系统临时目录执行本次 API；响应完成或失败后清理，不长期保存输入文件、输出文件和日志。 |
+
+不需要额外配置 API 目录。持久化目录固定使用现有 `DATA_DIR` 下的 `api/` 子目录；目录不存在时会自动创建。
 
 ## 输入字段
 
@@ -158,11 +173,11 @@ return FileResponse(
 )
 ```
 
-注意：现在没有 `BackgroundTask(paths.cleanup_temp_dir)`。API 任务目录是持久数据目录，响应完成后不会删除。
+注意：响应仍会注册后台清理任务，但只有 `API_STORE=False` 时才会删除临时目录；`API_STORE=True` 时不会删除 `data/api/<任务目录>/`。
 
 ## 日志目录
 
-API 日志不再写入旧的 `data/api_logs/`，而是写入同一个任务目录下的 `logs/`。
+`API_STORE=True` 时，API 日志不再写入旧的 `data/api_logs/`，而是写入同一个任务目录下的 `logs/`。
 
 ```text
 data/api/<任务目录>/logs/
@@ -286,6 +301,8 @@ X-Review-Criteria-Source
 
 失败时也会保留已经写入的任务目录，便于排查上传文件、审查标准和日志。
 
+如果 `API_STORE=False`，失败返回前会清理本次临时目录，返回 JSON 中的 `api_events_path` 只表示失败发生前的临时日志路径，不保证响应后仍存在。
+
 ## 和登录 Web 审查的区别
 
 登录页面审查接口是：
@@ -311,7 +328,7 @@ data/<username>/
 POST /api/review
 ```
 
-它不依赖登录态，不写入 `data/default`，不写入普通用户历史记录；它同步等待 workflow 完成，并把本次 API 的输入文件、输出文件和日志统一保存在：
+它不依赖登录态，不写入 `data/default`，不写入普通用户历史记录；它同步等待 workflow 完成。`API_STORE=True` 时，本次 API 的输入文件、输出文件和日志统一保存在：
 
 ```text
 data/api/<任务目录>/
