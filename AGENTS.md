@@ -1,5 +1,9 @@
 # Agent Instructions
 
+## Action Style
+
+- 如果需要调用 hook 或 skill 或 MCP 工具，需要在过程里表示出来，并且在结果中告知用户。
+
 ## Code Changes
 
 - 如果涉及代码改动，必须在代码改动前和代码改动后都做相应的 `commit`。
