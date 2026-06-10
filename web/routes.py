@@ -185,7 +185,7 @@ def remove_auth_context(request: Request, ctx: str | None) -> None:
 
 
 def build_report_display_name(contract_original_name: str) -> str:
-    stem = Path(contract_original_name).stem or "审核结果"
+    stem = Path(contract_original_name).stem or "审核结果" # 去除文件扩展名，如果没有文件名则使用默认 "审核结果"
     return f"{stem}_批注版.docx"
 
 
@@ -296,7 +296,7 @@ async def run_review_task(username: str, paths, criteria_path: Path) -> None:
 
 @router.post("/api/review")
 async def api_review(
-    file: UploadFile = File(...),
+    file: UploadFile = File(...), # 合同文件必须上传，否则返回 422 错误；定义了 multipart
     criteria_file: UploadFile | None = File(None),
 ):
     filename = safe_upload_filename(file.filename)
@@ -306,37 +306,37 @@ async def api_review(
     )
 
     try:
-        paths.ensure_dirs()
-        append_api_event(
+        paths.ensure_dirs() # 创建本地 API 任务需要的临时目录
+        append_api_event( 
             paths.api_events_path,
             "api_review_received",
             task_id=paths.task_id,
             filename=filename,
-        )
+        ) # 写一条 API 日志，记录收到 API 请求和上传文件的基本信息
 
-        if not filename.lower().endswith(".docx"):
+        if not filename.lower().endswith(".docx"): # 如果不是 .docx 结尾
             raise HTTPException(
                 status_code=400,
                 detail="系统支持的合同文件格式是 DOCX。",
             )
 
-        selected_criteria_path = Path(DEFAULT_REVIEW_CRITERIA_PATH)
+        selected_criteria_path = Path(DEFAULT_REVIEW_CRITERIA_PATH) # 审查要点来源为 default 目录
         criteria_source = "default"
         criteria_filename = None
 
         has_uploaded_criteria = bool(criteria_file and criteria_file.filename)
         if has_uploaded_criteria:
-            criteria_filename = safe_upload_filename(criteria_file.filename)
-            if not criteria_filename.lower().endswith(".docx"):
+            criteria_filename = safe_upload_filename(criteria_file.filename) # 清洗审查要点文件名
+            if not criteria_filename.lower().endswith(".docx"): # 如果审查要点文件不是 .docx 结尾，返回 400 错误
                 raise HTTPException(
                     status_code=400,
                     detail="审查要点文件格式必须是 DOCX。",
                 )
-            with paths.uploaded_criteria_path.open("wb") as f:
+            with paths.uploaded_criteria_path.open("wb") as f: # 将上传的审查要点文件保存到本地临时目录
                 shutil.copyfileobj(criteria_file.file, f)
             validate_uploaded_docx(paths.uploaded_criteria_path)
-            validate_review_criteria_content(paths.uploaded_criteria_path)
-            selected_criteria_path = paths.uploaded_criteria_path
+            validate_review_criteria_content(paths.uploaded_criteria_path) # 校验审查要点内容是否符合系统要求，比如是否包含编号审查要点
+            selected_criteria_path = paths.uploaded_criteria_path # 把本次实际使用的审查要点路径改成上传文件路径
             criteria_source = "uploaded"
             append_api_event(
                 paths.api_events_path,
@@ -350,8 +350,8 @@ async def api_review(
                 detail=f"未找到系统默认审查要点文件：{selected_criteria_path}",
             )
 
-        with paths.stored_contract_path.open("wb") as f:
-            shutil.copyfileobj(file.file, f)
+        with paths.stored_contract_path.open("wb") as f: # 将上传的合同文件保存到本地临时目录
+            shutil.copyfileobj(file.file, f) # 写入 file 
         append_api_event(
             paths.api_events_path,
             "contract_saved",
@@ -376,9 +376,9 @@ async def api_review(
         try:
             async def run_workflow():
                 return await workflow.run(
-                    contract_path=str(paths.stored_contract_path),
-                    criteria_path=str(selected_criteria_path),
-                    output_path=str(paths.final_report_path),
+                    contract_path=str(paths.stored_contract_path), # 临时目录中的合同文件路径
+                    criteria_path=str(selected_criteria_path), # 临时目录中的审查要点文件路径，使用上传文件如果有的话，否则使用默认审查要点路径
+                    output_path=str(paths.final_report_path), # 临时目录中的审核结果文件路径，最终审核结果会保存在这里
                 )
 
             if review_semaphore is None:
@@ -396,15 +396,15 @@ async def api_review(
         append_api_event(paths.api_events_path, "review_completed", result_file=str(output_path))
         response_filename = build_report_display_name(filename)
         return FileResponse(
-            path=output_path,
-            media_type=DOCX_MEDIA_TYPE,
-            filename=response_filename,
-            background=BackgroundTask(paths.cleanup_temp_dir),
+            path=output_path, # 返回审核结果文件
+            media_type=DOCX_MEDIA_TYPE, # 设置正确的 DOCX MIME 类型
+            filename=response_filename, # 设置下载文件名
+            background=BackgroundTask(paths.cleanup_temp_dir), # 在响应完成后清理临时目录
             headers={
                 "X-Review-Task-Id": paths.task_id,
                 "X-Review-Log-Path": str(paths.api_events_path),
                 "X-Review-Criteria-Source": criteria_source,
-            },
+            }, # 在响应头中添加审核任务 ID、API 事件日志路径和审查要点来源，方便调用方追踪和调试
         )
 
     except HTTPException as exc:
@@ -414,7 +414,7 @@ async def api_review(
             status_code=exc.status_code,
             detail=exc.detail,
         )
-        paths.cleanup_temp_dir()
+        paths.cleanup_temp_dir() # 销毁临时目录及其中的所有文件，确保不占用磁盘空间
         return JSONResponse(
             status_code=exc.status_code,
             content={
@@ -448,15 +448,15 @@ async def api_review(
             },
         )
     finally:
-        await file.close()
+        await file.close() # 确保上传的合同文件被正确关闭，释放系统资源
         if criteria_file:
-            await criteria_file.close()
+            await criteria_file.close() # 确保上传的审查要点文件被正确关闭，释放系统资源
 
 
 def safe_upload_filename(filename: str | None) -> str:
-    if not filename:
+    if not filename: # 如果上传文件名为空，改为 "uploaded.docx"
         return "uploaded.docx"
-    return Path(filename.replace("\\", "/")).name
+    return Path(filename.replace("\\", "/")).name # 如果文件名里带路径，只保留最后的文件名部分
 
 
 def get_current_username(request: Request) -> str | None:

@@ -64,7 +64,7 @@ class ResolvedApiReviewPaths:
         ):
             path.mkdir(parents=True, exist_ok=True)
 
-    def cleanup_temp_dir(self) -> None:
+    def cleanup_temp_dir(self) -> None: # 销毁临时目录及其中的所有文件，确保不占用磁盘空间
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
 
