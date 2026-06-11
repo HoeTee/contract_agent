@@ -1,0 +1,159 @@
+import os
+import importlib.util
+import tempfile
+import unittest
+import zipfile
+from pathlib import Path
+
+from docx import Document
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from lxml import etree
+
+MODULE_PATH = Path(__file__).resolve().parents[1] / "tools" / "document" / "reporting" / "docx_report.py"
+SPEC = importlib.util.spec_from_file_location("docx_report_module", MODULE_PATH)
+docx_report_module = importlib.util.module_from_spec(SPEC)
+assert SPEC and SPEC.loader
+SPEC.loader.exec_module(docx_report_module)
+DocxReportGenerator = docx_report_module.DocxReportGenerator
+
+
+def _add_inserted_revision(docx_path: Path) -> None:
+    """Inject a simple tracked insertion into the first paragraph."""
+    with zipfile.ZipFile(docx_path, "r") as source:
+        files = {name: source.read(name) for name in source.namelist()}
+
+    document_xml = files["word/document.xml"]
+    doc = Document(docx_path)
+    paragraph = doc.paragraphs[0]
+    first_run = paragraph.runs[0]._r
+
+    inserted = OxmlElement("w:ins")
+    inserted.set(qn("w:id"), "77")
+    inserted.set(qn("w:author"), "Original Reviewer")
+    inserted.set(qn("w:date"), "2026-06-01T09:00:00Z")
+    run = OxmlElement("w:r")
+    text = OxmlElement("w:t")
+    text.text = "30日内"
+    run.append(text)
+    inserted.append(run)
+    first_run.addnext(inserted)
+
+    temp_docx = docx_path.with_suffix(".tmp.docx")
+    doc.save(temp_docx)
+    with zipfile.ZipFile(temp_docx, "r") as edited:
+        files["word/document.xml"] = edited.read("word/document.xml")
+    temp_docx.unlink()
+
+    # Keep all other OPC parts exactly as the base file wrote them.
+    with zipfile.ZipFile(docx_path, "w", zipfile.ZIP_DEFLATED) as target:
+        for name, blob in files.items():
+            target.writestr(name, blob)
+
+    assert document_xml != files["word/document.xml"]
+
+
+def _add_existing_comment_part(docx_path: Path) -> None:
+    """Inject an existing comments part so preservation can be asserted."""
+    with zipfile.ZipFile(docx_path, "r") as source:
+        files = {name: source.read(name) for name in source.namelist()}
+
+    rels_name = "word/_rels/document.xml.rels"
+    rels = etree.fromstring(files[rels_name])
+    rel = etree.SubElement(rels, "Relationship")
+    rel.set("Id", "rIdExistingComments")
+    rel.set(
+        "Type",
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments",
+    )
+    rel.set("Target", "comments.xml")
+    files[rels_name] = etree.tostring(
+        rels,
+        xml_declaration=True,
+        encoding="UTF-8",
+        standalone=True,
+    )
+
+    content_types_name = "[Content_Types].xml"
+    content_types = etree.fromstring(files[content_types_name])
+    override = etree.SubElement(content_types, "Override")
+    override.set("PartName", "/word/comments.xml")
+    override.set(
+        "ContentType",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml",
+    )
+    files[content_types_name] = etree.tostring(
+        content_types,
+        xml_declaration=True,
+        encoding="UTF-8",
+        standalone=True,
+    )
+
+    files["word/comments.xml"] = (
+        b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        b'<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        b'<w:comment w:id="5" w:author="Original Reviewer" w:date="2026-06-01T09:00:00Z">'
+        b"<w:p><w:r><w:t>\xe5\x8e\x9f\xe6\x9c\x89\xe6\x89\xb9\xe6\xb3\xa8\xe4\xbf\x9d\xe7\x95\x99</w:t></w:r></w:p>"
+        b"</w:comment></w:comments>"
+    )
+
+    with zipfile.ZipFile(docx_path, "w", zipfile.ZIP_DEFLATED) as target:
+        for name, blob in files.items():
+            target.writestr(name, blob)
+
+
+class DocxAnnotationPreservationTests(unittest.TestCase):
+    def test_annotations_use_original_docx_revision_text_and_beijing_time(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            contract_path = Path(tmp) / "contract.docx"
+            output_path = Path(tmp) / "annotated.docx"
+
+            doc = Document()
+            paragraph = doc.add_paragraph()
+            paragraph.add_run("甲方应在")
+            paragraph.add_run("付款。")
+            doc.save(contract_path)
+            _add_inserted_revision(contract_path)
+            _add_existing_comment_part(contract_path)
+
+            results = [
+                {
+                    "criterion_id": "C1",
+                    "criterion": "付款期限",
+                    "issues": [
+                        {
+                            "issue_id": "I1",
+                            "quoted_text": "甲方应在30日内付款。",
+                            "comment_text": "付款期限需要核查。",
+                        }
+                    ],
+                }
+            ]
+
+            generated = DocxReportGenerator._generate_docx_with_comments(
+                str(contract_path),
+                results,
+                str(output_path),
+            )
+
+            self.assertEqual(str(output_path), generated)
+            self.assertTrue(os.path.exists(output_path))
+
+            with zipfile.ZipFile(output_path, "r") as output:
+                document_xml = output.read("word/document.xml").decode("utf-8")
+                comments_xml = output.read("word/comments.xml").decode("utf-8")
+
+            self.assertIn("<w:ins", document_xml)
+            self.assertIn('w:id="77"', document_xml)
+            self.assertIn("<w:commentRangeStart", document_xml)
+            self.assertIn("<w:highlight", document_xml)
+            self.assertIn('w:val="yellow"', document_xml)
+            self.assertIn('w:id="5"', comments_xml)
+            self.assertIn('w:id="6"', comments_xml)
+            self.assertIn("原有批注保留", comments_xml)
+            self.assertIn("付款期限需要核查。", comments_xml)
+            self.assertIn("+08:00", comments_xml)
+
+
+if __name__ == "__main__":
+    unittest.main()
