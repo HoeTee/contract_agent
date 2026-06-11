@@ -36,3 +36,9 @@ action: Run lightweight local scripts that generate DOCX samples with existing c
 loop: until tests pass
 max_iterations: 3
 verify: python -m py_compile tools/document/reporting/docx_report.py
+
+- [x] **Step 6: Align clean_docx review text with accepted-revision matching**
+action: Update `tools/document/file_cleaner.py` so subagent review text accepts insertions, removes deletions, removes original comments, and therefore matches the annotation-time paragraph text view.
+loop: until tests pass
+max_iterations: 3
+verify: python -m unittest tests.test_docx_report_annotations

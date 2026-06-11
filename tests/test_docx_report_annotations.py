@@ -17,6 +17,13 @@ assert SPEC and SPEC.loader
 SPEC.loader.exec_module(docx_report_module)
 DocxReportGenerator = docx_report_module.DocxReportGenerator
 
+CLEANER_PATH = Path(__file__).resolve().parents[1] / "tools" / "document" / "file_cleaner.py"
+CLEANER_SPEC = importlib.util.spec_from_file_location("file_cleaner_module", CLEANER_PATH)
+file_cleaner_module = importlib.util.module_from_spec(CLEANER_SPEC)
+assert CLEANER_SPEC and CLEANER_SPEC.loader
+CLEANER_SPEC.loader.exec_module(file_cleaner_module)
+clean_docx = file_cleaner_module.clean_docx
+
 
 def _add_inserted_revision(docx_path: Path) -> None:
     """Inject a simple tracked insertion into the first paragraph."""
@@ -28,6 +35,16 @@ def _add_inserted_revision(docx_path: Path) -> None:
     paragraph = doc.paragraphs[0]
     first_run = paragraph.runs[0]._r
 
+    deleted = OxmlElement("w:del")
+    deleted.set(qn("w:id"), "76")
+    deleted.set(qn("w:author"), "Original Reviewer")
+    deleted.set(qn("w:date"), "2026-06-01T08:00:00Z")
+    deleted_run = OxmlElement("w:r")
+    deleted_text = OxmlElement("w:delText")
+    deleted_text.text = "10日内"
+    deleted_run.append(deleted_text)
+    deleted.append(deleted_run)
+
     inserted = OxmlElement("w:ins")
     inserted.set(qn("w:id"), "77")
     inserted.set(qn("w:author"), "Original Reviewer")
@@ -37,6 +54,7 @@ def _add_inserted_revision(docx_path: Path) -> None:
     text.text = "30日内"
     run.append(text)
     inserted.append(run)
+    first_run.addnext(deleted)
     first_run.addnext(inserted)
 
     temp_docx = docx_path.with_suffix(".tmp.docx")
@@ -144,6 +162,7 @@ class DocxAnnotationPreservationTests(unittest.TestCase):
                 comments_xml = output.read("word/comments.xml").decode("utf-8")
 
             self.assertIn("<w:ins", document_xml)
+            self.assertIn("<w:del", document_xml)
             self.assertIn('w:id="77"', document_xml)
             self.assertIn("<w:commentRangeStart", document_xml)
             self.assertIn("<w:highlight", document_xml)
@@ -153,6 +172,28 @@ class DocxAnnotationPreservationTests(unittest.TestCase):
             self.assertIn("原有批注保留", comments_xml)
             self.assertIn("付款期限需要核查。", comments_xml)
             self.assertIn("+08:00", comments_xml)
+
+    def test_clean_docx_accepts_revisions_and_removes_comments_for_review_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            contract_path = Path(tmp) / "contract.docx"
+
+            doc = Document()
+            paragraph = doc.add_paragraph()
+            paragraph.add_run("甲方应在")
+            paragraph.add_run("付款。")
+            doc.save(contract_path)
+            _add_inserted_revision(contract_path)
+            _add_existing_comment_part(contract_path)
+
+            cleaned_path = Path(clean_docx(contract_path))
+            try:
+                cleaned_doc = Document(cleaned_path)
+                self.assertEqual("甲方应在30日内付款。", cleaned_doc.paragraphs[0].text)
+                with zipfile.ZipFile(cleaned_path, "r") as cleaned_zip:
+                    self.assertNotIn("word/comments.xml", cleaned_zip.namelist())
+            finally:
+                if cleaned_path.exists():
+                    cleaned_path.unlink()
 
 
 if __name__ == "__main__":

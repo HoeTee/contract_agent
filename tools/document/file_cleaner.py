@@ -8,7 +8,6 @@ Usage:
     clean_path = cleaner.clean()  # 返回临时文件路径
     # 使用完毕后删除: os.unlink(clean_path)
 """
-import copy
 import posixpath
 import re
 import tempfile
@@ -56,16 +55,14 @@ class DocxCleaner:
         "trackRevisions", "doNotTrackMoves", "doNotTrackFormatting", "revisionView",
     }
 
-    REJECT_DROP_TAGS = {"ins", "moveTo"}
-    REJECT_UNWRAP_TAGS = {"del", "moveFrom"}
+    ACCEPT_UNWRAP_TAGS = {"ins", "moveTo"}
+    ACCEPT_DROP_TAGS = {"del", "moveFrom"}
 
     PROPERTY_CHANGE_TAGS = {
         "pPrChange": "pPr", "rPrChange": "rPr", "tblPrChange": "tblPr",
         "tblPrExChange": "tblPrEx", "tblGridChange": "tblGrid",
         "tcPrChange": "tcPr", "trPrChange": "trPr", "sectPrChange": "sectPr",
     }
-
-    RESTORE_TEXT_TAGS = {"delText": "t", "delInstrText": "instrText"}
 
     def __init__(self, input_path: Union[str, Path]):
         """
@@ -136,41 +133,6 @@ class DocxCleaner:
             parent.insert(offset + index, g)
         return len(grandchildren)
 
-    def _restore_deleted_markup(self, element) -> None:
-        tag_name = self._local_name(element.tag)
-        if tag_name in self.RESTORE_TEXT_TAGS:
-            element.tag = f"{{{self.WORD_NS}}}{self.RESTORE_TEXT_TAGS[tag_name]}"
-        for child in list(element):
-            self._restore_deleted_markup(child)
-
-    def _revert_property_change(self, parent, index: int, tag_name: str) -> bool:
-        change = parent[index]
-        previous_tag = self.PROPERTY_CHANGE_TAGS[tag_name]
-        previous = None
-
-        for child in change:
-            if self._local_name(child.tag) == previous_tag:
-                previous = child
-                break
-
-        if previous is None:
-            parent.remove(change)
-            return True
-
-        change_tail = change.tail
-        parent.attrib.clear()
-        parent.attrib.update(previous.attrib)
-        parent.text = previous.text
-        parent[:] = [copy.deepcopy(child) for child in previous]
-
-        if change_tail:
-            if len(parent):
-                parent[-1].tail = (parent[-1].tail or "") + change_tail
-            else:
-                parent.text = (parent.text or "") + change_tail
-
-        return True
-
     def _clean_word_element(self, element, *, is_settings: bool = False) -> None:
         from xml.etree import ElementTree as ET
 
@@ -181,9 +143,8 @@ class DocxCleaner:
             tag_name = self._local_name(child.tag)
 
             if tag_name in self.PROPERTY_CHANGE_TAGS:
-                reverted = self._revert_property_change(element, index, tag_name)
-                if reverted:
-                    continue
+                element.remove(child)
+                continue
 
             if tag_name in self.DROP_MARKUP_TAGS or tag_name in self.DROP_PROPERTY_CHANGE_TAGS:
                 element.remove(child)
@@ -193,12 +154,11 @@ class DocxCleaner:
                 element.remove(child)
                 continue
 
-            if tag_name in self.REJECT_DROP_TAGS:
+            if tag_name in self.ACCEPT_DROP_TAGS:
                 element.remove(child)
                 continue
 
-            if tag_name in self.REJECT_UNWRAP_TAGS:
-                self._restore_deleted_markup(child)
+            if tag_name in self.ACCEPT_UNWRAP_TAGS:
                 inserted = self._unwrap_child(element, index)
                 index += inserted
                 continue
