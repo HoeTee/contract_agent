@@ -127,7 +127,7 @@ function renderInspector() {
     `)
     .join("");
   els.rawLink.classList.remove("disabled");
-  els.rawLink.href = `/docs-portal/raw/${encodeURIComponent(doc.md)}`;
+  els.rawLink.href = `../${encodeURIComponent(doc.md)}`;
 }
 
 function render() {
@@ -196,6 +196,13 @@ function bindEvents() {
   });
 }
 
+function getPortalData() {
+  if (window.DOCS_PORTAL_DATA) {
+    return window.DOCS_PORTAL_DATA;
+  }
+  throw new Error("Docs portal data is missing. Expected assets/portal-data.js to load before portal.js.");
+}
+
 async function init() {
   Object.assign(els, {
     searchInput: document.querySelector("#searchInput"),
@@ -211,8 +218,7 @@ async function init() {
     copyPathsButton: document.querySelector("#copyPathsButton"),
   });
 
-  const response = await fetch("/docs-portal/assets/manifest.json");
-  const manifest = await response.json();
+  const manifest = getPortalData();
   state.docs = manifest.documents;
   state.activeId = state.docs[0]?.id || null;
   renderFlow(manifest.flow);

@@ -264,7 +264,7 @@ svg {
 
 .flow-line {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 10px;
 }
 
@@ -275,16 +275,6 @@ svg {
   border-radius: 8px;
   padding: 12px;
   background: #fbfcfd;
-}
-
-.flow-step:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  right: -10px;
-  top: 50%;
-  width: 10px;
-  height: 1px;
-  background: var(--line);
 }
 
 .flow-step strong {
@@ -536,7 +526,4 @@ svg {
     grid-template-columns: 1fr;
   }
 
-  .flow-step:not(:last-child)::after {
-    display: none;
-  }
 }
