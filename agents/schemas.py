@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 class StrictOutputModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid") # 禁止模型接受未定义的字段，确保输出结构严格符合预期
 
 
 class PlannerCriterion(StrictOutputModel):
@@ -17,9 +17,9 @@ class PlannerCriterion(StrictOutputModel):
     criterion: str = Field(min_length=1)
     check_points: list[str] = Field(min_length=1)
 
-    @field_validator("check_points")
-    @classmethod
-    def check_points_not_empty(cls, value: list[str]) -> list[str]:
+    @field_validator("check_points") # 字段验证
+    @classmethod # 在实例方法创建前检验某字段
+    def check_points_not_empty(cls, value: list[str]) -> list[str]: # cls 和 value 是约定俗成的参数名
         if any(not item.strip() for item in value):
             raise ValueError("check_points must not contain empty strings")
         return value
@@ -31,16 +31,16 @@ class PlannerOutput(StrictOutputModel):
 
 class SubAgentIssue(StrictOutputModel):
     issue_id: str = Field(min_length=1)
-    risk_level: Literal["high", "medium", "low"]
+    risk_level: Literal["high", "medium", "low"] # 风险等级，必须是 "high"、"medium" 或 "low" 中的一个
     quoted_text: str
     comment_text: str = Field(min_length=1, max_length=100)
     reasoning: str = Field(min_length=1)
     criterion: str = Field(min_length=1)
     check_point: str = Field(min_length=1)
 
-    @field_validator("issue_id", "comment_text", "reasoning", "criterion", "check_point")
-    @classmethod
-    def required_text_not_blank(cls, value: str) -> str:
+    @field_validator("issue_id", "comment_text", "reasoning", "criterion", "check_point") # 字段验证
+    @classmethod # 在实例方法创建前检验某字段
+    def required_text_not_blank(cls, value: str) -> str: # cls 和 value 是约定俗成的参数名
         if not value.strip():
             raise ValueError("field must not be blank")
         return value
@@ -49,14 +49,14 @@ class SubAgentIssue(StrictOutputModel):
 class SubAgentOutput(StrictOutputModel):
     status: Literal["compliant", "issues_found", "not_applicable"]
     applicability_reason: str = ""
-    issues: list[SubAgentIssue]
+    issues: list[SubAgentIssue] = Field(default_factory=list) # 使用 default_factory 来确保 issues 字段默认为一个空列表，而不是 None
 
-    @field_validator("applicability_reason")
-    @classmethod
-    def applicability_reason_trimmed(cls, value: str) -> str:
+    @field_validator("applicability_reason") # 字段验证
+    @classmethod # 在实例方法创建前检验某字段
+    def applicability_reason_trimmed(cls, value: str) -> str: # cls 和 value 是约定俗成的参数名
         return value.strip()
 
-    @model_validator(mode="after")
+    @model_validator(mode="after") # 总体验证
     def validate_status_issues(self):
         if self.status == "compliant" and self.issues:
             raise ValueError("status is compliant, so issues must be empty")
@@ -76,21 +76,21 @@ class ReflectorOutput(StrictOutputModel):
 
 
 class SummaryOutput(StrictOutputModel):
-    overall_comment: str = ""
-    priority_comments: list[str] = Field(default_factory=list)
+    overall_comment: str = "" # 总体审查总结
+    priority_comments: list[str] = Field(default_factory=list) # 优先修改建议；使用 default_factory 来确保 priority_comments 字段默认为一个空列表，而不是 None
 
-    @field_validator("priority_comments")
-    @classmethod
-    def priority_comments_not_blank(cls, value: list[str]) -> list[str]:
-        if any(not item.strip() for item in value):
+    @field_validator("priority_comments") # 字段验证
+    @classmethod # 在实例方法创建前检验某字段
+    def priority_comments_not_blank(cls, value: list[str]) -> list[str]: # cls 和 value 是约定俗成的参数名
+        if any(not item.strip() for item in value): # 检查优先修改建议列表中的每个建议是否为非空字符串
             raise ValueError("priority_comments must not contain empty strings")
-        return value
+        return value # 如果验证通过，返回原始值
 
-    @model_validator(mode="after")
+    @model_validator(mode="after") # 总体验证
     def validate_total_length(self):
         total_length = len(self.overall_comment) + sum(
             len(item) for item in self.priority_comments
         )
-        if total_length > 200:
+        if total_length > 200: # overall_comment和priority_comments的总长度必须小于等于200个字符
             raise ValueError("overall_comment and priority_comments must be <= 200 chars total")
-        return self
+        return self # 如果验证通过，返回整个对象 self

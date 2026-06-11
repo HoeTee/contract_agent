@@ -1,4 +1,27 @@
 window.DOCS_PORTAL_DATA = {
+  diagram: {
+    viewBox: "0 0 920 410",
+    nodes: [
+      { id: "client", x: 30, y: 28, w: 170, h: 66, kind: "io", icon: "icon-api", title: "客户端 / API", sub: "POST /api/review · 前端工作台", docId: "api-review" },
+      { id: "web", x: 255, y: 28, w: 160, h: 66, kind: "core", icon: "icon-code", title: "Web 路由", sub: "web/routes.py", docId: "frontend-journey" },
+      { id: "workflow", x: 470, y: 28, w: 170, h: 66, kind: "core", icon: "icon-flow", title: "Workflow 编排", sub: "main_workflow", docId: "project-structure" },
+      { id: "output", x: 700, y: 28, w: 190, h: 66, kind: "io", icon: "icon-doc", title: "批注 DOCX 输出", sub: "返回 + 落盘", docId: "api-review" },
+      { id: "agents", x: 470, y: 184, w: 170, h: 66, kind: "agent", icon: "icon-user", title: "Agents", sub: "规划 · 执行 · 反思", docId: "project-structure" },
+      { id: "tools", x: 700, y: 184, w: 190, h: 66, kind: "agent", icon: "icon-code", title: "文档工具", sub: "解析 · 批注 DOCX", docId: "project-structure" },
+      { id: "storage", x: 255, y: 320, w: 160, h: 66, kind: "store", icon: "icon-folder", title: "数据存储 data/", sub: "用户分区 · data/api", docId: "user-management" },
+      { id: "logs", x: 470, y: 320, w: 170, h: 66, kind: "store", icon: "icon-log", title: "日志", sub: "api_events · agent_steps", docId: "logger-design" },
+    ],
+    edges: [
+      { from: "client", to: "web", kind: "main" },
+      { from: "web", to: "workflow", kind: "main" },
+      { from: "workflow", to: "output", kind: "main", label: "返回响应" },
+      { from: "workflow", to: "agents", kind: "loop", label: "规划·执行·反思", bidir: true },
+      { from: "agents", to: "tools", kind: "flow", label: "调用工具" },
+      { from: "tools", to: "output", kind: "flow", label: "批注 DOCX" },
+      { from: "workflow", to: "storage", kind: "support", label: "落盘" },
+      { from: "agents", to: "logs", kind: "support", label: "日志" },
+    ],
+  },
   flow: [
     {
       icon: "icon-api",

@@ -54,6 +54,23 @@
           </div>
         </section>
 
+        <section class="arch-panel" aria-label="系统架构图">
+          <div class="panel-header">
+            <span class="panel-icon"><svg><use href="#icon-flow"></use></svg></span>
+            <div>
+              <h2>系统架构</h2>
+              <p>从请求到批注 DOCX 的组件关系。点击任意组件可在右侧查看对应文档与代码路径。</p>
+            </div>
+          </div>
+          <div class="arch-canvas" id="archDiagram"></div>
+          <div class="arch-legend">
+            <span class="legend-item legend-io">输入 / 输出</span>
+            <span class="legend-item legend-core">核心链路</span>
+            <span class="legend-item legend-agent">Agent / 工具</span>
+            <span class="legend-item legend-store">存储 / 日志</span>
+          </div>
+        </section>
+
         <section class="overview-grid" aria-label="文档总览">
           <article class="overview-panel flow-panel">
             <div class="panel-header">

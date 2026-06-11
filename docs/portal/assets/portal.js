@@ -1,5 +1,6 @@
 const state = {
   docs: [],
+  diagram: null,
   activeId: null,
   filter: "all",
   query: "",
@@ -32,6 +33,82 @@ function matches(doc) {
     ...(doc.paths || []),
   ].join(" ").toLowerCase();
   return filterOk && haystack.includes(state.query.toLowerCase());
+}
+
+function anchorPoints(from, to) {
+  const fc = { x: from.x + from.w / 2, y: from.y + from.h / 2 };
+  const tc = { x: to.x + to.w / 2, y: to.y + to.h / 2 };
+  const dx = tc.x - fc.x;
+  const dy = tc.y - fc.y;
+  let start;
+  let end;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    start = dx > 0 ? { x: from.x + from.w, y: fc.y } : { x: from.x, y: fc.y };
+    end = dx > 0 ? { x: to.x, y: tc.y } : { x: to.x + to.w, y: tc.y };
+  } else {
+    start = dy > 0 ? { x: fc.x, y: from.y + from.h } : { x: fc.x, y: from.y };
+    end = dy > 0 ? { x: tc.x, y: to.y } : { x: tc.x, y: to.y + to.h };
+  }
+  return { start, end };
+}
+
+function renderDiagram(diagram) {
+  if (!els.archDiagram || !diagram) return;
+  const nodeById = Object.fromEntries(diagram.nodes.map((n) => [n.id, n]));
+
+  const markers = ["main", "flow", "loop", "support"]
+    .map((kind) => `
+      <marker id="arrow-${kind}" class="arrow-${kind}" viewBox="0 0 10 10" refX="8" refY="5"
+        markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0L10 5L0 10z" />
+      </marker>
+    `)
+    .join("");
+
+  const edges = diagram.edges
+    .map((edge) => {
+      const from = nodeById[edge.from];
+      const to = nodeById[edge.to];
+      if (!from || !to) return "";
+      const { start, end } = anchorPoints(from, to);
+      const mid = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+      const path = `M${start.x} ${start.y}L${end.x} ${end.y}`;
+      const startMarker = edge.bidir ? `marker-start="url(#arrow-${edge.kind})"` : "";
+      const label = edge.label
+        ? `<g class="edge-label" transform="translate(${mid.x} ${mid.y})">
+             <rect x="${-edge.label.length * 6.5 - 6}" y="-11" width="${edge.label.length * 13 + 12}" height="22" rx="6" />
+             <text x="0" y="4" text-anchor="middle">${edge.label}</text>
+           </g>`
+        : "";
+      return `
+        <path class="arch-edge edge-${edge.kind}" d="${path}"
+          marker-end="url(#arrow-${edge.kind})" ${startMarker} />
+        ${label}`;
+    })
+    .join("");
+
+  const nodes = diagram.nodes
+    .map((node) => `
+      <foreignObject x="${node.x}" y="${node.y}" width="${node.w}" height="${node.h}">
+        <button xmlns="http://www.w3.org/1999/xhtml" type="button"
+          class="arch-node node-${node.kind} ${node.docId === state.activeId ? "active" : ""}"
+          data-doc-id="${node.docId}">
+          <span class="arch-node-icon">${icon(node.icon)}</span>
+          <span class="arch-node-text">
+            <strong>${node.title}</strong>
+            <small>${node.sub}</small>
+          </span>
+        </button>
+      </foreignObject>
+    `)
+    .join("");
+
+  els.archDiagram.innerHTML = `
+    <svg class="arch-svg" viewBox="${diagram.viewBox}" role="img" aria-label="系统架构图">
+      <defs>${markers}</defs>
+      <g class="arch-edges">${edges}</g>
+      <g class="arch-nodes">${nodes}</g>
+    </svg>`;
 }
 
 function renderFlow(flow) {
@@ -134,6 +211,7 @@ function render() {
   renderNav();
   renderCards();
   renderInspector();
+  if (state.diagram) renderDiagram(state.diagram);
 }
 
 async function copyText(text) {
@@ -216,10 +294,12 @@ async function init() {
     pathList: document.querySelector("#pathList"),
     rawLink: document.querySelector("#rawLink"),
     copyPathsButton: document.querySelector("#copyPathsButton"),
+    archDiagram: document.querySelector("#archDiagram"),
   });
 
   const manifest = getPortalData();
   state.docs = manifest.documents;
+  state.diagram = manifest.diagram;
   state.activeId = state.docs[0]?.id || null;
   renderFlow(manifest.flow);
   renderTree(manifest.tree);
