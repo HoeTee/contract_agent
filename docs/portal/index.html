@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lexora Docs Portal</title>
+    <link rel="stylesheet" href="/docs-portal/assets/portal.css">
+    <script src="/docs-portal/assets/portal.js" defer></script>
+  </head>
+  <body>
+    <svg aria-hidden="true" class="icon-sprite">
+      <symbol id="icon-api" viewBox="0 0 24 24"><path d="M4 7h6v10H4zM14 7h6v10h-6zM10 12h4M7 4v3M17 4v3M7 17v3M17 17v3"/></symbol>
+      <symbol id="icon-folder" viewBox="0 0 24 24"><path d="M3 6.5h7l2 2h9v9.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+      <symbol id="icon-flow" viewBox="0 0 24 24"><path d="M5 6h5v5H5zM14 13h5v5h-5zM10 8.5h2.5A3.5 3.5 0 0 1 16 12v1M12 16.5H7.5A3.5 3.5 0 0 1 4 13v-2"/></symbol>
+      <symbol id="icon-log" viewBox="0 0 24 24"><path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/></symbol>
+      <symbol id="icon-docker" viewBox="0 0 24 24"><path d="M4 13h16l-1.5 4.5A4 4 0 0 1 14.7 20H8.2A4.2 4.2 0 0 1 4 15.8zM7 9h3v3H7zM11 9h3v3h-3zM11 5h3v3h-3zM15 9h3v3h-3z"/></symbol>
+      <symbol id="icon-user" viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 20a8 8 0 0 1 16 0"/></symbol>
+      <symbol id="icon-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v5h4M9 13h6M9 17h6"/></symbol>
+      <symbol id="icon-code" viewBox="0 0 24 24"><path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14"/></symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24"><path d="m20 20-4.5-4.5M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"/></symbol>
+      <symbol id="icon-copy" viewBox="0 0 24 24"><path d="M8 8h11v11H8zM5 16H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></symbol>
+      <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></symbol>
+    </svg>
+
+    <div class="shell">
+      <aside class="sidebar" aria-label="文档导航">
+        <a class="brand" href="/docs-portal" aria-label="Lexora Docs Portal">
+          <span class="brand-mark">L</span>
+          <span>
+            <strong>Lexora Docs</strong>
+            <small>系统文档门户</small>
+          </span>
+        </a>
+        <div class="search-box">
+          <svg><use href="#icon-search"></use></svg>
+          <input id="searchInput" type="search" placeholder="搜索 API、部署、日志、目录">
+        </div>
+        <nav id="docNav" class="doc-nav"></nav>
+      </aside>
+
+      <main class="content">
+        <section class="toolbar">
+          <div>
+            <h1>文档门户</h1>
+            <p>把原 Markdown 文档重组为可浏览、可展开、可复制路径的系统说明。</p>
+          </div>
+          <div class="toolbar-actions">
+            <button class="filter-button active" data-filter="all">全部</button>
+            <button class="filter-button" data-filter="api">API</button>
+            <button class="filter-button" data-filter="deploy">部署</button>
+            <button class="filter-button" data-filter="data">数据</button>
+            <button class="filter-button" data-filter="architecture">架构</button>
+          </div>
+        </section>
+
+        <section class="overview-grid" aria-label="文档总览">
+          <article class="overview-panel flow-panel">
+            <div class="panel-header">
+              <span class="panel-icon"><svg><use href="#icon-flow"></use></svg></span>
+              <div>
+                <h2>核心链路</h2>
+                <p>从上传合同到批注版 DOCX 的运行关系。</p>
+              </div>
+            </div>
+            <div class="flow-line" id="primaryFlow"></div>
+          </article>
+
+          <article class="overview-panel tree-panel">
+            <div class="panel-header">
+              <span class="panel-icon"><svg><use href="#icon-folder"></use></svg></span>
+              <div>
+                <h2>数据目录</h2>
+                <p>区分普通用户、默认 CLI 用户和无登录 API。</p>
+              </div>
+            </div>
+            <pre class="directory-tree" id="directoryTree"></pre>
+          </article>
+        </section>
+
+        <section id="docCards" class="doc-grid" aria-label="文档卡片"></section>
+      </main>
+
+      <aside class="inspector" aria-label="当前文档详情">
+        <div class="inspector-card">
+          <h2 id="inspectorTitle">选择一篇文档</h2>
+          <p id="inspectorSummary">点击左侧导航或文档卡片，查看关键路径、流程和原文档入口。</p>
+          <div id="inspectorTags" class="tag-list"></div>
+        </div>
+        <div class="inspector-card">
+          <h3>相关代码路径</h3>
+          <div id="pathList" class="path-list"></div>
+        </div>
+        <div class="inspector-card">
+          <h3>快速操作</h3>
+          <div class="action-stack">
+            <a id="rawLink" class="action-link disabled" href="#" target="_blank" rel="noreferrer">查看原 Markdown</a>
+            <button id="copyPathsButton" class="action-link" type="button">复制相关路径</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </body>
+</html>

@@ -25,6 +25,11 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory=str(Path(PROJECT_ROOT) / "web" / "static")), name="static")
+app.mount(
+    "/docs-portal/assets",
+    StaticFiles(directory=str(Path(PROJECT_ROOT) / "docs" / "portal" / "assets")),
+    name="docs-portal-assets",
+)
 app.include_router(router)
 app.include_router(admin_router)
 

@@ -10,7 +10,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.background import BackgroundTask
 from docx import Document
@@ -34,6 +34,17 @@ from web.auth import find_user, load_users, normalize_role, save_users, verify_l
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+DOCS_PORTAL_ROOT = PROJECT_ROOT / "docs" / "portal"
+DOCS_RAW_ROOT = PROJECT_ROOT / "docs"
+DOCS_RAW_FILES = {
+    "API_REVIEW_ENDPOINT.md",
+    "DEPLOYMENT.md",
+    "FRONTEND_USER_JOURNEY.md",
+    "LOGGER_DESIGN.md",
+    "PROJECT_STRUCTURE.md",
+    "QUICK_START.md",
+    "USER_MANAGEMENT.md",
+}
 OLE_DOC_SIGNATURE = bytes.fromhex("D0 CF 11 E0 A1 B1 1A E1")
 REQUIRED_DOCX_PARTS = {
     "[Content_Types].xml",
@@ -73,6 +84,22 @@ review_semaphore = (
     if MAX_API_CONCURRENT_REVIEWS > 0
     else None # It could be None if MAX_API_CONCURRENT_REVIEWS is not set, meaning no concurrency limit.
 )
+
+
+@router.get("/docs-portal")
+async def docs_portal():
+    return FileResponse(DOCS_PORTAL_ROOT / "index.html")
+
+
+@router.get("/docs-portal/raw/{doc_name}", response_class=PlainTextResponse)
+async def docs_portal_raw(doc_name: str):
+    safe_name = Path(doc_name.replace("\\", "/")).name
+    if safe_name not in DOCS_RAW_FILES:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    path = (DOCS_RAW_ROOT / safe_name).resolve()
+    if DOCS_RAW_ROOT.resolve() not in path.parents:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    return PlainTextResponse(path.read_text(encoding="utf-8"))
 
 
 def get_running_task(username: str) -> dict | None:

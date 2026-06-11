@@ -1,0 +1,203 @@
+{
+  "flow": [
+    {
+      "icon": "icon-api",
+      "title": "接收请求",
+      "text": "POST /api/review 接收合同和可选审查标准。"
+    },
+    {
+      "icon": "icon-folder",
+      "title": "落盘分区",
+      "text": "API_STORE=True 时写入 data/api/<任务目录>。"
+    },
+    {
+      "icon": "icon-flow",
+      "title": "工作流审查",
+      "text": "解析、检索、规划、执行、反思并生成结果。"
+    },
+    {
+      "icon": "icon-doc",
+      "title": "批注输出",
+      "text": "返回批注版 DOCX，同时保留日志和输入输出文件。"
+    }
+  ],
+  "tree": "data/\\n  default/                 # CLI 默认用户目录\\n  <username>/              # 登录用户数据分区\\n    contract_review_criteria/\\n    contracts/\\n    reports_docx/\\n    records/\\n    logs/\\n  api/                     # 无登录 /api/review 数据\\n    20260610-153012-a1b2/\\n      合同.docx\\n      criteria.docx\\n      合同_reviewed.docx\\n      logs/",
+  "documents": [
+    {
+      "id": "api-review",
+      "title": "/api/review",
+      "category": "api",
+      "group": "API",
+      "icon": "icon-api",
+      "md": "API_REVIEW_ENDPOINT.md",
+      "summary": "无登录同步审查接口，覆盖输入字段、API_STORE、data/api 目录、日志和 DOCX 响应。",
+      "tags": ["API_STORE", "data/api", "DOCX", "logs"],
+      "signals": [
+        "POST /api/review 使用 multipart/form-data。",
+        "API_STORE=True 时输入、输出和日志保存在 data/api/<任务目录>/。",
+        "API_STORE=False 时使用系统临时目录，响应后清理。"
+      ],
+      "paths": [
+        "web/routes.py",
+        "loggers/resolve_api_review_paths.py",
+        "config.py",
+        "docs/API_REVIEW_ENDPOINT.md"
+      ],
+      "details": [
+        "不要把 /api/review 写入 data/default；default 是 CLI 默认用户。",
+        "X-Review-Log-Path 指向本次任务的 api_events.jsonl。",
+        "上传审查标准保留原文件名；未上传时复制默认 criteria.docx。"
+      ]
+    },
+    {
+      "id": "deployment",
+      "title": "Docker 部署",
+      "category": "deploy",
+      "group": "部署",
+      "icon": "icon-docker",
+      "md": "DEPLOYMENT.md",
+      "summary": "区分开发机、远端宿主机、服务容器和挂载目录，说明端口与持久化边界。",
+      "tags": ["Docker", "mount", "port", "env"],
+      "signals": [
+        "宿主机挂载 ./data 到容器 /app/data。",
+        "不要挂载空的 resources/review_criteria/ 覆盖默认模板。",
+        "服务容器内部监听 8000，宿主机通过 compose 映射访问。"
+      ],
+      "paths": [
+        "docker-compose.yaml",
+        "Dockerfile",
+        "docs/DEPLOYMENT.md",
+        ".env.example"
+      ],
+      "details": [
+        "部署排查先确认命令在哪里执行：开发机、远端宿主机、服务容器还是临时管理容器。",
+        "持久化数据应写入挂载目录，不应依赖正在运行容器内部临时文件系统。"
+      ]
+    },
+    {
+      "id": "user-management",
+      "title": "用户与数据分区",
+      "category": "data",
+      "group": "数据",
+      "icon": "icon-user",
+      "md": "USER_MANAGEMENT.md",
+      "summary": "说明用户目录、账号文件、默认审查标准、历史记录和管理员视角。",
+      "tags": ["DATA_DIR", "USERS_FILE", "default", "history"],
+      "signals": [
+        "用户数据按 DATA_DIR/<username>/ 分区。",
+        "data/default 是 CLI 默认用户目录，不是 API 目录。",
+        "历史记录来自 records/review_history.json。"
+      ],
+      "paths": [
+        "services/user_management.py",
+        "web/admin_routes.py",
+        "loggers/review_history.py",
+        "docs/USER_MANAGEMENT.md"
+      ],
+      "details": [
+        "创建用户会初始化 contract_review_criteria、contracts、reports_docx、records、logs。",
+        "管理员页面读取普通数据源，不存在单独的 admin 数据库。"
+      ]
+    },
+    {
+      "id": "project-structure",
+      "title": "项目结构",
+      "category": "architecture",
+      "group": "架构",
+      "icon": "icon-folder",
+      "md": "PROJECT_STRUCTURE.md",
+      "summary": "按 agent、workflow、tools、web、data、docs 解释代码仓库边界。",
+      "tags": ["architecture", "workflow", "tools", "web"],
+      "signals": [
+        "main_workflow 编排完整审查流程。",
+        "agents 负责规划、执行和反思。",
+        "tools/document 负责解析和批注 DOCX 输出。"
+      ],
+      "paths": [
+        "main_workflow/main_workflow.py",
+        "agents/",
+        "tools/document/",
+        "docs/PROJECT_STRUCTURE.md"
+      ],
+      "details": [
+        "解释项目时优先按 agent 设计、工具设计、日志设计、API 设计、前端旅程组织。",
+        "不要把临时执行路径和持久数据路径混在一起解释。"
+      ]
+    },
+    {
+      "id": "logger-design",
+      "title": "日志设计",
+      "category": "data",
+      "group": "日志",
+      "icon": "icon-log",
+      "md": "LOGGER_DESIGN.md",
+      "summary": "说明 API 事件、workflow、conversation、MCP 日志的定位和排查入口。",
+      "tags": ["api_events", "workflow", "conversation", "mcp"],
+      "signals": [
+        "普通用户任务日志位于 data/<username>/logs/。",
+        "API_STORE=True 时 API 日志位于 data/api/<任务目录>/logs/。",
+        "agent_steps.jsonl 只有模型调用返回后才会出现。"
+      ],
+      "paths": [
+        "loggers/api_event_logger.py",
+        "loggers/agent_logger.py",
+        "docs/LOGGER_DESIGN.md"
+      ],
+      "details": [
+        "排查失败时优先看 api_events.jsonl 和 workflow/run_summary.json。",
+        "snapshot 但没有 agent_steps 通常表示响应返回前已失败。"
+      ]
+    },
+    {
+      "id": "frontend-journey",
+      "title": "前端用户旅程",
+      "category": "frontend",
+      "group": "前端",
+      "icon": "icon-flow",
+      "md": "FRONTEND_USER_JOURNEY.md",
+      "summary": "描述登录、多账号上下文、工作台上传、历史记录和设置页面。",
+      "tags": ["frontend", "ctx", "history", "settings"],
+      "signals": [
+        "页面请求通过 ctx 区分浏览器标签页用户上下文。",
+        "工作台上传后后台任务运行，页面展示状态。",
+        "历史记录来自持久化 records 数据。"
+      ],
+      "paths": [
+        "web/routes.py",
+        "web/templates/index.html",
+        "web/templates/history.html",
+        "web/static/app.js",
+        "docs/FRONTEND_USER_JOURNEY.md"
+      ],
+      "details": [
+        "前端问题要区分后端行为、session 状态和静态资源缓存。",
+        "长标签和状态文本需要考虑移动端布局。"
+      ]
+    },
+    {
+      "id": "quick-start",
+      "title": "快速开始",
+      "category": "deploy",
+      "group": "入门",
+      "icon": "icon-doc",
+      "md": "QUICK_START.md",
+      "summary": "最短路径启动服务、创建用户、上传合同、查看输出和日志。",
+      "tags": ["start", "user", "upload", "review"],
+      "signals": [
+        "先配置 .env，再启动服务。",
+        "用户目录和 user_profiles 可以为空，程序会初始化。",
+        "输出 DOCX 和日志都应按任务路径验证。"
+      ],
+      "paths": [
+        "app.py",
+        "web/routes.py",
+        "docs/QUICK_START.md",
+        ".env.example"
+      ],
+      "details": [
+        "快速开始适合验证本地功能，不等价于生产部署检查清单。",
+        "Docker 部署应同时参考 DEPLOYMENT.md。"
+      ]
+    }
+  ]
+}
