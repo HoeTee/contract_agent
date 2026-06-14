@@ -22,6 +22,7 @@ from lxml import etree
 
 SUMMARY_COMMENT_AUTHOR = "AI审查总结"
 REVIEW_COMMENT_AUTHOR = "AI条款审查"
+COMMENTS_RELTYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
 
 
 @dataclass(frozen=True)
@@ -601,7 +602,7 @@ class DocxReportGenerator:
         """Add Word comments to a document using OPC XML manipulation."""
         comments_part = None
         for rel in doc.part.rels.values():
-            if "comments" in rel.reltype:
+            if rel.reltype == COMMENTS_RELTYPE:
                 comments_part = rel.target_part
                 break
 
@@ -622,7 +623,7 @@ class DocxReportGenerator:
                 blob=comments_xml.encode('utf-8'),
                 package=doc.part.package,
             )
-            doc.part.relate_to(comments_part, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments")
+            doc.part.relate_to(comments_part, COMMENTS_RELTYPE)
 
         comments_element = etree.fromstring(comments_part.blob)
         existing_ids: list[int] = []

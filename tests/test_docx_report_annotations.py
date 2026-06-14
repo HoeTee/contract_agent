@@ -120,6 +120,71 @@ def _add_existing_comment_part(docx_path: Path) -> None:
             target.writestr(name, blob)
 
 
+def _add_comments_extended_part(docx_path: Path) -> None:
+    """Inject a commentsExtended relationship before comments.xml exists."""
+    with zipfile.ZipFile(docx_path, "r") as source:
+        files = {name: source.read(name) for name in source.namelist()}
+
+    rels_name = "word/_rels/document.xml.rels"
+    rels = etree.fromstring(files[rels_name])
+    rel = etree.SubElement(rels, "Relationship")
+    rel.set("Id", "rIdCommentsExtended")
+    rel.set(
+        "Type",
+        "http://schemas.microsoft.com/office/2011/relationships/commentsExtended",
+    )
+    rel.set("Target", "commentsExtended.xml")
+    files[rels_name] = etree.tostring(
+        rels,
+        xml_declaration=True,
+        encoding="UTF-8",
+        standalone=True,
+    )
+
+    content_types_name = "[Content_Types].xml"
+    content_types = etree.fromstring(files[content_types_name])
+    override = etree.SubElement(content_types, "Override")
+    override.set("PartName", "/word/commentsExtended.xml")
+    override.set(
+        "ContentType",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml",
+    )
+    files[content_types_name] = etree.tostring(
+        content_types,
+        xml_declaration=True,
+        encoding="UTF-8",
+        standalone=True,
+    )
+
+    files["word/commentsExtended.xml"] = (
+        b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        b'<w15:commentsEx xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml">'
+        b"</w15:commentsEx>"
+    )
+
+    with zipfile.ZipFile(docx_path, "w", zipfile.ZIP_DEFLATED) as target:
+        for name, blob in files.items():
+            target.writestr(name, blob)
+
+
+def _comment_reference_ids(docx_path: Path) -> set[str]:
+    with zipfile.ZipFile(docx_path, "r") as package:
+        document_xml = etree.fromstring(package.read("word/document.xml"))
+    return {
+        element.get(qn("w:id"))
+        for element in document_xml.findall(f".//{qn('w:commentReference')}")
+    }
+
+
+def _comment_ids(docx_path: Path) -> set[str]:
+    with zipfile.ZipFile(docx_path, "r") as package:
+        comments_xml = etree.fromstring(package.read("word/comments.xml"))
+    return {
+        element.get(qn("w:id"))
+        for element in comments_xml.findall(f".//{qn('w:comment')}")
+    }
+
+
 class DocxAnnotationPreservationTests(unittest.TestCase):
     def test_annotations_use_original_docx_revision_text_and_beijing_time(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -172,6 +237,49 @@ class DocxAnnotationPreservationTests(unittest.TestCase):
             self.assertIn("原有批注保留", comments_xml)
             self.assertIn("付款期限需要核查。", comments_xml)
             self.assertIn("+08:00", comments_xml)
+
+    def test_comment_references_target_comments_xml_not_extended_comment_parts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            contract_path = Path(tmp) / "contract.docx"
+            output_path = Path(tmp) / "annotated.docx"
+
+            doc = Document()
+            doc.add_paragraph("甲方应付款。")
+            doc.save(contract_path)
+            _add_comments_extended_part(contract_path)
+            _add_existing_comment_part(contract_path)
+
+            results = [
+                {
+                    "criterion_id": "C1",
+                    "criterion": "付款条款",
+                    "issues": [
+                        {
+                            "issue_id": "I1",
+                            "quoted_text": "甲方应付款。",
+                            "comment_text": "AI新增批注。",
+                        }
+                    ],
+                }
+            ]
+
+            DocxReportGenerator._generate_docx_with_comments(
+                str(contract_path),
+                results,
+                str(output_path),
+            )
+
+            reference_ids = _comment_reference_ids(output_path)
+            comments_ids = _comment_ids(output_path)
+            self.assertTrue(reference_ids)
+            self.assertTrue(
+                reference_ids <= comments_ids,
+                f"missing comments.xml ids for references: {reference_ids - comments_ids}",
+            )
+
+            with zipfile.ZipFile(output_path, "r") as output:
+                comments_xml = output.read("word/comments.xml").decode("utf-8")
+            self.assertIn("AI新增批注。", comments_xml)
 
     def test_clean_docx_accepts_revisions_and_removes_comments_for_review_text(self):
         with tempfile.TemporaryDirectory() as tmp:
