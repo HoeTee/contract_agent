@@ -6,6 +6,7 @@ import json
 import os
 from datetime import datetime
 
+from config import PARSE_FILE_WITH_MINERU
 from tools.retrieval.llamaindex import build_llamaindex_env_error, load_llamaindex_rag
 from tools.document.file_parser import FileParser
 
@@ -20,6 +21,7 @@ class IndexRetriever:
         llm_api_key: str | None,
         llm_base_url: str | None,
         llm_name: str,
+        llm_enable_thinking: bool | None,
         embed_api_key: str | None,
         embed_base_url: str | None,
         embed_name: str,
@@ -35,6 +37,7 @@ class IndexRetriever:
         self.llm_api_key = llm_api_key
         self.llm_base_url = llm_base_url
         self.llm_name = llm_name
+        self.llm_enable_thinking = llm_enable_thinking
         self.embed_api_key = embed_api_key
         self.embed_base_url = embed_base_url
         self.embed_name = embed_name
@@ -208,6 +211,7 @@ class IndexRetriever:
                 llm_api_key=self.llm_api_key,
                 llm_base_url=self.llm_base_url,
                 llm_name=self.llm_name,
+                llm_enable_thinking=self.llm_enable_thinking,
                 embed_api_key=self.embed_api_key,
                 embed_base_url=self.embed_base_url,
                 embed_name=self.embed_name,
@@ -234,6 +238,7 @@ class IndexRetriever:
                 llm_api_key=self.llm_api_key,
                 llm_base_url=self.llm_base_url,
                 llm_name=self.llm_name,
+                llm_enable_thinking=self.llm_enable_thinking,
                 embed_api_key=self.embed_api_key,
                 embed_base_url=self.embed_base_url,
                 embed_name=self.embed_name,
@@ -300,4 +305,4 @@ class IndexRetriever:
 
     @staticmethod
     def _parse_with_mineru() -> bool:
-        return str(os.getenv("PARSE_FILE_WITH_MINERU")).lower() in ("1", "true", "yes", "on")
+        return bool(PARSE_FILE_WITH_MINERU)

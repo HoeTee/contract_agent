@@ -14,16 +14,12 @@ from tools.document.file_parser import FileParser
 from tools.document.report_generator import ReportGenerator
 from tools.retrieval.index_retriever import IndexRetriever
 from loggers.model_event_context import reset_model_event_path, set_model_event_path
+from config import LLM_ENABLE_THINKING, PARSE_FILE_WITH_MINERU
 
 
 API_KEY = os.getenv("LLM_API_KEY")
 BASE_URL = os.getenv("LLM_BASE_URL")
 LLM_NAME = os.getenv("LLM_NAME", "qwen-plus")
-PARSE_FILE_WITH_MINERU = os.getenv("PARSE_FILE_WITH_MINERU")
-
-
-def env_bool(val):
-    return str(val).lower() in ("1", "true", "yes")
 
 
 mcp = FastMCP("docs-server")
@@ -32,6 +28,7 @@ index_retriever = IndexRetriever(
     llm_api_key=API_KEY,
     llm_base_url=BASE_URL,
     llm_name=LLM_NAME,
+    llm_enable_thinking=LLM_ENABLE_THINKING,
     embed_api_key=os.getenv("EMBED_API_KEY", API_KEY),
     embed_base_url=os.getenv("EMBED_BASE_URL", BASE_URL),
     embed_name=os.getenv("EMBED_NAME", "text-embedding-v4"),
@@ -53,7 +50,7 @@ async def ingest_file(file_path: str) -> str:
     """
     Parse a DOCX/PDF/TXT file, return full markdown content.
     """
-    if env_bool(PARSE_FILE_WITH_MINERU):
+    if PARSE_FILE_WITH_MINERU:
         try:
             content = await FileParser.parse_file_with_mineru(file_path)
         except Exception as e:

@@ -22,19 +22,12 @@ import fitz  # PyMuPDF
 import httpx
 from openai import AsyncOpenAI
 
+from config import MINERU_API_ENABLE_OCR
 from tools.document.file_cleaner import clean_docx
 from tools.document.parsers.default_file_parser import DefaultFileParser
 
 DEFAULT_REMOTE_MINERU_API_BASE = "https://mineru.net"
 MINERU_REMOTE_SUPPORTED_EXTENSIONS = {".pdf", ".docx"}
-
-
-def _env_bool(name: str, default: bool = False) -> bool:
-    value = os.getenv(name)
-    if value is None:
-        return default
-    return value.strip().lower() in {"1", "true", "yes", "on"}
-
 
 def _env_int(name: str, default: int) -> int:
     value = os.getenv(name)
@@ -112,7 +105,7 @@ async def _parse_via_remote_mineru_api(
     poll_interval = _env_float("MINERU_API_POLL_INTERVAL", 5.0)
     max_polls = _env_int("MINERU_API_MAX_POLLS", 120)
     language = os.getenv("MINERU_API_LANGUAGE", "ch")
-    enable_ocr = _env_bool("MINERU_API_ENABLE_OCR", True)
+    enable_ocr = MINERU_API_ENABLE_OCR
     page_ranges = os.getenv("MINERU_API_PAGE_RANGES")
     file_name = Path(file_path).name
 

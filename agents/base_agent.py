@@ -3,10 +3,11 @@ Base Agent class — handles LLM communication, tool calling, context
 management, token tracking, and conversation logging.
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field, field_validator
+from pydantic import Field
 from openai import AsyncOpenAI, RateLimitError, APITimeoutError, APIConnectionError, InternalServerError, APIStatusError
 from loggers.agent_logger import log_agent_step, log_conversation
 from config import (
+    LLM_ENABLE_THINKING,
     MAX_TOOL_CALLS,
     MAX_CONTEXT_TOKENS,
     MAX_RESULT_TOKENS,
@@ -38,24 +39,7 @@ class Settings(BaseSettings):
     temperature: float = Field(0.0, alias="TEMPERATURE")
     top_p: float = Field(0.01, alias="TOP_P")
     seed: int = Field(42, alias="SEED")
-    enable_thinking: bool | None = Field(None, alias="LLM_ENABLE_THINKING")
-
-    @field_validator("enable_thinking", mode="before")
-    @classmethod
-    def validate_enable_thinking(cls, value):
-        if value is None:
-            return None
-        if isinstance(value, bool):
-            return value
-
-        value_text = str(value).strip()
-        if value_text == "":
-            return None
-        if value_text == "True":
-            return True
-        if value_text == "False":
-            return False
-        raise ValueError("LLM_ENABLE_THINKING must be exactly True or False when set.")
+    enable_thinking: bool | None = LLM_ENABLE_THINKING
 
 
 class Agent:

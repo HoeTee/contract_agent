@@ -35,6 +35,7 @@ class LlamaIndexRAG:
         llm_api_key: str,
         llm_base_url: str,
         llm_name: str,
+        llm_enable_thinking: bool | None = None,
         embed_api_key: str,
         embed_base_url: str,
         embed_name: str,
@@ -52,12 +53,21 @@ class LlamaIndexRAG:
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
 
+        llm_additional_kwargs = {}
+        if llm_enable_thinking is not None:
+            llm_additional_kwargs["extra_body"] = {
+                "enable_thinking": llm_enable_thinking,
+            }
+
         Settings.llm = OpenAILike(
             model=llm_name,
             api_key=llm_api_key,
             api_base=llm_base_url,
             is_chat_model=True,
             is_function_calling_model=True,
+            timeout=MODEL_CALL_TIMEOUT_SECONDS,
+            max_retries=MODEL_CALL_MAX_RETRIES,
+            additional_kwargs=llm_additional_kwargs,
         )
         Settings.embed_model = OpenAILikeEmbedding(
             model_name=embed_name,
