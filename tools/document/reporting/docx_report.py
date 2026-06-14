@@ -418,6 +418,55 @@ class DocxReportGenerator:
         return None
 
     @staticmethod
+    def _find_multi_paragraph_text_range_anchor(
+        views: list[ParagraphTextView],
+        reference_text: str,
+    ) -> TextAnchor | None:
+        """Find quoted text that spans adjacent paragraphs and anchor its first segment."""
+        normalized_reference = DocxReportGenerator._normalize_text(reference_text or "")
+        if (
+            not normalized_reference
+            or len(normalized_reference) < DocxReportGenerator._minimum_match_length(normalized_reference)
+        ):
+            return None
+
+        normalized_views: list[tuple[ParagraphTextView, str, list[int]]] = []
+        for view in views:
+            normalized_text, norm_to_orig = DocxReportGenerator._normalize_text_with_mapping(view.text)
+            if normalized_text:
+                normalized_views.append((view, normalized_text, norm_to_orig))
+
+        for start_index in range(len(normalized_views)):
+            combined_text = ""
+            combined_segments: list[tuple[ParagraphTextView, int, int, list[int]]] = []
+
+            for view, normalized_text, norm_to_orig in normalized_views[start_index:]:
+                segment_start = len(combined_text)
+                combined_text += normalized_text
+                segment_end = len(combined_text)
+                combined_segments.append((view, segment_start, segment_end, norm_to_orig))
+
+                match_start = combined_text.find(normalized_reference)
+                if match_start < 0:
+                    continue
+
+                match_end = match_start + len(normalized_reference)
+                for segment_view, segment_start, segment_end, segment_mapping in combined_segments:
+                    overlap_start = max(match_start, segment_start)
+                    overlap_end = min(match_end, segment_end)
+                    if overlap_end <= overlap_start:
+                        continue
+
+                    original_start = segment_mapping[overlap_start - segment_start]
+                    original_end = segment_mapping[overlap_end - segment_start - 1] + 1
+                    return DocxReportGenerator._text_anchor_from_indexes(
+                        segment_view,
+                        original_start,
+                        original_end,
+                    )
+        return None
+
+    @staticmethod
     def _find_text_range_anchor(doc: Document, reference_text: str) -> TextAnchor | None:
         """Find quoted text as original-DOCX run ranges."""
         if not reference_text or not reference_text.strip():
@@ -428,6 +477,7 @@ class DocxReportGenerator:
             DocxReportGenerator._find_exact_text_range_anchor,
             DocxReportGenerator._find_light_clean_text_range_anchor,
             DocxReportGenerator._find_normalized_text_range_anchor,
+            DocxReportGenerator._find_multi_paragraph_text_range_anchor,
         ):
             text_anchor = resolver(views, reference_text)
             if text_anchor:

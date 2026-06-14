@@ -1,4 +1,5 @@
 import os
+import json
 import importlib.util
 import tempfile
 import unittest
@@ -280,6 +281,57 @@ class DocxAnnotationPreservationTests(unittest.TestCase):
             with zipfile.ZipFile(output_path, "r") as output:
                 comments_xml = output.read("word/comments.xml").decode("utf-8")
             self.assertIn("AI新增批注。", comments_xml)
+
+    def test_multi_paragraph_quoted_text_anchors_to_first_matched_paragraph(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            contract_path = Path(tmp) / "contract.docx"
+            output_path = Path(tmp) / "annotated.docx"
+
+            doc = Document()
+            doc.add_paragraph(
+                "9.3 于任何情形下，腾讯云不对任何间接的、偶然的、特殊的或惩罚性的损害和赔偿承担责任，"
+                "例如利润损失、机会损失、声誉/商誉损失或损害等。"
+            )
+            doc.add_paragraph(
+                "腾讯云在本协议项下所承担的损失赔偿责任不超过损害发生时甲方就该服务在本合同期内"
+                "过往所支付的服务费用的总额。"
+            )
+            doc.save(contract_path)
+
+            results = [
+                {
+                    "criterion_id": "C9",
+                    "criterion": "违约责任",
+                    "issues": [
+                        {
+                            "issue_id": "7.1",
+                            "quoted_text": (
+                                "9.3 于任何情形下，腾讯云不对任何间接的、偶然的、特殊的或惩罚性的损害和赔偿承担责任，"
+                                "例如利润损失、机会损失、声誉/商誉损失或损害等。腾讯云在本协议项下所承担的损失赔偿责任"
+                                "不超过损害发生时甲方就该服务在本合同期内过往所支付的服务费用的总额。"
+                            ),
+                            "comment_text": "责任上限需要复核。",
+                        }
+                    ],
+                }
+            ]
+
+            DocxReportGenerator._generate_docx_with_comments(
+                str(contract_path),
+                results,
+                str(output_path),
+            )
+
+            events_path = output_path.with_name(f"{output_path.stem}_annotation_events.json")
+            events = json.loads(events_path.read_text(encoding="utf-8"))
+            self.assertEqual(1, events["annotation_stats"]["exact_matched"])
+            self.assertEqual(0, events["annotation_stats"]["unmatched"])
+            self.assertEqual("anchored", events["events"][0]["status"])
+            self.assertEqual("p1", events["events"][0]["paragraph_path"])
+
+            with zipfile.ZipFile(output_path, "r") as output:
+                comments_xml = output.read("word/comments.xml").decode("utf-8")
+            self.assertIn("责任上限需要复核。", comments_xml)
 
     def test_clean_docx_accepts_revisions_and_removes_comments_for_review_text(self):
         with tempfile.TemporaryDirectory() as tmp:
