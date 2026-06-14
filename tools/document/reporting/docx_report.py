@@ -20,9 +20,14 @@ from docx.text.run import Run
 from lxml import etree
 
 
-SUMMARY_COMMENT_AUTHOR = "AI审查总结"
-REVIEW_COMMENT_AUTHOR = "AI条款审查"
+SUMMARY_COMMENT_AUTHOR = "AI 审查总结"
+REVIEW_COMMENT_AUTHOR = "AI 条款审查"
 COMMENTS_RELTYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
+RISK_LEVEL_LABELS = {
+    "high": "高",
+    "medium": "中",
+    "low": "低",
+}
 
 
 @dataclass(frozen=True)
@@ -605,19 +610,13 @@ class DocxReportGenerator:
         para_element.append(ref_run)
 
     @staticmethod
-    def _build_unmatched_comment_text(unmatched_comments: list[dict]) -> str:
-        """Build one document-start comment for issues without a reliable anchor."""
-        lines = ["当前合同缺失部分内容，具体如下："]
-        number = 1
-
-        for item in unmatched_comments:
-            text = item.get("comment_text", "").strip()
-            if not text:
-                continue
-            lines.append(f"{number}. {text}")
-            number += 1
-
-        return "\n".join(lines) if len(lines) > 1 else ""
+    def _build_issue_comment_text(comment_text: str, risk_level: str | None) -> str:
+        """Build the Word comment body for a successfully anchored issue."""
+        text = (comment_text or "").strip()
+        risk_label = RISK_LEVEL_LABELS.get(str(risk_level or "").strip().lower())
+        if risk_label:
+            return f"风险等级：{risk_label}\n{text}" if text else f"风险等级：{risk_label}"
+        return text
 
     @staticmethod
     def _build_summary_comment_text(summary_sections: dict | None) -> str:
@@ -790,6 +789,7 @@ class DocxReportGenerator:
                     annotation_stats["total_issues"] += 1
                     reference = issue.get('quoted_text', '')
                     comment_text = issue.get('comment_text', '')
+                    risk_level = issue.get('risk_level', '')
                     issue_id = issue.get('issue_id', '')
 
                     matched_anchor = DocxReportGenerator._find_text_range_anchor(doc, reference)
@@ -797,7 +797,10 @@ class DocxReportGenerator:
                     if matched_anchor:
                         comments_data.append({
                             'anchor': matched_anchor,
-                            'comment_text': comment_text,
+                            'comment_text': DocxReportGenerator._build_issue_comment_text(
+                                comment_text,
+                                risk_level,
+                            ),
                             'author': REVIEW_COMMENT_AUTHOR,
                         })
                         annotation_stats["exact_matched"] += 1
@@ -812,6 +815,7 @@ class DocxReportGenerator:
                             "end_char": matched_anchor.match.end_index,
                             "quoted_text": reference,
                             "matched_text": matched_anchor.match.matched_text,
+                            "risk_level": risk_level,
                             "comment_text": comment_text,
                         })
                     else:
@@ -819,6 +823,7 @@ class DocxReportGenerator:
                             'criterion_id': cid,
                             'criterion': criterion,
                             'issue_id': issue_id,
+                            'risk_level': risk_level,
                             'comment_text': comment_text,
                             'reference_text': reference,
                             'author': REVIEW_COMMENT_AUTHOR,
@@ -832,6 +837,7 @@ class DocxReportGenerator:
                                 "status": "unmatched",
                                 "reason": "accepted_revision_text_view_match_failed",
                                 "quoted_text": reference,
+                                "risk_level": risk_level,
                                 "comment_text": comment_text,
                             })
                         else:
@@ -842,6 +848,7 @@ class DocxReportGenerator:
                                 "issue_id": issue_id,
                                 "status": "missing_text_fallback",
                                 "reason": "quoted_text_is_empty",
+                                "risk_level": risk_level,
                                 "comment_text": comment_text,
                             })
 
@@ -856,18 +863,8 @@ class DocxReportGenerator:
                 })
                 summary_added = True
 
-            fallback_comment_text = DocxReportGenerator._build_unmatched_comment_text(unmatched_comments)
             fallback_count = 0
             skipped_count = len(unmatched_comments)
-
-            if fallback_anchor and fallback_comment_text:
-                comments_data.insert(1 if summary_added else 0, {
-                    'anchor': fallback_anchor,
-                    'comment_text': fallback_comment_text,
-                    'author': REVIEW_COMMENT_AUTHOR,
-                })
-                fallback_count = len(unmatched_comments)
-                skipped_count = 0
 
             if comments_data:
                 DocxReportGenerator._add_comments_to_doc(doc, comments_data)

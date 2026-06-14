@@ -175,11 +175,15 @@ DOCX 批注不是只在正文里插入一个标记。一个有效批注至少同
 
 ## fallback 批注
 
-如果某个 issue 没有可用 `quoted_text`，或者 `quoted_text` 无法在临时匹配文本中命中，程序不会强行批到错误位置。
+总览批注保留文档开头批注设计，不要求高亮。
 
-这类内容会汇总成文档开头的 fallback 批注。
+逐条 issue 批注不再使用文档开头 fallback。原因是逐条问题批注必须对应合同原文中的具体高亮位置：
 
-总结性批注也会添加在文档开头第一个可批注段落上。
+- 如果 issue 的 `quoted_text` 成功命中，生成 `TextAnchor`，写入 Word 批注并高亮原文。
+- 如果 issue 没有 `quoted_text`，或者 `quoted_text` 无法在临时匹配文本中命中，程序不会把它写成 Word 批注。
+- 未锚定 issue 仍会记录到同名 `*_annotation_events.json`，用于排查 SubAgent 输出和 quoted_text 质量。
+
+因此，输出 DOCX 中除总览批注外，所有 AI 问题批注都必须有对应黄色高亮。
 
 ## 为什么有批注但没有高亮
 
@@ -188,17 +192,17 @@ DOCX 批注不是只在正文里插入一个标记。一个有效批注至少同
 | annotation event 状态 | 批注位置 | 是否高亮 | 含义 |
 | --- | --- | --- | --- |
 | `anchored` | `quoted_text` 命中的原文位置 | 是 | 已生成 `TextAnchor`，程序知道具体 run range。 |
-| `missing_text_fallback` | 文档开头第一个可批注段落 | 否 | issue 没有提供 `quoted_text`，没有可高亮文本。 |
-| `unmatched` | 文档开头第一个可批注段落 | 否 | `quoted_text` 非空但无法在合同原文中连续命中。 |
+| `missing_text_fallback` | 不写入 Word 批注 | 否 | issue 没有提供 `quoted_text`，没有可高亮文本。 |
+| `unmatched` | 不写入 Word 批注 | 否 | `quoted_text` 非空但无法在合同原文中连续命中。 |
 
 所以，看到批注内容里写了某个条款，并不等于程序已经定位到了这个条款。真正判断依据是同名 `*_annotation_events.json`：
 
 - `status=anchored`：应当存在黄色高亮。
-- `status=missing_text_fallback` 或 `status=unmatched`：不会有黄色高亮。
+- `status=missing_text_fallback` 或 `status=unmatched`：不会生成逐条 Word 批注。
 - `matched_text`：程序实际命中的原文。
 - `paragraph_path`、`start_char`、`end_char`：程序插入批注和高亮的定位信息。
 
-如果 Word 中出现“批注连接到了具体条款但没有黄色高亮”，应优先检查该批注是不是原合同已有批注，或者检查当前输出 DOCX 的 `document.xml` 中对应 run 是否存在 `w:highlight w:val="yellow"`。AI 新增且成功锚定的批注应同时具备批注范围和黄色高亮。
+如果 Word 中出现“批注连接到了具体条款但没有黄色高亮”，应优先检查该批注是不是原合同已有批注，或者检查当前输出 DOCX 的 `document.xml` 中对应 run 是否存在 `w:highlight w:val="yellow"`。除总览外，AI 新增且成功锚定的逐条问题批注应同时具备批注范围和黄色高亮。
 
 ## 测试覆盖
 
@@ -214,6 +218,7 @@ DOCX 批注不是只在正文里插入一个标记。一个有效批注至少同
 - 输入 DOCX 带 `w:ins` 和 `w:del` 时，最终输出仍保留这些原始修订结构。
 - `quoted_text` 可以按接受修订后的文本命中。
 - 连续跨相邻段落的 `quoted_text` 可以被锚定到实际原文片段。
-- AI 命中文本被黄色高亮。
+- AI 命中文本被黄色高亮，批注正文包含风险等级。
+- 未锚定 issue 不写入 Word 批注，只记录到 annotation events。
 - 新批注时间包含 `+08:00`。
 - `clean_docx()` 输出接受修订后的审查文本，并移除原批注 part。

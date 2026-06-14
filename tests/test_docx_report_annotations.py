@@ -333,6 +333,88 @@ class DocxAnnotationPreservationTests(unittest.TestCase):
                 comments_xml = output.read("word/comments.xml").decode("utf-8")
             self.assertIn("责任上限需要复核。", comments_xml)
 
+    def test_anchored_issue_comment_includes_risk_level_author_spacing_and_highlight(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            contract_path = Path(tmp) / "contract.docx"
+            output_path = Path(tmp) / "annotated.docx"
+
+            doc = Document()
+            doc.add_paragraph("乙方应按约履行服务义务。")
+            doc.save(contract_path)
+
+            results = [
+                {
+                    "criterion_id": "C1",
+                    "criterion": "服务义务",
+                    "issues": [
+                        {
+                            "issue_id": "1.1",
+                            "risk_level": "high",
+                            "quoted_text": "乙方应按约履行服务义务。",
+                            "comment_text": "建议明确未按约履行时的违约责任。",
+                        }
+                    ],
+                }
+            ]
+
+            DocxReportGenerator._generate_docx_with_comments(
+                str(contract_path),
+                results,
+                str(output_path),
+            )
+
+            with zipfile.ZipFile(output_path, "r") as output:
+                document_xml = output.read("word/document.xml").decode("utf-8")
+                comments_xml = output.read("word/comments.xml").decode("utf-8")
+
+            self.assertIn('w:author="AI 条款审查"', comments_xml)
+            self.assertIn("风险等级：高", comments_xml)
+            self.assertIn("建议明确未按约履行时的违约责任。", comments_xml)
+            self.assertIn("<w:highlight", document_xml)
+            self.assertIn('w:val="yellow"', document_xml)
+
+    def test_unmatched_issue_does_not_create_unhighlighted_word_comment(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            contract_path = Path(tmp) / "contract.docx"
+            output_path = Path(tmp) / "annotated.docx"
+
+            doc = Document()
+            doc.add_paragraph("甲方应按期付款。")
+            doc.save(contract_path)
+
+            results = [
+                {
+                    "criterion_id": "C1",
+                    "criterion": "付款条款",
+                    "issues": [
+                        {
+                            "issue_id": "1.1",
+                            "risk_level": "medium",
+                            "quoted_text": "合同中不存在的引用文本。",
+                            "comment_text": "建议明确付款违约责任。",
+                        }
+                    ],
+                }
+            ]
+
+            DocxReportGenerator._generate_docx_with_comments(
+                str(contract_path),
+                results,
+                str(output_path),
+            )
+
+            with zipfile.ZipFile(output_path, "r") as output:
+                self.assertNotIn("word/comments.xml", output.namelist())
+                document_xml = output.read("word/document.xml").decode("utf-8")
+            self.assertNotIn("<w:commentRangeStart", document_xml)
+            self.assertNotIn("<w:highlight", document_xml)
+
+            events_path = output_path.with_name(f"{output_path.stem}_annotation_events.json")
+            events = json.loads(events_path.read_text(encoding="utf-8"))
+            self.assertEqual(1, events["annotation_stats"]["unmatched"])
+            self.assertEqual(0, events["annotation_stats"]["exact_matched"])
+            self.assertEqual("medium", events["events"][0]["risk_level"])
+
     def test_clean_docx_accepts_revisions_and_removes_comments_for_review_text(self):
         with tempfile.TemporaryDirectory() as tmp:
             contract_path = Path(tmp) / "contract.docx"
