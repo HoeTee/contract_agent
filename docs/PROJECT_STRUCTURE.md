@@ -39,6 +39,7 @@ deep_research_agent/
     static/
 
   docs/
+    API_REVIEW_ENDPOINT.md
     LOGGER_DESIGN.md
     USER_MANAGEMENT.md
     PROJECT_STRUCTURE.md
@@ -115,6 +116,7 @@ user_profiles/users.json
 
 `docs/` 只用于存放 Markdown 文档，不作为程序运行时输入或输出目录。
 
+直接 API 调用、错误类型和前端接口边界见 `docs/API_REVIEW_ENDPOINT.md`。
 用户管理的完整说明见 `docs/USER_MANAGEMENT.md`。
 前端用户旅程、页面状态和多标签页行为见 `docs/FRONTEND_USER_JOURNEY.md`。
 合同审查边界、正文附件处理、兜底条款和外部数据限制见 `docs/REVIEW_BOUNDARIES.md`。

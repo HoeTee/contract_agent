@@ -39,6 +39,22 @@ YYYYMMDD-HHMMSS-xxxx
 
 其中 `xxxx` 是短随机后缀，用于避免同一秒多次请求冲突。
 
+## 接口分层
+
+本项目目前同时存在以下 HTTP 路由类型：
+
+| 类型 | 路由 | 用途 | 调用方 | 返回形式 |
+| --- | --- | --- | --- | --- |
+| 直接 API | `POST /api/review` | 无登录、同步执行合同审查 | 外部系统、脚本、集成服务 | 成功返回 DOCX；失败返回 JSON |
+| 前端审查 | `POST /review` | 登录用户在 Web 页面提交审查 | 浏览器表单 | 立即 `303` 跳回 `/work`，审查在后台任务中执行 |
+| 前端状态 | `GET /session/status` | 前端轮询登录状态和角色 | 浏览器 JS | JSON |
+| 前端下载 | `GET /download/{filename}` | 登录用户下载自己的批注版 DOCX | 浏览器 | DOCX 或 404 |
+| 前端页面 | `GET /login`、`GET /work`、`GET /settings`、`GET /history` | 页面渲染 | 浏览器 | HTML 或重定向 |
+| 前端账号操作 | `POST /login`、`POST /logout`、`POST /profile/display-name` | 登录、退出、修改显示名称 | 浏览器表单 | HTML 或重定向 |
+| 管理后台 | `/admin/...` | 用户、审查要点、日志查看管理 | 管理员浏览器页面 | HTML、重定向或文件下载 |
+
+对外集成时只应使用 `POST /api/review`。`POST /review` 是 Web 前端表单接口，依赖登录态、session、用户目录和后台任务状态，不适合作为外部系统直接调用接口。
+
 ## `.env` 开关
 
 ```env
@@ -302,6 +318,37 @@ X-Review-Criteria-Source
 失败时也会保留已经写入的任务目录，便于排查上传文件、审查标准和日志。
 
 如果 `API_STORE=False`，失败返回前会清理本次临时目录，返回 JSON 中的 `api_events_path` 只表示失败发生前的临时日志路径，不保证响应后仍存在。
+
+### 失败类型
+
+| HTTP 状态码 | 触发条件 | `message` 来源 | 日志事件 |
+| --- | --- | --- | --- |
+| `400` | 合同文件名不是 `.docx` | `系统支持的合同文件格式是 DOCX。` | `review_failed` |
+| `400` | 合同是旧版 `.doc`/OLE 文档 | `上传的文件是旧版 .doc/OLE 文档...` | `review_failed` |
+| `400` | 合同不是有效 ZIP/DOCX 结构 | `上传的文件不是有效的 .docx 文件。` 或缺少内部文件说明 | `review_failed` |
+| `400` | `criteria_file` 不是 `.docx` | `审查要点文件格式必须是 DOCX。` | `review_failed` |
+| `400` | `criteria_file` 无法解析或内容不像审查标准 | 审查要点解析或校验错误文案 | `review_failed` |
+| `404` | 未上传 `criteria_file` 且系统默认审查标准不存在 | `未找到系统默认审查要点文件：...` | `review_failed` |
+| `422` | 请求不是合法 `multipart/form-data`，或缺少必填字段 `file` | FastAPI 参数校验错误 | FastAPI 在进入路由函数前返回，通常不会写入本次 `api_events.jsonl` |
+| `503` | Agent、Embedding、Reranker 等模型调用失败，抛出 `ModelCallError` | `审核失败：...`，包含组件化用户可读原因 | 先写具体模型失败事件，再写 `review_failed` |
+| `500` | workflow、DOCX 生成或其他未分类异常 | `审核失败，请查看任务日志。` | `review_failed` |
+
+`503` 是模型或外部模型服务类失败，调用方可以结合 `X-Review-Task-Id`、返回 JSON 中的 `task_id`、`api_events_path` 和任务日志定位具体组件。`500` 表示服务内部未分类异常，应优先查看 `api_events.jsonl`、`workflow/run_summary.json`、`conversations/` 和 `mcp/` 日志。
+
+### 直接 API 与前端错误处理差异
+
+`POST /api/review` 的失败响应直接返回 JSON，适合脚本和外部系统读取：
+
+```json
+{
+  "task_id": "20260610-153012-a1b2",
+  "status": "failed",
+  "message": "审核失败：Embedding 模型调用失败，请检查模型服务或网络连接。",
+  "api_events_path": "data/api/20260610-153012-a1b2/logs/api_events.jsonl"
+}
+```
+
+`POST /review` 是前端表单路由。它不会把错误作为 JSON 返回给浏览器脚本，而是把错误写入 session 的 `flash_error`，然后 `303` 重定向回 `/work` 页面展示。它的运行目录是 `data/<username>/...`，任务状态保存在后端内存字典 `review_tasks` 中。
 
 ## 和登录 Web 审查的区别
 

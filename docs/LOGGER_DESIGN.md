@@ -13,8 +13,10 @@ data/<username>/logs/<YYYY-MM-DD>/<HHMMSS_shortid_contractname>/
 无登录 API 审查使用独立日志目录，不写入用户合同、报告和历史记录目录：
 
 ```text
-data/api_logs/<YYYY-MM-DD>/<HHMMSS_shortid>/
+data/api/<任务目录>/logs/
 ```
+
+`<任务目录>` 由 `loggers/resolve_api_review_paths.py` 生成，格式为 `YYYYMMDD-HHMMSS-xxxx`。直接 API 的完整接口和错误响应说明见 `docs/API_REVIEW_ENDPOINT.md`。
 
 任务目录按日志来源拆分：
 
@@ -152,7 +154,7 @@ review_completed             审查完成并生成批注 DOCX
 review_failed                审查任务失败，记录最终失败原因
 ```
 
-模型类失败事件会先记录具体组件事件，再记录 `review_failed`。前端 `/work` 页面会显示模型类失败的具体错误文案；非模型类异常仍显示通用失败提示并要求查看任务日志。
+模型类失败事件会先记录具体组件事件，再记录 `review_failed`。前端 `/work` 页面会显示模型类失败的具体错误文案；直接 API `/api/review` 会返回 `503` 和 JSON 错误信息；非模型类异常仍显示或返回通用失败提示并要求查看任务日志。
 
 ## 日志开关
 
