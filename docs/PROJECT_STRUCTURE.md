@@ -45,6 +45,7 @@ deep_research_agent/
     DEPLOYMENT.md
     QUICK_START.md
     FRONTEND_USER_JOURNEY.md
+    REVIEW_BOUNDARIES.md
 
   data/
     <username>/
@@ -116,3 +117,4 @@ user_profiles/users.json
 
 用户管理的完整说明见 `docs/USER_MANAGEMENT.md`。
 前端用户旅程、页面状态和多标签页行为见 `docs/FRONTEND_USER_JOURNEY.md`。
+合同审查边界、正文附件处理、兜底条款和外部数据限制见 `docs/REVIEW_BOUNDARIES.md`。
