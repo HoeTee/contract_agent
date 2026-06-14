@@ -415,6 +415,47 @@ class DocxAnnotationPreservationTests(unittest.TestCase):
             self.assertEqual(0, events["annotation_stats"]["exact_matched"])
             self.assertEqual("medium", events["events"][0]["risk_level"])
 
+    def test_summary_comment_uses_conclusion_heading_and_blank_line_before_priorities(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            contract_path = Path(tmp) / "contract.docx"
+            output_path = Path(tmp) / "annotated.docx"
+
+            doc = Document()
+            doc.add_paragraph("合同正文第一段。")
+            doc.save(contract_path)
+
+            DocxReportGenerator._generate_docx_with_comments(
+                str(contract_path),
+                [],
+                str(output_path),
+                summary_sections={
+                    "overall_comment": "整体风险可控。",
+                    "priority_comments": ["先补充付款责任。"],
+                },
+            )
+
+            with zipfile.ZipFile(output_path, "r") as output:
+                comments_xml = etree.fromstring(output.read("word/comments.xml"))
+
+            comment = comments_xml.find(f".//{qn('w:comment')}")
+            self.assertIsNotNone(comment)
+            self.assertEqual("AI 审查总结", comment.get(qn("w:author")))
+
+            paragraph_texts = [
+                "".join(text.text or "" for text in paragraph.findall(f".//{qn('w:t')}"))
+                for paragraph in comment.findall(f"{qn('w:p')}")
+            ]
+            self.assertEqual(
+                [
+                    "总体审查结论：",
+                    "整体风险可控。",
+                    "",
+                    "优先修改建议：",
+                    "1. 先补充付款责任。",
+                ],
+                paragraph_texts,
+            )
+
     def test_clean_docx_accepts_revisions_and_removes_comments_for_review_text(self):
         with tempfile.TemporaryDirectory() as tmp:
             contract_path = Path(tmp) / "contract.docx"

@@ -629,7 +629,7 @@ class DocxReportGenerator:
         priority_comments = summary_sections.get("priority_comments", [])
 
         if overall_comment:
-            lines.append("总体审查总结：")
+            lines.append("总体审查结论：")
             lines.append(overall_comment)
 
         valid_priority_comments = [
@@ -702,9 +702,9 @@ class DocxReportGenerator:
             comment_lines = comment_text.split('\n')
             for line in comment_lines:
                 line = line.strip()
+                p_el = etree.SubElement(comment_el, qn('w:p'))
                 if not line:
                     continue
-                p_el = etree.SubElement(comment_el, qn('w:p'))
                 r_el = etree.SubElement(p_el, qn('w:r'))
                 t_el = etree.SubElement(r_el, qn('w:t'))
                 t_el.set(qn('xml:space'), 'preserve')

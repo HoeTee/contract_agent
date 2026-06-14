@@ -31,7 +31,7 @@ SubAgentOutput
 其中：
 
 - `results` 决定逐条问题批注的位置和正文。
-- `summary_sections` 决定文档开头的总结性批注。
+- `summary_sections` 决定文档开头的总览批注。SummaryAgent 不修改 `results`，不参与 `quoted_text` 定位，也不决定逐条问题批注是否高亮。
 
 ## 审查文本如何生成
 
@@ -133,10 +133,26 @@ ParagraphTextView
 
 - 原始合同已有的 comments part 不删除。
 - 新 AI 批注 id 从现有最大 comment id 后继续递增，避免覆盖原批注。
+- 总览批注作者为 `AI 审查总结`，正文标题使用 `总体审查结论：` 和 `优先修改建议：`。
+- 总览批注中 `总体审查结论` 和 `优先修改建议` 之间保留一个空白段落。
+- 逐条问题批注作者为 `AI 条款审查`，正文先写入 `风险等级：高/中/低`，再写入修改建议。
 - 命中的文本会被拆分到精确 run 边界。
 - 命中 run 添加 `w:highlight w:val="yellow"`。
 - 程序插入新的 `commentRangeStart`、`commentRangeEnd` 和 `commentReference`。
 - 原合同已有修订结构保留，AI 批注和黄色高亮叠加到命中位置上。
+
+高亮代码逻辑：
+
+1. `_generate_docx_with_comments()` 读取每个 issue 的 `quoted_text`。
+2. `_find_text_range_anchor()` 尝试把 `quoted_text` 定位成 `TextAnchor`。
+3. 成功定位后，`comments_data` 中保存 `TextAnchor`、风险等级和批注正文。
+4. `_add_comments_to_doc()` 写入 `comments.xml` 中的新 `w:comment`。
+5. 如果 anchor 是 `TextAnchor`，调用 `_add_comment_markers_to_text_range()`。
+6. `_add_comment_markers_to_text_range()` 根据 `RunRange` 拆分原始 run，并对命中的 run 调用 `_set_run_highlight()`。
+7. `_set_run_highlight()` 在 run 的 `w:rPr` 下写入 `w:highlight w:val="yellow"`。
+8. 最后再插入同 id 的 `commentRangeStart`、`commentRangeEnd` 和 `commentReference`。
+
+如果 issue 没有生成 `TextAnchor`，它不会写入逐条 Word 批注，因此也不会出现没有黄色高亮的逐条 AI 问题批注。总览批注使用段落级 anchor，不属于逐条问题批注，不要求高亮。
 
 批注时间使用北京时间：
 
