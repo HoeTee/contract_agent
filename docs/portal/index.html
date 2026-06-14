@@ -6,6 +6,7 @@
     <title>Lexora Docs Portal</title>
     <link rel="stylesheet" href="assets/portal.css">
     <script src="assets/portal-data.js" defer></script>
+    <script src="assets/portal-content.js" defer></script>
     <script src="assets/portal.js" defer></script>
   </head>
   <body>
@@ -20,11 +21,18 @@
       <symbol id="icon-code" viewBox="0 0 24 24"><path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14"/></symbol>
       <symbol id="icon-search" viewBox="0 0 24 24"><path d="m20 20-4.5-4.5M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"/></symbol>
       <symbol id="icon-copy" viewBox="0 0 24 24"><path d="M8 8h11v11H8zM5 16H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></symbol>
-      <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></symbol>
+      <symbol id="icon-home" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7M6 10v9h12v-9"/></symbol>
+      <symbol id="icon-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+      <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
     </svg>
 
     <div class="shell">
-      <aside class="sidebar" aria-label="文档导航">
+      <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="展开文档导航">
+        <svg><use href="#icon-menu"></use></svg>
+        <span>文档</span>
+      </button>
+
+      <aside id="sidebar" class="sidebar" aria-label="文档导航">
         <a class="brand" href="index.html" aria-label="Lexora Docs Portal">
           <span class="brand-mark">L</span>
           <span>
@@ -36,86 +44,98 @@
           <svg><use href="#icon-search"></use></svg>
           <input id="searchInput" type="search" placeholder="搜索 API、部署、日志、目录">
         </div>
+
+        <button id="homeButton" class="home-link" type="button">
+          <svg><use href="#icon-home"></use></svg>
+          <span>架构总览</span>
+        </button>
+
+        <div class="filter-row">
+          <button class="filter-button active" data-filter="all">全部</button>
+          <button class="filter-button" data-filter="api">API</button>
+          <button class="filter-button" data-filter="deploy">部署</button>
+          <button class="filter-button" data-filter="data">数据</button>
+          <button class="filter-button" data-filter="architecture">架构</button>
+          <button class="filter-button" data-filter="review">审查</button>
+        </div>
+
         <nav id="docNav" class="doc-nav"></nav>
       </aside>
 
       <main class="content">
-        <section class="toolbar">
-          <div>
+        <!-- ===== 首页态：架构总览 ===== -->
+        <section id="homeView" class="view">
+          <header class="view-head">
             <h1>文档门户</h1>
-            <p>把原 Markdown 文档重组为可浏览、可展开、可复制路径的系统说明。</p>
-          </div>
-          <div class="toolbar-actions">
-            <button class="filter-button active" data-filter="all">全部</button>
-            <button class="filter-button" data-filter="api">API</button>
-            <button class="filter-button" data-filter="deploy">部署</button>
-            <button class="filter-button" data-filter="data">数据</button>
-            <button class="filter-button" data-filter="architecture">架构</button>
-          </div>
-        </section>
+            <p>从请求到批注 DOCX 的系统架构。点任意组件，或左侧文档，进入对应内容。</p>
+          </header>
 
-        <section class="arch-panel" aria-label="系统架构图">
-          <div class="panel-header">
-            <span class="panel-icon"><svg><use href="#icon-flow"></use></svg></span>
-            <div>
-              <h2>系统架构</h2>
-              <p>从请求到批注 DOCX 的组件关系。点击任意组件可在右侧查看对应文档与代码路径。</p>
-            </div>
-          </div>
-          <div class="arch-canvas" id="archDiagram"></div>
-          <div class="arch-legend">
-            <span class="legend-item legend-io">输入 / 输出</span>
-            <span class="legend-item legend-core">核心链路</span>
-            <span class="legend-item legend-agent">Agent / 工具</span>
-            <span class="legend-item legend-store">存储 / 日志</span>
-          </div>
-        </section>
-
-        <section class="overview-grid" aria-label="文档总览">
-          <article class="overview-panel flow-panel">
+          <section class="arch-panel" aria-label="系统架构图">
             <div class="panel-header">
               <span class="panel-icon"><svg><use href="#icon-flow"></use></svg></span>
               <div>
-                <h2>核心链路</h2>
-                <p>从上传合同到批注版 DOCX 的运行关系。</p>
+                <h2>系统架构</h2>
+                <p>组件关系总览，点击组件查看对应文档。</p>
               </div>
             </div>
-            <div class="flow-line" id="primaryFlow"></div>
-          </article>
+            <div class="arch-canvas" id="archDiagram"></div>
+            <div class="arch-legend">
+              <span class="legend-item legend-io">输入 / 输出</span>
+              <span class="legend-item legend-core">核心链路</span>
+              <span class="legend-item legend-agent">Agent / 工具</span>
+              <span class="legend-item legend-store">存储 / 日志</span>
+            </div>
+          </section>
 
-          <article class="overview-panel tree-panel">
-            <div class="panel-header">
-              <span class="panel-icon"><svg><use href="#icon-folder"></use></svg></span>
-              <div>
-                <h2>数据目录</h2>
-                <p>区分普通用户、默认 CLI 用户和无登录 API。</p>
+          <section class="overview-grid" aria-label="文档总览">
+            <article class="overview-panel">
+              <div class="panel-header">
+                <span class="panel-icon"><svg><use href="#icon-flow"></use></svg></span>
+                <div>
+                  <h2>核心链路</h2>
+                  <p>从上传合同到批注版 DOCX 的运行关系。</p>
+                </div>
               </div>
-            </div>
-            <pre class="directory-tree" id="directoryTree"></pre>
-          </article>
+              <div class="flow-line" id="primaryFlow"></div>
+            </article>
+
+            <article class="overview-panel">
+              <div class="panel-header">
+                <span class="panel-icon"><svg><use href="#icon-folder"></use></svg></span>
+                <div>
+                  <h2>数据目录</h2>
+                  <p>区分普通用户、默认 CLI 用户和无登录 API。</p>
+                </div>
+              </div>
+              <pre class="directory-tree" id="directoryTree"></pre>
+            </article>
+          </section>
         </section>
 
-        <section id="docCards" class="doc-grid" aria-label="文档卡片"></section>
-      </main>
+        <!-- ===== 文档态：单篇内容 ===== -->
+        <section id="docView" class="view hidden">
+          <button id="backButton" class="back-link" type="button">
+            <svg><use href="#icon-back"></use></svg>
+            <span>返回架构总览</span>
+          </button>
 
-      <aside class="inspector" aria-label="当前文档详情">
-        <div class="inspector-card">
-          <h2 id="inspectorTitle">选择一篇文档</h2>
-          <p id="inspectorSummary">点击左侧导航或文档卡片，查看关键路径、流程和原文档入口。</p>
-          <div id="inspectorTags" class="tag-list"></div>
-        </div>
-        <div class="inspector-card">
-          <h3>相关代码路径</h3>
-          <div id="pathList" class="path-list"></div>
-        </div>
-        <div class="inspector-card">
-          <h3>快速操作</h3>
-          <div class="action-stack">
-            <a id="rawLink" class="action-link disabled" href="#" target="_blank" rel="noreferrer">查看原 Markdown</a>
-            <button id="copyPathsButton" class="action-link" type="button">复制相关路径</button>
-          </div>
-        </div>
-      </aside>
+          <header class="doc-head">
+            <span class="doc-icon" id="docIcon"><svg><use href="#icon-doc"></use></svg></span>
+            <div>
+              <h1 id="docTitle"></h1>
+              <p id="docSummary"></p>
+              <div id="docTags" class="tag-list"></div>
+            </div>
+          </header>
+
+          <article id="docContent" class="doc-content"></article>
+
+          <section id="docPathsPanel" class="paths-panel">
+            <h2>相关代码路径</h2>
+            <div id="docPaths" class="path-list"></div>
+          </section>
+        </section>
+      </main>
     </div>
   </body>
 </html>
