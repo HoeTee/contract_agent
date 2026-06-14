@@ -10,6 +10,14 @@
 data/<username>/logs/<YYYY-MM-DD>/<HHMMSS_shortid_contractname>/
 ```
 
+当前普通用户日志目录名包含 `task_id` 和合同文件名 stem。合同文件名过长时，`conversations/SubAgent_*.json`、`conversations/Reflector_*.json` 等文件的完整路径可能超过 Windows 路径长度限制。后续应将普通用户日志目录收敛为短目录：
+
+```text
+data/<username>/logs/<YYYY-MM-DD>/<task_id>/
+```
+
+合同原文件名不应继续放在日志目录名里，而应通过 `records/review_history.json` 读取。
+
 无登录 API 审查使用独立日志目录，不写入用户合同、报告和历史记录目录：
 
 ```text
@@ -53,6 +61,45 @@ conversation_log_dir
 mcp_log_dir
 api_events_path
 ```
+
+## 日志读取与合同名关联
+
+普通用户历史记录已经写入：
+
+```text
+data/<username>/records/review_history.json
+```
+
+该文件用于生成审核历史列表，也用于建立 `task_id` 与合同名的对应关系。关键字段包括：
+
+```json
+{
+  "task_id": "164455_f78fbf27",
+  "contract_original_name": "原始合同文件名.docx",
+  "contract_stored_name": "20260614_164455_f78fbf27_原始合同文件名.docx",
+  "report_stored_name": "20260614_164455_f78fbf27_原始合同文件名_批注版.docx"
+}
+```
+
+后续如果普通用户日志目录改为短目录，读取流程应按以下顺序执行：
+
+1. 列表查询、按合同名搜索、历史页面展示：读取 `records/review_history.json`。
+2. 从历史记录中取 `task_id`、`contract_original_name`、`report_stored_name`。
+3. 按日期和 `task_id` 定位日志目录：
+
+```text
+data/<username>/logs/<YYYY-MM-DD>/<task_id>/
+```
+
+4. 打开日志详情时读取该目录下的 `api_events.jsonl`、`workflow/`、`conversations/`、`mcp/`。
+
+旧日志目录仍可能是：
+
+```text
+data/<username>/logs/<YYYY-MM-DD>/<task_id>_<contract_stem>/
+```
+
+因此日志读取应兼容两种目录：优先使用历史记录中的 `task_id` 匹配短目录；短目录不存在时，再匹配以 `<task_id>_` 开头的旧目录。
 
 ## Workflow 日志
 
