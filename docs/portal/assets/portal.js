@@ -71,8 +71,7 @@ function anchorPoints(from, to) {
   return { start, end };
 }
 
-function renderDiagram(diagram) {
-  if (!els.archDiagram || !diagram) return;
+function buildDiagramSVG(diagram) {
   const nodeById = Object.fromEntries(diagram.nodes.map((n) => [n.id, n]));
 
   const markers = ["main", "flow", "loop", "support"]
@@ -109,29 +108,32 @@ function renderDiagram(diagram) {
     .join("");
 
   const nodes = diagram.nodes
-    .map(
-      (node) => `
-      <foreignObject x="${node.x}" y="${node.y}" width="${node.w}" height="${node.h}">
-        <button xmlns="http://www.w3.org/1999/xhtml" type="button"
-          class="arch-node node-${node.kind}"
-          data-doc-id="${node.docId}">
-          <span class="arch-node-icon">${icon(node.icon)}</span>
-          <span class="arch-node-text">
-            <strong>${node.title}</strong>
-            <small>${node.sub}</small>
-          </span>
-        </button>
-      </foreignObject>
-    `
-    )
+    .map((node) => {
+      const inner =
+        `<span class="arch-node-icon">${icon(node.icon)}</span>` +
+        `<span class="arch-node-text"><strong>${node.title}</strong><small>${node.sub}</small></span>`;
+      const cls = `arch-node node-${node.kind}`;
+      const el = node.docId
+        ? `<button xmlns="http://www.w3.org/1999/xhtml" type="button" class="${cls}" data-doc-id="${node.docId}">${inner}</button>`
+        : `<div xmlns="http://www.w3.org/1999/xhtml" class="${cls} static">${inner}</div>`;
+      return `<foreignObject x="${node.x}" y="${node.y}" width="${node.w}" height="${node.h}">${el}</foreignObject>`;
+    })
     .join("");
 
-  els.archDiagram.innerHTML = `
-    <svg class="arch-svg" viewBox="${diagram.viewBox}" role="img" aria-label="系统架构图">
+  const parts = diagram.viewBox.split(/\s+/).map(Number);
+  const vbw = parts[2];
+  const vbh = parts[3];
+  return `
+    <svg class="arch-svg" style="aspect-ratio: ${vbw} / ${vbh}" viewBox="${diagram.viewBox}" role="img" aria-label="架构图">
       <defs>${markers}</defs>
       <g class="arch-edges">${edges}</g>
       <g class="arch-nodes">${nodes}</g>
     </svg>`;
+}
+
+function renderDiagram(diagram) {
+  if (!els.archDiagram || !diagram) return;
+  els.archDiagram.innerHTML = buildDiagramSVG(diagram);
 }
 
 function renderFlow(flow) {
@@ -207,6 +209,16 @@ function renderBlock(block) {
         .join("");
       return `<div class="content-table-wrap"><table class="content-table">
         <thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    case "diagram": {
+      const legend = (block.legend || [])
+        .map((l) => `<span class="legend-item ${l.cls}">${inline(l.label)}</span>`)
+        .join("");
+      return `<figure class="content-diagram">
+        <div class="arch-canvas">${buildDiagramSVG(block.diagram)}</div>
+        ${legend ? `<div class="arch-legend">${legend}</div>` : ""}
+        ${block.caption ? `<figcaption>${inline(block.caption)}</figcaption>` : ""}
+      </figure>`;
     }
     default:
       return "";

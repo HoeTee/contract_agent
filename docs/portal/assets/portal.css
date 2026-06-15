@@ -421,6 +421,32 @@ svg {
   box-shadow: 0 0 0 2px var(--accent-blue);
 }
 
+.arch-node.static {
+  cursor: default;
+}
+
+.arch-node.static:hover {
+  box-shadow: none;
+  transform: none;
+}
+
+/* diagram embedded inside document content */
+.content-diagram {
+  margin: 18px 0 22px;
+}
+
+.content-diagram figcaption {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.content-diagram .arch-legend {
+  justify-content: center;
+  margin-top: 12px;
+}
+
 .arch-node-icon {
   display: grid;
   place-items: center;

@@ -33,6 +33,43 @@
 
 基础设施：`agents/base_agent.py`（`Agent` 基类与 `Settings` 模型配置）、`agents/schemas.py`（结构化输出 schema）、`agents/prompts/cn_prompts.py`（所有提示词，含审查边界）。
 
+## 智能体结构化输出 schema
+
+各 agent 的输出由 `agents/schemas.py` 的 Pydantic 模型严格校验（`extra=forbid`，不接受未定义字段）。类与字段如下：
+
+```python
+class PlannerCriterion:
+    id: str
+    section: str
+    criterion: str
+    check_points: list[str]
+
+class PlannerOutput:
+    criteria: list[PlannerCriterion]
+
+class SubAgentIssue:
+    issue_id: str
+    risk_level: Literal["high", "medium", "low"]
+    quoted_text: str
+    comment_text: str                     # 1~100 字
+    reasoning: str
+    criterion: str
+    check_point: str
+
+class SubAgentOutput:
+    status: Literal["compliant", "issues_found", "not_applicable"]
+    applicability_reason: str = ""
+    issues: list[SubAgentIssue] = []
+
+class ReflectorOutput:
+    status: Literal["PASS", "REJECT"]
+    feedback: str = ""
+
+class SummaryOutput:
+    overall_comment: str = ""
+    priority_comments: list[str] = []     # overall + priority 合计 <=200 字
+```
+
 ## 单条标准的执行与反思循环
 
 `OrchestratorAgent.execute_single_criterion` 负责一条审查标准的完整处理：

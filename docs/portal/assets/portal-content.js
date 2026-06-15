@@ -73,6 +73,11 @@ window.DOCS_PORTAL_CONTENT = {
         "`TextAnchor`：一次 `quoted_text` 命中后的最终定位结果，包含段落、匹配文本和原始 run ranges。",
       ],
     },
+    { type: "para", text: "对应数据类与字段（均为 `@dataclass(frozen=True)`）：" },
+    {
+      type: "code",
+      text: "class ParagraphAnchor:        # 段落级 anchor，总览批注使用\n    paragraph: Paragraph\n    path: str\n    normalized_text: str\n\nclass CharRef:\n    run: Run\n    offset: int\n\nclass ParagraphTextView:\n    paragraph: Paragraph\n    path: str\n    text: str\n    char_map: list[CharRef]\n\nclass TextMatch:\n    start_index: int\n    end_index: int\n    matched_text: str\n\nclass RunRange:\n    run: Run\n    start_offset: int\n    end_offset: int\n\nclass TextAnchor:\n    match: TextMatch\n    paragraph: Paragraph\n    path: str\n    run_ranges: list[RunRange]",
+    },
     { type: "para", text: "效果链路：" },
     {
       type: "code",
@@ -352,6 +357,13 @@ window.DOCS_PORTAL_CONTENT = {
         "如果 SubAgent 将合同文本内可审查的经营范围、附件清单、合同义务等事项一概返回 `not_applicable`，也应退回。",
       ],
     },
+
+    { type: "heading", text: "SubAgent 输出结构" },
+    { type: "para", text: "上面提到的 `status`、`not_applicable`、`applicability_reason`、`issues` 都是 SubAgent 结构化输出（`agents/schemas.py`）的字段，由 Pydantic 严格校验（`extra=forbid`，不接受未定义字段）。类与字段如下：" },
+    {
+      type: "code",
+      text: 'class SubAgentOutput:\n    status: Literal["compliant", "issues_found", "not_applicable"]\n    applicability_reason: str = ""        # not_applicable 时必填\n    issues: list[SubAgentIssue] = []\n\nclass SubAgentIssue:\n    issue_id: str\n    risk_level: Literal["high", "medium", "low"]\n    quoted_text: str\n    comment_text: str                     # 1~100 字\n    reasoning: str\n    criterion: str\n    check_point: str',
+    },
   ],
 
   "agent-workflow": [
@@ -360,6 +372,48 @@ window.DOCS_PORTAL_CONTENT = {
       type: "callout",
       title: "总览",
       text: "`ContractReviewWorkflow` 是单次合同审查的总编排层，只负责阶段顺序、进度上报、日志和最终结果组装；解析、检索、逐条审查、汇总等细节交给各 agent 和 MCP 工具。当前是简化工作流：没有 web search，也没有接入制度 RAG，检索模式固定为 LlamaIndex。",
+    },
+
+    { type: "heading", text: "架构图示" },
+    {
+      type: "diagram",
+      caption: "顶部一行是 6 个工作流阶段；下方是各阶段对应的智能体，以及 Orchestrator 内部的检索与 SubAgent ↔ Reflector 反思循环。",
+      legend: [
+        { cls: "legend-core", label: "工作流阶段" },
+        { cls: "legend-agent", label: "智能体" },
+        { cls: "legend-store", label: "检索工具" },
+        { cls: "legend-io", label: "输出" },
+      ],
+      diagram: {
+        viewBox: "0 0 960 330",
+        nodes: [
+          { id: "ph_ingest", x: 10, y: 24, w: 148, h: 54, kind: "core", icon: "icon-doc", title: "1 解析", sub: "ingest_file" },
+          { id: "ph_index", x: 172, y: 24, w: 148, h: 54, kind: "core", icon: "icon-search", title: "2 建索引", sub: "llamaindex_build_index" },
+          { id: "ph_plan", x: 334, y: 24, w: 148, h: 54, kind: "core", icon: "icon-flow", title: "3 规划", sub: "Planner" },
+          { id: "ph_exec", x: 496, y: 24, w: 158, h: 54, kind: "core", icon: "icon-user", title: "4 执行+反思", sub: "Orchestrator" },
+          { id: "ph_sum", x: 668, y: 24, w: 140, h: 54, kind: "core", icon: "icon-flow", title: "5 汇总", sub: "Summarizer" },
+          { id: "ph_docx", x: 822, y: 24, w: 128, h: 54, kind: "io", icon: "icon-doc", title: "6 批注", sub: "generate_docx" },
+          { id: "ag_plan", x: 334, y: 128, w: 148, h: 50, kind: "agent", icon: "icon-flow", title: "PlannerAgent", sub: "design_tasks" },
+          { id: "ag_orch", x: 496, y: 128, w: 158, h: 50, kind: "agent", icon: "icon-user", title: "OrchestratorAgent", sub: "execute_criteria" },
+          { id: "ag_sum", x: 668, y: 128, w: 140, h: 50, kind: "agent", icon: "icon-flow", title: "SummarizerAgent", sub: "compile_summary" },
+          { id: "mcp_search", x: 300, y: 236, w: 150, h: 50, kind: "store", icon: "icon-search", title: "LlamaIndex 检索", sub: "llamaindex_search" },
+          { id: "ag_sub", x: 480, y: 236, w: 130, h: 50, kind: "agent", icon: "icon-user", title: "SubAgent", sub: "审查单条标准" },
+          { id: "ag_ref", x: 660, y: 236, w: 130, h: 50, kind: "agent", icon: "icon-code", title: "Reflector", sub: "PASS / REJECT" },
+        ],
+        edges: [
+          { from: "ph_ingest", to: "ph_index", kind: "main" },
+          { from: "ph_index", to: "ph_plan", kind: "main" },
+          { from: "ph_plan", to: "ph_exec", kind: "main" },
+          { from: "ph_exec", to: "ph_sum", kind: "main" },
+          { from: "ph_sum", to: "ph_docx", kind: "main" },
+          { from: "ph_plan", to: "ag_plan", kind: "flow" },
+          { from: "ph_exec", to: "ag_orch", kind: "flow" },
+          { from: "ph_sum", to: "ag_sum", kind: "flow" },
+          { from: "ag_orch", to: "ag_sub", kind: "flow", label: "派发" },
+          { from: "mcp_search", to: "ag_sub", kind: "support", label: "检索上下文" },
+          { from: "ag_sub", to: "ag_ref", kind: "loop", label: "反思", bidir: true },
+        ],
+      },
     },
 
     { type: "heading", text: "工作流 6 个阶段" },
@@ -390,6 +444,13 @@ window.DOCS_PORTAL_CONTENT = {
       ],
     },
     { type: "para", text: "基础设施：`agents/base_agent.py`（`Agent` 基类与 `Settings` 模型配置）、`agents/schemas.py`（结构化输出 schema）、`agents/prompts/cn_prompts.py`（所有提示词，含审查边界）。" },
+
+    { type: "heading", text: "智能体结构化输出 schema" },
+    { type: "para", text: "各 agent 的输出由 `agents/schemas.py` 的 Pydantic 模型严格校验（`extra=forbid`，不接受未定义字段）。类与字段如下：" },
+    {
+      type: "code",
+      text: 'class PlannerCriterion:\n    id: str\n    section: str\n    criterion: str\n    check_points: list[str]\n\nclass PlannerOutput:\n    criteria: list[PlannerCriterion]\n\nclass SubAgentIssue:\n    issue_id: str\n    risk_level: Literal["high", "medium", "low"]\n    quoted_text: str\n    comment_text: str                     # 1~100 字\n    reasoning: str\n    criterion: str\n    check_point: str\n\nclass SubAgentOutput:\n    status: Literal["compliant", "issues_found", "not_applicable"]\n    applicability_reason: str = ""\n    issues: list[SubAgentIssue] = []\n\nclass ReflectorOutput:\n    status: Literal["PASS", "REJECT"]\n    feedback: str = ""\n\nclass SummaryOutput:\n    overall_comment: str = ""\n    priority_comments: list[str] = []     # overall + priority 合计 <=200 字',
+    },
 
     { type: "heading", text: "单条标准的执行与反思循环" },
     { type: "para", text: "`OrchestratorAgent.execute_single_criterion` 负责一条审查标准的完整处理：" },
