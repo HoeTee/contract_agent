@@ -4,7 +4,7 @@ window.DOCS_PORTAL_DATA = {
     nodes: [
       { id: "client", x: 30, y: 28, w: 170, h: 66, kind: "io", icon: "icon-api", title: "客户端 / API", sub: "POST /api/review · 前端工作台", docId: "api-review" },
       { id: "web", x: 255, y: 28, w: 160, h: 66, kind: "core", icon: "icon-code", title: "Web 路由", sub: "web/routes.py", docId: "frontend-journey" },
-      { id: "workflow", x: 470, y: 28, w: 170, h: 66, kind: "core", icon: "icon-flow", title: "Workflow 编排", sub: "main_workflow", docId: "project-structure" },
+      { id: "workflow", x: 470, y: 28, w: 170, h: 66, kind: "core", icon: "icon-flow", title: "Workflow 编排", sub: "main_workflow · 6 阶段", docId: "agent-workflow" },
       { id: "output", x: 700, y: 28, w: 190, h: 66, kind: "io", icon: "icon-doc", title: "批注 DOCX 输出", sub: "返回 + 落盘", docId: "api-review" },
       { id: "agents", x: 470, y: 184, w: 170, h: 66, kind: "agent", icon: "icon-user", title: "Agents", sub: "规划 · 执行 · 反思 · 边界", docId: "review-boundaries" },
       { id: "tools", x: 700, y: 184, w: 190, h: 66, kind: "agent", icon: "icon-code", title: "文档工具", sub: "解析 · 批注 DOCX", docId: "docx-annotation" },
@@ -145,6 +145,31 @@ window.DOCS_PORTAL_DATA = {
       details: [
         "解释项目时优先按 agent 设计、工具设计、日志设计、API 设计、前端旅程组织。",
         "不要把临时执行路径和持久数据路径混在一起解释。",
+      ],
+    },
+    {
+      id: "agent-workflow",
+      title: "智能体与工作流架构",
+      category: "architecture",
+      group: "架构",
+      icon: "icon-flow",
+      md: "AGENT_WORKFLOW_ARCHITECTURE.md",
+      summary: "讲解 6 阶段工作流、Planner/Orchestrator/SubAgent/Reflector/Summarizer 角色和反思循环。",
+      tags: ["workflow", "Planner", "Orchestrator", "Reflector"],
+      signals: [
+        "ContractReviewWorkflow 串联解析、建索引、规划、执行+反思、汇总、批注 6 个阶段。",
+        "Orchestrator 逐条派发 SubAgent，串联 LlamaIndex 检索与 Reflector 反思循环。",
+        "results 决定逐条批注，summary_sections 决定开头总览批注。",
+      ],
+      paths: [
+        "main_workflow/main_workflow.py",
+        "agents/orchestrator.py",
+        "agents/planner.py",
+        "docs/AGENT_WORKFLOW_ARCHITECTURE.md",
+      ],
+      details: [
+        "当前是简化工作流：无 web search、无制度 RAG，检索模式固定为 LlamaIndex。",
+        "单条 criterion 抛 ModelCallError 会整次失败；其他异常降级为该条 status=ERROR。",
       ],
     },
     {

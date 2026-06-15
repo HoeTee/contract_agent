@@ -354,6 +354,83 @@ window.DOCS_PORTAL_CONTENT = {
     },
   ],
 
+  "agent-workflow": [
+    { type: "para", text: "本文说明合同审查的智能体（agent）与工作流（workflow）架构。工作流编排在 `main_workflow/main_workflow.py`，各 agent 在 `agents/`，检索与文档解析能力通过 MCP 工具提供。" },
+    {
+      type: "callout",
+      title: "总览",
+      text: "`ContractReviewWorkflow` 是单次合同审查的总编排层，只负责阶段顺序、进度上报、日志和最终结果组装；解析、检索、逐条审查、汇总等细节交给各 agent 和 MCP 工具。当前是简化工作流：没有 web search，也没有接入制度 RAG，检索模式固定为 LlamaIndex。",
+    },
+
+    { type: "heading", text: "工作流 6 个阶段" },
+    {
+      type: "table",
+      headers: ["阶段", "实现", "说明"],
+      rows: [
+        ["1. 解析 ingest", "MCP ingest_file", "把合同和审查标准 DOCX 转成 markdown"],
+        ["2. 建索引 build_index", "MCP llamaindex_build_index", "为合同 markdown 建临时 LlamaIndex 向量索引"],
+        ["3. 规划 plan", "PlannerAgent.design_tasks", "把审查标准 markdown 拆成结构化任务 criteria_list"],
+        ["4. 执行+反思 execute", "OrchestratorAgent.execute_criteria", "逐条审查标准，产出 results"],
+        ["5. 汇总 summarize", "SummarizerAgent.compile_summary_comment", "由 results 生成 summary_sections"],
+        ["6. 批注 generate", "MCP generate_docx_report", "用 results + summary_sections 生成批注版 DOCX"],
+      ],
+    },
+    { type: "para", text: "每个阶段会通过 `progress_callback` 上报阶段名，便于前端展示进度：`ingesting`、`building_index`、`planning`、`reviewing`、`summarizing`、`generating_docx`、`completed`。" },
+
+    { type: "heading", text: "智能体角色" },
+    {
+      type: "table",
+      headers: ["Agent", "文件", "职责", "输出"],
+      rows: [
+        ["PlannerAgent", "agents/planner.py", "把审查标准拆成结构化审查任务", "criteria_list（id/section/criterion/check_points）"],
+        ["OrchestratorAgent", "agents/orchestrator.py", "逐条派发 SubAgent，串联检索、反思、并发控制", "results"],
+        ["SubAgent", "base_agent.Agent + SUB_AGENT_BASE_PROMPT", "审查单条标准，可调用 MCP 工具", "SubAgentOutput（status/issues）"],
+        ["ReflectorAgent", "agents/reflector.py", "质量复核 SubAgent 输出", "{ status: PASS/REJECT, feedback }"],
+        ["SummarizerAgent", "agents/summarizer.py", "汇总所有结果生成开头总览批注", "{ overall_comment, priority_comments }"],
+      ],
+    },
+    { type: "para", text: "基础设施：`agents/base_agent.py`（`Agent` 基类与 `Settings` 模型配置）、`agents/schemas.py`（结构化输出 schema）、`agents/prompts/cn_prompts.py`（所有提示词，含审查边界）。" },
+
+    { type: "heading", text: "单条标准的执行与反思循环" },
+    { type: "para", text: "`OrchestratorAgent.execute_single_criterion` 负责一条审查标准的完整处理：" },
+    {
+      type: "list",
+      ordered: true,
+      items: [
+        "检索：调用 MCP `llamaindex_search`（query = 标准 + 检查要点）得到合同相关片段 `context`，并加 guardrail 提示，防止把“检索结果 1/2”“相关度分数”等检索包装文本误当成合同条款位置。",
+        "SubAgent 审查：以 `SUB_AGENT_BASE_PROMPT` 创建 `SubAgent_<cid>`，输出 `SubAgentOutput`，`status` 为 compliant / issues_found / not_applicable，`issues` 含 `quoted_text`、`comment_text`、`risk_level` 等。",
+        "若 `status == compliant`：短路，跳过反思直接返回。",
+        "否则进入反思循环（最多 `MAX_REFLECTION_ROUNDS` 轮）：对 `quoted_text` 为空的“缺失类” issue 再检索一次生成 `missing_text_review_notes`；`Reflector.review` 返回 PASS/REJECT；PASS 跳出，REJECT 则 SubAgent 按 feedback 补充完善再来一轮。",
+        "返回该 criterion 结果：`criterion_id`、`section`、`issues`、`status`、`applicability_reason`、`tokens`。",
+      ],
+    },
+    { type: "para", text: "并发与容错（`execute_criteria`）：" },
+    {
+      type: "list",
+      items: [
+        "用 `asyncio.Semaphore(MAX_ORCHESTRATOR_CONCURRENCY)` 控制并发条数。",
+        "单条 criterion 抛 `ModelCallError` 会直接上抛，导致整次审查失败。",
+        "其他异常降级为该条 `status=ERROR`（记录 `error_message`），不影响其它 criterion。",
+      ],
+    },
+
+    { type: "heading", text: "数据流" },
+    {
+      type: "code",
+      text: "审查标准 DOCX -> ingest -> 审查标准 markdown -> Planner -> criteria_list\n合同 DOCX     -> ingest -> 合同 markdown     -> LlamaIndex 临时索引\n每条 criterion: 检索 context -> SubAgent -> (Reflector 反思循环) -> 单条结果\n所有单条结果 -> results -> Summarizer -> summary_sections\nresults + summary_sections -> generate_docx_report -> 批注版 DOCX",
+    },
+    { type: "para", text: "其中 `results` 决定逐条问题批注，`summary_sections` 决定文档开头总览批注。批注写入与 `quoted_text` 定位细节见“DOCX 批注与修订”。" },
+
+    { type: "heading", text: "架构边界" },
+    {
+      type: "list",
+      items: [
+        "简化工作流：无 web search、无制度 RAG，检索模式固定为 LlamaIndex。",
+        "审查只基于合同文本与检索片段；依赖外部数据或法律知识库的检查点处理方式见“审查边界”。",
+      ],
+    },
+  ],
+
   "api-review": [
     { type: "para", text: "本文说明无登录、同步执行合同审查的 API：`POST /api/review`。" },
     { type: "para", text: "对应实现：" },
@@ -456,8 +533,8 @@ window.DOCS_PORTAL_CONTENT = {
       ],
     },
 
-    { type: "heading", text: "失败响应" },
-    { type: "para", text: "失败时返回 JSON，不返回 DOCX，并保留已写入的任务目录便于排查：" },
+    { type: "heading", text: "失败响应（/api/review 自身）" },
+    { type: "para", text: "本节只描述直接 API `/api/review` 自己的错误模型；它与前端 `/review` 的错误处理完全不同，区别见下一节，不要混在一起看。失败时返回 JSON，不返回 DOCX，并保留已写入的任务目录便于排查：" },
     {
       type: "code",
       text: '{\n  "task_id": "153012_a1b2c3d4",\n  "status": "failed",\n  "message": "错误信息",\n  "api_events_path": "data/api/20260610-153012-a1b2/logs/api_events.jsonl"\n}',
@@ -474,6 +551,24 @@ window.DOCS_PORTAL_CONTENT = {
       ],
     },
     { type: "para", text: "`503` 是模型或外部模型服务类失败，可结合 `X-Review-Task-Id`、返回 JSON 的 `task_id`、`api_events_path` 和任务日志定位组件。`500` 表示服务内部未分类异常，应优先查看 `api_events.jsonl`、`workflow/run_summary.json`、`conversations/` 和 `mcp/` 日志。" },
+
+    { type: "heading", text: "与前端 /review 错误处理的区别" },
+    { type: "para", text: "上面的失败模型只适用于直接 API `/api/review`。前端表单路由 `/review` 是另一套错误处理，二者不要混在一起：" },
+    {
+      type: "table",
+      headers: ["对比项", "POST /api/review（直接 API）", "POST /review（前端表单）"],
+      rows: [
+        ["调用方", "外部系统、脚本、集成服务", "登录用户浏览器表单"],
+        ["失败返回", "直接返回 JSON（task_id / status / message / api_events_path）", "不返回 JSON，写入 session 的 flash_error 后 303 跳回 /work 展示"],
+        ["执行方式", "同步等待 workflow 完成", "立即跳转，审查在后台任务中执行"],
+        ["运行目录", "data/api/<任务目录>/", "data/<username>/..."],
+        ["任务状态", "无（同步返回）", "后端内存字典 review_tasks 按用户名记录"],
+      ],
+    },
+    {
+      type: "callout",
+      text: "对外集成只用 `POST /api/review` 并读取其 JSON 错误；`/review` 的 flash_error + 303 跳转模型只服务于登录页面，不适合作为外部接口的错误来源。",
+    },
 
     { type: "heading", text: "调用示例" },
     { type: "para", text: "PowerShell：" },
