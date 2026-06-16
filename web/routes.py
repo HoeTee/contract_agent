@@ -336,8 +336,8 @@ async def api_review(
             selected_criteria_path = paths.stored_criteria_path(criteria_filename)
             with selected_criteria_path.open("wb") as f: # 将上传的审查要点文件保存到 API 任务目录
                 shutil.copyfileobj(criteria_file.file, f)
-            validate_uploaded_docx(selected_criteria_path)
-            validate_review_criteria_content(selected_criteria_path) # 校验审查要点内容是否符合系统要求，比如是否包含编号审查要点
+            validate_uploaded_docx(selected_criteria_path) # 校验上传的审查要点文件是否是有效的 DOCX 文件，否则返回 400 错误
+            validate_review_criteria_content(selected_criteria_path) # 校验审查要点内容是否符合系统要求，比如是否包含编号审查要点，否则返回 400 错误
             criteria_source = "uploaded"
             append_api_event(
                 paths.api_events_path,
@@ -821,7 +821,7 @@ async def review_page(
                 )
             with paths.uploaded_criteria_path.open("wb") as f:
                 shutil.copyfileobj(criteria_file.file, f)
-            validate_uploaded_docx(paths.uploaded_criteria_path)
+            validate_uploaded_docx(paths.uploaded_criteria_path) 
             validate_review_criteria_content(paths.uploaded_criteria_path)
             selected_criteria_path = paths.uploaded_criteria_path
             criteria_source = "uploaded"
