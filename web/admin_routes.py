@@ -17,15 +17,13 @@ from web.admin_services import (
     list_user_log_tasks,
     list_user_review_history,
 )
-from web.routes import (
+from web.route_helpers import (
     DOCX_MEDIA_TYPE,
-    ctx_path,
-    get_request_ctx,
     safe_upload_filename,
-    sync_context_user,
     validate_review_criteria_content,
     validate_uploaded_docx,
 )
+from web.user_review_routes import ctx_path, get_request_ctx, sync_context_user
 from services.user_management import (
     UserManagementError,
     create_user_account,
