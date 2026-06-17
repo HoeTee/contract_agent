@@ -5,9 +5,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from config import PROJECT_ROOT, SESSION_SECRET_KEY
-from web.admin_routes import admin_router
-from web.api_review_routes import api_router
-from web.user_review_routes import user_router
+from web.admin.routes import admin_router
+from web.api.review import api_router
+from web.user.routes import user_router
 
 
 app = FastAPI(

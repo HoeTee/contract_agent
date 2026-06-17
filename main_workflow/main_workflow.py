@@ -25,7 +25,7 @@ from agents.planner import PlannerAgent
 from agents.orchestrator import OrchestratorAgent
 from agents.summarizer import SummarizerAgent
 from mcp_service.mcp_client.mcp_minimal import MinimalMCPClient
-from web.errors import classify_model_call_error
+from web.core.errors import classify_model_call_error
 
 
 class ContractReviewWorkflow:

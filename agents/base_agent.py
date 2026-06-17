@@ -14,7 +14,7 @@ from config import (
     MODEL_CALL_TIMEOUT_SECONDS,
     MODEL_CALL_MAX_RETRIES,
 )
-from web.errors import ModelCallError
+from web.core.errors import ModelCallError
 import json
 import os
 

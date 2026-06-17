@@ -1,124 +1,23 @@
 from __future__ import annotations
 
-import asyncio
-import re
-import zipfile
-from pathlib import Path
-
-from docx import Document
-from fastapi import HTTPException
-
-from config import MAX_API_CONCURRENT_REVIEWS
-
-
-DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-OLE_DOC_SIGNATURE = bytes.fromhex("D0 CF 11 E0 A1 B1 1A E1")
-REQUIRED_DOCX_PARTS = {
-    "[Content_Types].xml",
-    "_rels/.rels",
-    "word/document.xml",
-}
-CRITERIA_VALIDATION_ERROR = (
-    "上传的审查要点文件内容不符合要求：未识别到足够的审查关键词或编号审查项。"
-    "请上传包含具体编号审查要点的 DOCX 文件。"
+from web.core.document_validation import (
+    DOCX_MEDIA_TYPE,
+    validate_review_criteria_content,
+    validate_uploaded_docx,
 )
-CRITERIA_KEYWORDS = {
-    "审查",
-    "审核",
-    "要点",
-    "合同",
-    "条款",
-    "风险",
-    "责任",
-    "违约",
-    "付款",
-    "期限",
-    "义务",
-    "权利",
-    "金额",
-    "争议",
-}
-CRITERIA_NUMBERED_ITEM_RE = re.compile(
-    r"(?m)^\s*(?:\d+[.、．]|[一二三四五六七八九十]+[、.．]|第[一二三四五六七八九十\d]+条)"
+from web.core.filenames import (
+    build_report_display_name,
+    safe_upload_filename,
+    strip_task_file_prefix,
 )
-TASK_FILE_PREFIX_RE = re.compile(r"^\d{8}_\d{6}_[0-9a-f]{8}_")
+from web.core.review_runtime import review_semaphore
 
-review_semaphore = (
-    asyncio.Semaphore(MAX_API_CONCURRENT_REVIEWS)
-    if MAX_API_CONCURRENT_REVIEWS > 0
-    else None
-)
-
-
-def safe_upload_filename(filename: str | None) -> str:
-    if not filename:
-        return "uploaded.docx"
-    return Path(filename.replace("\\", "/")).name
-
-
-def build_report_display_name(contract_original_name: str) -> str:
-    stem = Path(contract_original_name).stem or "审核结果"
-    return f"{stem}_批注版.docx"
-
-
-def strip_task_file_prefix(filename: str | None) -> str:
-    if not filename:
-        return ""
-    return TASK_FILE_PREFIX_RE.sub("", safe_upload_filename(filename))
-
-
-def validate_uploaded_docx(path: Path) -> None:
-    with path.open("rb") as f:
-        header = f.read(8)
-
-    if header.startswith(OLE_DOC_SIGNATURE):
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "上传的文件是旧版 .doc/OLE 文档，不是真正的 .docx 文件。"
-                "请先使用 Word 或 LibreOffice 转换为 .docx 后再上传。"
-            ),
-        )
-
-    if not zipfile.is_zipfile(path):
-        raise HTTPException(
-            status_code=400,
-            detail="上传的文件不是有效的 .docx 文件。"
-        )
-
-    try:
-        with zipfile.ZipFile(path) as archive:
-            names = set(archive.namelist())
-    except zipfile.BadZipFile:
-        raise HTTPException(
-            status_code=400,
-            detail="上传的文件不是有效的 .docx 文件。"
-        )
-
-    missing_parts = sorted(REQUIRED_DOCX_PARTS - names)
-    if missing_parts:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "上传的文件扩展名是 .docx，但内部结构"
-                f"不是有效的 Word DOCX 结构。缺少内部文件：{missing_parts}"
-            ),
-        )
-
-
-def validate_review_criteria_content(path: Path) -> None:
-    try:
-        doc = Document(path)
-        criteria_text = "\n".join(
-            paragraph.text.strip()
-            for paragraph in doc.paragraphs
-            if paragraph.text and paragraph.text.strip()
-        )
-    except Exception:
-        raise HTTPException(status_code=400, detail="审查要点文件解析失败，请上传可正常读取的 DOCX 文件。")
-
-    normalized_text = criteria_text.strip()
-    keyword_hits = sum(1 for keyword in CRITERIA_KEYWORDS if keyword in normalized_text)
-    numbered_items = CRITERIA_NUMBERED_ITEM_RE.findall(normalized_text)
-    if len(normalized_text) < 100 or keyword_hits < 2 or len(numbered_items) < 2:
-        raise HTTPException(status_code=400, detail=CRITERIA_VALIDATION_ERROR)
+__all__ = [
+    "DOCX_MEDIA_TYPE",
+    "build_report_display_name",
+    "review_semaphore",
+    "safe_upload_filename",
+    "strip_task_file_prefix",
+    "validate_review_criteria_content",
+    "validate_uploaded_docx",
+]
