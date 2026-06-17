@@ -8,7 +8,10 @@ POST /api/review
 
 对应实现：
 
-- `web/routes.py`：定义路由、接收上传、校验 DOCX、调用 workflow、返回 DOCX 或错误 JSON。
+- `web/api/review.py`：定义 `POST /api/review`，接收上传、校验 DOCX、调用 workflow、返回 DOCX 或错误 JSON。
+- `web/api/callbacks.py`：在批注 DOCX 生成后按配置发送外部回调。
+- `web/core/document_validation.py`：校验合同 DOCX 和审查要点 DOCX。
+- `web/core/filenames.py`：清洗上传文件名并构造批注版 DOCX 展示文件名。
 - `loggers/resolve_api_review_paths.py`：集中生成本次 API 调用的数据目录、日志目录、输入文件路径和输出文件路径。
 - `main_workflow/main_workflow.py`：执行完整合同审查流程并生成批注版 DOCX。
 
@@ -64,6 +67,7 @@ API_META_FIELDS=templateCode,serialNo
 API_CALLBACK_ENABLED=False
 API_CALLBACK_URL=
 API_CALLBACK_FILE_FIELD=file
+DOCX_COMMENT_INCLUDE_CRITERION=False
 ```
 
 含义：
@@ -76,6 +80,7 @@ API_CALLBACK_FILE_FIELD=file
 | `API_CALLBACK_ENABLED` | 是否在批注 DOCX 生成后主动向外部地址发送回调请求。 |
 | `API_CALLBACK_URL` | 回调地址。`API_CALLBACK_ENABLED=True` 时必须配置。 |
 | `API_CALLBACK_FILE_FIELD` | 回调请求里批注 DOCX 的文件字段名；未配置或为空时默认 `file`。 |
+| `DOCX_COMMENT_INCLUDE_CRITERION` | 是否把每条 issue 所属审查要点追加到逐条 Word 批注末尾。它只影响 DOCX 输出内容，不是 `/api/review` 请求字段。 |
 
 不需要额外配置 API 目录。持久化目录固定使用现有 `DATA_DIR` 下的 `api/` 子目录；目录不存在时会自动创建。
 

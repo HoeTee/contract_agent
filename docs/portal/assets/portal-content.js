@@ -149,6 +149,7 @@ window.DOCS_PORTAL_CONTENT = {
         "总览批注作者为 `AI 审查总结`，正文标题使用 `总体审查结论：` 和 `优先修改建议：`。",
         "总览批注中 `总体审查结论` 和 `优先修改建议` 之间保留一个空白段落。",
         "逐条问题批注作者为 `AI 条款审查`，正文先写入 `风险等级：高/中/低`，再写入修改建议。",
+        "当 `.env` 中 `DOCX_COMMENT_INCLUDE_CRITERION=True` 时，逐条问题批注末尾追加该 issue 所属的 `审查要点`；关闭时不追加。",
         "命中的文本会被拆分到精确 run 边界。",
         "命中 run 添加 `w:highlight w:val=\"yellow\"`。",
         "程序插入新的 `commentRangeStart`、`commentRangeEnd` 和 `commentReference`。",
@@ -283,6 +284,7 @@ window.DOCS_PORTAL_CONTENT = {
         "`quoted_text` 可以按接受修订后的文本命中。",
         "连续跨相邻段落的 `quoted_text` 可以被锚定到实际原文片段。",
         "AI 命中文本被黄色高亮，批注正文包含风险等级。",
+        "`DOCX_COMMENT_INCLUDE_CRITERION` 打开时，逐条批注正文包含对应审查要点；关闭时不包含。",
         "未锚定 issue 不写入 Word 批注，只记录到 annotation events。",
         "新批注时间包含 `+08:00`。",
         "`clean_docx()` 输出接受修订后的审查文本，并移除原批注 part。",
@@ -498,7 +500,10 @@ window.DOCS_PORTAL_CONTENT = {
     {
       type: "list",
       items: [
-        "`web/routes.py`：定义路由、接收上传、校验 DOCX、调用 workflow、返回 DOCX 或错误 JSON。",
+        "`web/api/review.py`：定义 `/api/review` 路由、接收 multipart 请求、保存上传文件、调用 workflow、返回 DOCX 或错误 JSON。",
+        "`web/api/callbacks.py`：在 `API_CALLBACK_ENABLED=True` 时发送批注 DOCX 和额外字符串字段到外部地址。",
+        "`web/core/document_validation.py`：校验上传 DOCX 和审查标准 DOCX。",
+        "`web/core/filenames.py`：清洗上传文件名，避免信任客户端路径。",
         "`loggers/resolve_api_review_paths.py`：集中生成本次 API 调用的数据目录、日志目录、输入文件路径和输出文件路径。",
         "`main_workflow/main_workflow.py`：执行完整合同审查流程并生成批注版 DOCX。",
       ],
@@ -531,13 +536,18 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "para", text: "对外集成时只应使用 `POST /api/review`。`POST /review` 是 Web 前端表单接口，依赖登录态、session、用户目录和后台任务状态，不适合作为外部系统直接调用接口。" },
 
     { type: "heading", text: ".env 开关" },
-    { type: "code", text: "API_STORE=True" },
+    { type: "code", text: "API_STORE=True\nAPI_META_REQUIRED=False\nAPI_META_FIELDS=templateCode,serialNo\nAPI_CALLBACK_ENABLED=False\nAPI_CALLBACK_URL=\nAPI_CALLBACK_FILE_FIELD=file\nDOCX_COMMENT_INCLUDE_CRITERION=False" },
     {
       type: "table",
-      headers: ["值", "行为"],
+      headers: ["变量", "行为"],
       rows: [
-        ["True", "默认行为。输入文件、输出文件和日志持久保存在 DATA_DIR/api/<任务目录>/。"],
-        ["False", "使用系统临时目录执行本次 API；响应完成或失败后清理，不长期保存输入文件、输出文件和日志。"],
+        ["API_STORE", "True 时输入文件、输出文件和日志持久保存在 DATA_DIR/api/<任务目录>/；False 时使用系统临时目录并在响应后清理。"],
+        ["API_META_REQUIRED", "True 时要求请求 body 中必须携带 API_META_FIELDS 列出的字符串字段。"],
+        ["API_META_FIELDS", "额外字符串字段名，默认 `templateCode,serialNo`，从 multipart/form-data body 读取，不从请求头读取。"],
+        ["API_CALLBACK_ENABLED", "True 时生成批注 DOCX 后、返回响应前，向 API_CALLBACK_URL 主动发送回调。"],
+        ["API_CALLBACK_URL", "回调目标地址；开启回调时必须配置。"],
+        ["API_CALLBACK_FILE_FIELD", "回调请求中批注 DOCX 的文件字段名，默认 `file`。"],
+        ["DOCX_COMMENT_INCLUDE_CRITERION", "控制逐条 Word 批注是否追加审查要点；只影响 DOCX 输出内容，不是 `/api/review` 请求字段。"],
       ],
     },
     { type: "para", text: "不需要额外配置 API 目录。持久化目录固定使用现有 `DATA_DIR` 下的 `api/` 子目录；目录不存在时会自动创建。" },
@@ -557,6 +567,7 @@ window.DOCS_PORTAL_CONTENT = {
       ],
     },
     { type: "para", text: "`criteria_file`（可选，DOCX 文件，本次审查专用审查标准）。如果上传了它，会清洗文件名、校验 `.docx`、写入任务目录并保留上传文件名、校验为可读 DOCX、校验内容符合审查标准要求。如果没有上传，则使用系统默认审查标准 `DEFAULT_REVIEW_CRITERIA_PATH`（不存在时返回 404），并复制到任务目录，文件名保持 `criteria.docx`。" },
+    { type: "para", text: "`templateCode`、`serialNo` 默认作为普通字符串表单字段传入；是否必填由 `API_META_REQUIRED` 控制，字段名由 `API_META_FIELDS` 控制。" },
 
     { type: "heading", text: "输出文件" },
     { type: "para", text: "workflow 输出的批注版 DOCX 会写入本次 API 任务目录，路径由 `ResolvedApiReviewPaths.final_report_path` 生成，形如 `data/api/<任务目录>/<合同名>_reviewed.docx`。HTTP 响应直接返回这个 DOCX 文件。" },
@@ -591,8 +602,11 @@ window.DOCS_PORTAL_CONTENT = {
         ["X-Review-Task-Id", "本次 API 审查任务 ID"],
         ["X-Review-Log-Path", "本次 API 事件日志路径"],
         ["X-Review-Criteria-Source", "审查标准来源，值为 default 或 uploaded"],
+        ["X-Template-Code", "请求字段 `templateCode` 的回显值；未传时为空字符串"],
+        ["X-Serial-No", "请求字段 `serialNo` 的回显值；未传时为空字符串"],
       ],
     },
+    { type: "para", text: "如果 `API_CALLBACK_ENABLED=True`，服务会在批注 DOCX 生成后发送一次 `multipart/form-data` 回调，请求内容包含批注 DOCX 文件字段以及 `templateCode`、`serialNo` 等额外字符串字段。" },
 
     { type: "heading", text: "失败响应（/api/review 自身）" },
     { type: "para", text: "本节只描述直接 API `/api/review` 自己的错误模型；它与前端 `/review` 的错误处理完全不同，区别见下一节，不要混在一起看。失败时返回 JSON，不返回 DOCX，并保留已写入的任务目录便于排查：" },
@@ -605,9 +619,12 @@ window.DOCS_PORTAL_CONTENT = {
       headers: ["HTTP 状态码", "触发条件", "日志事件"],
       rows: [
         ["400", "合同文件名不是 .docx / 旧版 .doc / 非有效 DOCX 结构 / criteria_file 非 .docx 或无法解析", "review_failed"],
+        ["400", "`API_META_REQUIRED=True` 且缺少 `API_META_FIELDS` 中的字段", "review_failed"],
         ["404", "未上传 criteria_file 且系统默认审查标准不存在", "review_failed"],
         ["422", "请求不是合法 multipart/form-data，或缺少必填字段 file", "FastAPI 进入路由前返回，通常不写入 api_events"],
         ["503", "Agent、Embedding、Reranker 等模型调用失败（ModelCallError）", "先写具体模型失败事件，再写 review_failed"],
+        ["502", "回调请求失败或对方返回非 2xx 状态", "review_failed"],
+        ["500", "`API_CALLBACK_ENABLED=True` 但未配置 `API_CALLBACK_URL`", "review_failed"],
         ["500", "workflow、DOCX 生成或其他未分类异常", "review_failed"],
       ],
     },
@@ -635,12 +652,12 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "para", text: "PowerShell：" },
     {
       type: "code",
-      text: '$form = @{\n  file = Get-Item "C:\\path\\合同A.docx"\n  criteria_file = Get-Item "C:\\path\\本次审查标准.docx"\n}\n\nInvoke-WebRequest `\n  -Uri "http://127.0.0.1:5000/api/review" `\n  -Method Post `\n  -Form $form `\n  -OutFile "合同A_批注版.docx"',
+      text: '$form = @{\n  file = Get-Item "C:\\path\\合同A.docx"\n  criteria_file = Get-Item "C:\\path\\本次审查标准.docx"\n  templateCode = "TMP001"\n  serialNo = "SN001"\n}\n\nInvoke-WebRequest `\n  -Uri "http://127.0.0.1:5000/api/review" `\n  -Method Post `\n  -Form $form `\n  -OutFile "合同A_批注版.docx"',
     },
     { type: "para", text: "curl（不上传审查标准时省略 criteria_file，服务端会复制系统默认 criteria.docx）：" },
     {
       type: "code",
-      text: 'curl -X POST "http://127.0.0.1:5000/api/review" \\\n  -F "file=@/path/to/合同A.docx" \\\n  -F "criteria_file=@/path/to/本次审查标准.docx" \\\n  -o "合同A_批注版.docx"',
+      text: 'curl -X POST "http://127.0.0.1:5000/api/review" \\\n  -F "file=@/path/to/合同A.docx" \\\n  -F "criteria_file=@/path/to/本次审查标准.docx" \\\n  -F "templateCode=TMP001" \\\n  -F "serialNo=SN001" \\\n  -o "合同A_批注版.docx"',
     },
   ],
 
@@ -702,7 +719,7 @@ window.DOCS_PORTAL_CONTENT = {
     },
 
     { type: "heading", text: "管理员前端" },
-    { type: "para", text: "管理员后台路由在 `web/admin_routes.py`，数据聚合在 `web/admin_services.py`。" },
+    { type: "para", text: "管理员后台路由在 `web/admin/routes.py`，数据聚合在 `web/admin/services.py`。" },
     {
       type: "list",
       items: [
@@ -771,7 +788,7 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "para", text: "仓库整体结构：" },
     {
       type: "code",
-      text: "deep_research_agent/\n  README.md\n  app.py\n  main.py\n  config.py\n  user_profiles/\n    users.json\n  agents/\n  main_workflow/\n  mcp_service/\n  tools/\n  services/\n    user_management.py\n  scripts/\n    manage_users.py\n  resources/\n    review_criteria/\n      criteria.docx\n  loggers/\n  web/\n    admin_routes.py\n    admin_services.py\n    auth.py\n    routes.py\n    templates/\n    static/\n  docs/\n  data/\n    <username>/",
+      text: "deep_research_agent/\n  README.md\n  app.py\n  main.py\n  config.py\n  user_profiles/\n    users.json\n  agents/\n  main_workflow/\n  mcp_service/\n  tools/\n  services/\n    user_management.py\n  scripts/\n    manage_users.py\n  resources/\n    review_criteria/\n      criteria.docx\n  loggers/\n  web/\n    api/\n      review.py\n      callbacks.py\n    user/\n      routes.py\n    admin/\n      routes.py\n      services.py\n    core/\n      document_validation.py\n      filenames.py\n      review_runtime.py\n      errors.py\n    auth.py\n    templates/\n    static/\n  docs/\n  data/\n    <username>/",
     },
 
     { type: "heading", text: "入口文件" },
@@ -788,10 +805,14 @@ window.DOCS_PORTAL_CONTENT = {
     {
       type: "list",
       items: [
-        "`web/routes.py`：登录、工作台、上传审查、历史记录、下载等 Web 路由。",
-        "`web/admin_routes.py`：管理员后台路由（用户管理、审查要点管理、日志查看）。",
-        "`web/admin_services.py`：管理员后台展示所需的数据聚合。",
+        "`web/api/review.py`：无登录 `/api/review` 同步审查接口。",
+        "`web/api/callbacks.py`：API 回调请求发送逻辑。",
+        "`web/user/routes.py`：登录、工作台、上传审查、历史记录、下载等普通用户 Web 路由。",
+        "`web/admin/routes.py`：管理员后台路由（用户管理、审查要点管理、日志查看）。",
+        "`web/admin/services.py`：管理员后台展示所需的数据聚合。",
+        "`web/core/`：Web 层共享的 DOCX 校验、文件名、运行时和错误处理工具。",
         "`web/auth.py`：用户读取、密码哈希、登录校验。",
+        "`web/routes.py`、`web/admin_routes.py`、`web/admin_services.py` 等旧文件：兼容旧 import 的薄封装，不再承载主要实现。",
         "`web/templates/`：HTML 模板；`web/static/`：CSS 和前端脚本。",
       ],
     },
@@ -865,7 +886,7 @@ window.DOCS_PORTAL_CONTENT = {
   ],
 
   "frontend-journey": [
-    { type: "para", text: "本文只描述 Web 前端用户旅程和页面状态，不覆盖 agent 内部审查流程。页面由 `web/routes.py` 提供路由、`web/templates/` 渲染，交互脚本在 `web/static/app.js`。" },
+    { type: "para", text: "本文只描述 Web 前端用户旅程和页面状态，不覆盖 agent 内部审查流程。普通用户页面由 `web/user/routes.py` 提供路由，管理员页面由 `web/admin/routes.py` 提供路由，页面由 `web/templates/` 渲染，交互脚本在 `web/static/app.js`。" },
 
     { type: "heading", text: "页面入口" },
     {

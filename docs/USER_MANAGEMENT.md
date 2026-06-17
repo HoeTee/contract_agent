@@ -32,7 +32,7 @@ admin 管理员
 
 ## 普通用户前端
 
-普通用户界面由 `web/routes.py` 提供路由，由 `web/templates/` 下的模板渲染。
+普通用户界面由 `web/user/routes.py` 提供路由，由 `web/templates/` 下的模板渲染。
 
 ### `/work`
 
@@ -101,13 +101,13 @@ web/templates/settings.html
 管理员后台路由在：
 
 ```text
-web/admin_routes.py
+web/admin/routes.py
 ```
 
 后台数据聚合在：
 
 ```text
-web/admin_services.py
+web/admin/services.py
 ```
 
 模板：
@@ -283,7 +283,7 @@ data/<username>/contract_review_criteria/criteria.docx
 data/<username>/contract_review_criteria/criteria.docx
 ```
 
-审查要点上传前会做 DOCX 格式检查和内容检查。内容检查逻辑在 `web/routes.py`，目标是拒绝明显不是审查要点的 DOCX。
+审查要点上传前会做 DOCX 格式检查和内容检查。内容检查逻辑在 `web/core/document_validation.py`，目标是拒绝明显不是审查要点的 DOCX。
 
 ## 共享用户管理服务
 

@@ -31,10 +31,25 @@ deep_research_agent/
     review_history.py
 
   web/
-    admin_routes.py
-    admin_services.py
+    api/
+      review.py
+      callbacks.py
+    user/
+      routes.py
+    admin/
+      routes.py
+      services.py
+    core/
+      document_validation.py
+      filenames.py
+      review_runtime.py
+      errors.py
     auth.py
     routes.py
+    api_review_routes.py
+    user_review_routes.py
+    admin_routes.py
+    admin_services.py
     templates/
     static/
 
@@ -66,10 +81,17 @@ deep_research_agent/
 
 ## Web 目录
 
-- `web/routes.py`：登录、工作台、上传审查、历史记录、下载等 Web 路由。
-- `web/admin_routes.py`：管理员后台路由，包括用户管理、审查要点管理和日志查看。
-- `web/admin_services.py`：管理员后台展示所需的数据聚合。
+- `web/api/review.py`：无登录、同步执行的外部 API 路由，当前提供 `POST /api/review`。
+- `web/api/callbacks.py`：批注 DOCX 生成后的外部回调发送逻辑。
+- `web/user/routes.py`：登录、工作台、上传审查、历史记录、下载和设置等普通用户路由。
+- `web/admin/routes.py`：管理员后台路由，包括用户管理、审查要点管理和日志查看。
+- `web/admin/services.py`：管理员后台展示所需的数据聚合。
+- `web/core/document_validation.py`：DOCX 格式校验和审查要点内容校验。
+- `web/core/filenames.py`：上传文件名清洗、批注文件展示名和任务前缀处理。
+- `web/core/review_runtime.py`：审查并发控制等 Web 层共享运行时对象。
+- `web/core/errors.py`：Web 层模型调用错误类型和分类函数。
 - `web/auth.py`：用户读取、密码哈希、登录校验。
+- `web/routes.py`、`web/api_review_routes.py`、`web/user_review_routes.py`、`web/admin_routes.py`、`web/admin_services.py`、`web/errors.py`、`web/route_helpers.py`：兼容旧 import 的薄封装，不再承载主要实现。
 - `web/templates/`：HTML 模板。
 - `web/static/`：CSS 和前端脚本。
 

@@ -3,7 +3,7 @@ window.DOCS_PORTAL_DATA = {
     viewBox: "0 0 920 410",
     nodes: [
       { id: "client", x: 30, y: 28, w: 170, h: 66, kind: "io", icon: "icon-api", title: "客户端 / API", sub: "POST /api/review · 前端工作台", docId: "api-review" },
-      { id: "web", x: 255, y: 28, w: 160, h: 66, kind: "core", icon: "icon-code", title: "Web 路由", sub: "web/routes.py", docId: "frontend-journey" },
+      { id: "web", x: 255, y: 28, w: 160, h: 66, kind: "core", icon: "icon-code", title: "Web 路由", sub: "api · user · admin", docId: "frontend-journey" },
       { id: "workflow", x: 470, y: 28, w: 170, h: 66, kind: "core", icon: "icon-flow", title: "Workflow 编排", sub: "main_workflow · 6 阶段", docId: "agent-workflow" },
       { id: "output", x: 700, y: 28, w: 190, h: 66, kind: "io", icon: "icon-doc", title: "批注 DOCX 输出", sub: "返回 + 落盘", docId: "api-review" },
       { id: "agents", x: 470, y: 184, w: 170, h: 66, kind: "agent", icon: "icon-user", title: "Agents", sub: "规划 · 执行 · 反思 · 边界", docId: "review-boundaries" },
@@ -57,11 +57,14 @@ window.DOCS_PORTAL_DATA = {
       tags: ["API_STORE", "data/api", "DOCX", "logs"],
       signals: [
         "POST /api/review 使用 multipart/form-data。",
+        "templateCode、serialNo 等额外字段从 body 表单字段读取。",
         "API_STORE=True 时输入、输出和日志保存在 data/api/<任务目录>/。",
-        "API_STORE=False 时使用系统临时目录，响应后清理。",
+        "API_CALLBACK_ENABLED=True 时生成批注 DOCX 后会向外部地址回调。",
       ],
       paths: [
-        "web/routes.py",
+        "web/api/review.py",
+        "web/api/callbacks.py",
+        "web/core/document_validation.py",
         "loggers/resolve_api_review_paths.py",
         "config.py",
         "docs/API_REVIEW_ENDPOINT.md",
@@ -70,6 +73,7 @@ window.DOCS_PORTAL_DATA = {
         "不要把 /api/review 写入 data/default；default 是 CLI 默认用户。",
         "X-Review-Log-Path 指向本次任务的 api_events.jsonl。",
         "上传审查标准保留原文件名；未上传时复制默认 criteria.docx。",
+        "DOCX_COMMENT_INCLUDE_CRITERION 控制逐条批注是否追加审查要点，不是 API 请求字段。",
       ],
     },
     {
@@ -113,7 +117,8 @@ window.DOCS_PORTAL_DATA = {
       ],
       paths: [
         "services/user_management.py",
-        "web/admin_routes.py",
+        "web/admin/routes.py",
+        "web/admin/services.py",
         "loggers/review_history.py",
         "docs/USER_MANAGEMENT.md",
       ],
@@ -189,12 +194,14 @@ window.DOCS_PORTAL_DATA = {
       paths: [
         "tools/document/file_cleaner.py",
         "tools/document/reporting/docx_report.py",
+        "config.py",
         "tests/test_docx_report_annotations.py",
         "docs/DOCX_ANNOTATION_DESIGN.md",
       ],
       details: [
         "results 决定逐条问题批注，summary_sections 只决定文档开头总览批注。",
         "除总览批注外，成功锚定的逐条 AI 批注都必须有黄色高亮；未锚定 issue 不写入 Word 批注。",
+        "DOCX_COMMENT_INCLUDE_CRITERION=True 时，逐条 AI 批注末尾追加对应审查要点。",
         "批注 id 从现有最大 comment id 后递增，w:date 使用北京时间 +08:00。",
         "看到批注却没有高亮，先查同名 *_annotation_events.json 的 status。",
       ],
@@ -261,7 +268,8 @@ window.DOCS_PORTAL_DATA = {
         "历史记录来自持久化 records 数据。",
       ],
       paths: [
-        "web/routes.py",
+        "web/user/routes.py",
+        "web/admin/routes.py",
         "web/templates/index.html",
         "web/templates/history.html",
         "web/static/app.js",
@@ -288,7 +296,8 @@ window.DOCS_PORTAL_DATA = {
       ],
       paths: [
         "app.py",
-        "web/routes.py",
+        "web/user/routes.py",
+        "web/api/review.py",
         "docs/QUICK_START.md",
         ".env.example",
       ],

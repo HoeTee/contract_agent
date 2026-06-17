@@ -43,13 +43,13 @@
         <mxCell id="fastapi_app" value="app.py&lt;br&gt;FastAPI app + SessionMiddleware&lt;br&gt;/static 静态资源 + /health" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=13;" vertex="1" parent="web_group">
           <mxGeometry x="35" y="48" width="350" height="66" as="geometry" />
         </mxCell>
-        <mxCell id="normal_router" value="web/routes.py 普通用户路由&lt;br&gt;/work /review /download /history /settings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
+        <mxCell id="normal_router" value="web/user/routes.py 普通用户路由&lt;br&gt;/work /review /download /history /settings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
           <mxGeometry x="35" y="140" width="350" height="64" as="geometry" />
         </mxCell>
-        <mxCell id="api_router" value="POST /api/review&lt;br&gt;无登录同步接口&lt;br&gt;multipart/form-data: file + criteria_file?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
+        <mxCell id="api_router" value="web/api/review.py&lt;br&gt;POST /api/review&lt;br&gt;file + criteria_file + meta fields" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
           <mxGeometry x="35" y="225" width="350" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="admin_router" value="web/admin_routes.py 管理员路由&lt;br&gt;/admin /admin/users /criteria /logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
+        <mxCell id="admin_router" value="web/admin/routes.py 管理员路由&lt;br&gt;/admin /admin/users /criteria /logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
           <mxGeometry x="35" y="315" width="350" height="64" as="geometry" />
         </mxCell>
         <mxCell id="task_memory" value="进程内任务状态&lt;br&gt;review_tasks[username]&lt;br&gt;记录运行中 / 完成 / 失败" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;" vertex="1" parent="web_group">

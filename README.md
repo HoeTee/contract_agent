@@ -99,6 +99,13 @@ http://127.0.0.1:5000/admin
 
 完整冒烟测试见 [docs/QUICK_START.md](docs/QUICK_START.md)，直接 API 说明见 [docs/API_REVIEW_ENDPOINT.md](docs/API_REVIEW_ENDPOINT.md)，用户管理细节见 [docs/USER_MANAGEMENT.md](docs/USER_MANAGEMENT.md)，前端用户旅程见 [docs/FRONTEND_USER_JOURNEY.md](docs/FRONTEND_USER_JOURNEY.md)，审查边界见 [docs/REVIEW_BOUNDARIES.md](docs/REVIEW_BOUNDARIES.md)。
 
+主要 Web 代码入口：
+
+- `web/api/review.py`：外部同步审查 API。
+- `web/user/routes.py`：普通用户登录后工作台、上传、下载和历史页面。
+- `web/admin/routes.py`：管理员后台路由。
+- `web/core/`：DOCX 校验、文件名处理、错误类型和共享运行时对象。
+
 用户登录后，服务会：
 
 1. 将上传合同保存到 `data/<username>/contracts/`

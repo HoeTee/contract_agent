@@ -1,6 +1,6 @@
 # 前端用户旅程
 
-本文只描述 Web 前端用户旅程和页面状态，不覆盖 agent 内部审查流程。涉及的前端页面由 `web/routes.py` 提供路由，由 `web/templates/` 渲染，交互脚本在 `web/static/app.js`。
+本文只描述 Web 前端用户旅程和页面状态，不覆盖 agent 内部审查流程。普通用户页面由 `web/user/routes.py` 提供路由，管理员页面由 `web/admin/routes.py` 提供路由，页面由 `web/templates/` 渲染，交互脚本在 `web/static/app.js`。
 
 ## 页面入口
 
@@ -337,8 +337,8 @@ session 检查分支：
 ```text
 前端相关逻辑                 代码文件
 -------------------------------------------------------
-路由和页面状态                web/routes.py
-管理员路由                   web/admin_routes.py
+普通用户路由和页面状态         web/user/routes.py
+管理员路由                   web/admin/routes.py
 登录校验和 session 同步       web/auth.py
 样式                         web/static/app.css
 浏览器交互脚本                web/static/app.js
