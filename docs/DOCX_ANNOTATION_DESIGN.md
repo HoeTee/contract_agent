@@ -136,6 +136,7 @@ ParagraphTextView
 - 总览批注作者为 `AI 审查总结`，正文标题使用 `总体审查结论：` 和 `优先修改建议：`。
 - 总览批注中 `总体审查结论` 和 `优先修改建议` 之间保留一个空白段落。
 - 逐条问题批注作者为 `AI 条款审查`，正文先写入 `风险等级：高/中/低`，再写入修改建议。
+- 当 `.env` 中 `DOCX_COMMENT_INCLUDE_CRITERION=True` 时，逐条问题批注末尾会追加该 issue 所属的 `审查要点`；关闭时不追加。这个开关不影响文档开头的总览批注。
 - 命中的文本会被拆分到精确 run 边界。
 - 命中 run 添加 `w:highlight w:val="yellow"`。
 - 程序插入新的 `commentRangeStart`、`commentRangeEnd` 和 `commentReference`。

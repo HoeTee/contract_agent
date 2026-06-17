@@ -19,6 +19,8 @@ from docx.text.paragraph import Paragraph
 from docx.text.run import Run
 from lxml import etree
 
+from config import DOCX_COMMENT_INCLUDE_CRITERION
+
 
 SUMMARY_COMMENT_AUTHOR = "AI 审查总结"
 REVIEW_COMMENT_AUTHOR = "AI 条款审查"
@@ -610,13 +612,25 @@ class DocxReportGenerator:
         para_element.append(ref_run)
 
     @staticmethod
-    def _build_issue_comment_text(comment_text: str, risk_level: str | None) -> str:
+    def _build_issue_comment_text(
+        comment_text: str,
+        risk_level: str | None,
+        criterion: str | None = None,
+    ) -> str:
         """Build the Word comment body for a successfully anchored issue."""
         text = (comment_text or "").strip()
         risk_label = RISK_LEVEL_LABELS.get(str(risk_level or "").strip().lower())
+        lines = []
         if risk_label:
-            return f"风险等级：{risk_label}\n{text}" if text else f"风险等级：{risk_label}"
-        return text
+            lines.append(f"风险等级：{risk_label}")
+        if text:
+            lines.append(text)
+
+        criterion_text = (criterion or "").strip()
+        if DOCX_COMMENT_INCLUDE_CRITERION and criterion_text:
+            lines.extend(["", "审查要点：", criterion_text])
+
+        return "\n".join(lines)
 
     @staticmethod
     def _build_summary_comment_text(summary_sections: dict | None) -> str:
@@ -800,6 +814,7 @@ class DocxReportGenerator:
                             'comment_text': DocxReportGenerator._build_issue_comment_text(
                                 comment_text,
                                 risk_level,
+                                criterion=issue.get('criterion') or criterion,
                             ),
                             'author': REVIEW_COMMENT_AUTHOR,
                         })
