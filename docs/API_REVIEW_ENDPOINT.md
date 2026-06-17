@@ -59,14 +59,23 @@ YYYYMMDD-HHMMSS-xxxx
 
 ```env
 API_STORE=True
+API_META_REQUIRED=False
+API_META_FIELDS=templateCode,serialNo
+API_CALLBACK_ENABLED=False
+API_CALLBACK_URL=
+API_CALLBACK_FILE_FIELD=file
 ```
 
 含义：
 
-| 值 | 行为 |
+| 配置 | 含义 |
 | --- | --- |
-| `True` | 默认行为。输入文件、输出文件和日志持久保存在 `DATA_DIR/api/<任务目录>/`。 |
-| `False` | 使用系统临时目录执行本次 API；响应完成或失败后清理，不长期保存输入文件、输出文件和日志。 |
+| `API_STORE` | `True` 时输入文件、输出文件和日志持久保存在 `DATA_DIR/api/<任务目录>/`；`False` 时使用临时目录并在响应后清理。 |
+| `API_META_REQUIRED` | 是否要求请求携带 `API_META_FIELDS` 中列出的字符串字段。 |
+| `API_META_FIELDS` | 额外字符串字段名，默认 `templateCode,serialNo`。字段从 `multipart/form-data` body 中读取。 |
+| `API_CALLBACK_ENABLED` | 是否在批注 DOCX 生成后主动向外部地址发送回调请求。 |
+| `API_CALLBACK_URL` | 回调地址。`API_CALLBACK_ENABLED=True` 时必须配置。 |
+| `API_CALLBACK_FILE_FIELD` | 回调请求里批注 DOCX 的文件字段名；未配置或为空时默认 `file`。 |
 
 不需要额外配置 API 目录。持久化目录固定使用现有 `DATA_DIR` 下的 `api/` 子目录；目录不存在时会自动创建。
 
@@ -153,6 +162,27 @@ criteria_snapshot_path = paths.stored_criteria_path(selected_criteria_path.name)
 shutil.copy2(selected_criteria_path, criteria_snapshot_path)
 selected_criteria_path = criteria_snapshot_path
 ```
+
+### 额外字符串字段
+
+默认额外字段为：
+
+```text
+templateCode
+serialNo
+```
+
+请求中仍然使用 `multipart/form-data`，字段和文件在同一个 body 中提交：
+
+```bash
+curl -X POST "http://127.0.0.1:5000/api/review" \
+  -F "file=@合同A.docx" \
+  -F "templateCode=TMP001" \
+  -F "serialNo=SN001" \
+  -o "合同A_批注版.docx"
+```
+
+如果 `API_META_REQUIRED=True`，`API_META_FIELDS` 中列出的字段必须存在且不能为空；否则返回 `400`，不会进入审查流程。
 
 ## 输出文件
 
@@ -292,6 +322,8 @@ result = await workflow.run(
 X-Review-Task-Id
 X-Review-Log-Path
 X-Review-Criteria-Source
+x-template-code
+x-serial-no
 ```
 
 含义：
@@ -301,6 +333,24 @@ X-Review-Criteria-Source
 | `X-Review-Task-Id` | 本次 API 审查任务 ID |
 | `X-Review-Log-Path` | 本次 API 事件日志路径 |
 | `X-Review-Criteria-Source` | 审查标准来源，值为 `default` 或 `uploaded` |
+| `x-template-code` | 请求字段 `templateCode` 的回显值；未传时为空字符串 |
+| `x-serial-no` | 请求字段 `serialNo` 的回显值；未传时为空字符串 |
+
+HTTP 响应头字段名不区分大小写。代码按小写输出额外字段响应头，便于和内网接口文档对齐。
+
+## 批注文件回调
+
+如果 `API_CALLBACK_ENABLED=True`，服务会在批注 DOCX 生成后、返回 `/api/review` 响应前，向 `API_CALLBACK_URL` 主动发送一次 `multipart/form-data` 请求。
+
+回调 body 包含：
+
+| 字段 | 来源 |
+| --- | --- |
+| `API_CALLBACK_FILE_FIELD` 指定的文件字段，默认 `file` | 批注后的 DOCX 文件 |
+| `templateCode` | `/api/review` 请求 body 中的同名表单字段 |
+| `serialNo` | `/api/review` 请求 body 中的同名表单字段 |
+
+如果 `API_CALLBACK_ENABLED=True` 但没有配置 `API_CALLBACK_URL`，本次请求返回 `500`。如果回调请求发送失败或对方返回非 2xx 状态，本次请求返回 `502`。
 
 ## 失败响应
 
@@ -328,9 +378,12 @@ X-Review-Criteria-Source
 | `400` | 合同不是有效 ZIP/DOCX 结构 | `上传的文件不是有效的 .docx 文件。` 或缺少内部文件说明 | `review_failed` |
 | `400` | `criteria_file` 不是 `.docx` | `审查要点文件格式必须是 DOCX。` | `review_failed` |
 | `400` | `criteria_file` 无法解析或内容不像审查标准 | 审查要点解析或校验错误文案 | `review_failed` |
+| `400` | `API_META_REQUIRED=True` 且缺少 `API_META_FIELDS` 中的字段 | `缺少必填字符串字段：...` | `review_failed` |
 | `404` | 未上传 `criteria_file` 且系统默认审查标准不存在 | `未找到系统默认审查要点文件：...` | `review_failed` |
 | `422` | 请求不是合法 `multipart/form-data`，或缺少必填字段 `file` | FastAPI 参数校验错误 | FastAPI 在进入路由函数前返回，通常不会写入本次 `api_events.jsonl` |
 | `503` | Agent、Embedding、Reranker 等模型调用失败，抛出 `ModelCallError` | `审核失败：...`，包含组件化用户可读原因 | 先写具体模型失败事件，再写 `review_failed` |
+| `502` | 批注 DOCX 已生成，但回调请求发送失败或对方返回非 2xx | `批注文件回调发送失败：...` | `review_failed` |
+| `500` | `API_CALLBACK_ENABLED=True` 但未配置 `API_CALLBACK_URL` | `API_CALLBACK_ENABLED=True 时必须配置 API_CALLBACK_URL。` | `review_failed` |
 | `500` | workflow、DOCX 生成或其他未分类异常 | `审核失败，请查看任务日志。` | `review_failed` |
 
 `503` 是模型或外部模型服务类失败，调用方可以结合 `X-Review-Task-Id`、返回 JSON 中的 `task_id`、`api_events_path` 和任务日志定位具体组件。`500` 表示服务内部未分类异常，应优先查看 `api_events.jsonl`、`workflow/run_summary.json`、`conversations/` 和 `mcp/` 日志。
@@ -389,6 +442,8 @@ PowerShell：
 $form = @{
   file = Get-Item "C:\path\合同A.docx"
   criteria_file = Get-Item "C:\path\本次审查标准.docx"
+  templateCode = "TMP001"
+  serialNo = "SN001"
 }
 
 Invoke-WebRequest `
@@ -404,6 +459,8 @@ curl：
 curl -X POST "http://127.0.0.1:5000/api/review" \
   -F "file=@/path/to/合同A.docx" \
   -F "criteria_file=@/path/to/本次审查标准.docx" \
+  -F "templateCode=TMP001" \
+  -F "serialNo=SN001" \
   -o "合同A_批注版.docx"
 ```
 
@@ -412,6 +469,8 @@ curl -X POST "http://127.0.0.1:5000/api/review" \
 ```bash
 curl -X POST "http://127.0.0.1:5000/api/review" \
   -F "file=@/path/to/合同A.docx" \
+  -F "templateCode=TMP001" \
+  -F "serialNo=SN001" \
   -o "合同A_批注版.docx"
 ```
 

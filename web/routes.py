@@ -9,13 +9,26 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
+import httpx
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from starlette.background import BackgroundTask
 from docx import Document
 
-from config import API_STORE, DATA_DIR, DEFAULT_REVIEW_CRITERIA_PATH, MAX_API_CONCURRENT_REVIEWS, MCP_SERVER_PATH, USERS_FILE
+from config import (
+    API_CALLBACK_ENABLED,
+    API_CALLBACK_FILE_FIELD,
+    API_CALLBACK_URL,
+    API_META_FIELDS,
+    API_META_REQUIRED,
+    API_STORE,
+    DATA_DIR,
+    DEFAULT_REVIEW_CRITERIA_PATH,
+    MAX_API_CONCURRENT_REVIEWS,
+    MCP_SERVER_PATH,
+    USERS_FILE,
+)
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
 from loggers.api_event_logger import append_api_event
 from web.errors import ModelCallError
@@ -73,6 +86,69 @@ review_semaphore = (
     if MAX_API_CONCURRENT_REVIEWS > 0
     else None # It could be None if MAX_API_CONCURRENT_REVIEWS is not set, meaning no concurrency limit.
 )
+
+
+def _header_name_for_meta_field(field_name: str) -> str:
+    kebab = re.sub(r"(?<!^)(?=[A-Z])", "-", field_name).replace("_", "-").lower()
+    return f"x-{kebab}"
+
+
+async def extract_api_meta_fields(request: Request) -> dict[str, str]:
+    form = await request.form()
+    meta_fields: dict[str, str] = {}
+    missing: list[str] = []
+
+    for field_name in API_META_FIELDS:
+        raw_value = form.get(field_name)
+        value = raw_value.strip() if isinstance(raw_value, str) else ""
+        meta_fields[field_name] = value
+        if API_META_REQUIRED and not value:
+            missing.append(field_name)
+
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"缺少必填字符串字段：{', '.join(missing)}",
+        )
+
+    return meta_fields
+
+
+async def post_api_review_callback(
+    *,
+    output_path: Path,
+    response_filename: str,
+    meta_fields: dict[str, str],
+) -> None:
+    if not API_CALLBACK_ENABLED:
+        return
+
+    if not API_CALLBACK_URL:
+        raise HTTPException(
+            status_code=500,
+            detail="API_CALLBACK_ENABLED=True 时必须配置 API_CALLBACK_URL。",
+        )
+
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            with output_path.open("rb") as report_file:
+                response = await client.post(
+                    API_CALLBACK_URL,
+                    data=meta_fields,
+                    files={
+                        API_CALLBACK_FILE_FIELD: (
+                            response_filename,
+                            report_file,
+                            DOCX_MEDIA_TYPE,
+                        )
+                    },
+                )
+        response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"批注文件回调发送失败：{exc}",
+        ) from exc
 
 
 def get_running_task(username: str) -> dict | None:
@@ -296,6 +372,7 @@ async def run_review_task(username: str, paths, criteria_path: Path) -> None:
 
 @router.post("/api/review")
 async def api_review(
+    request: Request,
     file: UploadFile = File(...), # 合同文件必须上传，否则返回 422 错误；定义了 multipart
     criteria_file: UploadFile | None = File(None),
 ):
@@ -308,11 +385,18 @@ async def api_review(
 
     try:
         paths.ensure_dirs() # 创建本地 API 任务持久目录
+        meta_fields = await extract_api_meta_fields(request)
+        if API_CALLBACK_ENABLED and not API_CALLBACK_URL:
+            raise HTTPException(
+                status_code=500,
+                detail="API_CALLBACK_ENABLED=True 时必须配置 API_CALLBACK_URL。",
+            )
         append_api_event( 
             paths.api_events_path,
             "api_review_received",
             task_id=paths.task_id,
             filename=filename,
+            meta_fields=meta_fields,
         ) # 写一条 API 日志，记录收到 API 请求和上传文件的基本信息
 
         if not filename.lower().endswith(".docx"): # 如果不是 .docx 结尾
@@ -407,16 +491,32 @@ async def api_review(
 
         append_api_event(paths.api_events_path, "review_completed", result_file=str(output_path))
         response_filename = build_report_display_name(filename)
+        await post_api_review_callback(
+            output_path=output_path,
+            response_filename=response_filename,
+            meta_fields=meta_fields,
+        )
+        append_api_event(
+            paths.api_events_path,
+            "api_callback_completed",
+            enabled=API_CALLBACK_ENABLED,
+            url=API_CALLBACK_URL if API_CALLBACK_ENABLED else "",
+            file_field=API_CALLBACK_FILE_FIELD,
+            meta_fields=meta_fields,
+        )
+        response_headers = {
+            "x-review-task-id": paths.task_id,
+            "x-review-log-path": str(paths.api_events_path),
+            "x-review-criteria-source": criteria_source,
+        }
+        for field_name, field_value in meta_fields.items():
+            response_headers[_header_name_for_meta_field(field_name)] = field_value
         return FileResponse(
             path=output_path, # 返回审核结果文件
             media_type=DOCX_MEDIA_TYPE, # 设置正确的 DOCX MIME 类型
             filename=response_filename, # 设置下载文件名
             background=BackgroundTask(paths.cleanup_if_temporary),
-            headers={
-                "X-Review-Task-Id": paths.task_id,
-                "X-Review-Log-Path": str(paths.api_events_path),
-                "X-Review-Criteria-Source": criteria_source,
-            }, # 在响应头中添加审核任务 ID、API 事件日志路径和审查要点来源，方便调用方追踪和调试
+            headers=response_headers,
         )
 
     except HTTPException as exc:

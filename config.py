@@ -46,9 +46,19 @@ def env_bool(name: str, default: bool | None) -> bool | None:
 
 ENABLE_WORKFLOW_LOGS = env_bool("ENABLE_WORKFLOW_LOGS", True)
 API_STORE = env_bool("API_STORE", True)
+API_META_REQUIRED = env_bool("API_META_REQUIRED", False)
+API_CALLBACK_ENABLED = env_bool("API_CALLBACK_ENABLED", False)
 LLM_ENABLE_THINKING = env_bool("LLM_ENABLE_THINKING", None)
 PARSE_FILE_WITH_MINERU = env_bool("PARSE_FILE_WITH_MINERU", False)
 MINERU_API_ENABLE_OCR = env_bool("MINERU_API_ENABLE_OCR", True)
+
+API_META_FIELDS = tuple(
+    field.strip()
+    for field in os.getenv("API_META_FIELDS", "templateCode,serialNo").split(",")
+    if field.strip()
+)
+API_CALLBACK_URL = os.getenv("API_CALLBACK_URL", "").strip()
+API_CALLBACK_FILE_FIELD = os.getenv("API_CALLBACK_FILE_FIELD", "file").strip() or "file"
 
 MAX_REFLECTION_ROUNDS = int(os.getenv("MAX_REFLECTION_ROUNDS", "3"))
 MAX_ORCHESTRATOR_CONCURRENCY = int(os.getenv("MAX_ORCHESTRATOR_CONCURRENCY", "8"))
