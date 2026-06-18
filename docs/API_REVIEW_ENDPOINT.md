@@ -352,10 +352,39 @@ HTTP 响应头字段名不区分大小写。代码按小写输出额外字段响
 | 字段 | 来源 |
 | --- | --- |
 | `API_CALLBACK_FILE_FIELD` 指定的文件字段，默认 `file` | 批注后的 DOCX 文件 |
-| `templateCode` | `/api/review` 请求 body 中的同名表单字段 |
-| `serialNo` | `/api/review` 请求 body 中的同名表单字段 |
+| `API_META_FIELDS` 中声明的字符串字段 | `/api/review` 请求 body 中的同名表单字段，字段名不是写死的 |
 
 如果 `API_CALLBACK_ENABLED=True` 但没有配置 `API_CALLBACK_URL`，本次请求返回 `500`。如果回调请求发送失败或对方返回非 2xx 状态，本次请求返回 `502`。
+
+### 本地回调接收测试
+
+项目提供一个只用于本地测试的回调接收服务：
+
+```powershell
+uvicorn scripts.api_review_callback_receiver:app --host 127.0.0.1 --port 9001
+```
+
+`.env` 示例：
+
+```env
+API_META_REQUIRED=True
+API_META_FIELDS=templateCode,serialNo
+API_CALLBACK_ENABLED=True
+API_CALLBACK_URL=http://127.0.0.1:9001/callback
+API_CALLBACK_FILE_FIELD=file
+```
+
+调用 `/api/review`：
+
+```powershell
+curl.exe -X POST "http://localhost:5000/api/review" `
+  -F "file=@C:\path\合同.docx" `
+  -F "templateCode=TMP001" `
+  -F "serialNo=SN001" `
+  --output "C:\path\result.docx"
+```
+
+`scripts/api_review_callback_receiver.py` 会在启动终端打印收到的动态字符串字段和文件字段信息，也可以访问 `http://127.0.0.1:9001/last` 查看最近收到的记录。它只读取文件名、content type 和字节数，不会把回调里的二进制 DOCX 保存到磁盘。
 
 ## 失败响应
 

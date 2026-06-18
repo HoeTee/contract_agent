@@ -98,6 +98,7 @@ deep_research_agent/
 ## 服务模块
 
 - `services/user_management.py`：Web 管理员后台和 `scripts/manage_users.py` 共用的用户管理服务，负责创建用户、修改角色、重置密码、启用/禁用、删除用户。
+- `scripts/api_review_callback_receiver.py`：本地测试 `/api/review` 外部回调用的临时接收服务；只打印和返回字段/文件元信息，不保存回调 DOCX。
 
 ## 数据目录
 
