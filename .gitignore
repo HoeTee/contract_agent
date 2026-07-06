@@ -1,19 +1,53 @@
-# Secrets / local config
+# Secrets and local config
 .env
 .env.local
 .env.*.local
+
+# Local user/account data
 users.json
 user_profiles/*
 !user_profiles/.gitkeep
 
-# Virtual environments
-.wheel-venv/
-.venv_old/
-.venv/
-venv/
-env/
+# Office documents and temporary lock files
+*.doc
+*.docx
+*.docm
+*.dot
+*.dotx
+*.dotm
+*.pdf
+~$*
+~$*.doc*
+.~lock.*#
+*.tmp
+*.bak
 
-# Python cache / build
+# Uploaded documents, generated reports, and runtime data
+data/
+uploads/
+docs/contracts/
+docs/contract_review_criteria/
+docs/reports_md/
+docs/reports_docx/
+docs/reports_pdf/
+
+# Default review criteria template: keep only the committed fallback file
+resources/review_criteria/*
+!resources/review_criteria/.gitkeep
+!resources/review_criteria/criteria.docx
+
+# Runtime logs and indexes
+logs/
+*.log
+RAG_persist/
+docx_comment_test/
+md2pdf_test/
+api_review_test/
+results/
+.tmp_patents/
+.tmp_compare/
+
+# Python caches, environments, and build output
 __pycache__/
 *.py[cod]
 *.pyo
@@ -22,40 +56,17 @@ __pycache__/
 dist/
 build/
 *.egg
+.venv/
+/.venv/
+.venv_old/
+venv/
+env/
+.wheel-venv/
 
-# Runtime data and logs
-data/
-!data/.gitkeep
-!data/default/
-!data/default/.gitkeep
-!data/default/contract_review_criteria/
-!data/default/contract_review_criteria/.gitkeep
-!data/default/contracts/
-!data/default/contracts/.gitkeep
-!data/default/reports_docx/
-!data/default/reports_docx/.gitkeep
-!data/default/logs/
-!data/default/logs/.gitkeep
-logs/
-*.log
-RAG_persist/
-
-# Local tokenizer/model cache
+# Model/tokenizer/cache artifacts
 local_tokenizers/
 .cache/
 *.tiktoken
-
-# Temporary Word/Office files
-~$*.docx
-*.tmp
-*.bak
-
-# Ad-hoc generated DOCX files in repo root
-/*.docx
-
-# Default review criteria template; ignore accidental extra DOCX files nearby
-resources/review_criteria/*.docx
-!resources/review_criteria/criteria.docx
 
 # Local tool/editor state
 .claude/
@@ -64,31 +75,34 @@ resources/review_criteria/*.docx
 .idea/
 .codegraph/
 
-# Old or external app folders if not part of this repo
-frontend/
-uploads/
-src/
-api/
-api_review_test/
-results/
-.tmp_patents/
-.tmp_compare/
-project_experience/
-project_intro/
-packages/
-scripts/*
-!scripts/manage_users.py
+# Generated or external root-level app/build folders
+/frontend/
+/src/
+/api/
+/packages/
+/project_experience/
+/project_intro/
+
+# Large local archives/images
+*.tar
+*.tar.gz
+*.zip
+*.rar
+image.tar
+
+# Ad-hoc local notes and generated files
+/PLAN.md
+/DEPLOYMENT.md
+/results.docx
+
+# Chinese local material folders
 专利材料/
 专利文件/
 相关合同智能体系列文件/
 docker 运行所需文件_v.1.0/
 docker 运行所需文件_v.2.0/
 docker 运行所需文件_v.3.0/
-docker 运行所需文件.zip
-docker 运行所需文件_v.2.0.rar
-docker 运行所需文件_v.3.0.rar
-image.tar
-results.docx
 
 # Keep placeholder files when needed
 !docs/**/.gitkeep
+!logs/**/.gitkeep

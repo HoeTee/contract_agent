@@ -1,46 +1,96 @@
 .git
-.venv
-venv
-env
-.wheel-venv
-__pycache__
-*.pyc
-*.pyo
-*.pyd
+.gitignore
+.dockerignore
 
+# Secrets and local config
 .env
 .env.local
 .env.*.local
 users.json
+
+# Local user/account data
 user_profiles
 
+# Office documents and temporary lock files
+*.doc
+*.docx
+*.docm
+*.dot
+*.dotx
+*.dotm
+*.pdf
+~$*
+~$*.doc*
+.~lock.*#
+*.tmp
+*.bak
+!resources/review_criteria/criteria.docx
+
+# Uploaded documents, generated reports, and runtime data
 data
+uploads
+docs/contracts
+docs/contract_review_criteria
+docs/reports_md
+docs/reports_docx
+docs/reports_pdf
+
+# Runtime logs and indexes
 logs
-results
+*.log
+RAG_persist
+docx_comment_test
+md2pdf_test
 api_review_test
+results
 .tmp_patents
 .tmp_compare
-.cache
-.codegraph
-RAG_persist
 
+# Python caches, environments, and build output
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.egg-info
+dist
+build
+.venv
+venv
+env
+.venv_old
+.wheel-venv
+
+# Model/tokenizer/cache artifacts
 local_tokenizers
+.cache
+*.tiktoken
+
+# Local tool/editor state
+.claude
+.codex
+.vscode
+.idea
+.codegraph
+
+# Generated or external root-level app/build folders
+frontend
+src
+api
+packages
+project_experience
+project_intro
+
+# Large local archives/images
+*.tar
+*.tar.gz
+*.zip
+*.rar
+image.tar
+
+# Chinese local material folders
 专利材料
 专利文件
 相关合同智能体系列文件
 docker 运行所需文件_v.1.0
 docker 运行所需文件_v.2.0
 docker 运行所需文件_v.3.0
-docker 运行所需文件.zip
-docker 运行所需文件_v.2.0.rar
-docker 运行所需文件_*
-*.rar
-*.tar
-image.tar
-results.docx
-
-*.log
-*.tmp
-*.bak
-~$*.docx
-/*.docx
