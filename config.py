@@ -2,82 +2,212 @@
 Central configuration for the contract review workflow.
 """
 
-import os
+from __future__ import annotations
 
+import os
+from pathlib import Path
+from typing import Any
+
+import yaml
 from dotenv import load_dotenv
 
 
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-ENV_PATH = os.path.join(PROJECT_ROOT, ".env")
+PROJECT_ROOT_PATH = Path(__file__).resolve().parent
+PROJECT_ROOT = str(PROJECT_ROOT_PATH)
+ENV_PATH = PROJECT_ROOT_PATH / ".env"
+CONFIG_PATH = PROJECT_ROOT_PATH / "config.yaml"
+
+if not ENV_PATH.exists():
+    raise RuntimeError(f"Missing required .env file: {ENV_PATH}")
+if not CONFIG_PATH.exists():
+    raise RuntimeError(f"Missing required config.yaml file: {CONFIG_PATH}")
+
 load_dotenv(ENV_PATH)
 
-MCP_SERVER_PATH = os.path.join(PROJECT_ROOT, "mcp_service", "mcp_server", "mcp_server.py")
-MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://localhost:8000/mcp")
-DOCS_DIR = os.path.join(PROJECT_ROOT, "docs")
 
-DATA_DIR = os.getenv("DATA_DIR", os.path.join(PROJECT_ROOT, "data"))
-if not os.path.isabs(DATA_DIR):
-    DATA_DIR = os.path.join(PROJECT_ROOT, DATA_DIR)
+def _load_yaml_config() -> dict[str, Any]:
+    with CONFIG_PATH.open("r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    if not isinstance(data, dict):
+        raise RuntimeError("config.yaml must contain a top-level mapping.")
+    return data
 
-DEFAULT_REVIEW_CRITERIA_PATH = os.path.join(PROJECT_ROOT, "resources", "review_criteria", "criteria.docx")
 
-USERS_FILE = os.getenv("USERS_FILE", os.path.join(PROJECT_ROOT, "user_profiles", "users.json"))
-if not os.path.isabs(USERS_FILE):
-    USERS_FILE = os.path.join(PROJECT_ROOT, USERS_FILE)
+CONFIG = _load_yaml_config()
 
-DEFAULT_CLI_USERNAME = os.getenv("DEFAULT_CLI_USERNAME", "default")
-SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY", "change-this-session-secret")
-REPORTS_DIR = os.path.join(PROJECT_ROOT, "reports")
-LOGS_DIR = os.path.join(PROJECT_ROOT, "logs", "workflow")
+
+def cfg(section: str, key: str) -> Any:
+    section_data = CONFIG.get(section)
+    if not isinstance(section_data, dict):
+        raise RuntimeError(f"Missing config.yaml section: {section}")
+    if key not in section_data:
+        raise RuntimeError(f"Missing config.yaml field: {section}.{key}")
+    return section_data[key]
+
+
+def env_required(name: str) -> str:
+    value = os.getenv(name)
+    if value is None or value.strip() == "":
+        raise RuntimeError(f"Missing required .env field: {name}")
+    return value.strip()
 
 
 def env_bool(name: str, default: bool | None) -> bool | None:
     raw = os.getenv(name)
     if raw is None or raw.strip() == "":
         return default
-
-    value = raw.strip().lower()
-    if value in {"1", "true", "yes", "on"}:
-        return True
-    if value in {"0", "false", "no", "off"}:
-        return False
-    raise RuntimeError(f"{name} must be true or false, got {raw!r}.")
+    return _parse_bool(raw, name)
 
 
-ENABLE_WORKFLOW_LOGS = env_bool("ENABLE_WORKFLOW_LOGS", True)
-API_STORE = env_bool("API_STORE", True)
-API_META_REQUIRED = env_bool("API_META_REQUIRED", False)
-API_CALLBACK_ENABLED = env_bool("API_CALLBACK_ENABLED", False)
-DOCX_COMMENT_INCLUDE_CRITERION = env_bool("DOCX_COMMENT_INCLUDE_CRITERION", False)
-LLM_ENABLE_THINKING = env_bool("LLM_ENABLE_THINKING", None)
-PARSE_FILE_WITH_MINERU = env_bool("PARSE_FILE_WITH_MINERU", False)
-MINERU_API_ENABLE_OCR = env_bool("MINERU_API_ENABLE_OCR", True)
+def _parse_bool(value: Any, field_name: str) -> bool | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        raw = value.strip()
+        if raw == "":
+            return None
+        normalized = raw.lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    raise RuntimeError(f"{field_name} must be true or false, got {value!r}.")
 
-API_META_FIELDS = tuple(
-    field.strip()
-    for field in os.getenv("API_META_FIELDS", "templateCode,serialNo").split(",")
-    if field.strip()
+
+def _as_int(value: Any, field_name: str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"{field_name} must be an integer, got {value!r}.") from exc
+
+
+def _as_float(value: Any, field_name: str) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"{field_name} must be a number, got {value!r}.") from exc
+
+
+def _as_str(value: Any, field_name: str) -> str:
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        raise RuntimeError(f"{field_name} must be a string, got {value!r}.")
+    return value.strip()
+
+
+def _as_str_tuple(value: Any, field_name: str) -> tuple[str, ...]:
+    if isinstance(value, str):
+        items = value.split(",")
+    elif isinstance(value, list):
+        items = value
+    else:
+        raise RuntimeError(f"{field_name} must be a string or list, got {value!r}.")
+    result = tuple(str(item).strip() for item in items if str(item).strip())
+    if not result:
+        raise RuntimeError(f"{field_name} must contain at least one value.")
+    return result
+
+
+def _project_path(value: Any, field_name: str) -> str:
+    raw = _as_str(value, field_name)
+    path = Path(raw)
+    if not path.is_absolute():
+        path = PROJECT_ROOT_PATH / path
+    return str(path)
+
+
+MCP_SERVER_PATH = str(PROJECT_ROOT_PATH / "mcp_service" / "mcp_server" / "mcp_server.py")
+MCP_SERVER_URL = "http://localhost:8000/mcp"
+DOCS_DIR = str(PROJECT_ROOT_PATH / "docs")
+DEFAULT_REVIEW_CRITERIA_PATH = str(PROJECT_ROOT_PATH / "resources" / "review_criteria" / "criteria.docx")
+REPORTS_DIR = str(PROJECT_ROOT_PATH / "reports")
+LOGS_DIR = str(PROJECT_ROOT_PATH / "logs" / "workflow")
+
+LLM_API_KEY = env_required("LLM_API_KEY")
+EMBED_API_KEY = env_required("EMBED_API_KEY")
+RERANK_API_KEY = env_required("RERANK_API_KEY")
+MINERU_API_KEY = env_required("MINERU_API_KEY")
+SESSION_SECRET_KEY = env_required("SESSION_SECRET_KEY")
+
+LLM_BASE_URL = _as_str(cfg("llm", "base_url"), "llm.base_url")
+LLM_NAME = _as_str(cfg("llm", "name"), "llm.name").lower()
+LLM_ENABLE_THINKING = _parse_bool(cfg("llm", "enable_thinking"), "llm.enable_thinking")
+MAX_CONTEXT_TOKENS = _as_int(cfg("llm", "max_context_tokens"), "llm.max_context_tokens")
+MAX_RESULT_TOKENS = _as_int(cfg("llm", "max_result_tokens"), "llm.max_result_tokens")
+MAX_TOOL_CALLS = _as_int(cfg("llm", "max_tool_calls"), "llm.max_tool_calls")
+TEMPERATURE = _as_float(cfg("llm", "temperature"), "llm.temperature")
+TOP_P = _as_float(cfg("llm", "top_p"), "llm.top_p")
+SEED = _as_int(cfg("llm", "seed"), "llm.seed")
+
+EMBED_BASE_URL = _as_str(cfg("embedding", "base_url"), "embedding.base_url")
+EMBED_NAME = _as_str(cfg("embedding", "name"), "embedding.name")
+
+RERANK_BASE_URL = _as_str(cfg("rerank", "base_url"), "rerank.base_url")
+RERANK_NAME = _as_str(cfg("rerank", "name"), "rerank.name")
+
+MAX_REFLECTION_ROUNDS = _as_int(
+    cfg("workflow", "max_reflection_rounds"),
+    "workflow.max_reflection_rounds",
 )
-API_CALLBACK_URL = os.getenv("API_CALLBACK_URL", "").strip()
-API_CALLBACK_FILE_FIELD = os.getenv("API_CALLBACK_FILE_FIELD", "file").strip() or "file"
-
-MAX_REFLECTION_ROUNDS = int(os.getenv("MAX_REFLECTION_ROUNDS", "3"))
-MAX_ORCHESTRATOR_CONCURRENCY = int(os.getenv("MAX_ORCHESTRATOR_CONCURRENCY", "8"))
-MAX_API_CONCURRENT_REVIEWS = int(os.getenv("MAX_API_CONCURRENT_REVIEWS", "1"))
-MODEL_CALL_TIMEOUT_SECONDS = float(os.getenv("MODEL_CALL_TIMEOUT_SECONDS", "60"))
-MODEL_CALL_MAX_RETRIES = int(os.getenv("MODEL_CALL_MAX_RETRIES", "5"))
-
-LLM_NAME = os.getenv("LLM_NAME", "qwen-plus").lower()
-
-_LLM_PROFILES = {
-    "qwen-plus": (120_000, 4_000, 25),
-    "deepseek-chat": (128_000, 8_000, 40),
-    "minimax-k2.5": (240_000, 8_000, 40),
-}
-MAX_CONTEXT_TOKENS, MAX_RESULT_TOKENS, MAX_TOOL_CALLS = _LLM_PROFILES.get(
-    LLM_NAME,
-    (128_000, 5_000, 10),
+MAX_ORCHESTRATOR_CONCURRENCY = _as_int(
+    cfg("workflow", "max_orchestrator_concurrency"),
+    "workflow.max_orchestrator_concurrency",
 )
+MAX_API_CONCURRENT_REVIEWS = _as_int(
+    cfg("workflow", "max_api_concurrent_reviews"),
+    "workflow.max_api_concurrent_reviews",
+)
+MODEL_CALL_TIMEOUT_SECONDS = _as_float(
+    cfg("workflow", "model_call_timeout_seconds"),
+    "workflow.model_call_timeout_seconds",
+)
+MODEL_CALL_MAX_RETRIES = _as_int(
+    cfg("workflow", "model_call_max_retries"),
+    "workflow.model_call_max_retries",
+)
+
+CHUNK_SIZE = _as_int(cfg("retrieval", "chunk_size"), "retrieval.chunk_size")
+CHUNK_OVERLAP = _as_int(cfg("retrieval", "chunk_overlap"), "retrieval.chunk_overlap")
+SIMILARITY_TOP_K = _as_int(cfg("retrieval", "similarity_top_k"), "retrieval.similarity_top_k")
+RERANK_TOP_N = _as_int(cfg("retrieval", "rerank_top_n"), "retrieval.rerank_top_n")
+
+PARSE_FILE_WITH_MINERU = _parse_bool(
+    cfg("parser", "parse_file_with_mineru"),
+    "parser.parse_file_with_mineru",
+)
+
+DATA_DIR = _project_path(cfg("storage", "data_dir"), "storage.data_dir")
+USERS_FILE = _project_path(cfg("storage", "users_file"), "storage.users_file")
+DEFAULT_CLI_USERNAME = _as_str(
+    cfg("storage", "default_cli_username"),
+    "storage.default_cli_username",
+)
+
+API_STORE = _parse_bool(cfg("api", "store"), "api.store")
+API_META_REQUIRED = _parse_bool(cfg("api", "meta_required"), "api.meta_required")
+API_META_FIELDS = _as_str_tuple(cfg("api", "meta_fields"), "api.meta_fields")
+API_CALLBACK_ENABLED = _parse_bool(cfg("api", "callback_enabled"), "api.callback_enabled")
+API_CALLBACK_URL = _as_str(cfg("api", "callback_url"), "api.callback_url")
+API_CALLBACK_FILE_FIELD = _as_str(
+    cfg("api", "callback_file_field"),
+    "api.callback_file_field",
+) or "file"
+
+DOCX_COMMENT_INCLUDE_CRITERION = _parse_bool(
+    cfg("docx", "comment_include_criterion"),
+    "docx.comment_include_criterion",
+)
+
+ENABLE_WORKFLOW_LOGS = _parse_bool(
+    cfg("logging", "enable_workflow_logs"),
+    "logging.enable_workflow_logs",
+)
+
+MINERU_API_BASE = _as_str(cfg("mineru", "api_base"), "mineru.api_base").rstrip("/")
+MINERU_API_ENABLE_OCR = True
 
 print("[config] Retrieval mode : LlamaIndex temporary contract RAG (MCP)")
 print(

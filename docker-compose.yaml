@@ -18,6 +18,7 @@ services:
 
     volumes: 
       - ./.env:/app/.env:ro
+      - ./config.yaml:/app/config.yaml:ro
       - ./user_profiles:/app/user_profiles
       - ./data:/app/data
 

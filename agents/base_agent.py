@@ -2,21 +2,25 @@
 Base Agent class — handles LLM communication, tool calling, context
 management, token tracking, and conversation logging.
 """
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import BaseModel
 from openai import AsyncOpenAI, RateLimitError, APITimeoutError, APIConnectionError, InternalServerError, APIStatusError
 from loggers.agent_logger import log_agent_step, log_conversation
 from config import (
+    LLM_API_KEY,
+    LLM_BASE_URL,
     LLM_ENABLE_THINKING,
+    LLM_NAME,
     MAX_TOOL_CALLS,
     MAX_CONTEXT_TOKENS,
     MAX_RESULT_TOKENS,
     MODEL_CALL_TIMEOUT_SECONDS,
     MODEL_CALL_MAX_RETRIES,
+    SEED,
+    TEMPERATURE,
+    TOP_P,
 )
 from web.core.errors import ModelCallError
 import json
-import os
 
 MODEL_API_ERRORS = (
     APITimeoutError,
@@ -27,18 +31,13 @@ MODEL_API_ERRORS = (
 )
 
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-    api_key: str = Field(..., alias="LLM_API_KEY")
-    base_url: str = Field(..., alias="LLM_BASE_URL")
-    model: str = Field(..., alias="LLM_NAME")
-    temperature: float = Field(0.0, alias="TEMPERATURE")
-    top_p: float = Field(0.01, alias="TOP_P")
-    seed: int = Field(42, alias="SEED")
+class Settings(BaseModel):
+    api_key: str = LLM_API_KEY
+    base_url: str = LLM_BASE_URL
+    model: str = LLM_NAME
+    temperature: float = TEMPERATURE
+    top_p: float = TOP_P
+    seed: int = SEED
     enable_thinking: bool | None = LLM_ENABLE_THINKING
 
 

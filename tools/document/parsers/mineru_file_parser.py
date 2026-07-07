@@ -22,7 +22,16 @@ import fitz  # PyMuPDF
 import httpx
 from openai import AsyncOpenAI
 
-from config import MINERU_API_ENABLE_OCR
+from config import (
+    LLM_API_KEY,
+    LLM_BASE_URL,
+    LLM_NAME,
+    MINERU_API_BASE,
+    MINERU_API_ENABLE_OCR,
+    MINERU_API_KEY,
+    TEMPERATURE,
+    TOP_P,
+)
 from tools.document.file_cleaner import clean_docx
 from tools.document.parsers.default_file_parser import DefaultFileParser
 
@@ -76,15 +85,15 @@ def _decode_zip_json(raw: bytes) -> Any:
 
 
 def _get_remote_mineru_api_base() -> str:
-    return os.getenv("MINERU_API_BASE", DEFAULT_REMOTE_MINERU_API_BASE).rstrip("/")
+    return (MINERU_API_BASE or DEFAULT_REMOTE_MINERU_API_BASE).rstrip("/")
 
 
 def _has_remote_mineru_config() -> bool:
-    return bool(os.getenv("MINERU_API_KEY"))
+    return bool(MINERU_API_KEY)
 
 
 def _has_llm_config() -> bool:
-    return bool(os.getenv("API_KEY") and os.getenv("BASE_URL"))
+    return bool(LLM_API_KEY and LLM_BASE_URL)
 
 
 async def _parse_via_remote_mineru_api(
@@ -92,7 +101,7 @@ async def _parse_via_remote_mineru_api(
     include_content_list: bool = False,
     include_middle_json: bool = False,
 ) -> dict[str, Any]:
-    api_key = os.getenv("MINERU_API_KEY")
+    api_key = MINERU_API_KEY
     if not api_key:
         raise RuntimeError("Remote MinerU API key is not configured.")
 
@@ -262,12 +271,12 @@ async def _parse_via_llm_cleanup(pdf_path: str) -> str:
 
     max_chars = _env_int("PDF_PARSE_CHUNK_CHARS", 12000)
     chunks = _chunk_pages(text_pages, max_chars=max_chars)
-    model = os.getenv("PDF_PARSE_MODEL", os.getenv("LLM_NAME", "qwen-plus"))
-    temperature = _env_float("PDF_PARSE_TEMPERATURE", 0.0)
-    top_p = _env_float("PDF_PARSE_TOP_P", 0.01)
+    model = LLM_NAME
+    temperature = TEMPERATURE
+    top_p = TOP_P
     client = AsyncOpenAI(
-        api_key=os.getenv("API_KEY"),
-        base_url=os.getenv("BASE_URL"),
+        api_key=LLM_API_KEY,
+        base_url=LLM_BASE_URL,
     )
 
     system_prompt = (

@@ -1,5 +1,4 @@
 from mcp.server.fastmcp import FastMCP
-from dotenv import load_dotenv
 from contextlib import redirect_stdout
 import json
 import os
@@ -8,37 +7,47 @@ import sys
 # Add project root to path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, PROJECT_ROOT)
-load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 from tools.document.file_parser import FileParser
 from tools.document.report_generator import ReportGenerator
 from tools.retrieval.index_retriever import IndexRetriever
 from loggers.model_event_context import reset_model_event_path, set_model_event_path
-from config import LLM_ENABLE_THINKING, PARSE_FILE_WITH_MINERU
-
-
-API_KEY = os.getenv("LLM_API_KEY")
-BASE_URL = os.getenv("LLM_BASE_URL")
-LLM_NAME = os.getenv("LLM_NAME", "qwen-plus")
+from config import (
+    CHUNK_OVERLAP,
+    CHUNK_SIZE,
+    EMBED_API_KEY,
+    EMBED_BASE_URL,
+    EMBED_NAME,
+    LLM_API_KEY,
+    LLM_BASE_URL,
+    LLM_ENABLE_THINKING,
+    LLM_NAME,
+    PARSE_FILE_WITH_MINERU,
+    RERANK_API_KEY,
+    RERANK_BASE_URL,
+    RERANK_NAME,
+    RERANK_TOP_N,
+    SIMILARITY_TOP_K,
+)
 
 
 mcp = FastMCP("docs-server")
 index_retriever = IndexRetriever(
     project_root=PROJECT_ROOT,
-    llm_api_key=API_KEY,
-    llm_base_url=BASE_URL,
+    llm_api_key=LLM_API_KEY,
+    llm_base_url=LLM_BASE_URL,
     llm_name=LLM_NAME,
     llm_enable_thinking=LLM_ENABLE_THINKING,
-    embed_api_key=os.getenv("EMBED_API_KEY", API_KEY),
-    embed_base_url=os.getenv("EMBED_BASE_URL", BASE_URL),
-    embed_name=os.getenv("EMBED_NAME", "text-embedding-v4"),
-    rerank_api_key=os.getenv("RERANK_API_KEY"),
-    rerank_base_url=os.getenv("RERANK_BASE_URL"),
-    rerank_name=os.getenv("RERANK_NAME"),
-    chunk_size=int(os.getenv("CHUNK_SIZE", "512")),
-    chunk_overlap=int(os.getenv("CHUNK_OVERLAP", "200")),
-    similarity_top_k=int(os.getenv("SIMILARITY_TOP_K", "5")),
-    rerank_top_n=int(os.getenv("RERANK_TOP_N", "3")),
+    embed_api_key=EMBED_API_KEY,
+    embed_base_url=EMBED_BASE_URL,
+    embed_name=EMBED_NAME,
+    rerank_api_key=RERANK_API_KEY,
+    rerank_base_url=RERANK_BASE_URL,
+    rerank_name=RERANK_NAME,
+    chunk_size=CHUNK_SIZE,
+    chunk_overlap=CHUNK_OVERLAP,
+    similarity_top_k=SIMILARITY_TOP_K,
+    rerank_top_n=RERANK_TOP_N,
 )
 index_retriever._get_contract_llamaindex_engine()
 

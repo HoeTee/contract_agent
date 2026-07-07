@@ -6,13 +6,12 @@ from unittest.mock import patch
 
 class EnvBoolTests(unittest.TestCase):
     def setUp(self):
-        os.environ["ENABLE_WORKFLOW_LOGS"] = "True"
         import config
 
         self.config = importlib.reload(config)
 
     def tearDown(self):
-        for name in ["BOOL_TEST", "ENABLE_WORKFLOW_LOGS"]:
+        for name in ["BOOL_TEST"]:
             os.environ.pop(name, None)
 
     def test_env_bool_accepts_case_insensitive_values_and_defaults(self):
@@ -28,14 +27,8 @@ class EnvBoolTests(unittest.TestCase):
         os.environ.pop("BOOL_TEST")
         self.assertTrue(self.config.env_bool("BOOL_TEST", True))
 
-    def test_llm_enable_thinking_is_tri_state(self):
-        os.environ["LLM_ENABLE_THINKING"] = "False"
-        config = importlib.reload(self.config)
-        self.assertFalse(config.LLM_ENABLE_THINKING)
-
-        os.environ["LLM_ENABLE_THINKING"] = ""
-        config = importlib.reload(self.config)
-        self.assertIsNone(config.LLM_ENABLE_THINKING)
+    def test_llm_enable_thinking_comes_from_yaml(self):
+        self.assertFalse(self.config.LLM_ENABLE_THINKING)
 
 
 class LlamaIndexThinkingTests(unittest.TestCase):

@@ -6,17 +6,11 @@ import asyncio
 from pathlib import Path
 import shutil
 
-from dotenv import load_dotenv
-
-from config import DATA_DIR, DEFAULT_CLI_USERNAME, ENV_PATH, MCP_SERVER_PATH
+from config import DATA_DIR, DEFAULT_CLI_USERNAME, MCP_SERVER_PATH
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
 from loggers.resolve_review_task_paths import resolve_review_task_paths
 from main_workflow.main_workflow import ContractReviewWorkflow
 from web.core.document_validation import validate_uploaded_docx
-
-
-load_dotenv(ENV_PATH)
-
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run a local contract review.")

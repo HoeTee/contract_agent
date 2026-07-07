@@ -16,6 +16,7 @@ docker compose up -d
 
 ```text
 .env
+config.yaml
 user_profiles/
 data/
 ```
@@ -25,6 +26,7 @@ data/
 ```yaml
 volumes:
   - ./.env:/app/.env:ro
+  - ./config.yaml:/app/config.yaml:ro
   - ./user_profiles:/app/user_profiles
   - ./data:/app/data
 ```
@@ -49,7 +51,7 @@ user_profiles/users.json
 user_profiles/users.json
 ```
 
-也可以在 `.env` 中继续设置 `USERS_FILE=users.json` 临时兼容旧路径，但新部署推荐使用 `user_profiles/` 目录挂载。
+也可以在 `config.yaml` 中设置 `storage.users_file` 临时兼容旧路径，但新部署推荐使用 `user_profiles/` 目录挂载。
 
 如果要自定义新用户默认审查要点模板，可以挂载单个文件：
 

@@ -1,5 +1,4 @@
 # Secrets and local config
-.env
 .env.local
 .env.*.local
 

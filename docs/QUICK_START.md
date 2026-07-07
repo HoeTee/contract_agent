@@ -131,6 +131,7 @@ Invoke-WebRequest `
 
 ```text
 .env
+config.yaml
 user_profiles/
 data/
 ```
