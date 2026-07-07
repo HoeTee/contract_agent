@@ -1,0 +1,23 @@
+{
+    "status": "issues_found",
+    "issues": [
+        {
+            "issue_id": "2.1",
+            "risk_level": "high",
+            "quoted_text": "",
+            "comment_text": "合同未约定监管账户是否止付，存在资金被擅自划转风险，应明确止付状态及解除条件。"
+        },
+        {
+            "issue_id": "2.2",
+            "risk_level": "high",
+            "quoted_text": "",
+            "comment_text": "合同未约定监管账户是否开通网银，影响资金监管有效性，应明确网银权限范围及限制条款。"
+        },
+        {
+            "issue_id": "2.3",
+            "risk_level": "high",
+            "quoted_text": "",
+            "comment_text": "合同未约定监管账户是否通存通兑，可能导致监管失效，应明确存取款、转账等结算功能限制。"
+        }
+    ]
+}
