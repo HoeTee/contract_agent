@@ -1,6 +1,6 @@
 # 异步 `/api/review` 任务 API 说明
 
-本文说明无 Cookie、直接调用的异步合同审查 API。原同步接口 `POST /api/review` 保留不变。
+本文说明无 Cookie、直接调用的异步合同审查 API。原同步接口 `POST /api/review` 保留不变，并已与异步接口统一使用 `data/api/<task_id>/`、`task.json`、`input/`、`output/` 和 `logs/` 存储结构。
 
 ## 代码目录
 

@@ -21,10 +21,10 @@ data/<username>/logs/<YYYY-MM-DD>/<task_id>/
 无登录 API 审查使用独立日志目录，不写入用户合同、报告和历史记录目录：
 
 ```text
-data/api/<任务目录>/logs/
+data/api/<task_id>/logs/
 ```
 
-`<任务目录>` 由 `loggers/resolve_api_review_paths.py` 生成，格式为 `YYYYMMDD-HHMMSS-xxxx`。直接 API 的完整接口和错误响应说明见 `docs/API_REVIEW_ENDPOINT.md`。
+`<任务目录>` 由 `endpoints/api/task_store.py` 生成，格式为 `YYYYMMDD-HHMMSS-xxxx`。直接 API 的完整接口和错误响应说明见 `docs/API_REVIEW_ENDPOINT.md`。
 
 任务目录按日志来源拆分：
 

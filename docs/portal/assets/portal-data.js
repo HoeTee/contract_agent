@@ -31,7 +31,7 @@ window.DOCS_PORTAL_DATA = {
     {
       icon: "icon-folder",
       title: "落盘分区",
-      text: "API_STORE=True 时写入 data/api/<任务目录>。",
+      text: "写入 data/api/<task_id>。",
     },
     {
       icon: "icon-flow",
@@ -53,19 +53,19 @@ window.DOCS_PORTAL_DATA = {
       group: "API",
       icon: "icon-api",
       md: "API_REVIEW_ENDPOINT.md",
-      summary: "无登录同步审查接口，覆盖输入字段、API_STORE、data/api 目录、日志和 DOCX 响应。",
-      tags: ["API_STORE", "data/api", "DOCX", "logs"],
+      summary: "无登录同步审查接口，覆盖输入字段、data/api 任务目录、日志和 DOCX 响应。",
+      tags: ["data/api", "task.json", "DOCX", "logs"],
       signals: [
         "POST /api/review 使用 multipart/form-data。",
         "templateCode、serialNo 等额外字段从 body 表单字段读取。",
-        "API_STORE=True 时输入、输出和日志保存在 data/api/<任务目录>/。",
+        "输入、输出、task.json 和日志保存在 data/api/<task_id>/。",
         "API_CALLBACK_ENABLED=True 时生成批注 DOCX 后会向外部地址回调。",
       ],
       paths: [
         "endpoints/api/review.py",
         "endpoints/api/callbacks.py",
         "endpoints/runtime/document_validation.py",
-        "loggers/resolve_api_review_paths.py",
+        "endpoints/api/task_store.py",
         "config.py",
         "docs/API_REVIEW_ENDPOINT.md",
       ],
@@ -240,7 +240,7 @@ window.DOCS_PORTAL_DATA = {
       tags: ["api_events", "workflow", "conversation", "mcp"],
       signals: [
         "普通用户任务日志位于 data/<username>/logs/。",
-        "API_STORE=True 时 API 日志位于 data/api/<任务目录>/logs/。",
+        "API 日志位于 data/api/<task_id>/logs/。",
         "agent_steps.jsonl 只有模型调用返回后才会出现。",
       ],
       paths: [

@@ -2,6 +2,26 @@
 
 补充：原同步接口 `POST /api/review` 保留不变；新增异步任务接口为 `POST /api/review/jobs`、`GET /api/review/jobs/{task_id}`、`GET /api/review/jobs/{task_id}/result` 和 `POST /api/review/jobs/{task_id}/cancel`。异步接口、`task.json` 字段和 `data/api/<task_id>/` 存储结构见 `docs/ASYNC_REVIEW_API.md`。
 
+
+当前同步 `POST /api/review` 与异步 `POST /api/review/jobs` 已统一使用同一套任务目录结构：
+
+```text
+data/api/<task_id>/
+  task.json
+  input/
+    <合同原文件名>.docx
+    <审查标准文件名>.docx
+  output/
+    <合同名>_reviewed.docx
+  logs/
+    api_events.jsonl
+    workflow/
+    conversations/
+    mcp/
+```
+
+同步接口仍然会等待 workflow 完成并直接返回 DOCX；区别只是本地落盘目录和日志结构现在与异步任务接口一致。`task.json` 由 `endpoints/api/task_store.py` 读写。
+
 本文说明无登录、同步执行合同审查的 API：
 
 ```text
@@ -14,12 +34,12 @@ POST /api/review
 - `endpoints/api/callbacks.py`：在批注 DOCX 生成后按配置发送外部回调。
 - `endpoints/runtime/document_validation.py`：校验合同 DOCX 和审查要点 DOCX。
 - `endpoints/runtime/filenames.py`：清洗上传文件名并构造批注版 DOCX 展示文件名。
-- `loggers/resolve_api_review_paths.py`：集中生成本次 API 调用的数据目录、日志目录、输入文件路径和输出文件路径。
+- `endpoints/api/task_store.py`：统一生成直接 API 和异步 API 的任务目录、task.json、输入输出目录和日志路径。
 - `main_workflow/main_workflow.py`：执行完整合同审查流程并生成批注版 DOCX。
 
 ## 直接结论
 
-`/api/review` 不使用 `data/default`，也不写入普通用户目录。默认情况下，`API_STORE=True`，每次 API 调用会在 `data/api/` 下创建一个独立任务目录，合同、审查标准、输出批注合同和日志都保存在这个目录中。
+`/api/review` 不使用 `data/default`，也不写入普通用户目录。每次 API 调用会在 `data/api/<task_id>/` 下创建一个独立任务目录，合同、审查标准、输出批注合同、task.json 和日志都保存在这个目录中。
 
 ```text
 data/
@@ -76,7 +96,7 @@ DOCX_COMMENT_INCLUDE_CRITERION=False
 
 | 配置 | 含义 |
 | --- | --- |
-| `API_STORE` | `True` 时输入文件、输出文件和日志持久保存在 `DATA_DIR/api/<任务目录>/`；`False` 时使用临时目录并在响应后清理。 |
+| `API_STORE` | 兼容旧配置；当前直接 API 和异步 API 均固定写入 `DATA_DIR/api/<task_id>/`。 |
 | `API_META_REQUIRED` | 是否要求请求携带 `API_META_FIELDS` 中列出的字符串字段。 |
 | `API_META_FIELDS` | 额外字符串字段名，默认 `templateCode,serialNo`。字段从 `multipart/form-data` body 中读取。 |
 | `API_CALLBACK_ENABLED` | 是否在批注 DOCX 生成后主动向外部地址发送回调请求。 |
@@ -112,14 +132,14 @@ file: UploadFile = File(...)
 3. 将上传合同写入本次 API 任务目录：
 
 ```python
-with paths.stored_contract_path.open("wb") as f:
+with stored_contract_path.open("wb") as f:
     shutil.copyfileobj(file.file, f)
 ```
 
 输出位置示例：
 
 ```text
-data/api/20260610-153012-a1b2/合同原文件名.docx
+data/api/20260610-153012-a1b2/input/合同原文件名.docx
 ```
 
 ### `criteria_file`
@@ -148,7 +168,7 @@ criteria_file: UploadFile | None = File(None)
 核心代码：
 
 ```python
-selected_criteria_path = paths.stored_criteria_path(criteria_filename)
+selected_criteria_path = input_dir(task_id) / criteria_filename
 with selected_criteria_path.open("wb") as f:
     shutil.copyfileobj(criteria_file.file, f)
 validate_uploaded_docx(selected_criteria_path)
@@ -165,7 +185,7 @@ criteria_source = "uploaded"
 核心代码：
 
 ```python
-criteria_snapshot_path = paths.stored_criteria_path(selected_criteria_path.name)
+criteria_snapshot_path = input_dir(task_id) / selected_criteria_path.name
 shutil.copy2(selected_criteria_path, criteria_snapshot_path)
 selected_criteria_path = criteria_snapshot_path
 ```
@@ -196,19 +216,19 @@ curl -X POST "http://127.0.0.1:5000/api/review" \
 workflow 输出的批注版 DOCX 会写入本次 API 任务目录：
 
 ```python
-output_path=str(paths.final_report_path)
+output_path=str(final_report_path)
 ```
 
-路径由 `ResolvedApiReviewPaths.final_report_path` 生成：
+路径由 `endpoints/api/task_store.py` 生成：
 
 ```python
-return self.task_dir / f"{self.safe_contract_stem}_reviewed.docx"
+final_report_path = output_dir(task_id) / response_filename
 ```
 
 示例：
 
 ```text
-data/api/20260610-153012-a1b2/合同原文件名_reviewed.docx
+data/api/20260610-153012-a1b2/output/合同原文件名_reviewed.docx
 ```
 
 HTTP 响应仍直接返回这个 DOCX 文件：
@@ -219,21 +239,21 @@ return FileResponse(
     media_type=DOCX_MEDIA_TYPE,
     filename=response_filename,
     headers={
-        "X-Review-Task-Id": paths.task_id,
-        "X-Review-Log-Path": str(paths.api_events_path),
+        "X-Review-Task-Id": task_id,
+        "X-Review-Log-Path": str(task_api_events_path),
         "X-Review-Criteria-Source": criteria_source,
     },
 )
 ```
 
-注意：响应仍会注册后台清理任务，但只有 `API_STORE=False` 时才会删除临时目录；`API_STORE=True` 时不会删除 `data/api/<任务目录>/`。
+注意：当前直接 API 和异步 API 均固定保留 `data/api/<task_id>/`，用于后续排查、状态查询和结果下载。
 
 ## 日志目录
 
-`API_STORE=True` 时，API 日志不再写入旧的 `data/api_logs/`，而是写入同一个任务目录下的 `logs/`。
+API 日志不再写入旧的 `data/api_logs/`，而是写入同一个任务目录下的 `logs/`。
 
 ```text
-data/api/<任务目录>/logs/
+data/api/<task_id>/logs/
   api_events.jsonl
   workflow/
   conversations/
@@ -266,40 +286,38 @@ def api_events_path(self) -> Path:
 
 ## 路径生成规则
 
-入口：
+`/api/review` 与 `/api/review/jobs` 统一使用 `endpoints/api/task_store.py` 生成路径：
 
-```python
-paths = resolve_api_review_paths(
-    original_filename=filename,
-    data_dir=Path(DATA_DIR),
-)
+```text
+data/api/<task_id>/
+  task.json
+  input/
+  output/
+  logs/
 ```
-
-`resolve_api_review_paths()` 输出 `ResolvedApiReviewPaths`，关键属性如下：
 
 | 属性 | 路径 |
 | --- | --- |
-| `task_dir` | `data/api/<任务目录>/` |
-| `stored_contract_path` | `data/api/<任务目录>/<合同原文件名>.docx` |
-| `stored_criteria_path(name)` | `data/api/<任务目录>/<审查标准原文件名>.docx` |
-| `final_report_path` | `data/api/<任务目录>/<合同名>_reviewed.docx` |
-| `task_log_dir` | `data/api/<任务目录>/logs/` |
-| `api_events_path` | `data/api/<任务目录>/logs/api_events.jsonl` |
-| `workflow_log_dir` | `data/api/<任务目录>/logs/workflow/` |
-| `conversation_log_dir` | `data/api/<任务目录>/logs/conversations/` |
-| `mcp_log_dir` | `data/api/<任务目录>/logs/mcp/` |
+| `task_dir` | `data/api/<task_id>/` |
+| `contract_path` | `data/api/<task_id>/input/<合同原文件名>.docx` |
+| `criteria_path` | `data/api/<task_id>/input/<审查标准文件名>.docx` |
+| `result_path` | `data/api/<task_id>/output/<合同名>_reviewed.docx` |
+| `api_events_path` | `data/api/<task_id>/logs/api_events.jsonl` |
+| `workflow_log_dir` | `data/api/<task_id>/logs/workflow/` |
+| `conversation_log_dir` | `data/api/<task_id>/logs/conversations/` |
+| `mcp_log_dir` | `data/api/<task_id>/logs/mcp/` |
 
 ## Workflow 调用链路
 
-`/api/review` 创建 `ContractReviewWorkflow`：
+`/api/review` 创建 `ContractReviewWorkflow`，日志目录来自 `task_store`：
 
 ```python
 workflow = ContractReviewWorkflow(
     server_script_path=str(MCP_SERVER_PATH),
-    workflow_log_dir=str(paths.workflow_log_dir),
-    conversation_log_dir=str(paths.conversation_log_dir),
-    mcp_log_file=str(paths.mcp_log_dir / "mcp_client.log"),
-    api_events_path=str(paths.api_events_path),
+    workflow_log_dir=str(workflow_log_dir(task_id)),
+    conversation_log_dir=str(conversation_log_dir(task_id)),
+    mcp_log_file=str(mcp_log_dir(task_id) / "mcp_client.log"),
+    api_events_path=str(api_events_path(task_id)),
 )
 ```
 
@@ -307,19 +325,17 @@ workflow = ContractReviewWorkflow(
 
 ```python
 result = await workflow.run(
-    contract_path=str(paths.stored_contract_path),
+    contract_path=str(stored_contract_path),
     criteria_path=str(selected_criteria_path),
-    output_path=str(paths.final_report_path),
+    output_path=str(final_report_path),
 )
 ```
 
-输入和输出含义：
-
 | 参数 | 输入 | 输出 |
 | --- | --- | --- |
-| `contract_path` | 已保存到 `data/api/<任务目录>/` 的合同 DOCX | workflow 读取合同内容 |
-| `criteria_path` | 已保存到 `data/api/<任务目录>/` 的上传或默认审查标准 DOCX | workflow 解析审查标准 |
-| `output_path` | `data/api/<任务目录>/<合同名>_reviewed.docx` | workflow 写入批注版 DOCX |
+| `contract_path` | `data/api/<task_id>/input/<合同原文件名>.docx` | workflow 读取合同内容 |
+| `criteria_path` | `data/api/<task_id>/input/<审查标准文件名>.docx` | workflow 解析审查标准 |
+| `output_path` | `data/api/<task_id>/output/<合同名>_reviewed.docx` | workflow 写入批注版 DOCX |
 
 ## 成功响应
 
@@ -403,7 +419,7 @@ curl.exe -X POST "http://localhost:5000/api/review" `
 
 失败时也会保留已经写入的任务目录，便于排查上传文件、审查标准和日志。
 
-如果 `API_STORE=False`，失败返回前会清理本次临时目录，返回 JSON 中的 `api_events_path` 只表示失败发生前的临时日志路径，不保证响应后仍存在。
+失败响应中的 `api_events_path` 指向 `data/api/<task_id>/logs/api_events.jsonl`，当前会随任务目录保留，便于排查。
 
 ### 失败类型
 
@@ -464,10 +480,10 @@ data/<username>/
 POST /api/review
 ```
 
-它不依赖登录态，不写入 `data/default`，不写入普通用户历史记录；它同步等待 workflow 完成。`API_STORE=True` 时，本次 API 的输入文件、输出文件和日志统一保存在：
+它不依赖登录态，不写入 `data/default`，不写入普通用户历史记录；它同步等待 workflow 完成。本次 API 的输入文件、输出文件、task.json 和日志统一保存在：
 
 ```text
-data/api/<任务目录>/
+data/api/<task_id>/
 ```
 
 ## 调用示例

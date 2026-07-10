@@ -504,14 +504,14 @@ window.DOCS_PORTAL_CONTENT = {
         "`endpoints/api/callbacks.py`：在 `API_CALLBACK_ENABLED=True` 时发送批注 DOCX 和额外字符串字段到外部地址。",
         "`endpoints/runtime/document_validation.py`：校验上传 DOCX 和审查标准 DOCX。",
         "`endpoints/runtime/filenames.py`：清洗上传文件名，避免信任客户端路径。",
-        "`loggers/resolve_api_review_paths.py`：集中生成本次 API 调用的数据目录、日志目录、输入文件路径和输出文件路径。",
+        "`endpoints/api/task_store.py`：统一生成直接 API 和异步 API 的任务目录、task.json、输入输出目录和日志路径。",
         "`main_workflow/main_workflow.py`：执行完整合同审查流程并生成批注版 DOCX。",
       ],
     },
     {
       type: "callout",
       title: "直接结论",
-      text: "`/api/review` 不使用 `data/default`，也不写入普通用户目录。默认 `API_STORE=True`，每次 API 调用会在 `data/api/` 下创建一个独立任务目录，合同、审查标准、输出批注合同和日志都保存在这个目录中。",
+      text: "`/api/review` 不使用 `data/default`，也不写入普通用户目录。每次 API 调用会在 `data/api/<task_id>/` 下创建一个独立任务目录，合同、审查标准、输出批注合同、task.json 和日志都保存在这个目录中。",
     },
     {
       type: "code",
@@ -541,7 +541,7 @@ window.DOCS_PORTAL_CONTENT = {
       type: "table",
       headers: ["变量", "行为"],
       rows: [
-        ["API_STORE", "True 时输入文件、输出文件和日志持久保存在 DATA_DIR/api/<任务目录>/；False 时使用系统临时目录并在响应后清理。"],
+        ["API_STORE", "兼容旧配置；当前直接 API 和异步 API 均固定写入 DATA_DIR/api/<task_id>/。"],
         ["API_META_REQUIRED", "True 时要求请求 body 中必须携带 API_META_FIELDS 列出的字符串字段。"],
         ["API_META_FIELDS", "额外字符串字段名，默认 `templateCode,serialNo`，从 multipart/form-data body 读取，不从请求头读取。"],
         ["API_CALLBACK_ENABLED", "True 时生成批注 DOCX 后、返回响应前，向 API_CALLBACK_URL 主动发送回调。"],
@@ -570,14 +570,14 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "para", text: "`templateCode`、`serialNo` 默认作为普通字符串表单字段传入；是否必填由 `API_META_REQUIRED` 控制，字段名由 `API_META_FIELDS` 控制。" },
 
     { type: "heading", text: "输出文件" },
-    { type: "para", text: "workflow 输出的批注版 DOCX 会写入本次 API 任务目录，路径由 `ResolvedApiReviewPaths.final_report_path` 生成，形如 `data/api/<任务目录>/<合同名>_reviewed.docx`。HTTP 响应直接返回这个 DOCX 文件。" },
+    { type: "para", text: "workflow 输出的批注版 DOCX 会写入本次 API 任务目录，路径由 `endpoints/api/task_store.py` 生成，形如 `data/api/<task_id>/output/<合同名>_reviewed.docx`。HTTP 响应直接返回这个 DOCX 文件。" },
     {
       type: "callout",
-      text: "响应仍会注册后台清理任务，但只有 `API_STORE=False` 时才删除临时目录；`API_STORE=True` 时不会删除 `data/api/<任务目录>/`。",
+      text: "当前直接 API 和异步 API 均固定保留 `data/api/<task_id>/`，用于后续排查、状态查询和结果下载。",
     },
 
     { type: "heading", text: "日志目录" },
-    { type: "para", text: "`API_STORE=True` 时，API 日志不再写入旧的 `data/api_logs/`，而是写入同一个任务目录下的 `logs/`。" },
+    { type: "para", text: "API 日志不再写入旧的 `data/api_logs/`，而是写入同一个任务目录下的 `logs/`。" },
     {
       type: "table",
       headers: ["事件", "含义"],
@@ -639,7 +639,7 @@ window.DOCS_PORTAL_CONTENT = {
         ["调用方", "外部系统、脚本、集成服务", "登录用户浏览器表单"],
         ["失败返回", "直接返回 JSON（task_id / status / message / api_events_path）", "不返回 JSON，写入 session 的 flash_error 后 303 跳回 /work 展示"],
         ["执行方式", "同步等待 workflow 完成", "立即跳转，审查在后台任务中执行"],
-        ["运行目录", "data/api/<任务目录>/", "data/<username>/..."],
+        ["运行目录", "data/api/<task_id>/", "data/<username>/..."],
         ["任务状态", "无（同步返回）", "后端内存字典 review_tasks 按用户名记录"],
       ],
     },
@@ -851,7 +851,7 @@ window.DOCS_PORTAL_CONTENT = {
       type: "callout",
       text: "当前普通用户日志目录名包含 task_id 和合同文件名 stem。合同名过长时，conversations 下文件完整路径可能超过 Windows 路径长度限制。后续应收敛为短目录 `data/<username>/logs/<YYYY-MM-DD>/<task_id>/`，合同名通过 records/review_history.json 读取。",
     },
-    { type: "para", text: "无登录 API 审查使用独立日志目录 `data/api/<任务目录>/logs/`，不写入用户合同、报告和历史记录目录。`<任务目录>` 由 `loggers/resolve_api_review_paths.py` 生成，格式为 `YYYYMMDD-HHMMSS-xxxx`。" },
+    { type: "para", text: "无登录 API 审查使用独立日志目录 `data/api/<task_id>/logs/`，不写入用户合同、报告和历史记录目录。`<任务目录>` 由 `endpoints/api/task_store.py` 生成，格式为 `YYYYMMDD-HHMMSS-xxxx`。" },
     { type: "para", text: "任务目录按日志来源拆分：`workflow/`、`conversations/`、`mcp/`、`api_events.jsonl`。" },
 
     { type: "heading", text: "日志读取与合同名关联" },
