@@ -26,7 +26,7 @@ app.add_middleware(
     https_only=False
 )
 
-app.mount("/static", StaticFiles(directory=str(Path(PROJECT_ROOT) / "web" / "static")), name="static")
+app.mount("/static", StaticFiles(directory=str(Path(PROJECT_ROOT) / "frontend" / "static")), name="static")
 app.include_router(api_router)
 app.include_router(api_jobs_router)
 app.include_router(user_router)

@@ -10,7 +10,7 @@ from config import (
     API_CALLBACK_FILE_FIELD,
     API_CALLBACK_URL,
 )
-from web.core.document_validation import DOCX_MEDIA_TYPE
+from endpoints.runtime.document_validation import DOCX_MEDIA_TYPE
 
 
 async def post_api_review_callback(

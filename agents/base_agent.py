@@ -19,7 +19,7 @@ from config import (
     TEMPERATURE,
     TOP_P,
 )
-from web.core.errors import ModelCallError
+from endpoints.runtime.errors import ModelCallError
 import json
 
 MODEL_API_ERRORS = (

@@ -29,10 +29,10 @@ from endpoints.api.task_store import (
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
 from loggers.api_event_logger import append_api_event
 from main_workflow.main_workflow import ContractReviewWorkflow
-from web.core.document_validation import validate_review_criteria_content, validate_uploaded_docx
-from web.core.errors import ModelCallError
-from web.core.filenames import build_report_display_name, safe_upload_filename
-from web.core.review_runtime import review_semaphore
+from endpoints.runtime.document_validation import validate_review_criteria_content, validate_uploaded_docx
+from endpoints.runtime.errors import ModelCallError
+from endpoints.runtime.filenames import build_report_display_name, safe_upload_filename
+from endpoints.runtime.review_runtime import review_semaphore
 
 
 api_jobs_router = APIRouter()

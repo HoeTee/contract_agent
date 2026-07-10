@@ -11,7 +11,7 @@ user  普通用户
 admin 管理员
 ```
 
-角色定义在 `web/auth.py` 的 `VALID_ROLES` 中，实际值保存在用户账号 JSON 里。
+角色定义在 `endpoints/runtime/auth.py` 的 `VALID_ROLES` 中，实际值保存在用户账号 JSON 里。
 
 前端入口：
 
@@ -32,14 +32,14 @@ admin 管理员
 
 ## 普通用户前端
 
-普通用户界面由 `web/user/routes.py` 提供路由，由 `web/templates/` 下的模板渲染。
+普通用户界面由 `endpoints/web/user_routes.py` 提供路由，由 `frontend/templates/` 下的模板渲染。
 
 ### `/work`
 
 模板：
 
 ```text
-web/templates/index.html
+frontend/templates/index.html
 ```
 
 能力：
@@ -55,7 +55,7 @@ web/templates/index.html
 模板：
 
 ```text
-web/templates/history.html
+frontend/templates/history.html
 ```
 
 展示字段：
@@ -86,7 +86,7 @@ loggers/review_history.py
 模板：
 
 ```text
-web/templates/settings.html
+frontend/templates/settings.html
 ```
 
 当前能力：
@@ -101,21 +101,21 @@ web/templates/settings.html
 管理员后台路由在：
 
 ```text
-web/admin/routes.py
+endpoints/web/admin_routes.py
 ```
 
 后台数据聚合在：
 
 ```text
-web/admin/services.py
+endpoints/web/admin_services.py
 ```
 
 模板：
 
 ```text
-web/templates/admin_dashboard.html
-web/templates/admin_users.html
-web/templates/admin_user_detail.html
+frontend/templates/admin_dashboard.html
+frontend/templates/admin_users.html
+frontend/templates/admin_user_detail.html
 ```
 
 ### `/admin`
@@ -162,7 +162,7 @@ web/templates/admin_user_detail.html
 删除用户有前端二次确认，逻辑在：
 
 ```text
-web/static/app.js
+frontend/static/app.js
 ```
 
 后端保护：
@@ -283,7 +283,7 @@ data/<username>/contract_review_criteria/criteria.docx
 data/<username>/contract_review_criteria/criteria.docx
 ```
 
-审查要点上传前会做 DOCX 格式检查和内容检查。内容检查逻辑在 `web/core/document_validation.py`，目标是拒绝明显不是审查要点的 DOCX。
+审查要点上传前会做 DOCX 格式检查和内容检查。内容检查逻辑在 `endpoints/runtime/document_validation.py`，目标是拒绝明显不是审查要点的 DOCX。
 
 ## 共享用户管理服务
 

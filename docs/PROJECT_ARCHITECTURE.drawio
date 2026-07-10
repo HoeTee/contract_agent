@@ -33,7 +33,7 @@
         <mxCell id="admin_pages" value="管理员页面&lt;br&gt;admin_dashboard / admin_users / admin_user_detail" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;" vertex="1" parent="frontend_group">
           <mxGeometry x="30" y="340" width="290" height="64" as="geometry" />
         </mxCell>
-        <mxCell id="static_assets" value="web/static/app.css&lt;br&gt;web/static/app.js&lt;br&gt;每 10 秒请求 /session/status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;" vertex="1" parent="frontend_group">
+        <mxCell id="static_assets" value="frontend/static/app.css&lt;br&gt;frontend/static/app.js&lt;br&gt;每 10 秒请求 /session/status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;" vertex="1" parent="frontend_group">
           <mxGeometry x="30" y="425" width="290" height="70" as="geometry" />
         </mxCell>
 
@@ -43,13 +43,13 @@
         <mxCell id="fastapi_app" value="app.py&lt;br&gt;FastAPI app + SessionMiddleware&lt;br&gt;/static 静态资源 + /health" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=13;" vertex="1" parent="web_group">
           <mxGeometry x="35" y="48" width="350" height="66" as="geometry" />
         </mxCell>
-        <mxCell id="normal_router" value="web/user/routes.py 普通用户路由&lt;br&gt;/work /review /download /history /settings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
+        <mxCell id="normal_router" value="endpoints/web/user_routes.py 普通用户路由&lt;br&gt;/work /review /download /history /settings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
           <mxGeometry x="35" y="140" width="350" height="64" as="geometry" />
         </mxCell>
-        <mxCell id="api_router" value="web/api/review.py&lt;br&gt;POST /api/review&lt;br&gt;file + criteria_file + meta fields" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
+        <mxCell id="api_router" value="endpoints/api/review.py&lt;br&gt;POST /api/review&lt;br&gt;file + criteria_file + meta fields" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
           <mxGeometry x="35" y="225" width="350" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="admin_router" value="web/admin/routes.py 管理员路由&lt;br&gt;/admin /admin/users /criteria /logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
+        <mxCell id="admin_router" value="endpoints/web/admin_routes.py 管理员路由&lt;br&gt;/admin /admin/users /criteria /logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
           <mxGeometry x="35" y="315" width="350" height="64" as="geometry" />
         </mxCell>
         <mxCell id="task_memory" value="进程内任务状态&lt;br&gt;review_tasks[username]&lt;br&gt;记录运行中 / 完成 / 失败" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;" vertex="1" parent="web_group">
@@ -62,7 +62,7 @@
         <mxCell id="auth_context" value="ctx 多账号上下文&lt;br&gt;session['auth_contexts']&lt;br&gt;同浏览器多 tab 隔离账号" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#7C3AED;" vertex="1" parent="auth_group">
           <mxGeometry x="30" y="48" width="300" height="66" as="geometry" />
         </mxCell>
-        <mxCell id="auth_module" value="web/auth.py&lt;br&gt;load_users / verify_login&lt;br&gt;sync_session_user 强制退出" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#8B5CF6;" vertex="1" parent="auth_group">
+        <mxCell id="auth_module" value="endpoints/runtime/auth.py&lt;br&gt;load_users / verify_login&lt;br&gt;sync_session_user 强制退出" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#8B5CF6;" vertex="1" parent="auth_group">
           <mxGeometry x="30" y="138" width="300" height="68" as="geometry" />
         </mxCell>
         <mxCell id="user_mgmt" value="services/user_management.py&lt;br&gt;创建、更新、删除用户&lt;br&gt;初始化用户目录" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#8B5CF6;" vertex="1" parent="auth_group">

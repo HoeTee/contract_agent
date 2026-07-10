@@ -24,14 +24,14 @@ from loggers.api_event_logger import append_api_event
 from loggers.resolve_api_review_paths import resolve_api_review_paths
 from main_workflow.main_workflow import ContractReviewWorkflow
 from endpoints.api.callbacks import post_api_review_callback
-from web.core.document_validation import (
+from endpoints.runtime.document_validation import (
     DOCX_MEDIA_TYPE,
     validate_review_criteria_content,
     validate_uploaded_docx,
 )
-from web.core.errors import ModelCallError
-from web.core.filenames import build_report_display_name, safe_upload_filename
-from web.core.review_runtime import review_semaphore
+from endpoints.runtime.errors import ModelCallError
+from endpoints.runtime.filenames import build_report_display_name, safe_upload_filename
+from endpoints.runtime.review_runtime import review_semaphore
 
 
 api_router = APIRouter()

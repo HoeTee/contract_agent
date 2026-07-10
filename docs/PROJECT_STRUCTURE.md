@@ -81,31 +81,21 @@ deep_research_agent/
 
 ## HTTP endpoints 目录
 
-- `endpoints/api/review.py`：无登录、同步执行的外部 API 路由，提供 `POST /api/review`。
-- `endpoints/api/review_jobs.py`：无登录、异步执行的外部 API 路由，提供 `POST /api/review/jobs`、`GET /api/review/jobs/{task_id}`、`GET /api/review/jobs/{task_id}/result` 和 `POST /api/review/jobs/{task_id}/cancel`。
-- `endpoints/api/task_store.py`：异步任务状态读写，任务字段信息保存在 `data/api/<task_id>/task.json`。
-- `endpoints/api/callbacks.py`：同步 API 的旧 callback helper；当前异步主流程不依赖 callback。
+- `endpoints/api/review.py`：无 Cookie 同步 API，提供 `POST /api/review`。
+- `endpoints/api/review_jobs.py`：无 Cookie 异步任务 API，提供提交、查询、下载、取消任务节点。
+- `endpoints/api/task_store.py`：读写 `data/api/<task_id>/task.json`。
+- `endpoints/api/callbacks.py`：同步 API 的 callback helper；异步主流程不依赖 callback。
 - `endpoints/web/user_routes.py`：前端用户页面和表单路由，URL 统一以 `/web` 开头。
 - `endpoints/web/admin_routes.py`：管理端页面和表单路由，URL 统一以 `/web/admin` 开头。
 - `endpoints/web/admin_services.py`：管理端展示所需的数据聚合。
+- `endpoints/runtime/`：endpoints 层运行时支撑，包括认证、DOCX 校验、文件名、错误类型和并发控制。
+
+## Frontend 目录
+
+- `frontend/templates/`：HTML 模板。
+- `frontend/static/`：CSS 和前端脚本。
 
 异步 API 的详细设计见 `docs/ASYNC_REVIEW_API.md`。
-
-## Web 目录
-
-- `web/api/review.py`：无登录、同步执行的外部 API 路由，当前提供 `POST /api/review`。
-- `web/api/callbacks.py`：批注 DOCX 生成后的外部回调发送逻辑。
-- `web/user/routes.py`：登录、工作台、上传审查、历史记录、下载和设置等普通用户路由。
-- `web/admin/routes.py`：管理员后台路由，包括用户管理、审查要点管理和日志查看。
-- `web/admin/services.py`：管理员后台展示所需的数据聚合。
-- `web/core/document_validation.py`：DOCX 格式校验和审查要点内容校验。
-- `web/core/filenames.py`：上传文件名清洗、批注文件展示名和任务前缀处理。
-- `web/core/review_runtime.py`：审查并发控制等 Web 层共享运行时对象。
-- `web/core/errors.py`：Web 层模型调用错误类型和分类函数。
-- `web/auth.py`：用户读取、密码哈希、登录校验。
-- `web/routes.py`、`web/api_review_routes.py`、`web/user_review_routes.py`、`web/admin_routes.py`、`web/admin_services.py`、`web/errors.py`、`web/route_helpers.py`：兼容旧 import 的薄封装，不再承载主要实现。
-- `web/templates/`：HTML 模板。
-- `web/static/`：CSS 和前端脚本。
 
 ## 服务模块
 

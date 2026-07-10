@@ -6,7 +6,7 @@ from pathlib import Path
 
 from config import DATA_DIR, USERS_FILE
 from loggers.resolve_review_task_paths import initialize_user_data_dir, safe_path_part
-from web.auth import VALID_ROLES, hash_password, load_users, save_users
+from endpoints.runtime.auth import VALID_ROLES, hash_password, load_users, save_users
 
 
 class UserManagementError(Exception):

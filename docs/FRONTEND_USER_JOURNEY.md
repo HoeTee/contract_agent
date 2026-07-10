@@ -2,7 +2,7 @@
 
 补充：前端用户和管理端路由已统一迁移到 `/web` 前缀，例如 `/web/login`、`/web/work`、`/web/history`、`/web/settings`、`/web/admin`、`/web/admin/users`。外部直接调用的无 Cookie API 统一使用 `/api` 前缀，详见 `docs/ASYNC_REVIEW_API.md`。
 
-本文只描述 Web 前端用户旅程和页面状态，不覆盖 agent 内部审查流程。普通用户页面由 `web/user/routes.py` 提供路由，管理员页面由 `web/admin/routes.py` 提供路由，页面由 `web/templates/` 渲染，交互脚本在 `web/static/app.js`。
+本文只描述 Web 前端用户旅程和页面状态，不覆盖 agent 内部审查流程。普通用户页面由 `endpoints/web/user_routes.py` 提供路由，管理员页面由 `endpoints/web/admin_routes.py` 提供路由，页面由 `frontend/templates/` 渲染，交互脚本在 `frontend/static/app.js`。
 
 ## 页面入口
 
@@ -118,7 +118,7 @@
 
 ## 普通用户工作台旅程
 
-`/work` 是普通用户主页面，对应模板 `web/templates/index.html`。
+`/work` 是普通用户主页面，对应模板 `frontend/templates/index.html`。
 
 ```text
 +------------------+
@@ -252,7 +252,7 @@ Tab B 的 ctx=B 仍然有效
 
 ## 前端自动行为
 
-`web/static/app.js` 负责三个前端自动行为：
+`frontend/static/app.js` 负责三个前端自动行为：
 
 ```text
 行为                         触发条件
@@ -327,23 +327,23 @@ session 检查分支：
 ```text
 用户可见页面                 模板文件
 -------------------------------------------------------
-登录页                       web/templates/login.html
-普通用户工作台                web/templates/index.html
-审核历史                     web/templates/history.html
-用户设置                     web/templates/settings.html
-管理员首页                   web/templates/admin_dashboard.html
-管理员用户列表                web/templates/admin_users.html
-管理员用户详情                web/templates/admin_user_detail.html
+登录页                       frontend/templates/login.html
+普通用户工作台                frontend/templates/index.html
+审核历史                     frontend/templates/history.html
+用户设置                     frontend/templates/settings.html
+管理员首页                   frontend/templates/admin_dashboard.html
+管理员用户列表                frontend/templates/admin_users.html
+管理员用户详情                frontend/templates/admin_user_detail.html
 ```
 
 ```text
 前端相关逻辑                 代码文件
 -------------------------------------------------------
-普通用户路由和页面状态         web/user/routes.py
-管理员路由                   web/admin/routes.py
-登录校验和 session 同步       web/auth.py
-样式                         web/static/app.css
-浏览器交互脚本                web/static/app.js
+普通用户路由和页面状态         endpoints/web/user_routes.py
+管理员路由                   endpoints/web/admin_routes.py
+登录校验和 session 同步       endpoints/runtime/auth.py
+样式                         frontend/static/app.css
+浏览器交互脚本                frontend/static/app.js
 ```
 
 ## 当前产品边界

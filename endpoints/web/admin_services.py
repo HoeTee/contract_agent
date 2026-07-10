@@ -5,7 +5,7 @@ from pathlib import Path
 
 from config import DATA_DIR, USERS_FILE
 from loggers.review_history import format_file_size, format_timestamp, load_history_records
-from web.auth import load_users, normalize_role
+from endpoints.runtime.auth import load_users, normalize_role
 
 
 TASK_FILE_PREFIX_RE = re.compile(r"^\d{8}_\d{6}_[0-9a-f]{8}_")

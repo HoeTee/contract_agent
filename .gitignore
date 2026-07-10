@@ -75,7 +75,6 @@ local_tokenizers/
 .codegraph/
 
 # Generated or external root-level app/build folders
-/frontend/
 /src/
 /api/
 /packages/

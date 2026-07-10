@@ -17,12 +17,12 @@ from endpoints.web.admin_services import (
     list_user_log_tasks,
     list_user_review_history,
 )
-from web.core.document_validation import (
+from endpoints.runtime.document_validation import (
     DOCX_MEDIA_TYPE,
     validate_review_criteria_content,
     validate_uploaded_docx,
 )
-from web.core.filenames import safe_upload_filename
+from endpoints.runtime.filenames import safe_upload_filename
 from endpoints.web.user_routes import ctx_path, get_request_ctx, sync_context_user
 from services.user_management import (
     UserManagementError,
@@ -34,7 +34,7 @@ from services.user_management import (
 )
 
 
-templates = Jinja2Templates(directory=str(Path(PROJECT_ROOT) / "web" / "templates"))
+templates = Jinja2Templates(directory=str(Path(PROJECT_ROOT) / "frontend" / "templates"))
 admin_router = APIRouter(prefix="/web/admin")
 
 

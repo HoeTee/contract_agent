@@ -10,10 +10,10 @@ POST /api/review
 
 对应实现：
 
-- `web/api/review.py`：定义 `POST /api/review`，接收上传、校验 DOCX、调用 workflow、返回 DOCX 或错误 JSON。
-- `web/api/callbacks.py`：在批注 DOCX 生成后按配置发送外部回调。
-- `web/core/document_validation.py`：校验合同 DOCX 和审查要点 DOCX。
-- `web/core/filenames.py`：清洗上传文件名并构造批注版 DOCX 展示文件名。
+- `endpoints/api/review.py`：定义 `POST /api/review`，接收上传、校验 DOCX、调用 workflow、返回 DOCX 或错误 JSON。
+- `endpoints/api/callbacks.py`：在批注 DOCX 生成后按配置发送外部回调。
+- `endpoints/runtime/document_validation.py`：校验合同 DOCX 和审查要点 DOCX。
+- `endpoints/runtime/filenames.py`：清洗上传文件名并构造批注版 DOCX 展示文件名。
 - `loggers/resolve_api_review_paths.py`：集中生成本次 API 调用的数据目录、日志目录、输入文件路径和输出文件路径。
 - `main_workflow/main_workflow.py`：执行完整合同审查流程并生成批注版 DOCX。
 

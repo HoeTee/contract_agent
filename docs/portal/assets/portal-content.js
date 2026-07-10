@@ -500,10 +500,10 @@ window.DOCS_PORTAL_CONTENT = {
     {
       type: "list",
       items: [
-        "`web/api/review.py`：定义 `/api/review` 路由、接收 multipart 请求、保存上传文件、调用 workflow、返回 DOCX 或错误 JSON。",
-        "`web/api/callbacks.py`：在 `API_CALLBACK_ENABLED=True` 时发送批注 DOCX 和额外字符串字段到外部地址。",
-        "`web/core/document_validation.py`：校验上传 DOCX 和审查标准 DOCX。",
-        "`web/core/filenames.py`：清洗上传文件名，避免信任客户端路径。",
+        "`endpoints/api/review.py`：定义 `/api/review` 路由、接收 multipart 请求、保存上传文件、调用 workflow、返回 DOCX 或错误 JSON。",
+        "`endpoints/api/callbacks.py`：在 `API_CALLBACK_ENABLED=True` 时发送批注 DOCX 和额外字符串字段到外部地址。",
+        "`endpoints/runtime/document_validation.py`：校验上传 DOCX 和审查标准 DOCX。",
+        "`endpoints/runtime/filenames.py`：清洗上传文件名，避免信任客户端路径。",
         "`loggers/resolve_api_review_paths.py`：集中生成本次 API 调用的数据目录、日志目录、输入文件路径和输出文件路径。",
         "`main_workflow/main_workflow.py`：执行完整合同审查流程并生成批注版 DOCX。",
       ],
@@ -698,7 +698,7 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "para", text: "本文是项目用户管理专题文档，覆盖普通用户界面、管理员界面、后端数据、审查要点、CLI 和 Docker 部署落点。前端完整用户旅程、页面状态和多标签页行为见 `FRONTEND_USER_JOURNEY.md`。" },
 
     { type: "heading", text: "角色和入口" },
-    { type: "para", text: "当前系统支持两类角色：`user`（普通用户）和 `admin`（管理员）。角色定义在 `web/auth.py` 的 `VALID_ROLES` 中，实际值保存在用户账号 JSON 里。" },
+    { type: "para", text: "当前系统支持两类角色：`user`（普通用户）和 `admin`（管理员）。角色定义在 `endpoints/runtime/auth.py` 的 `VALID_ROLES` 中，实际值保存在用户账号 JSON 里。" },
     {
       type: "list",
       items: [
@@ -712,14 +712,14 @@ window.DOCS_PORTAL_CONTENT = {
     {
       type: "list",
       items: [
-        "`/work`（`web/templates/index.html`）：上传合同 DOCX、可选上传本次审查要点；不上传则用 `data/<username>/contract_review_criteria/criteria.docx`；审核中禁用提交并定时刷新状态；完成后提供下载入口。",
-        "`/history`（`web/templates/history.html`）：展示输入/输出文件名、大小、时间、审查要点来源和下载入口。数据读取自 `data/<username>/records/review_history.json`（逻辑在 `loggers/review_history.py`），不是扫描目录生成。",
-        "`/settings`（`web/templates/settings.html`）：查看用户名、修改显示名称 `display_name`。显示名称写回账号 JSON，不改变用户目录名。",
+        "`/work`（`frontend/templates/index.html`）：上传合同 DOCX、可选上传本次审查要点；不上传则用 `data/<username>/contract_review_criteria/criteria.docx`；审核中禁用提交并定时刷新状态；完成后提供下载入口。",
+        "`/history`（`frontend/templates/history.html`）：展示输入/输出文件名、大小、时间、审查要点来源和下载入口。数据读取自 `data/<username>/records/review_history.json`（逻辑在 `loggers/review_history.py`），不是扫描目录生成。",
+        "`/settings`（`frontend/templates/settings.html`）：查看用户名、修改显示名称 `display_name`。显示名称写回账号 JSON，不改变用户目录名。",
       ],
     },
 
     { type: "heading", text: "管理员前端" },
-    { type: "para", text: "管理员后台路由在 `web/admin/routes.py`，数据聚合在 `web/admin/services.py`。" },
+    { type: "para", text: "管理员后台路由在 `endpoints/web/admin_routes.py`，数据聚合在 `endpoints/web/admin_services.py`。" },
     {
       type: "list",
       items: [
@@ -805,15 +805,15 @@ window.DOCS_PORTAL_CONTENT = {
     {
       type: "list",
       items: [
-        "`web/api/review.py`：无登录 `/api/review` 同步审查接口。",
-        "`web/api/callbacks.py`：API 回调请求发送逻辑。",
-        "`web/user/routes.py`：登录、工作台、上传审查、历史记录、下载等普通用户 Web 路由。",
-        "`web/admin/routes.py`：管理员后台路由（用户管理、审查要点管理、日志查看）。",
-        "`web/admin/services.py`：管理员后台展示所需的数据聚合。",
-        "`web/core/`：Web 层共享的 DOCX 校验、文件名、运行时和错误处理工具。",
-        "`web/auth.py`：用户读取、密码哈希、登录校验。",
-        "`web/routes.py`、`web/admin_routes.py`、`web/admin_services.py` 等旧文件：兼容旧 import 的薄封装，不再承载主要实现。",
-        "`web/templates/`：HTML 模板；`web/static/`：CSS 和前端脚本。",
+        "`endpoints/api/review.py`：无登录 `/api/review` 同步审查接口。",
+        "`endpoints/api/callbacks.py`：API 回调请求发送逻辑。",
+        "`endpoints/web/user_routes.py`：登录、工作台、上传审查、历史记录、下载等普通用户 Web 路由。",
+        "`endpoints/web/admin_routes.py`：管理员后台路由（用户管理、审查要点管理、日志查看）。",
+        "`endpoints/web/admin_services.py`：管理员后台展示所需的数据聚合。",
+        "`endpoints/runtime/`：Web 层共享的 DOCX 校验、文件名、运行时和错误处理工具。",
+        "`endpoints/runtime/auth.py`：用户读取、密码哈希、登录校验。",
+        "``、``、`` 等旧文件：兼容旧 import 的薄封装，不再承载主要实现。",
+        "`frontend/templates/`：HTML 模板；`frontend/static/`：CSS 和前端脚本。",
       ],
     },
 
@@ -886,7 +886,7 @@ window.DOCS_PORTAL_CONTENT = {
   ],
 
   "frontend-journey": [
-    { type: "para", text: "本文只描述 Web 前端用户旅程和页面状态，不覆盖 agent 内部审查流程。普通用户页面由 `web/user/routes.py` 提供路由，管理员页面由 `web/admin/routes.py` 提供路由，页面由 `web/templates/` 渲染，交互脚本在 `web/static/app.js`。" },
+    { type: "para", text: "本文只描述 Web 前端用户旅程和页面状态，不覆盖 agent 内部审查流程。普通用户页面由 `endpoints/web/user_routes.py` 提供路由，管理员页面由 `endpoints/web/admin_routes.py` 提供路由，页面由 `frontend/templates/` 渲染，交互脚本在 `frontend/static/app.js`。" },
 
     { type: "heading", text: "页面入口" },
     {

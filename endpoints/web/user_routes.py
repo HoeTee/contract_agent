@@ -23,18 +23,18 @@ from loggers.review_history import (
     load_history_records,
 )
 from main_workflow.main_workflow import ContractReviewWorkflow
-from web.auth import find_user, load_users, normalize_role, save_users, verify_login, verify_password
-from web.core.document_validation import (
+from endpoints.runtime.auth import find_user, load_users, normalize_role, save_users, verify_login, verify_password
+from endpoints.runtime.document_validation import (
     DOCX_MEDIA_TYPE,
     validate_review_criteria_content,
     validate_uploaded_docx,
 )
-from web.core.errors import ModelCallError
-from web.core.filenames import build_report_display_name, safe_upload_filename, strip_task_file_prefix
-from web.core.review_runtime import review_semaphore
+from endpoints.runtime.errors import ModelCallError
+from endpoints.runtime.filenames import build_report_display_name, safe_upload_filename, strip_task_file_prefix
+from endpoints.runtime.review_runtime import review_semaphore
 
 
-templates = Jinja2Templates(directory=str(Path(PROJECT_ROOT) / "web" / "templates"))
+templates = Jinja2Templates(directory=str(Path(PROJECT_ROOT) / "frontend" / "templates"))
 user_router = APIRouter()
 review_tasks: dict[str, dict] = {}
 
