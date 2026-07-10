@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
 from config import (
@@ -31,6 +31,7 @@ from endpoints.runtime.document_validation import (
 )
 from endpoints.runtime.errors import ModelCallError
 from endpoints.runtime.filenames import build_report_display_name, safe_upload_filename
+from endpoints.runtime.json_response import pretty_json_response
 from endpoints.runtime.review_runtime import review_semaphore
 
 
@@ -220,14 +221,14 @@ async def api_review(
             detail=exc.detail,
         )
         paths.cleanup_if_temporary()
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
+        return pretty_json_response(
+            {
                 "task_id": paths.task_id,
                 "status": "failed",
                 "message": exc.detail,
                 "api_events_path": str(paths.api_events_path),
             },
+            status_code=exc.status_code,
         )
     except Exception as exc:
         status_code = 503 if isinstance(exc, ModelCallError) else 500
@@ -243,14 +244,14 @@ async def api_review(
             message = "审核失败，请查看任务日志。"
         append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
         paths.cleanup_if_temporary()
-        return JSONResponse(
-            status_code=status_code,
-            content={
+        return pretty_json_response(
+            {
                 "task_id": paths.task_id,
                 "status": "failed",
                 "message": message,
                 "api_events_path": str(paths.api_events_path),
             },
+            status_code=status_code,
         )
     finally:
         await file.close() # 确保上传的合同文件被正确关闭，释放系统资源

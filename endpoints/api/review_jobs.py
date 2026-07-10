@@ -32,6 +32,7 @@ from main_workflow.main_workflow import ContractReviewWorkflow
 from endpoints.runtime.document_validation import validate_review_criteria_content, validate_uploaded_docx
 from endpoints.runtime.errors import ModelCallError
 from endpoints.runtime.filenames import build_report_display_name, safe_upload_filename
+from endpoints.runtime.json_response import pretty_json_response
 from endpoints.runtime.review_runtime import review_semaphore
 
 
@@ -158,14 +159,17 @@ async def submit_review_job(
         meta_fields=meta_fields,
     )
     background_tasks.add_task(run_async_review_job, task_id)
-    return {
-        "task_id": task["task_id"],
-        "status": task["status"],
-        "message": task["message"],
-        "status_url": task["status_url"],
-        "result_url": task["result_url"],
-        "cancel_url": task["cancel_url"],
-    }
+    return pretty_json_response(
+        {
+            "task_id": task["task_id"],
+            "status": task["status"],
+            "message": task["message"],
+            "status_url": task["status_url"],
+            "result_url": task["result_url"],
+            "cancel_url": task["cancel_url"],
+        },
+        status_code=202,
+    )
 
 
 @api_jobs_router.get("/api/review/jobs/{task_id}")
@@ -176,7 +180,7 @@ async def get_review_job(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found.")
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found.")
-    return task
+    return pretty_json_response(task)
 
 
 @api_jobs_router.get("/api/review/jobs/{task_id}/result")
@@ -216,8 +220,10 @@ async def cancel_review_job(task_id: str):
         raise HTTPException(status_code=409, detail="Task is already finished and cannot be cancelled.")
 
     updated = request_cancel(task_id)
-    return {
-        "task_id": updated["task_id"],
-        "status": updated["status"],
-        "message": updated["message"],
-    }
+    return pretty_json_response(
+        {
+            "task_id": updated["task_id"],
+            "status": updated["status"],
+            "message": updated["message"],
+        }
+    )
