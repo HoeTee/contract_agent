@@ -1,5 +1,7 @@
 # 前端用户旅程
 
+补充：前端用户和管理端路由已统一迁移到 `/web` 前缀，例如 `/web/login`、`/web/work`、`/web/history`、`/web/settings`、`/web/admin`、`/web/admin/users`。外部直接调用的无 Cookie API 统一使用 `/api` 前缀，详见 `docs/ASYNC_REVIEW_API.md`。
+
 本文只描述 Web 前端用户旅程和页面状态，不覆盖 agent 内部审查流程。普通用户页面由 `web/user/routes.py` 提供路由，管理员页面由 `web/admin/routes.py` 提供路由，页面由 `web/templates/` 渲染，交互脚本在 `web/static/app.js`。
 
 ## 页面入口

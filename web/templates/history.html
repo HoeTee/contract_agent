@@ -24,9 +24,9 @@
           </div>
         </div>
         <nav class="nav-list">
-          <a class="nav-item" href="/work?ctx={{ ctx }}">上传审核</a>
-          <a class="nav-item active" href="/history?ctx={{ ctx }}">审核历史</a>
-          <a class="nav-item" href="/settings?ctx={{ ctx }}">用户设置</a>
+          <a class="nav-item" href="/web/work?ctx={{ ctx }}">上传审核</a>
+          <a class="nav-item active" href="/web/history?ctx={{ ctx }}">审核历史</a>
+          <a class="nav-item" href="/web/settings?ctx={{ ctx }}">用户设置</a>
         </nav>
       </aside>
 
@@ -41,8 +41,8 @@
               <span>当前用户</span>
               <strong>{{ display_name }} · {{ username }}</strong>
             </div>
-            <a class="secondary-button compact-button user-link-button" href="/work?ctx={{ ctx }}">返回工作台</a>
-            <form method="post" action="/logout?ctx={{ ctx }}" class="user-action-form">
+            <a class="secondary-button compact-button user-link-button" href="/web/work?ctx={{ ctx }}">返回工作台</a>
+            <form method="post" action="/web/logout?ctx={{ ctx }}" class="user-action-form">
               <button type="submit" class="secondary-button compact-button">退出登录</button>
             </form>
           </div>
@@ -80,7 +80,7 @@
                     <td>{{ item.report_display_name or "-" }}</td>
                     <td>{{ item.report_size }}</td>
                     <td>{{ item.report_created_at or "-" }}</td>
-                    <td><a class="table-action" href="/download/{{ item.download_name }}?ctx={{ ctx }}">下载</a></td>
+                    <td><a class="table-action" href="/web/download/{{ item.download_name }}?ctx={{ ctx }}">下载</a></td>
                   </tr>
                   {% else %}
                   <tr><td colspan="8" class="empty-state">暂无审核结果</td></tr>

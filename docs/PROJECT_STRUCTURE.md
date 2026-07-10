@@ -79,6 +79,18 @@ deep_research_agent/
 - `main.py`：本地 CLI 审查入口，按用户分区读取合同和审查要点。
 - `config.py`：集中读取项目路径和环境变量，包括系统默认审查要点路径。
 
+## HTTP endpoints 目录
+
+- `endpoints/api/review.py`：无登录、同步执行的外部 API 路由，提供 `POST /api/review`。
+- `endpoints/api/review_jobs.py`：无登录、异步执行的外部 API 路由，提供 `POST /api/review/jobs`、`GET /api/review/jobs/{task_id}`、`GET /api/review/jobs/{task_id}/result` 和 `POST /api/review/jobs/{task_id}/cancel`。
+- `endpoints/api/task_store.py`：异步任务状态读写，任务字段信息保存在 `data/api/<task_id>/task.json`。
+- `endpoints/api/callbacks.py`：同步 API 的旧 callback helper；当前异步主流程不依赖 callback。
+- `endpoints/web/user_routes.py`：前端用户页面和表单路由，URL 统一以 `/web` 开头。
+- `endpoints/web/admin_routes.py`：管理端页面和表单路由，URL 统一以 `/web/admin` 开头。
+- `endpoints/web/admin_services.py`：管理端展示所需的数据聚合。
+
+异步 API 的详细设计见 `docs/ASYNC_REVIEW_API.md`。
+
 ## Web 目录
 
 - `web/api/review.py`：无登录、同步执行的外部 API 路由，当前提供 `POST /api/review`。

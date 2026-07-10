@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from web.admin.services import (
+from endpoints.web.admin_services import (
     admin_summary,
     get_admin_user,
     get_user_criteria_info,

@@ -40,13 +40,13 @@ if (document.body.dataset.authCheck === "true") {
     try {
       const params = new URLSearchParams(window.location.search);
       const ctx = params.get("ctx");
-      const statusUrl = ctx ? `/session/status?ctx=${encodeURIComponent(ctx)}` : "/session/status";
+      const statusUrl = ctx ? `/web/session/status?ctx=${encodeURIComponent(ctx)}` : "/web/session/status";
       const response = await fetch(statusUrl, {
         cache: "no-store",
         credentials: "same-origin",
       });
       if (response.status === 401) {
-        window.location.replace("/login");
+        window.location.replace("/web/login");
       }
     } catch (error) {
       // Keep the current page usable if the network check itself fails.
