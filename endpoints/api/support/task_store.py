@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
+from fastapi import UploadFile
 from config import API_KEEP_INPUT, API_WRITE_LOGS, DATA_DIR
 from loggers.api_event_logger import append_api_event
 
@@ -25,7 +27,7 @@ def new_task_id() -> str:
 
 
 def validate_task_id(task_id: str) -> str:
-    if not TASK_ID_PATTERN.match(task_id):
+    if not TASK_ID_PATTERN.fullmatch(task_id):
         raise ValueError("invalid task_id")
     return task_id
 
@@ -67,7 +69,7 @@ def api_events_path(task_id: str) -> Path:
 
 
 def runtime_input_dir(task_id: str) -> Path:
-    return task_dir(task_id) / "_runtime_input"
+    return task_dir(task_id) / "runtime_input"
 
 
 def should_write_task_file(kind: str) -> bool:
@@ -80,58 +82,26 @@ def should_write_task_file(kind: str) -> bool:
     raise ValueError(f"Unknown task file kind: {kind}")
 
 
-def task_file_dir(task_id: str, kind: str) -> Path:
-    if kind == "input":
+def task_input_work_dir(task_id: str) -> Path:
+    if should_write_task_file("input"):
         return input_dir(task_id)
-    if kind == "output":
-        return output_dir(task_id)
-    if kind == "logs":
-        return logs_dir(task_id)
-    raise ValueError(f"Unknown task file kind: {kind}")
+    return runtime_input_dir(task_id)
 
 
-def write_task_file(
-    *,
-    task_id: str,
-    kind: str,
-    filename: str,
-    write_fn: Callable[[Path], None],
-    required: bool = False,
-) -> Path | None:
-    if kind == "output":
-        required = True
-    if not required and not should_write_task_file(kind):
-        return None
-
-    target_dir = task_file_dir(task_id, kind)
+def save_task_input_upload(task_id: str, upload_file: UploadFile, filename: str) -> Path:
+    target_dir = task_input_work_dir(task_id)
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / filename
-    write_fn(target_path)
+    with target_path.open("wb") as f:
+        shutil.copyfileobj(upload_file.file, f)
     return target_path
 
 
-def write_task_input_file(
-    *,
-    task_id: str,
-    filename: str,
-    write_fn: Callable[[Path], None],
-) -> Path:
-    if should_write_task_file("input"):
-        path = write_task_file(
-            task_id=task_id,
-            kind="input",
-            filename=filename,
-            write_fn=write_fn,
-            required=True,
-        )
-        if path is None:
-            raise RuntimeError("input file was not written")
-        return path
-
-    target_dir = runtime_input_dir(task_id)
+def save_task_input_copy(task_id: str, source_path: Path, filename: str) -> Path:
+    target_dir = task_input_work_dir(task_id)
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / filename
-    write_fn(target_path)
+    shutil.copy2(source_path, target_path)
     return target_path
 
 
@@ -139,10 +109,7 @@ def cleanup_runtime_input(task_id: str) -> None:
     runtime_dir = runtime_input_dir(task_id)
     if not runtime_dir.exists():
         return
-    for child in runtime_dir.iterdir():
-        if child.is_file():
-            child.unlink()
-    runtime_dir.rmdir()
+    shutil.rmtree(runtime_dir)
 
 
 def task_api_events_path(task_id: str) -> Path | None:
@@ -170,12 +137,11 @@ def task_mcp_log_file(task_id: str) -> Path | None:
 
 
 def write_task_log_event(task_id: str, event: str, **fields: Any) -> Path | None:
-    return write_task_file(
-        task_id=task_id,
-        kind="logs",
-        filename="api_events.jsonl",
-        write_fn=lambda path: append_api_event(path, event, **fields),
-    )
+    if not should_write_task_file("logs"):
+        return None
+    path = api_events_path(task_id)
+    append_api_event(path, event, **fields)
+    return path
 
 
 def ensure_task_dirs(task_id: str) -> None:

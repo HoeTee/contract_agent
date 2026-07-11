@@ -11,8 +11,11 @@ endpoints/
   api/
     review.py          # 同步 POST /api/review
     review_jobs.py     # 异步任务 API
-    task_store.py      # data/api/<task_id>/task.json 读写
-    callbacks.py       # 旧 callback helper，异步主流程不依赖
+    support/
+      task_store.py        # data/api/<task_id>/task.json 读写和文件写入策略
+      review_meta.py       # meta fields 解析
+      review_job_worker.py # 异步审核后台任务
+      callbacks.py         # 旧 callback helper，异步主流程不依赖
   web/
     user_routes.py     # /web 开头的前端用户路由
     admin_routes.py    # /web/admin 开头的管理端路由

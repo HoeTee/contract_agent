@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-import shutil
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
@@ -11,15 +9,17 @@ from config import (
     API_CALLBACK_ENABLED,
     API_CALLBACK_FILE_FIELD,
     API_CALLBACK_URL,
-    API_META_FIELDS,
-    API_META_REQUIRED,
     DEFAULT_REVIEW_CRITERIA_PATH,
     MCP_SERVER_PATH,
 )
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
 from main_workflow.main_workflow import ContractReviewWorkflow
-from endpoints.api.callbacks import post_api_review_callback
-from endpoints.api.task_store import (
+from endpoints.api.support.callbacks import post_api_review_callback
+from endpoints.api.support.review_meta import (
+    build_meta_response_headers,
+    extract_api_meta_fields,
+)
+from endpoints.api.support.task_store import (
     cleanup_runtime_input,
     create_task,
     ensure_task_dirs,
@@ -28,11 +28,12 @@ from endpoints.api.task_store import (
     mark_succeeded,
     new_task_id,
     output_dir,
+    save_task_input_copy,
+    save_task_input_upload,
     task_api_events_path,
     task_conversation_log_dir,
     task_mcp_log_file,
     task_workflow_log_dir,
-    write_task_input_file,
     write_task_log_event,
 )
 from endpoints.runtime.document_validation import (
@@ -47,37 +48,6 @@ from endpoints.runtime.review_runtime import review_semaphore
 
 
 api_router = APIRouter()
-
-
-def _save_upload_file(upload_file: UploadFile, path: Path) -> None:
-    with path.open("wb") as f:
-        shutil.copyfileobj(upload_file.file, f)
-
-
-def _header_name_for_meta_field(field_name: str) -> str:
-    kebab = re.sub(r"(?<!^)(?=[A-Z])", "-", field_name).replace("_", "-").lower()
-    return f"x-{kebab}"
-
-
-async def extract_api_meta_fields(request: Request) -> dict[str, str]:
-    form = await request.form()
-    meta_fields: dict[str, str] = {}
-    missing: list[str] = []
-
-    for field_name in API_META_FIELDS:
-        raw_value = form.get(field_name)
-        value = raw_value.strip() if isinstance(raw_value, str) else ""
-        meta_fields[field_name] = value
-        if API_META_REQUIRED and not value:
-            missing.append(field_name)
-
-    if missing:
-        raise HTTPException(
-            status_code=400,
-            detail=f"缺少必填字符串字段：{', '.join(missing)}",
-        )
-
-    return meta_fields
 
 
 @api_router.post("/api/review")
@@ -125,10 +95,10 @@ async def api_review(
                     status_code=400,
                     detail="审查要点文件格式必须是 DOCX。",
                 )
-            selected_criteria_path = write_task_input_file(
+            selected_criteria_path = save_task_input_upload(
                 task_id=task_id,
+                upload_file=criteria_file,
                 filename=criteria_filename,
-                write_fn=lambda path: _save_upload_file(criteria_file, path),
             )
             validate_uploaded_docx(selected_criteria_path)
             validate_review_criteria_content(selected_criteria_path)
@@ -147,10 +117,10 @@ async def api_review(
             )
         else:
             default_criteria_path = selected_criteria_path
-            criteria_snapshot_path = write_task_input_file(
+            criteria_snapshot_path = save_task_input_copy(
                 task_id=task_id,
+                source_path=default_criteria_path,
                 filename=default_criteria_path.name,
-                write_fn=lambda path: shutil.copy2(default_criteria_path, path),
             )
             selected_criteria_path = criteria_snapshot_path
             write_task_log_event(
@@ -160,10 +130,10 @@ async def api_review(
                 size_bytes=selected_criteria_path.stat().st_size,
             )
 
-        stored_contract_path = write_task_input_file(
+        stored_contract_path = save_task_input_upload(
             task_id=task_id,
+            upload_file=file,
             filename=filename,
-            write_fn=lambda path: _save_upload_file(file, path),
         )
         write_task_log_event(
             task_id,
@@ -207,18 +177,19 @@ async def api_review(
         write_task_log_event(task_id, "review_started", task_id=task_id)
         token = set_conversation_log_dir(task_conversation_log_dir(task_id))
         try:
-            async def run_workflow():
-                return await workflow.run(
+            if review_semaphore is None:
+                result = await workflow.run(
                     contract_path=str(stored_contract_path),
                     criteria_path=str(selected_criteria_path),
                     output_path=str(final_report_path),
                 )
-
-            if review_semaphore is None:
-                result = await run_workflow()
             else:
                 async with review_semaphore:
-                    result = await run_workflow()
+                    result = await workflow.run(
+                        contract_path=str(stored_contract_path),
+                        criteria_path=str(selected_criteria_path),
+                        output_path=str(final_report_path),
+                    )
         finally:
             reset_conversation_log_dir(token)
 
@@ -247,8 +218,7 @@ async def api_review(
         }
         if log_path:
             response_headers["x-review-log-path"] = str(log_path)
-        for field_name, field_value in meta_fields.items():
-            response_headers[_header_name_for_meta_field(field_name)] = field_value
+        response_headers.update(build_meta_response_headers(meta_fields))
         return FileResponse(
             path=output_path,
             media_type=DOCX_MEDIA_TYPE,
