@@ -140,7 +140,7 @@ def write_task_log_event(task_id: str, event: str, **fields: Any) -> Path | None
     if not should_write_task_file("logs"):
         return None
     path = api_events_path(task_id)
-    append_api_event(path, event, **fields)
+    append_api_event(path, event, task_id=task_id, **fields)
     return path
 
 

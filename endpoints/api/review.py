@@ -72,7 +72,6 @@ async def api_review(
         write_task_log_event(
             task_id,
             "api_review_received",
-            task_id=task_id,
             filename=filename,
             meta_fields=meta_fields,
         )
@@ -174,7 +173,7 @@ async def api_review(
         )
 
         mark_running(task_id)
-        write_task_log_event(task_id, "review_started", task_id=task_id)
+        write_task_log_event(task_id, "review_started")
         token = set_conversation_log_dir(task_conversation_log_dir(task_id))
         try:
             if review_semaphore is None:

@@ -82,7 +82,6 @@ async def submit_review_job(
     write_task_log_event(
         task_id,
         "api_review_job_received",
-        task_id=task_id,
         filename=filename,
         meta_fields=meta_fields,
     )

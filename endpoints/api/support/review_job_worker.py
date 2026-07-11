@@ -34,7 +34,7 @@ async def run_async_review_job(task_id: str) -> None:
             return
 
         mark_running(task_id)
-        write_task_log_event(task_id, "review_started", task_id=task_id)
+        write_task_log_event(task_id, "review_started")
 
         workflow = ContractReviewWorkflow(
             server_script_path=str(MCP_SERVER_PATH),
@@ -70,7 +70,7 @@ async def run_async_review_job(task_id: str) -> None:
 
         if is_cancel_requested(task_id):
             mark_cancelled(task_id)
-            write_task_log_event(task_id, "review_cancelled", task_id=task_id)
+            write_task_log_event(task_id, "review_cancelled")
             return
 
         output_path = Path(result["report_docx"])
