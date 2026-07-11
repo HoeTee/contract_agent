@@ -282,13 +282,6 @@ def request_cancel(task_id: str) -> dict[str, Any]:
         task["cancel"]["cancelled_at"] = now_iso()
         return write_task(task)
 
-    if status == "running":
-        task["status"] = "cancelling"
-        task["message"] = "Review job cancellation requested."
-        task["cancel"]["requested"] = True
-        task["cancel"]["requested_at"] = task["cancel"]["requested_at"] or now_iso()
-        return write_task(task)
-
     return task
 
 

@@ -143,6 +143,16 @@ async def cancel_review_job(task_id: str):
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found.")
 
+    if task["status"] == "running":
+        return pretty_json_response(
+            {
+                "task_id": task["task_id"],
+                "status": task["status"],
+                "message": "Review job has already started and cannot be cancelled.",
+            },
+            status_code=409,
+        )
+
     if task["status"] in {"succeeded", "failed", "cancelled"}:
         raise HTTPException(status_code=409, detail="Task is already finished and cannot be cancelled.")
 

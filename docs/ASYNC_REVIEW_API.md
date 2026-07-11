@@ -74,7 +74,6 @@ queued
 running
 succeeded
 failed
-cancelling
 cancelled
 ```
 
@@ -87,7 +86,7 @@ GET /api/review/jobs/{task_id}/result
 行为：
 
 - `succeeded`：返回批注后的 DOCX。
-- `queued`、`running`、`cancelling`：返回 `409`。
+- `queued`、`running`：返回 `409`。
 - `failed`、`cancelled`：返回 `409`。
 - 任务不存在：返回 `404`。
 
@@ -100,10 +99,10 @@ POST /api/review/jobs/{task_id}/cancel
 行为：
 
 - `queued`：直接更新为 `cancelled`。
-- `running`：更新为 `cancelling`，后台任务在检查点停止后更新为 `cancelled`。
+- `running`：返回 `409`，审核已经开始后不支持取消。
 - `succeeded`、`failed`、`cancelled`：返回 `409`。
 
-当前取消是协作式取消，不是强制杀进程。如果 workflow 正在等待模型或外部工具调用，任务会在当前调用返回后的检查点处理取消。
+当前取消只支持尚未开始审核的 queued 任务，不会尝试中断已经进入 workflow 的 running 任务。
 
 ## task.json
 
@@ -188,7 +187,7 @@ POST /api/review/jobs
 
 取消任务
   -> queued: cancelled
-  -> running: cancelling -> cancelled
+  -> running: 409
 ```
 
 异步设计解决的是 HTTP 请求超时和状态可查询问题，不会让实际审核耗时变短。
