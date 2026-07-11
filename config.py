@@ -187,6 +187,8 @@ DEFAULT_CLI_USERNAME = _as_str(
 )
 
 API_STORE = _parse_bool(cfg("api", "store"), "api.store")
+API_KEEP_INPUT = _parse_bool(cfg("api", "keep_input"), "api.keep_input")
+API_WRITE_LOGS = _parse_bool(cfg("api", "write_logs"), "api.write_logs")
 API_META_REQUIRED = _parse_bool(cfg("api", "meta_required"), "api.meta_required")
 API_META_FIELDS = _as_str_tuple(cfg("api", "meta_fields"), "api.meta_fields")
 API_CALLBACK_ENABLED = _parse_bool(cfg("api", "callback_enabled"), "api.callback_enabled")

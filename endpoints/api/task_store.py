@@ -5,9 +5,10 @@ import re
 import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
-from config import DATA_DIR
+from config import API_KEEP_INPUT, API_WRITE_LOGS, DATA_DIR
+from loggers.api_event_logger import append_api_event
 
 
 TASK_ID_PATTERN = re.compile(r"^[0-9]{8}-[0-9]{6}-[a-f0-9]{4}$")
@@ -65,16 +66,132 @@ def api_events_path(task_id: str) -> Path:
     return logs_dir(task_id) / "api_events.jsonl"
 
 
+def runtime_input_dir(task_id: str) -> Path:
+    return task_dir(task_id) / "_runtime_input"
+
+
+def should_write_task_file(kind: str) -> bool:
+    if kind == "input":
+        return bool(API_KEEP_INPUT)
+    if kind == "output":
+        return True
+    if kind == "logs":
+        return bool(API_WRITE_LOGS)
+    raise ValueError(f"Unknown task file kind: {kind}")
+
+
+def task_file_dir(task_id: str, kind: str) -> Path:
+    if kind == "input":
+        return input_dir(task_id)
+    if kind == "output":
+        return output_dir(task_id)
+    if kind == "logs":
+        return logs_dir(task_id)
+    raise ValueError(f"Unknown task file kind: {kind}")
+
+
+def write_task_file(
+    *,
+    task_id: str,
+    kind: str,
+    filename: str,
+    write_fn: Callable[[Path], None],
+    required: bool = False,
+) -> Path | None:
+    if kind == "output":
+        required = True
+    if not required and not should_write_task_file(kind):
+        return None
+
+    target_dir = task_file_dir(task_id, kind)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_path = target_dir / filename
+    write_fn(target_path)
+    return target_path
+
+
+def write_task_input_file(
+    *,
+    task_id: str,
+    filename: str,
+    write_fn: Callable[[Path], None],
+) -> Path:
+    if should_write_task_file("input"):
+        path = write_task_file(
+            task_id=task_id,
+            kind="input",
+            filename=filename,
+            write_fn=write_fn,
+            required=True,
+        )
+        if path is None:
+            raise RuntimeError("input file was not written")
+        return path
+
+    target_dir = runtime_input_dir(task_id)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_path = target_dir / filename
+    write_fn(target_path)
+    return target_path
+
+
+def cleanup_runtime_input(task_id: str) -> None:
+    runtime_dir = runtime_input_dir(task_id)
+    if not runtime_dir.exists():
+        return
+    for child in runtime_dir.iterdir():
+        if child.is_file():
+            child.unlink()
+    runtime_dir.rmdir()
+
+
+def task_api_events_path(task_id: str) -> Path | None:
+    if not should_write_task_file("logs"):
+        return None
+    return api_events_path(task_id)
+
+
+def task_workflow_log_dir(task_id: str) -> Path | None:
+    if not should_write_task_file("logs"):
+        return None
+    return workflow_log_dir(task_id)
+
+
+def task_conversation_log_dir(task_id: str) -> Path | None:
+    if not should_write_task_file("logs"):
+        return None
+    return conversation_log_dir(task_id)
+
+
+def task_mcp_log_file(task_id: str) -> Path | None:
+    if not should_write_task_file("logs"):
+        return None
+    return mcp_log_dir(task_id) / "mcp_client.log"
+
+
+def write_task_log_event(task_id: str, event: str, **fields: Any) -> Path | None:
+    return write_task_file(
+        task_id=task_id,
+        kind="logs",
+        filename="api_events.jsonl",
+        write_fn=lambda path: append_api_event(path, event, **fields),
+    )
+
+
 def ensure_task_dirs(task_id: str) -> None:
-    for path in (
-        task_dir(task_id),
-        input_dir(task_id),
-        output_dir(task_id),
-        workflow_log_dir(task_id),
-        conversation_log_dir(task_id),
-        mcp_log_dir(task_id),
-    ):
-        path.mkdir(parents=True, exist_ok=True)
+    task_dir(task_id).mkdir(parents=True, exist_ok=True)
+    output_dir(task_id).mkdir(parents=True, exist_ok=True)
+
+    if should_write_task_file("input"):
+        input_dir(task_id).mkdir(parents=True, exist_ok=True)
+
+    if should_write_task_file("logs"):
+        for path in (
+            workflow_log_dir(task_id),
+            conversation_log_dir(task_id),
+            mcp_log_dir(task_id),
+        ):
+            path.mkdir(parents=True, exist_ok=True)
 
 
 def write_task(task: dict[str, Any]) -> dict[str, Any]:
@@ -113,6 +230,10 @@ def create_task(
     result_path: Path,
     meta_fields: dict[str, str],
 ) -> dict[str, Any]:
+    task_api_log = task_api_events_path(task_id)
+    task_workflow_log = task_workflow_log_dir(task_id)
+    task_conversation_log = task_conversation_log_dir(task_id)
+    task_mcp_log = task_mcp_log_file(task_id)
     task = {
         "task_id": task_id,
         "status": "queued",
@@ -142,10 +263,10 @@ def create_task(
             "cancelled_at": None,
         },
         "logs": {
-            "api_events_path": str(api_events_path(task_id)),
-            "workflow_log_dir": str(workflow_log_dir(task_id)),
-            "conversation_log_dir": str(conversation_log_dir(task_id)),
-            "mcp_log_dir": str(mcp_log_dir(task_id)),
+            "api_events_path": str(task_api_log) if task_api_log else None,
+            "workflow_log_dir": str(task_workflow_log) if task_workflow_log else None,
+            "conversation_log_dir": str(task_conversation_log) if task_conversation_log else None,
+            "mcp_log_file": str(task_mcp_log) if task_mcp_log else None,
         },
     }
     return write_task(task)

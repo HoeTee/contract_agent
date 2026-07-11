@@ -84,6 +84,8 @@ YYYYMMDD-HHMMSS-xxxx
 
 ```env
 API_STORE=True
+API_KEEP_INPUT=True
+API_WRITE_LOGS=True
 API_META_REQUIRED=False
 API_META_FIELDS=templateCode,serialNo
 API_CALLBACK_ENABLED=False
@@ -97,6 +99,8 @@ DOCX_COMMENT_INCLUDE_CRITERION=False
 | 配置 | 含义 |
 | --- | --- |
 | `API_STORE` | 兼容旧配置；当前直接 API 和异步 API 均固定写入 `DATA_DIR/api/<task_id>/`。 |
+| `API_KEEP_INPUT` / `api.keep_input` | 是否在任务结束后保留 `input/` 下的合同和审查标准文件；关闭时仅使用临时输入文件供 workflow 读取，任务结束后清理。 |
+| `API_WRITE_LOGS` / `api.write_logs` | 是否写入 `logs/` 下的 API 事件、workflow、conversation 和 MCP 日志；关闭时 `task.json.logs.*` 为 `null`。 |
 | `API_META_REQUIRED` | 是否要求请求携带 `API_META_FIELDS` 中列出的字符串字段。 |
 | `API_META_FIELDS` | 额外字符串字段名，默认 `templateCode,serialNo`。字段从 `multipart/form-data` body 中读取。 |
 | `API_CALLBACK_ENABLED` | 是否在批注 DOCX 生成后主动向外部地址发送回调请求。 |
@@ -246,11 +250,11 @@ return FileResponse(
 )
 ```
 
-注意：当前直接 API 和异步 API 均固定保留 `data/api/<task_id>/`，用于后续排查、状态查询和结果下载。
+注意：当前直接 API 和异步 API 均固定保留 `data/api/<task_id>/` 和 `output/`，用于状态查询和结果下载。`input/` 是否保留由 `api.keep_input` 控制，`logs/` 是否写入由 `api.write_logs` 控制。
 
 ## 日志目录
 
-API 日志不再写入旧的 `data/api_logs/`，而是写入同一个任务目录下的 `logs/`。
+API 日志不再写入旧的 `data/api_logs/`。当 `api.write_logs: true` 时，日志写入同一个任务目录下的 `logs/`；当 `api.write_logs: false` 时，不创建这些日志文件，失败响应中的 `api_events_path` 为 `null`。
 
 ```text
 data/api/<task_id>/logs/
@@ -291,21 +295,21 @@ def api_events_path(self) -> Path:
 ```text
 data/api/<task_id>/
   task.json
-  input/
+  input/   # api.keep_input=true 时保留
   output/
-  logs/
+  logs/    # api.write_logs=true 时写入
 ```
 
 | 属性 | 路径 |
 | --- | --- |
 | `task_dir` | `data/api/<task_id>/` |
-| `contract_path` | `data/api/<task_id>/input/<合同原文件名>.docx` |
-| `criteria_path` | `data/api/<task_id>/input/<审查标准文件名>.docx` |
+| `contract_path` | `api.keep_input=true` 时为 `data/api/<task_id>/input/<合同原文件名>.docx`；否则为临时运行输入路径，任务结束后清理 |
+| `criteria_path` | `api.keep_input=true` 时为 `data/api/<task_id>/input/<审查标准文件名>.docx`；否则为临时运行输入路径，任务结束后清理 |
 | `result_path` | `data/api/<task_id>/output/<合同名>_reviewed.docx` |
-| `api_events_path` | `data/api/<task_id>/logs/api_events.jsonl` |
-| `workflow_log_dir` | `data/api/<task_id>/logs/workflow/` |
-| `conversation_log_dir` | `data/api/<task_id>/logs/conversations/` |
-| `mcp_log_dir` | `data/api/<task_id>/logs/mcp/` |
+| `api_events_path` | `api.write_logs=true` 时为 `data/api/<task_id>/logs/api_events.jsonl`；否则为 `null` |
+| `workflow_log_dir` | `api.write_logs=true` 时为 `data/api/<task_id>/logs/workflow/`；否则为 `null` |
+| `conversation_log_dir` | `api.write_logs=true` 时为 `data/api/<task_id>/logs/conversations/`；否则为 `null` |
+| `mcp_log_file` | `api.write_logs=true` 时为 `data/api/<task_id>/logs/mcp/mcp_client.log`；否则为 `null` |
 
 ## Workflow 调用链路
 
@@ -333,8 +337,8 @@ result = await workflow.run(
 
 | 参数 | 输入 | 输出 |
 | --- | --- | --- |
-| `contract_path` | `data/api/<task_id>/input/<合同原文件名>.docx` | workflow 读取合同内容 |
-| `criteria_path` | `data/api/<task_id>/input/<审查标准文件名>.docx` | workflow 解析审查标准 |
+| `contract_path` | 保留输入时为 `data/api/<task_id>/input/<合同原文件名>.docx`，不保留输入时为临时运行输入路径 | workflow 读取合同内容 |
+| `criteria_path` | 保留输入时为 `data/api/<task_id>/input/<审查标准文件名>.docx`，不保留输入时为临时运行输入路径 | workflow 解析审查标准 |
 | `output_path` | `data/api/<task_id>/output/<合同名>_reviewed.docx` | workflow 写入批注版 DOCX |
 
 ## 成功响应
@@ -419,7 +423,7 @@ curl.exe -X POST "http://localhost:5000/api/review" `
 
 失败时也会保留已经写入的任务目录，便于排查上传文件、审查标准和日志。
 
-失败响应中的 `api_events_path` 指向 `data/api/<task_id>/logs/api_events.jsonl`，当前会随任务目录保留，便于排查。
+失败响应中的 `api_events_path` 在 `api.write_logs: true` 时指向 `data/api/<task_id>/logs/api_events.jsonl`；在 `api.write_logs: false` 时为 `null`。
 
 ### 失败类型
 

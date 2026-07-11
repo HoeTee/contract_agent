@@ -40,6 +40,8 @@ storage:
 
 api:
   store: true
+  keep_input: true
+  write_logs: true
   meta_required: false
   meta_fields:
     - "templateCode"

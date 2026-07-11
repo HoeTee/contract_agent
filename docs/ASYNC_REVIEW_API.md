@@ -2,6 +2,8 @@
 
 本文说明无 Cookie、直接调用的异步合同审查 API。原同步接口 `POST /api/review` 保留不变，并已与异步接口统一使用 `data/api/<task_id>/`、`task.json`、`input/`、`output/` 和 `logs/` 存储结构。
 
+补充：`output/` 固定写入本地，因为结果下载依赖它；`input/` 是否保留由 `config.yaml` 的 `api.keep_input` 控制；`logs/` 是否写入由 `config.yaml` 的 `api.write_logs` 控制。
+
 ## 代码目录
 
 ```text

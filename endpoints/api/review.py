@@ -17,22 +17,23 @@ from config import (
     MCP_SERVER_PATH,
 )
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
-from loggers.api_event_logger import append_api_event
 from main_workflow.main_workflow import ContractReviewWorkflow
 from endpoints.api.callbacks import post_api_review_callback
 from endpoints.api.task_store import (
-    api_events_path,
-    conversation_log_dir,
+    cleanup_runtime_input,
     create_task,
     ensure_task_dirs,
-    input_dir,
     mark_failed,
     mark_running,
     mark_succeeded,
-    mcp_log_dir,
     new_task_id,
     output_dir,
-    workflow_log_dir,
+    task_api_events_path,
+    task_conversation_log_dir,
+    task_mcp_log_file,
+    task_workflow_log_dir,
+    write_task_input_file,
+    write_task_log_event,
 )
 from endpoints.runtime.document_validation import (
     DOCX_MEDIA_TYPE,
@@ -46,6 +47,11 @@ from endpoints.runtime.review_runtime import review_semaphore
 
 
 api_router = APIRouter()
+
+
+def _save_upload_file(upload_file: UploadFile, path: Path) -> None:
+    with path.open("wb") as f:
+        shutil.copyfileobj(upload_file.file, f)
 
 
 def _header_name_for_meta_field(field_name: str) -> str:
@@ -82,7 +88,7 @@ async def api_review(
 ):
     filename = safe_upload_filename(file.filename)
     task_id = new_task_id()
-    task_api_events_path = api_events_path(task_id)
+    log_path = task_api_events_path(task_id)
     task_created = False
 
     try:
@@ -93,8 +99,8 @@ async def api_review(
                 status_code=500,
                 detail="API_CALLBACK_ENABLED=True 时必须配置 API_CALLBACK_URL。",
             )
-        append_api_event(
-            task_api_events_path,
+        write_task_log_event(
+            task_id,
             "api_review_received",
             task_id=task_id,
             filename=filename,
@@ -119,14 +125,16 @@ async def api_review(
                     status_code=400,
                     detail="审查要点文件格式必须是 DOCX。",
                 )
-            selected_criteria_path = input_dir(task_id) / criteria_filename
-            with selected_criteria_path.open("wb") as f:
-                shutil.copyfileobj(criteria_file.file, f)
+            selected_criteria_path = write_task_input_file(
+                task_id=task_id,
+                filename=criteria_filename,
+                write_fn=lambda path: _save_upload_file(criteria_file, path),
+            )
             validate_uploaded_docx(selected_criteria_path)
             validate_review_criteria_content(selected_criteria_path)
             criteria_source = "uploaded"
-            append_api_event(
-                task_api_events_path,
+            write_task_log_event(
+                task_id,
                 "criteria_uploaded",
                 original_filename=criteria_filename,
                 file_path=str(selected_criteria_path),
@@ -138,21 +146,27 @@ async def api_review(
                 detail=f"未找到系统默认审查要点文件：{selected_criteria_path}",
             )
         else:
-            criteria_snapshot_path = input_dir(task_id) / selected_criteria_path.name
-            shutil.copy2(selected_criteria_path, criteria_snapshot_path)
+            default_criteria_path = selected_criteria_path
+            criteria_snapshot_path = write_task_input_file(
+                task_id=task_id,
+                filename=default_criteria_path.name,
+                write_fn=lambda path: shutil.copy2(default_criteria_path, path),
+            )
             selected_criteria_path = criteria_snapshot_path
-            append_api_event(
-                task_api_events_path,
+            write_task_log_event(
+                task_id,
                 "criteria_default_saved",
                 file_path=str(selected_criteria_path),
                 size_bytes=selected_criteria_path.stat().st_size,
             )
 
-        stored_contract_path = input_dir(task_id) / filename
-        with stored_contract_path.open("wb") as f:
-            shutil.copyfileobj(file.file, f)
-        append_api_event(
-            task_api_events_path,
+        stored_contract_path = write_task_input_file(
+            task_id=task_id,
+            filename=filename,
+            write_fn=lambda path: _save_upload_file(file, path),
+        )
+        write_task_log_event(
+            task_id,
             "contract_saved",
             file_path=str(stored_contract_path),
             size_bytes=stored_contract_path.stat().st_size,
@@ -175,19 +189,23 @@ async def api_review(
         task_created = True
 
         validate_uploaded_docx(stored_contract_path)
-        append_api_event(task_api_events_path, "docx_validation_passed")
+        write_task_log_event(task_id, "docx_validation_passed")
 
         workflow = ContractReviewWorkflow(
             server_script_path=str(MCP_SERVER_PATH),
-            workflow_log_dir=str(workflow_log_dir(task_id)),
-            conversation_log_dir=str(conversation_log_dir(task_id)),
-            mcp_log_file=str(mcp_log_dir(task_id) / "mcp_client.log"),
-            api_events_path=str(task_api_events_path),
+            workflow_log_dir=(
+                str(task_workflow_log_dir(task_id)) if task_workflow_log_dir(task_id) else None
+            ),
+            conversation_log_dir=(
+                str(task_conversation_log_dir(task_id)) if task_conversation_log_dir(task_id) else None
+            ),
+            mcp_log_file=str(task_mcp_log_file(task_id)) if task_mcp_log_file(task_id) else None,
+            api_events_path=str(log_path) if log_path else None,
         )
 
         mark_running(task_id)
-        append_api_event(task_api_events_path, "review_started", task_id=task_id)
-        token = set_conversation_log_dir(conversation_log_dir(task_id))
+        write_task_log_event(task_id, "review_started", task_id=task_id)
+        token = set_conversation_log_dir(task_conversation_log_dir(task_id))
         try:
             async def run_workflow():
                 return await workflow.run(
@@ -209,14 +227,14 @@ async def api_review(
             raise RuntimeError("未找到输出的 DOCX 文件。")
 
         mark_succeeded(task_id)
-        append_api_event(task_api_events_path, "review_completed", result_file=str(output_path))
+        write_task_log_event(task_id, "review_completed", result_file=str(output_path))
         await post_api_review_callback(
             output_path=output_path,
             response_filename=response_filename,
             meta_fields=meta_fields,
         )
-        append_api_event(
-            task_api_events_path,
+        write_task_log_event(
+            task_id,
             "api_callback_completed",
             enabled=API_CALLBACK_ENABLED,
             url=API_CALLBACK_URL if API_CALLBACK_ENABLED else "",
@@ -225,9 +243,10 @@ async def api_review(
         )
         response_headers = {
             "x-review-task-id": task_id,
-            "x-review-log-path": str(task_api_events_path),
             "x-review-criteria-source": criteria_source,
         }
+        if log_path:
+            response_headers["x-review-log-path"] = str(log_path)
         for field_name, field_value in meta_fields.items():
             response_headers[_header_name_for_meta_field(field_name)] = field_value
         return FileResponse(
@@ -238,8 +257,8 @@ async def api_review(
         )
 
     except HTTPException as exc:
-        append_api_event(
-            task_api_events_path,
+        write_task_log_event(
+            task_id,
             "review_failed",
             status_code=exc.status_code,
             detail=exc.detail,
@@ -251,7 +270,7 @@ async def api_review(
                 "task_id": task_id,
                 "status": "failed",
                 "message": exc.detail,
-                "api_events_path": str(task_api_events_path),
+                "api_events_path": str(log_path) if log_path else None,
             },
             status_code=exc.status_code,
         )
@@ -259,8 +278,8 @@ async def api_review(
         status_code = 503 if isinstance(exc, ModelCallError) else 500
         if isinstance(exc, ModelCallError):
             message = f"审核失败：{exc.user_message}"
-            append_api_event(
-                task_api_events_path,
+            write_task_log_event(
+                task_id,
                 exc.event_type,
                 component=exc.component,
                 error=str(exc),
@@ -273,13 +292,13 @@ async def api_review(
                 code=exc.event_type if isinstance(exc, ModelCallError) else "REVIEW_FAILED",
                 message=message,
             )
-        append_api_event(task_api_events_path, "review_failed", error=repr(exc))
+        write_task_log_event(task_id, "review_failed", error=repr(exc))
         return pretty_json_response(
             {
                 "task_id": task_id,
                 "status": "failed",
                 "message": message,
-                "api_events_path": str(task_api_events_path),
+                "api_events_path": str(log_path) if log_path else None,
             },
             status_code=status_code,
         )
@@ -287,3 +306,4 @@ async def api_review(
         await file.close()
         if criteria_file:
             await criteria_file.close()
+        cleanup_runtime_input(task_id)

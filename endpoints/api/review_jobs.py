@@ -9,25 +9,26 @@ from fastapi.responses import FileResponse
 from config import DEFAULT_REVIEW_CRITERIA_PATH, MCP_SERVER_PATH
 from endpoints.api.review import extract_api_meta_fields
 from endpoints.api.task_store import (
-    api_events_path,
-    conversation_log_dir,
+    cleanup_runtime_input,
     create_task,
     ensure_task_dirs,
-    input_dir,
     is_cancel_requested,
     mark_cancelled,
     mark_failed,
     mark_running,
     mark_succeeded,
-    mcp_log_dir,
     new_task_id,
     output_dir,
     read_task,
     request_cancel,
-    workflow_log_dir,
+    task_api_events_path,
+    task_conversation_log_dir,
+    task_mcp_log_file,
+    task_workflow_log_dir,
+    write_task_input_file,
+    write_task_log_event,
 )
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
-from loggers.api_event_logger import append_api_event
 from main_workflow.main_workflow import ContractReviewWorkflow
 from endpoints.runtime.document_validation import validate_review_criteria_content, validate_uploaded_docx
 from endpoints.runtime.errors import ModelCallError
@@ -37,6 +38,11 @@ from endpoints.runtime.review_runtime import review_semaphore
 
 
 api_jobs_router = APIRouter()
+
+
+def _save_upload_file(upload_file: UploadFile, path: Path) -> None:
+    with path.open("wb") as f:
+        shutil.copyfileobj(upload_file.file, f)
 
 
 async def run_async_review_job(task_id: str) -> None:
@@ -50,17 +56,23 @@ async def run_async_review_job(task_id: str) -> None:
             return
 
         mark_running(task_id)
-        append_api_event(api_events_path(task_id), "review_started", task_id=task_id)
+        write_task_log_event(task_id, "review_started", task_id=task_id)
 
         workflow = ContractReviewWorkflow(
             server_script_path=str(MCP_SERVER_PATH),
-            workflow_log_dir=str(workflow_log_dir(task_id)),
-            conversation_log_dir=str(conversation_log_dir(task_id)),
-            mcp_log_file=str(mcp_log_dir(task_id) / "mcp_client.log"),
-            api_events_path=str(api_events_path(task_id)),
+            workflow_log_dir=(
+                str(task_workflow_log_dir(task_id)) if task_workflow_log_dir(task_id) else None
+            ),
+            conversation_log_dir=(
+                str(task_conversation_log_dir(task_id)) if task_conversation_log_dir(task_id) else None
+            ),
+            mcp_log_file=str(task_mcp_log_file(task_id)) if task_mcp_log_file(task_id) else None,
+            api_events_path=(
+                str(task_api_events_path(task_id)) if task_api_events_path(task_id) else None
+            ),
         )
 
-        token = set_conversation_log_dir(conversation_log_dir(task_id))
+        token = set_conversation_log_dir(task_conversation_log_dir(task_id))
         try:
             async def run_workflow():
                 return await workflow.run(
@@ -79,7 +91,7 @@ async def run_async_review_job(task_id: str) -> None:
 
         if is_cancel_requested(task_id):
             mark_cancelled(task_id)
-            append_api_event(api_events_path(task_id), "review_cancelled", task_id=task_id)
+            write_task_log_event(task_id, "review_cancelled", task_id=task_id)
             return
 
         output_path = Path(result["report_docx"])
@@ -87,11 +99,11 @@ async def run_async_review_job(task_id: str) -> None:
             raise RuntimeError("Output DOCX file was not found.")
 
         mark_succeeded(task_id)
-        append_api_event(api_events_path(task_id), "review_completed", result_file=str(output_path))
+        write_task_log_event(task_id, "review_completed", result_file=str(output_path))
     except Exception as exc:
         if isinstance(exc, ModelCallError):
-            append_api_event(
-                api_events_path(task_id),
+            write_task_log_event(
+                task_id,
                 exc.event_type,
                 component=exc.component,
                 error=str(exc),
@@ -99,7 +111,9 @@ async def run_async_review_job(task_id: str) -> None:
             mark_failed(task_id, code=exc.event_type, message=exc.user_message)
         else:
             mark_failed(task_id, code="REVIEW_FAILED", message="Review failed. Check task logs.")
-        append_api_event(api_events_path(task_id), "review_failed", error=repr(exc))
+        write_task_log_event(task_id, "review_failed", error=repr(exc))
+    finally:
+        cleanup_runtime_input(task_id)
 
 
 @api_jobs_router.post("/api/review/jobs", status_code=202)
@@ -117,9 +131,11 @@ async def submit_review_job(
         raise HTTPException(status_code=400, detail="Contract file must be DOCX.")
 
     meta_fields = await extract_api_meta_fields(request)
-    contract_path = input_dir(task_id) / filename
-    with contract_path.open("wb") as f:
-        shutil.copyfileobj(file.file, f)
+    contract_path = write_task_input_file(
+        task_id=task_id,
+        filename=filename,
+        write_fn=lambda path: _save_upload_file(file, path),
+    )
     validate_uploaded_docx(contract_path)
 
     criteria_source = "default"
@@ -131,9 +147,11 @@ async def submit_review_job(
         criteria_filename = safe_upload_filename(criteria_file.filename)
         if not criteria_filename.lower().endswith(".docx"):
             raise HTTPException(status_code=400, detail="Review criteria file must be DOCX.")
-        selected_criteria_path = input_dir(task_id) / criteria_filename
-        with selected_criteria_path.open("wb") as f:
-            shutil.copyfileobj(criteria_file.file, f)
+        selected_criteria_path = write_task_input_file(
+            task_id=task_id,
+            filename=criteria_filename,
+            write_fn=lambda path: _save_upload_file(criteria_file, path),
+        )
         validate_uploaded_docx(selected_criteria_path)
         validate_review_criteria_content(selected_criteria_path)
         criteria_source = "uploaded"
@@ -151,8 +169,8 @@ async def submit_review_job(
         result_path=result_path,
         meta_fields=meta_fields,
     )
-    append_api_event(
-        api_events_path(task_id),
+    write_task_log_event(
+        task_id,
         "api_review_job_received",
         task_id=task_id,
         filename=filename,

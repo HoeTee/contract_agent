@@ -24,6 +24,8 @@ data/<username>/logs/<YYYY-MM-DD>/<task_id>/
 data/api/<task_id>/logs/
 ```
 
+该目录只在 `config.yaml` 中 `api.write_logs: true` 时写入；关闭时 API 任务不会创建 `api_events.jsonl`、workflow、conversation 和 MCP 日志，`task.json.logs.*` 为 `null`。
+
 `<任务目录>` 由 `endpoints/api/task_store.py` 生成，格式为 `YYYYMMDD-HHMMSS-xxxx`。直接 API 的完整接口和错误响应说明见 `docs/API_REVIEW_ENDPOINT.md`。
 
 任务目录按日志来源拆分：

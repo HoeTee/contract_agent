@@ -344,7 +344,7 @@ class ContractReviewWorkflow:
         if not ENABLE_WORKFLOW_LOGS:
             return None
         if not self.workflow_log_dir:
-            raise ValueError("workflow_log_dir is required when file logging is enabled.")
+            return None
         return save_results_json(results, self.workflow_log_dir)
 
     async def _phase_generate_annotated_docx(
@@ -422,7 +422,7 @@ class ContractReviewWorkflow:
             ],
         }
         if not self.workflow_log_dir:
-            raise ValueError("workflow_log_dir is required when file logging is enabled.")
+            return None
         return save_run_summary_json(summary, self.workflow_log_dir)
 
     def _print_completion_summary(
