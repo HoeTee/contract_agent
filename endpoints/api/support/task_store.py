@@ -176,6 +176,20 @@ def read_task(task_id: str) -> dict[str, Any] | None:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def export_task_result(task: dict[str, Any], output_path: str) -> Path:
+    if not output_path or not output_path.strip():
+        raise ValueError("output_path is required")
+
+    source_path = Path(task["output"]["result_path"])
+    if not source_path.exists():
+        raise FileNotFoundError(source_path)
+
+    target_path = Path(output_path).expanduser()
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source_path, target_path)
+    return target_path
+
+
 def update_task(task_id: str, **updates: Any) -> dict[str, Any]:
     task = read_task(task_id)
     if task is None:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from config import DEFAULT_REVIEW_CRITERIA_PATH
@@ -11,6 +11,7 @@ from endpoints.api.support.review_meta import extract_api_meta_fields
 from endpoints.api.support.task_store import (
     create_task,
     ensure_task_dirs,
+    export_task_result,
     new_task_id,
     output_dir,
     read_task,
@@ -131,6 +132,58 @@ async def download_review_job_result(task_id: str):
         path=result_path,
         filename=task["output"]["result_filename"],
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+
+
+@api_jobs_router.post("/api/review/jobs/{task_id}/result/export")
+async def export_review_job_result(
+    task_id: str,
+    payload: dict | None = Body(None),
+):
+    try:
+        task = read_task(task_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found.")
+
+    status = task["status"]
+    if status != "succeeded":
+        raise HTTPException(status_code=409, detail=f"Task is not finished. Current status: {status}")
+
+    output_path = payload.get("output_path") if isinstance(payload, dict) else None
+    if not isinstance(output_path, str) or not output_path.strip():
+        return pretty_json_response(
+            {
+                "task_id": task_id,
+                "status": "failed",
+                "message": "output_path is required.",
+            },
+            status_code=400,
+        )
+
+    try:
+        exported_path = export_task_result(task, output_path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail="Result file does not exist.")
+    except OSError as exc:
+        return pretty_json_response(
+            {
+                "task_id": task_id,
+                "status": "failed",
+                "message": f"Failed to export result: {exc}",
+                "output_path": output_path,
+            },
+            status_code=500,
+        )
+
+    return pretty_json_response(
+        {
+            "task_id": task_id,
+            "status": task["status"],
+            "message": "Result exported.",
+            "output_path": str(exported_path),
+        }
     )
 
 

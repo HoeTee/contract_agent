@@ -90,6 +90,37 @@ GET /api/review/jobs/{task_id}/result
 - `failed`、`cancelled`：返回 `409`。
 - 任务不存在：返回 `404`。
 
+### 导出结果到服务端路径
+
+```http
+POST /api/review/jobs/{task_id}/result/export
+```
+
+请求 JSON：
+
+```json
+{
+  "output_path": "C:\\Users\\lenovo\\Desktop\\review_result.docx"
+}
+```
+
+行为：
+
+- `succeeded`：把任务结果 DOCX 复制到 `output_path`，返回 JSON。
+- 未传 `output_path` 或为空：返回 `400`。
+- `queued`、`running`：返回 `409`。
+- 结果源文件不存在：返回 `500`。
+
+注意：`output_path` 是服务端机器上的路径。当前本机运行服务时可以写本机路径；Docker 或远端部署时必须写容器或服务器可访问的路径。
+
+curl 示例：
+
+```powershell
+curl.exe -X POST "http://localhost:5000/api/review/jobs/20260711-162355-8245/result/export" `
+  -H "Content-Type: application/json" `
+  -d "{\"output_path\":\"C:\\Users\\lenovo\\Desktop\\review_result.docx\"}"
+```
+
 ### 取消任务
 
 ```http

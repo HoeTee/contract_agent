@@ -1,6 +1,6 @@
 # `/api/review` API 说明
 
-补充：原同步接口 `POST /api/review` 保留不变；新增异步任务接口为 `POST /api/review/jobs`、`GET /api/review/jobs/{task_id}`、`GET /api/review/jobs/{task_id}/result` 和 `POST /api/review/jobs/{task_id}/cancel`。异步接口、`task.json` 字段和 `data/api/<task_id>/` 存储结构见 `docs/ASYNC_REVIEW_API.md`。
+补充：原同步接口 `POST /api/review` 保留不变；新增异步任务接口为 `POST /api/review/jobs`、`GET /api/review/jobs/{task_id}`、`GET /api/review/jobs/{task_id}/result`、`POST /api/review/jobs/{task_id}/result/export` 和 `POST /api/review/jobs/{task_id}/cancel`。异步接口、`task.json` 字段和 `data/api/<task_id>/` 存储结构见 `docs/ASYNC_REVIEW_API.md`。
 
 
 当前同步 `POST /api/review` 与异步 `POST /api/review/jobs` 已统一使用同一套任务目录结构：
