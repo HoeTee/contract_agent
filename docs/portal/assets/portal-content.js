@@ -495,172 +495,82 @@ window.DOCS_PORTAL_CONTENT = {
   ],
 
   "api-review": [
-    { type: "para", text: "本文说明无登录、同步执行合同审查的 API：`POST /api/review`。" },
-    { type: "para", text: "对应实现：" },
+    { type: "para", text: "当前普通 /api 只提供异步任务接口，不再暴露同步 POST /api/review。调用方需要通过 client_id + secret_key 鉴权，任务按 client_id 分区存储。" },
+    { type: "heading", text: "接口边界" },
     {
       type: "list",
       items: [
-        "`endpoints/api/review.py`：定义 `/api/review` 路由、接收 multipart 请求、保存上传文件、调用 workflow、返回 DOCX 或错误 JSON。",
-        "`endpoints/api/callbacks.py`：在 `API_CALLBACK_ENABLED=True` 时发送批注 DOCX 和额外字符串字段到外部地址。",
-        "`endpoints/runtime/document_validation.py`：校验上传 DOCX 和审查标准 DOCX。",
-        "`endpoints/runtime/filenames.py`：清洗上传文件名，避免信任客户端路径。",
-        "`endpoints/api/task_store.py`：统一生成直接 API 和异步 API 的任务目录、task.json、输入输出目录和日志路径。",
-        "`main_workflow/main_workflow.py`：执行完整合同审查流程并生成批注版 DOCX。",
+        "普通 /api 面向外部客户和脚本调用。",
+        "只保留 POST /api/review/jobs、GET /api/review/jobs/{task_id}、POST /api/review/jobs/{task_id}/result、POST /api/review/jobs/{task_id}/cancel。",
+        "不接收 metafields，不 callback。OA callback 后续放入独立 /oa 边界。",
+        "同步 endpoints/api/review.py 文件暂时保留，但 app.py 不再注册它。",
       ],
+    },
+    { type: "heading", text: "API Client 管理" },
+    { type: "para", text: "API client 不写在 config.yaml 中，而是通过脚本管理 user_profiles/api_clients.json。" },
+    {
+      type: "code",
+      text: "python scripts/manage_api_clients.py create --client-id \"某某行社\" --allowed-ip \"127.0.0.1\"\npython scripts/manage_api_clients.py list\npython scripts/manage_api_clients.py list --client-id \"某某行社\"\npython scripts/manage_api_clients.py reset-secret --client-id \"某某行社\"\npython scripts/manage_api_clients.py set-ips --client-id \"某某行社\" --allowed-ip \"127.0.0.1\"\npython scripts/manage_api_clients.py disable --client-id \"某某行社\"\npython scripts/manage_api_clients.py enable --client-id \"某某行社\"",
     },
     {
       type: "callout",
-      title: "直接结论",
-      text: "`/api/review` 不使用 `data/default`，也不写入普通用户目录。每次 API 调用会在 `data/api/<task_id>/` 下创建一个独立任务目录，合同、审查标准、输出批注合同、task.json 和日志都保存在这个目录中。",
+      title: "Secret 只显示一次",
+      text: "create 和 reset-secret 会打印明文 secret，并提示：Store this secret securely. It is shown only once. If lost, reset it. 明文 secret 不落盘，文件中只保存 PBKDF2 secret_hash。",
     },
     {
       type: "code",
-      text: "data/\n  api/\n    20260610-153012-a1b2/\n      合同原文件名.docx\n      审查标准原文件名.docx\n      合同原文件名_reviewed.docx\n      logs/\n        api_events.jsonl\n        workflow/\n        conversations/\n        mcp/\n          mcp_client.log",
+      text: "user_profiles/\n  users.json          # /web 用户\n  api_clients.json    # /api client_id、allowed_ips、enabled、secret_hash",
     },
-    { type: "para", text: "目录名格式为 `YYYYMMDD-HHMMSS-xxxx`，其中 `xxxx` 是短随机后缀，用于避免同一秒多次请求冲突。" },
-
-    { type: "heading", text: "接口分层" },
-    { type: "para", text: "本项目目前同时存在以下 HTTP 路由类型：" },
+    { type: "heading", text: "请求鉴权" },
+    { type: "para", text: "提交任务使用 multipart/form-data，必须包含 client_id 和 secret_key。" },
+    {
+      type: "code",
+      text: "curl.exe -X POST \"http://localhost:5000/api/review/jobs\" `\n  -F \"client_id=某某行社\" `\n  -F \"secret_key=api_xxx\" `\n  -F \"file=@C:\\path\\合同.docx\"",
+    },
+    { type: "para", text: "查询、导出、取消使用 JSON body 传入 client_id 和 secret_key。" },
+    {
+      type: "code",
+      text: "{\n  \"client_id\": \"某某行社\",\n  \"secret_key\": \"api_xxx\"\n}",
+    },
     {
       type: "table",
-      headers: ["类型", "路由", "用途", "调用方", "返回形式"],
+      headers: ["失败情况", "状态码"],
       rows: [
-        ["直接 API", "POST /api/review", "无登录、同步执行合同审查", "外部系统、脚本、集成服务", "成功返回 DOCX；失败返回 JSON"],
-        ["前端审查", "POST /review", "登录用户在 Web 页面提交审查", "浏览器表单", "立即 303 跳回 /work，审查在后台任务中执行"],
-        ["前端状态", "GET /session/status", "前端轮询登录状态和角色", "浏览器 JS", "JSON"],
-        ["前端下载", "GET /download/{filename}", "登录用户下载自己的批注版 DOCX", "浏览器", "DOCX 或 404"],
-        ["前端页面", "GET /login、/work、/settings、/history", "页面渲染", "浏览器", "HTML 或重定向"],
-        ["管理后台", "/admin/...", "用户、审查要点、日志查看管理", "管理员浏览器页面", "HTML、重定向或文件下载"],
+        ["缺少 client_id 或 secret_key", "401"],
+        ["client_id 不存在、禁用或 secret 错误", "401"],
+        ["来源 IP 不在 allowed_ips", "403"],
       ],
     },
-    { type: "para", text: "对外集成时只应使用 `POST /api/review`。`POST /review` 是 Web 前端表单接口，依赖登录态、session、用户目录和后台任务状态，不适合作为外部系统直接调用接口。" },
-
-    { type: "heading", text: ".env 开关" },
-    { type: "code", text: "API_STORE=True\nAPI_META_REQUIRED=False\nAPI_META_FIELDS=templateCode,serialNo\nAPI_CALLBACK_ENABLED=False\nAPI_CALLBACK_URL=\nAPI_CALLBACK_FILE_FIELD=file\nDOCX_COMMENT_INCLUDE_CRITERION=False" },
+    { type: "heading", text: "任务目录" },
     {
-      type: "table",
-      headers: ["变量", "行为"],
-      rows: [
-        ["API_STORE", "兼容旧配置；当前直接 API 和异步 API 均固定写入 DATA_DIR/api/<task_id>/。"],
-        ["API_META_REQUIRED", "True 时要求请求 body 中必须携带 API_META_FIELDS 列出的字符串字段。"],
-        ["API_META_FIELDS", "额外字符串字段名，默认 `templateCode,serialNo`，从 multipart/form-data body 读取，不从请求头读取。"],
-        ["API_CALLBACK_ENABLED", "True 时生成批注 DOCX 后、返回响应前，向 API_CALLBACK_URL 主动发送回调。"],
-        ["API_CALLBACK_URL", "回调目标地址；开启回调时必须配置。"],
-        ["API_CALLBACK_FILE_FIELD", "回调请求中批注 DOCX 的文件字段名，默认 `file`。"],
-        ["DOCX_COMMENT_INCLUDE_CRITERION", "控制逐条 Word 批注是否追加审查要点；只影响 DOCX 输出内容，不是 `/api/review` 请求字段。"],
-      ],
+      type: "code",
+      text: "data/api/clients/<client_dir>/tasks/<task_id>/\n  task.json\n  input/\n  output/\n  logs/",
     },
-    { type: "para", text: "不需要额外配置 API 目录。持久化目录固定使用现有 `DATA_DIR` 下的 `api/` 子目录；目录不存在时会自动创建。" },
-
-    { type: "heading", text: "输入字段" },
-    { type: "para", text: "请求必须使用 `multipart/form-data`。" },
-    { type: "para", text: "`file`（必填，DOCX 文件，待审查合同）。代码入口：" },
-    { type: "code", text: "file: UploadFile = File(...)" },
-    { type: "para", text: "处理链路：" },
+    { type: "para", text: "client_id 是业务身份；client_dir 是由 client_id 生成的安全目录名。task.json 同时记录两者。普通 API 响应不会返回服务端绝对路径，也不会返回 secret_hash。" },
+    { type: "heading", text: "状态流" },
+    {
+      type: "code",
+      text: "POST /api/review/jobs\n  -> 校验 client_id + secret_key + source IP\n  -> 创建 data/api/clients/<client_dir>/tasks/<task_id>/\n  -> 写 task.json: pending\n\n如果并发已满\n  -> task.json: queued\n\n获得执行槽位\n  -> task.json: running\n  -> workflow.run()\n\n完成\n  -> succeeded / failed\n\n取消\n  -> pending: cancelled\n  -> queued: cancelled\n  -> running: 409",
+    },
+    { type: "heading", text: "结果导出" },
+    {
+      type: "code",
+      text: "POST /api/review/jobs/{task_id}/result\nContent-Type: application/json\n\n{\n  \"client_id\": \"某某行社\",\n  \"secret_key\": \"api_xxx\",\n  \"output_path\": \"C:\\\\Users\\\\lenovo\\\\Desktop\\\\review_result.docx\"\n}",
+    },
+    { type: "para", text: "output_path 是服务端机器上的路径。Docker 或远端部署时必须写容器或服务器可访问的路径。" },
+    { type: "heading", text: "相关代码" },
     {
       type: "list",
-      ordered: true,
       items: [
-        "使用 `safe_upload_filename(file.filename)` 清洗上传文件名，只保留文件名，不信任客户端路径。",
-        "校验文件名必须以 `.docx` 结尾。",
-        "将上传合同写入本次 API 任务目录。",
+        "endpoints/api/client_auth.py：读取 body，校验 client_id、secret_key、allowed_ips。",
+        "endpoints/api/review_jobs.py：提交、查询、导出、取消任务。",
+        "services/api_client_management.py：生成 secret，保存和验证 secret_hash。",
+        "scripts/manage_api_clients.py：管理 API client。",
+        "endpoints/review/task_store.py：按 client_dir + task_id 读写 task 数据。",
+        "endpoints/review/job_worker.py：执行后台审查任务。",
       ],
-    },
-    { type: "para", text: "`criteria_file`（可选，DOCX 文件，本次审查专用审查标准）。如果上传了它，会清洗文件名、校验 `.docx`、写入任务目录并保留上传文件名、校验为可读 DOCX、校验内容符合审查标准要求。如果没有上传，则使用系统默认审查标准 `DEFAULT_REVIEW_CRITERIA_PATH`（不存在时返回 404），并复制到任务目录，文件名保持 `criteria.docx`。" },
-    { type: "para", text: "`templateCode`、`serialNo` 默认作为普通字符串表单字段传入；是否必填由 `API_META_REQUIRED` 控制，字段名由 `API_META_FIELDS` 控制。" },
-
-    { type: "heading", text: "输出文件" },
-    { type: "para", text: "workflow 输出的批注版 DOCX 会写入本次 API 任务目录，路径由 `endpoints/api/task_store.py` 生成，形如 `data/api/<task_id>/output/<合同名>_reviewed.docx`。HTTP 响应直接返回这个 DOCX 文件。" },
-    {
-      type: "callout",
-      text: "当前直接 API 和异步 API 均固定保留 `data/api/<task_id>/`，用于后续排查、状态查询和结果下载。",
-    },
-
-    { type: "heading", text: "日志目录" },
-    { type: "para", text: "API 日志不再写入旧的 `data/api_logs/`，而是写入同一个任务目录下的 `logs/`。" },
-    {
-      type: "table",
-      headers: ["事件", "含义"],
-      rows: [
-        ["api_review_received", "收到 API 请求"],
-        ["criteria_uploaded", "本次请求上传了审查标准"],
-        ["criteria_default_saved", "本次请求使用默认审查标准并已复制到任务目录"],
-        ["contract_saved", "合同已保存到任务目录"],
-        ["docx_validation_passed", "合同 DOCX 校验通过"],
-        ["review_started", "workflow 开始运行"],
-        ["review_completed", "workflow 成功生成输出 DOCX"],
-        ["review_failed", "审查失败"],
-      ],
-    },
-
-    { type: "heading", text: "成功响应" },
-    { type: "para", text: "成功时返回 DOCX 文件，响应头包含：" },
-    {
-      type: "table",
-      headers: ["响应头", "含义"],
-      rows: [
-        ["X-Review-Task-Id", "本次 API 审查任务 ID"],
-        ["X-Review-Log-Path", "本次 API 事件日志路径"],
-        ["X-Review-Criteria-Source", "审查标准来源，值为 default 或 uploaded"],
-        ["X-Template-Code", "请求字段 `templateCode` 的回显值；未传时为空字符串"],
-        ["X-Serial-No", "请求字段 `serialNo` 的回显值；未传时为空字符串"],
-      ],
-    },
-    { type: "para", text: "如果 `API_CALLBACK_ENABLED=True`，服务会在批注 DOCX 生成后发送一次 `multipart/form-data` 回调，请求内容包含批注 DOCX 文件字段以及 `templateCode`、`serialNo` 等额外字符串字段。" },
-
-    { type: "heading", text: "失败响应（/api/review 自身）" },
-    { type: "para", text: "本节只描述直接 API `/api/review` 自己的错误模型；它与前端 `/review` 的错误处理完全不同，区别见下一节，不要混在一起看。失败时返回 JSON，不返回 DOCX，并保留已写入的任务目录便于排查：" },
-    {
-      type: "code",
-      text: '{\n  "task_id": "153012_a1b2c3d4",\n  "status": "failed",\n  "message": "错误信息",\n  "api_events_path": "data/api/20260610-153012-a1b2/logs/api_events.jsonl"\n}',
-    },
-    {
-      type: "table",
-      headers: ["HTTP 状态码", "触发条件", "日志事件"],
-      rows: [
-        ["400", "合同文件名不是 .docx / 旧版 .doc / 非有效 DOCX 结构 / criteria_file 非 .docx 或无法解析", "review_failed"],
-        ["400", "`API_META_REQUIRED=True` 且缺少 `API_META_FIELDS` 中的字段", "review_failed"],
-        ["404", "未上传 criteria_file 且系统默认审查标准不存在", "review_failed"],
-        ["422", "请求不是合法 multipart/form-data，或缺少必填字段 file", "FastAPI 进入路由前返回，通常不写入 api_events"],
-        ["503", "Agent、Embedding、Reranker 等模型调用失败（ModelCallError）", "先写具体模型失败事件，再写 review_failed"],
-        ["502", "回调请求失败或对方返回非 2xx 状态", "review_failed"],
-        ["500", "`API_CALLBACK_ENABLED=True` 但未配置 `API_CALLBACK_URL`", "review_failed"],
-        ["500", "workflow、DOCX 生成或其他未分类异常", "review_failed"],
-      ],
-    },
-    { type: "para", text: "`503` 是模型或外部模型服务类失败，可结合 `X-Review-Task-Id`、返回 JSON 的 `task_id`、`api_events_path` 和任务日志定位组件。`500` 表示服务内部未分类异常，应优先查看 `api_events.jsonl`、`workflow/run_summary.json`、`conversations/` 和 `mcp/` 日志。" },
-
-    { type: "heading", text: "与前端 /review 错误处理的区别" },
-    { type: "para", text: "上面的失败模型只适用于直接 API `/api/review`。前端表单路由 `/review` 是另一套错误处理，二者不要混在一起：" },
-    {
-      type: "table",
-      headers: ["对比项", "POST /api/review（直接 API）", "POST /review（前端表单）"],
-      rows: [
-        ["调用方", "外部系统、脚本、集成服务", "登录用户浏览器表单"],
-        ["失败返回", "直接返回 JSON（task_id / status / message / api_events_path）", "不返回 JSON，写入 session 的 flash_error 后 303 跳回 /work 展示"],
-        ["执行方式", "同步等待 workflow 完成", "立即跳转，审查在后台任务中执行"],
-        ["运行目录", "data/api/<task_id>/", "data/<username>/..."],
-        ["任务状态", "无（同步返回）", "后端内存字典 review_tasks 按用户名记录"],
-      ],
-    },
-    {
-      type: "callout",
-      text: "对外集成只用 `POST /api/review` 并读取其 JSON 错误；`/review` 的 flash_error + 303 跳转模型只服务于登录页面，不适合作为外部接口的错误来源。",
-    },
-
-    { type: "heading", text: "调用示例" },
-    { type: "para", text: "PowerShell：" },
-    {
-      type: "code",
-      text: '$form = @{\n  file = Get-Item "C:\\path\\合同A.docx"\n  criteria_file = Get-Item "C:\\path\\本次审查标准.docx"\n  templateCode = "TMP001"\n  serialNo = "SN001"\n}\n\nInvoke-WebRequest `\n  -Uri "http://127.0.0.1:5000/api/review" `\n  -Method Post `\n  -Form $form `\n  -OutFile "合同A_批注版.docx"',
-    },
-    { type: "para", text: "curl（不上传审查标准时省略 criteria_file，服务端会复制系统默认 criteria.docx）：" },
-    {
-      type: "code",
-      text: 'curl -X POST "http://127.0.0.1:5000/api/review" \\\n  -F "file=@/path/to/合同A.docx" \\\n  -F "criteria_file=@/path/to/本次审查标准.docx" \\\n  -F "templateCode=TMP001" \\\n  -F "serialNo=SN001" \\\n  -o "合同A_批注版.docx"',
     },
   ],
-
   deployment: [
     { type: "heading", text: "构建镜像" },
     { type: "code", text: "docker build -t deep-research-agent:latest ." },
@@ -702,9 +612,9 @@ window.DOCS_PORTAL_CONTENT = {
     {
       type: "list",
       items: [
-        "登录成功后，普通用户进入 `/work`。",
-        "管理员进入 `/admin`。",
-        "管理员访问 `/work`、`/history`、`/settings` 会被重定向回 `/admin`。",
+        "登录成功后，普通用户进入 `/web/work`。",
+        "管理员进入 `/web/admin`。",
+        "管理员访问 `/web/work`、`/web/history`、`/web/settings` 会被重定向回 `/web/admin`。",
       ],
     },
 
@@ -712,9 +622,9 @@ window.DOCS_PORTAL_CONTENT = {
     {
       type: "list",
       items: [
-        "`/work`（`frontend/templates/index.html`）：上传合同 DOCX、可选上传本次审查要点；不上传则用 `data/<username>/contract_review_criteria/criteria.docx`；审核中禁用提交并定时刷新状态；完成后提供下载入口。",
-        "`/history`（`frontend/templates/history.html`）：展示输入/输出文件名、大小、时间、审查要点来源和下载入口。数据读取自 `data/<username>/records/review_history.json`（逻辑在 `loggers/review_history.py`），不是扫描目录生成。",
-        "`/settings`（`frontend/templates/settings.html`）：查看用户名、修改显示名称 `display_name`。显示名称写回账号 JSON，不改变用户目录名。",
+        "`/web/work`（`frontend/templates/index.html`）：上传合同 DOCX、可选上传本次审查要点；不上传则用 `data/<username>/contract_review_criteria/criteria.docx`；审核中禁用提交并定时刷新状态；完成后提供下载入口。",
+        "`/web/history`（`frontend/templates/history.html`）：展示输入/输出文件名、大小、时间、审查要点来源和下载入口。数据读取自 `data/<username>/records/review_history.json`（逻辑在 `loggers/review_history.py`），不是扫描目录生成。",
+        "`/web/settings`（`frontend/templates/settings.html`）：查看用户名、修改显示名称 `display_name`。显示名称写回账号 JSON，不改变用户目录名。",
       ],
     },
 
@@ -723,9 +633,9 @@ window.DOCS_PORTAL_CONTENT = {
     {
       type: "list",
       items: [
-        "`/admin`：展示用户总数、管理员数量、禁用用户数量、成功审查数量、最近有审查记录的用户。",
-        "`/admin/users`：创建用户、设初始密码/显示名称/角色，查看全部用户，进入详情。创建用户时会初始化用户数据目录并复制系统默认审查要点。",
-        "`/admin/users/{username}`：改角色、重置密码、启用/禁用/删除用户（可选保留数据目录）、管理默认审查要点、查看该用户历史和日志。",
+        "`/web/admin`：展示用户总数、管理员数量、禁用用户数量、成功审查数量、最近有审查记录的用户。",
+        "`/web/admin/users`：创建用户、设初始密码/显示名称/角色，查看全部用户，进入详情。创建用户时会初始化用户数据目录并复制系统默认审查要点。",
+        "`/web/admin/users/{username}`：改角色、重置密码、启用/禁用/删除用户（可选保留数据目录）、管理默认审查要点、查看该用户历史和日志。",
       ],
     },
     {
@@ -750,7 +660,7 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "para", text: "目录初始化逻辑在 `loggers/resolve_review_task_paths.py`。" },
 
     { type: "heading", text: "审查要点" },
-    { type: "para", text: "系统默认审查要点模板是 `resources/review_criteria/criteria.docx`，新建用户时复制到 `data/<username>/contract_review_criteria/criteria.docx`。普通用户在 `/work` 上传的审查要点只用于本次任务；管理员在用户详情页上传会覆盖该用户默认文件。上传前会做 DOCX 格式检查和内容检查，拒绝明显不是审查要点的 DOCX。" },
+    { type: "para", text: "系统默认审查要点模板是 `resources/review_criteria/criteria.docx`，新建用户时复制到 `data/<username>/contract_review_criteria/criteria.docx`。普通用户在 `/web/work` 上传的审查要点只用于本次任务；管理员在用户详情页上传会覆盖该用户默认文件。上传前会做 DOCX 格式检查和内容检查，拒绝明显不是审查要点的 DOCX。" },
 
     { type: "heading", text: "共享用户管理服务与 CLI" },
     { type: "para", text: "CLI 和管理员 Web 页面共用 `services/user_management.py`：`create_user_account()`、`set_user_role()`、`reset_user_password()`、`set_user_enabled()`、`delete_user_account()`。CLI 文件为 `scripts/manage_users.py`。" },
@@ -763,7 +673,7 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "heading", text: "会话与多标签页上下文 (ctx)" },
     { type: "para", text: "Web 登录态保存在 `contract_review_session` cookie 中。同一浏览器多个标签页共享该 cookie，通过 URL 中的 `ctx` 区分各标签页当前账号；ctx 与账号上下文的映射保存在 session 的 `auth_contexts` 中：" },
     { type: "code", text: "auth_contexts[ctx] = {\n  username,\n  display_name,\n  role,\n}" },
-    { type: "para", text: "页面 URL 带 ctx，例如 `/work?ctx=<ctx>`、`/history?ctx=<ctx>`、`/admin?ctx=<ctx>`。`POST /logout?ctx=<ctx>` 只退出该 ctx，不影响其他标签页。" },
+    { type: "para", text: "页面 URL 带 ctx，例如 `/web/work?ctx=<ctx>`、`/web/history?ctx=<ctx>`、`/web/admin?ctx=<ctx>`。`POST /web/logout?ctx=<ctx>` 只退出该 ctx，不影响其他标签页。" },
 
     { type: "heading", text: "Docker 部署落点" },
     { type: "para", text: "需要区分开发机、远端宿主机、正在运行的服务容器和临时管理容器。仓库默认 `.env.example` 配置 `DATA_DIR=data`、`USERS_FILE=user_profiles/users.json`；compose 挂载后容器内等价于 `/app/data` 和 `/app/user_profiles/users.json`。" },
@@ -785,62 +695,71 @@ window.DOCS_PORTAL_CONTENT = {
   ],
 
   "project-structure": [
-    { type: "para", text: "仓库整体结构：" },
-    {
-      type: "code",
-      text: "deep_research_agent/\n  README.md\n  app.py\n  main.py\n  config.py\n  user_profiles/\n    users.json\n  agents/\n  main_workflow/\n  mcp_service/\n  tools/\n  services/\n    user_management.py\n  scripts/\n    manage_users.py\n  resources/\n    review_criteria/\n      criteria.docx\n  loggers/\n  web/\n    api/\n      review.py\n      callbacks.py\n    user/\n      routes.py\n    admin/\n      routes.py\n      services.py\n    core/\n      document_validation.py\n      filenames.py\n      review_runtime.py\n      errors.py\n    auth.py\n    templates/\n    static/\n  docs/\n  data/\n    <username>/",
-    },
-
+    { type: "para", text: "当前 HTTP 层分为 /api、/web、runtime 和 review support。/oa 是后续单独新增的 OA callback 集成边界。" },
     { type: "heading", text: "入口文件" },
     {
       type: "list",
       items: [
-        "`app.py`：FastAPI Web 服务入口，创建应用、启用 session middleware、挂载静态文件、注册路由。",
-        "`main.py`：本地 CLI 审查入口，按用户分区读取合同和审查要点。",
-        "`config.py`：集中读取项目路径和环境变量，包括系统默认审查要点路径。",
+        "app.py：FastAPI 服务入口，当前注册 /api/review/jobs、/web 用户路由和 /web/admin 管理路由。",
+        "main.py：本地 CLI 审查入口。",
+        "config.py：系统配置、路径和环境变量读取；API client 身份不在 config.py/config.yaml 管理。",
       ],
     },
-
-    { type: "heading", text: "Web 目录" },
+    { type: "heading", text: "HTTP Endpoints" },
+    {
+      type: "table",
+      headers: ["目录", "职责"],
+      rows: [
+        ["endpoints/api/client_auth.py", "普通 /api 请求鉴权，校验 client_id、secret_key 和来源 IP。"],
+        ["endpoints/api/review_jobs.py", "普通 /api 异步任务 API：提交、查询、结果导出、取消。"],
+        ["endpoints/api/review.py", "旧同步 API 文件，当前不再注册到 app.py，不作为普通外部 API 暴露。"],
+        ["endpoints/web/user_routes.py", "浏览器普通用户页面和表单路由，URL 以 /web 开头。"],
+        ["endpoints/web/admin_routes.py", "管理端页面和表单路由，URL 以 /web/admin 开头。"],
+        ["endpoints/runtime/", "HTTP 层通用工具，包括认证、DOCX 校验、文件名、JSON 响应、错误类型和并发控制。"],
+      ],
+    },
+    { type: "heading", text: "Review Support" },
     {
       type: "list",
       items: [
-        "`endpoints/api/review.py`：无登录 `/api/review` 同步审查接口。",
-        "`endpoints/api/callbacks.py`：API 回调请求发送逻辑。",
-        "`endpoints/web/user_routes.py`：登录、工作台、上传审查、历史记录、下载等普通用户 Web 路由。",
-        "`endpoints/web/admin_routes.py`：管理员后台路由（用户管理、审查要点管理、日志查看）。",
-        "`endpoints/web/admin_services.py`：管理员后台展示所需的数据聚合。",
-        "`endpoints/runtime/`：Web 层共享的 DOCX 校验、文件名、运行时和错误处理工具。",
-        "`endpoints/runtime/auth.py`：用户读取、密码哈希、登录校验。",
-        "``、``、`` 等旧文件：兼容旧 import 的薄封装，不再承载主要实现。",
-        "`frontend/templates/`：HTML 模板；`frontend/static/`：CSS 和前端脚本。",
+        "endpoints/review/task_store.py：读写 /api task 数据，路径为 data/api/clients/<client_dir>/tasks/<task_id>/.",
+        "endpoints/review/job_worker.py：执行异步审查后台任务。",
+        "endpoints/review/response.py：构造对外 API 响应，避免暴露服务端路径和 secret hash。",
+        "endpoints/review/meta.py：旧 meta fields helper；普通 /api 当前不再使用。",
+        "endpoints/review/callbacks.py：旧 callback helper；普通 /api 异步主流程不依赖 callback。",
       ],
     },
-
+    { type: "heading", text: "Services And Scripts" },
+    {
+      type: "list",
+      items: [
+        "services/user_management.py + scripts/manage_users.py：管理 /web 用户。",
+        "services/api_client_management.py + scripts/manage_api_clients.py：管理 /api clients，生成 secret，保存 secret_hash。",
+        "scripts/api_review_callback_receiver.py：本地测试 callback 的临时接收服务；普通 /api 当前不依赖 callback。",
+      ],
+    },
+    { type: "heading", text: "身份文件" },
+    {
+      type: "code",
+      text: "user_profiles/\n  users.json          # /web 用户，由 scripts/manage_users.py 管理\n  api_clients.json    # /api 客户，由 scripts/manage_api_clients.py 管理",
+    },
     { type: "heading", text: "数据目录" },
-    { type: "para", text: "`data/` 是运行时持久化目录，按用户名分区：" },
     {
-      type: "list",
-      items: [
-        "`contract_review_criteria/`：该用户默认审查要点，默认文件名 `criteria.docx`。",
-        "`institutional_docs/`：制度文档预留目录。",
-        "`contracts/`：上传合同原件；`reports_docx/`：批注版合同输出。",
-        "`records/`：跨任务结构化记录，当前存放 `review_history.json`。",
-        "`logs/`：审查任务日志。",
-      ],
+      type: "code",
+      text: "data/\n  <username>/                         # 当前 /web 用户数据\n    contract_review_criteria/\n    contracts/\n    reports_docx/\n    records/\n    logs/\n  api/\n    clients/\n      <client_dir>/\n        tasks/\n          <task_id>/\n            task.json\n            input/\n            output/\n            logs/",
     },
-
-    { type: "heading", text: "账号、资源与文档目录" },
+    { type: "heading", text: "边界" },
     {
-      type: "list",
-      items: [
-        "`user_profiles/users.json`：用户账号持久化文件，首次创建用户时自动生成，不应提交真实账号数据。",
-        "`resources/review_criteria/criteria.docx`：系统默认审查要点模板，创建用户目录时复制到用户目录。",
-        "`docs/`：只用于存放 Markdown 文档，不作为程序运行时输入或输出目录。",
+      type: "table",
+      headers: ["类别", "当前职责"],
+      rows: [
+        ["/api", "普通外部客户异步任务 API；需要 client_id + secret_key；不接收 metafields；不 callback。"],
+        ["/web", "浏览器页面、表单、session/cookie、历史记录和下载；后续租户管理员/超级管理员另行设计。"],
+        ["runtime", "HTTP 层通用运行时工具，不属于某个业务 API 类别。"],
+        ["/oa", "后续独立 OA 集成：body secret 鉴权、接收 metafields、完成后 callback OA。"],
       ],
     },
   ],
-
   "logger-design": [
     { type: "para", text: "日志相关代码统一放在 `loggers/` 目录下。`resolve_review_task_paths.py` 负责生成任务编号和所有输入、输出、日志路径；其他 logger 模块只负责写日志。" },
 
@@ -851,7 +770,7 @@ window.DOCS_PORTAL_CONTENT = {
       type: "callout",
       text: "当前普通用户日志目录名包含 task_id 和合同文件名 stem。合同名过长时，conversations 下文件完整路径可能超过 Windows 路径长度限制。后续应收敛为短目录 `data/<username>/logs/<YYYY-MM-DD>/<task_id>/`，合同名通过 records/review_history.json 读取。",
     },
-    { type: "para", text: "无登录 API 审查使用独立日志目录 `data/api/<task_id>/logs/`，不写入用户合同、报告和历史记录目录。`<任务目录>` 由 `endpoints/api/task_store.py` 生成，格式为 `YYYYMMDD-HHMMSS-xxxx`。" },
+    { type: "para", text: "普通 /api 审查使用独立日志目录 `data/api/clients/<client_dir>/tasks/<task_id>/logs/`，不写入 /web 用户合同、报告和历史记录目录。任务目录由 `endpoints/review/task_store.py` 按 client_dir + task_id 生成。" },
     { type: "para", text: "任务目录按日志来源拆分：`workflow/`、`conversations/`、`mcp/`、`api_events.jsonl`。" },
 
     { type: "heading", text: "日志读取与合同名关联" },
@@ -879,7 +798,7 @@ window.DOCS_PORTAL_CONTENT = {
       type: "code",
       text: "upload_received              收到上传请求和原始文件名\napi_review_received          收到无登录 API 审查请求和原始文件名\ncriteria_uploaded            本次任务上传了临时审查要点\ncontract_saved               合同文件已保存到用户数据目录\ndocx_validation_passed       DOCX 文件格式校验通过\nreview_started               后台审查任务开始执行\nagent_model_call_failed      Agent 大模型调用超时或重试失败\nembedding_call_failed        Embedding 模型调用超时或重试失败\nreranker_call_retry          Reranker 模型调用发生一次重试\nreranker_call_failed         Reranker 模型调用超时或重试失败\nreview_completed             审查完成并生成批注 DOCX\nreview_failed                审查任务失败，记录最终失败原因",
     },
-    { type: "para", text: "模型类失败事件会先记录具体组件事件，再记录 `review_failed`。前端 `/work` 显示模型类失败的具体文案；直接 API `/api/review` 返回 `503` 和 JSON；非模型类异常返回通用失败提示并要求查看任务日志。" },
+    { type: "para", text: "模型类失败事件会先记录具体组件事件，再记录 `review_failed`。前端 `/web/work` 显示模型类失败的具体文案；普通 `/api/review/jobs` 任务通过状态查询和 task 日志排查；非模型类异常返回通用失败提示并要求查看任务日志。" },
 
     { type: "heading", text: "日志开关" },
     { type: "para", text: "`.env` 中的 `ENABLE_WORKFLOW_LOGS` 控制是否写入 workflow、conversations、mcp 文件日志。设为 `False` 时任务目录仍可能创建，但这三类不写文件日志；`api_events.jsonl` 仍记录 API 层事件。" },
@@ -893,17 +812,17 @@ window.DOCS_PORTAL_CONTENT = {
       type: "table",
       headers: ["路径", "角色", "页面/行为"],
       rows: [
-        ["/", "未登录用户", "显示登录页"],
-        ["/", "普通用户 / 管理员", "重定向到 /work 或 /admin"],
-        ["/login", "所有用户", "显示登录页；成功登录后创建新的 ctx"],
-        ["/work、/history、/settings", "普通用户", "上传工作台、审核历史、用户设置"],
-        ["/admin、/admin/users、/admin/users/{username}", "管理员", "后台首页、用户管理、用户详情"],
+        ["/web", "未登录用户", "显示登录页"],
+        ["/web", "普通用户 / 管理员", "重定向到 /web/work 或 /web/admin"],
+        ["/web/login", "所有用户", "显示登录页；成功登录后创建新的 ctx"],
+        ["/web/work、/web/history、/web/settings", "普通用户", "上传工作台、审核历史、用户设置"],
+        ["/web/admin、/web/admin/users、/web/admin/users/{username}", "管理员", "后台首页、用户管理、用户详情"],
       ],
     },
     {
       type: "list",
       items: [
-        "`POST /login` 登录成功会创建新的账号上下文 `ctx`，不覆盖其他 tab 的 ctx。",
+        "`POST /web/login` 登录成功会创建新的账号上下文 `ctx`，不覆盖其他 tab 的 ctx。",
         "同一浏览器再次登录同一个账号会创建新 ctx，并使该账号旧 ctx 失效。",
         "`POST /logout?ctx=...` 只退出当前 ctx。",
         "同一浏览器多个 tab 共享一个 `contract_review_session` cookie，但每个 tab 通过 URL 中的 `ctx` 区分当前账号。",
@@ -914,22 +833,22 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "heading", text: "完整主旅程" },
     {
       type: "code",
-      text: "打开 http://host:5000\n  -> GET /\n  -> session 有效? 否=登录页 login.html / 是=按 role 跳转\n  -> POST /login -> 账号密码正确? 否=显示错误 / 是=创建 ctx(ctx -> username/role)\n  -> 普通用户进入 /work\n  -> 上传合同 DOCX（可选审查要点 DOCX）\n  -> POST /review -> 创建审核任务 review_tasks[username]\n  -> 页面回到 /work 显示审核中\n  -> 后台任务完成，生成批注版 DOCX\n  -> /work 显示下载入口 -> 下载结果或查看历史",
+      text: "打开 http://host:5000\n  -> GET /web\n  -> session 有效? 否=登录页 login.html / 是=按 role 跳转\n  -> POST /web/login -> 账号密码正确? 否=显示错误 / 是=创建 ctx(ctx -> username/role)\n  -> 普通用户进入 /web/work\n  -> 上传合同 DOCX（可选审查要点 DOCX）\n  -> POST /web/review -> 创建审核任务 review_tasks[username]\n  -> 页面回到 /web/work 显示审核中\n  -> 后台任务完成，生成批注版 DOCX\n  -> /web/work 显示下载入口 -> 下载结果或查看历史",
     },
 
     { type: "heading", text: "审核任务状态旅程" },
     { type: "para", text: "审核任务状态由后端内存字典 `review_tasks` 按用户名记录，前端只展示当前用户自己的任务状态。" },
     {
       type: "code",
-      text: "无任务\n  | 用户提交 /review\nqueued\n  | 后台任务开始执行\nrunning\n  | 成功 -> completed -> /work 显示下载入口 -> 用户下载 DOCX\n  | 失败 -> failed    -> /work 显示错误信息 -> 用户重新提交",
+      text: "无任务\n  | 用户提交 /web/review\nqueued\n  | 后台任务开始执行\nrunning\n  | 成功 -> completed -> /web/work 显示下载入口 -> 用户下载 DOCX\n  | 失败 -> failed    -> /web/work 显示错误信息 -> 用户重新提交",
     },
-    { type: "para", text: "同一用户重复提交时，`get_running_task(user)` 有运行任务则拒绝新任务并回到 /work；无则创建新任务。" },
+    { type: "para", text: "同一用户重复提交时，`get_running_task(user)` 有运行任务则拒绝新任务并回到 /web/work；无则创建新任务。" },
 
     { type: "heading", text: "登录和多标签页旅程" },
     { type: "para", text: "浏览器按域名共享 cookie，同一浏览器多个 tab 共享同一个 `contract_review_session`，系统用 URL 里的 `ctx` 区分每个 tab 当前绑定的账号。" },
     {
       type: "code",
-      text: "Tab A: 用户 A 在 /work?ctx=A 审核中\n  | 同一浏览器打开 Tab B -> GET /login\n  | 用户 B 登录成功，后端创建 ctx=B\nTab B 自动进入 /work?ctx=B 或 /admin?ctx=B，Tab A 仍保持 /work?ctx=A\n\nTab A: POST /logout?ctx=A -> 后端删除 ctx=A -> Tab A 回到 /login；Tab B 的 ctx=B 仍有效",
+      text: "Tab A: 用户 A 在 /web/work?ctx=A 审核中\n  | 同一浏览器打开 Tab B -> GET /web/login\n  | 用户 B 登录成功，后端创建 ctx=B\nTab B 自动进入 /web/work?ctx=B 或 /web/admin?ctx=B，Tab A 仍保持 /web/work?ctx=A\n\nTab A: POST /web/logout?ctx=A -> 后端删除 ctx=A -> Tab A 回到 /web/login；Tab B 的 ctx=B 仍有效",
     },
     {
       type: "callout",
@@ -946,13 +865,13 @@ window.DOCS_PORTAL_CONTENT = {
         ["定时检查 session", "body 带 data-auth-check=\"true\""],
       ],
     },
-    { type: "para", text: "session 检查每 10 秒请求 `/session/status`，返回 401 则跳转 `/login`，否则保持当前页。" },
+    { type: "para", text: "session 检查每 10 秒请求 `/web/session/status`，返回 401 则跳转 `/web/login`，否则保持当前页。" },
 
     { type: "heading", text: "当前产品边界" },
     {
       type: "list",
       items: [
-        "普通用户不能直接访问管理员页面；管理员 ctx 访问 `/work` 会被重定向回 `/admin?ctx=...`。",
+        "普通用户不能直接访问管理员页面；管理员 ctx 访问 `/web/work` 会被重定向回 `/web/admin?ctx=...`。",
         "同一账号不能同时运行多个审核任务。",
         "不同账号可分别提交任务，但并行数量受 `MAX_API_CONCURRENT_REVIEWS` 控制。",
         "账号 ctx 存在浏览器 session cookie 中；服务重启不保留服务端 ctx 与进行中任务状态。",
@@ -972,14 +891,14 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "para", text: "创建用户时会自动初始化用户目录，并从 `resources/review_criteria/criteria.docx` 复制默认审查要点。已存在时可用 `reset-password` 重置密码。" },
 
     { type: "heading", text: "3. 确认审查要点" },
-    { type: "para", text: "默认审查要点应已存在于 `data/testuser/contract_review_criteria/criteria.docx`。可在 `/work` 上传本次审查要点临时使用，或用管理员后台进入用户详情页上传覆盖默认审查要点。" },
+    { type: "para", text: "默认审查要点应已存在于 `data/testuser/contract_review_criteria/criteria.docx`。可在 `/web/work` 上传本次审查要点临时使用，或用管理员后台进入用户详情页上传覆盖默认审查要点。" },
 
     { type: "heading", text: "4. 创建管理员用户" },
     { type: "code", text: "python scripts/manage_users.py create --username admin --password Admin123456 --display-name 管理员 --role admin" },
 
     { type: "heading", text: "5. 启动 Web 服务" },
     { type: "code", text: "uvicorn app:app --host 0.0.0.0 --port 5000" },
-    { type: "para", text: "本机浏览器访问 `http://127.0.0.1:5000`，登录 `testuser / Test123456`；管理员后台为 `http://127.0.0.1:5000/admin`。" },
+    { type: "para", text: "本机浏览器访问 `http://127.0.0.1:5000`，登录 `testuser / Test123456`；管理员后台为 `http://127.0.0.1:5000/web/admin`。" },
 
     { type: "heading", text: "6. 上传合同" },
     { type: "para", text: "在页面中上传真实 `.docx` 合同文件。审查成功后会写入以下目录，页面显示批注版 DOCX 下载链接：" },
@@ -989,7 +908,7 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "para", text: "先保存登录 cookie 与 login_token，再登录拿到 ctx，最后带 ctx 上传：" },
     {
       type: "code",
-      text: '$loginPage = Invoke-WebRequest -Uri http://127.0.0.1:5000/login -SessionVariable webSession\n$loginToken = [regex]::Match($loginPage.Content, \'name="login_token" type="hidden" value="([^"]+)"\').Groups[1].Value\n\n$loginResponse = Invoke-WebRequest -Uri http://127.0.0.1:5000/login -Method Post -WebSession $webSession -Body @{\n  username = "testuser"; password = "Test123456"; login_token = $loginToken\n}\n$ctx = [regex]::Match($loginResponse.Headers.Location, \'ctx=([^&]+)\').Groups[1].Value\n\n$form = @{ file = Get-Item "data/testuser/contracts/合同文件名.docx" }\nInvoke-WebRequest -Uri "http://127.0.0.1:5000/review?ctx=$ctx" -Method Post -WebSession $webSession -Form $form',
+      text: '$loginPage = Invoke-WebRequest -Uri http://127.0.0.1:5000/web/login -SessionVariable webSession\n$loginToken = [regex]::Match($loginPage.Content, \'name="login_token" type="hidden" value="([^"]+)"\').Groups[1].Value\n\n$loginResponse = Invoke-WebRequest -Uri http://127.0.0.1:5000/web/login -Method Post -WebSession $webSession -Body @{\n  username = "testuser"; password = "Test123456"; login_token = $loginToken\n}\n$ctx = [regex]::Match($loginResponse.Headers.Location, \'ctx=([^&]+)\').Groups[1].Value\n\n$form = @{ file = Get-Item "data/testuser/contracts/合同文件名.docx" }\nInvoke-WebRequest -Uri "http://127.0.0.1:5000/web/review?ctx=$ctx" -Method Post -WebSession $webSession -Form $form',
     },
     { type: "para", text: "`$webSession` 是 PowerShell 用来模拟浏览器保存登录态的临时对象；正常 Web 运行时浏览器会自动保存和发送 cookie。" },
 
