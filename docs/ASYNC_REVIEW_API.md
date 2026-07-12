@@ -40,7 +40,7 @@ Content-Type: multipart/form-data
 ```json
 {
   "task_id": "20260712-144123-dccf",
-  "status": "queued",
+  "status": "pending",
   "message": "Review job submitted."
 }
 ```
@@ -84,11 +84,12 @@ GET /api/review/jobs/{task_id}
 
 | 状态 | 含义 |
 | --- | --- |
-| `queued` | 已提交，等待并发执行槽位 |
+| `pending` | 已提交，后台任务尚未判断并发状态 |
+| `queued` | 并发已满，等待并发执行槽位 |
 | `running` | 已获得执行槽位，正在执行 workflow |
 | `succeeded` | 审核成功，结果可导出 |
 | `failed` | 审核失败 |
-| `cancelled` | queued 阶段被取消 |
+| `cancelled` | pending 或 queued 阶段被取消 |
 
 ### 导出结果
 
@@ -112,7 +113,7 @@ Content-Type: application/json
 | `succeeded` 且 `output_path` 有效 | 服务端复制结果 DOCX 到 `output_path`，返回 JSON |
 | 未传 `output_path` 或为空 | `400` |
 | 任务不存在 | `404` |
-| `queued` / `running` / `failed` / `cancelled` | `409` |
+| `pending` / `queued` / `running` / `failed` / `cancelled` | `409` |
 | 结果源文件不存在 | `500` |
 
 成功响应：
@@ -146,6 +147,7 @@ POST /api/review/jobs/{task_id}/cancel
 
 | 当前状态 | 结果 |
 | --- | --- |
+| `pending` | 更新为 `cancelled` |
 | `queued` | 更新为 `cancelled` |
 | `running` | 返回 `409`，审核已经开始后不支持取消 |
 | `succeeded` / `failed` / `cancelled` | 返回 `409` |
@@ -189,9 +191,13 @@ cancel_url
 POST /api/review/jobs
   -> 创建 data/api/<task_id>/
   -> 保存上传文件
-  -> 写 task.json: queued
+  -> 写 task.json: pending
   -> 返回 task_id
-  -> 后台等待并发执行槽位
+  -> 后台判断并发状态
+
+如果并发已满
+  -> task.json: queued
+  -> 等待并发执行槽位
 
 获得并发执行槽位
   -> task.json: running
@@ -204,6 +210,7 @@ POST /api/review/jobs
   -> task.json: failed
 
 取消任务
+  -> pending: cancelled
   -> queued: cancelled
   -> running: 409
 ```

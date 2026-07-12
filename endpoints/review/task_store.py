@@ -222,7 +222,7 @@ def create_task(
     task_mcp_log = task_mcp_log_dir(task_id)
     task = {
         "task_id": task_id,
-        "status": "queued",
+        "status": "pending",
         "created_at": now_iso(),
         "started_at": None,
         "finished_at": None,
@@ -264,6 +264,14 @@ def mark_running(task_id: str) -> dict[str, Any]:
     )
 
 
+def mark_queued(task_id: str) -> dict[str, Any]:
+    return update_task(
+        task_id,
+        status="queued",
+        message="Review job is waiting for an execution slot.",
+    )
+
+
 def mark_succeeded(task_id: str) -> dict[str, Any]:
     return update_task(
         task_id,
@@ -290,7 +298,7 @@ def request_cancel(task_id: str) -> dict[str, Any]:
         raise FileNotFoundError(task_id)
 
     status = task["status"]
-    if status == "queued":
+    if status in {"pending", "queued"}:
         task["status"] = "cancelled"
         task["finished_at"] = now_iso()
         task["message"] = "Review job cancelled."

@@ -7,6 +7,7 @@ from endpoints.review.task_store import (
     cleanup_runtime_input,
     is_cancel_requested,
     mark_cancelled,
+    mark_queued,
     mark_failed,
     mark_running,
     mark_succeeded,
@@ -62,6 +63,8 @@ async def run_async_review_job(task_id: str) -> None:
                     output_path=task["output"]["result_path"],
                 )
             else:
+                if review_semaphore.locked():
+                    mark_queued(task_id)
                 async with review_semaphore:
                     if is_cancel_requested(task_id):
                         mark_cancelled(task_id)
