@@ -82,11 +82,12 @@ deep_research_agent/
 ## HTTP endpoints 目录
 
 - `endpoints/api/review.py`：无 Cookie 同步 API，提供 `POST /api/review`。
-- `endpoints/api/review_jobs.py`：无 Cookie 异步任务 API，提供提交、查询、下载、取消任务节点。
-- `endpoints/api/support/task_store.py`：读写 `data/api/<task_id>/task.json`，并统一处理 input/output/logs 路径与写入策略。
-- `endpoints/api/support/review_meta.py`：解析直接 API 的 meta fields，并生成响应 header。
-- `endpoints/api/support/review_job_worker.py`：执行异步审核后台任务。
-- `endpoints/api/support/callbacks.py`：同步 API 的 callback helper；异步主流程不依赖 callback。
+- `endpoints/api/review_jobs.py`：无 Cookie 异步任务 API，提供提交、查询、结果导出、取消任务节点。
+- `endpoints/review/task_store.py`：读写 `data/api/<task_id>/task.json`，并统一处理 input/output/logs 路径与写入策略。
+- `endpoints/review/response.py`：构造对外 API 响应，避免暴露服务端路径。
+- `endpoints/review/meta.py`：解析直接 API 的 meta fields，并生成响应 header。
+- `endpoints/review/job_worker.py`：执行异步审核后台任务。
+- `endpoints/review/callbacks.py`：同步 API 的 callback helper；异步主流程不依赖 callback。
 - `endpoints/web/user_routes.py`：前端用户页面和表单路由，URL 统一以 `/web` 开头。
 - `endpoints/web/admin_routes.py`：管理端页面和表单路由，URL 统一以 `/web/admin` 开头。
 - `endpoints/web/admin_services.py`：管理端展示所需的数据聚合。

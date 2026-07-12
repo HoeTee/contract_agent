@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+
+def present_submit_response(task: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "task_id": task["task_id"],
+        "status": task["status"],
+        "message": task["message"],
+    }
+
+
+def present_review_task(
+    task: dict[str, Any],
+    *,
+    include_meta_fields: bool = False,
+) -> dict[str, Any]:
+    result_path = Path(task["output"]["result_path"])
+    response = {
+        "task_id": task["task_id"],
+        "status": task["status"],
+        "created_at": task["created_at"],
+        "started_at": task["started_at"],
+        "finished_at": task["finished_at"],
+        "message": task["message"],
+        "error": task["error"],
+        "input": {
+            "contract_filename": task["input"]["contract_filename"],
+            "criteria_source": task["input"]["criteria_source"],
+            "criteria_filename": task["input"]["criteria_filename"],
+            "stored": "input" in Path(task["input"]["contract_path"]).parts,
+        },
+        "output": {
+            "result_filename": task["output"]["result_filename"],
+            "ready": task["status"] == "succeeded" and result_path.exists(),
+        },
+        "logs": {
+            "enabled": any(task.get("logs", {}).values()),
+        },
+    }
+    if include_meta_fields:
+        response["meta_fields"] = task.get("meta_fields", {})
+    return response
+
+
+def present_export_response(
+    task: dict[str, Any],
+    output_path: Path,
+    *,
+    include_meta_fields: bool = False,
+) -> dict[str, Any]:
+    response = {
+        "task_id": task["task_id"],
+        "status": task["status"],
+        "message": "Result exported.",
+        "output_path": str(output_path),
+    }
+    if include_meta_fields:
+        response["meta_fields"] = task.get("meta_fields", {})
+    return response

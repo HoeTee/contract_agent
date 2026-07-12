@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from config import MCP_SERVER_PATH
-from endpoints.api.support.task_store import (
+from endpoints.review.task_store import (
     cleanup_runtime_input,
     is_cancel_requested,
     mark_cancelled,
@@ -33,9 +33,6 @@ async def run_async_review_job(task_id: str) -> None:
             mark_cancelled(task_id)
             return
 
-        mark_running(task_id)
-        write_task_log_event(task_id, "review_started")
-
         workflow = ContractReviewWorkflow(
             server_script_path=str(MCP_SERVER_PATH),
             workflow_log_dir=(
@@ -53,6 +50,12 @@ async def run_async_review_job(task_id: str) -> None:
         token = set_conversation_log_dir(task_conversation_log_dir(task_id))
         try:
             if review_semaphore is None:
+                if is_cancel_requested(task_id):
+                    mark_cancelled(task_id)
+                    write_task_log_event(task_id, "review_cancelled")
+                    return
+                mark_running(task_id)
+                write_task_log_event(task_id, "review_started")
                 result = await workflow.run(
                     contract_path=task["input"]["contract_path"],
                     criteria_path=task["input"]["criteria_path"],
@@ -60,6 +63,12 @@ async def run_async_review_job(task_id: str) -> None:
                 )
             else:
                 async with review_semaphore:
+                    if is_cancel_requested(task_id):
+                        mark_cancelled(task_id)
+                        write_task_log_event(task_id, "review_cancelled")
+                        return
+                    mark_running(task_id)
+                    write_task_log_event(task_id, "review_started")
                     result = await workflow.run(
                         contract_path=task["input"]["contract_path"],
                         criteria_path=task["input"]["criteria_path"],

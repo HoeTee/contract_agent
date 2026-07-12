@@ -1,6 +1,6 @@
 # `/api/review` API 说明
 
-补充：原同步接口 `POST /api/review` 保留不变；新增异步任务接口为 `POST /api/review/jobs`、`GET /api/review/jobs/{task_id}`、`GET /api/review/jobs/{task_id}/result`、`POST /api/review/jobs/{task_id}/result/export` 和 `POST /api/review/jobs/{task_id}/cancel`。异步接口、`task.json` 字段和 `data/api/<task_id>/` 存储结构见 `docs/ASYNC_REVIEW_API.md`。
+补充：原同步接口 `POST /api/review` 保留不变；异步任务接口为 `POST /api/review/jobs`、`GET /api/review/jobs/{task_id}`、`POST /api/review/jobs/{task_id}/result` 和 `POST /api/review/jobs/{task_id}/cancel`。异步接口、`task.json` 字段和 `data/api/<task_id>/` 存储结构见 `docs/ASYNC_REVIEW_API.md`。
 
 
 当前同步 `POST /api/review` 与异步 `POST /api/review/jobs` 已统一使用同一套任务目录结构：
@@ -20,7 +20,7 @@ data/api/<task_id>/
     mcp/
 ```
 
-同步接口仍然会等待 workflow 完成并直接返回 DOCX；区别只是本地落盘目录和日志结构现在与异步任务接口一致。`task.json` 由 `endpoints/api/support/task_store.py` 读写。
+同步接口仍然会等待 workflow 完成并直接返回 DOCX；区别只是本地落盘目录和日志结构现在与异步任务接口一致。`task.json` 由 `endpoints/review/task_store.py` 读写。
 
 本文说明无登录、同步执行合同审查的 API：
 
@@ -31,10 +31,10 @@ POST /api/review
 对应实现：
 
 - `endpoints/api/review.py`：定义 `POST /api/review`，接收上传、校验 DOCX、调用 workflow、返回 DOCX 或错误 JSON。
-- `endpoints/api/support/callbacks.py`：在批注 DOCX 生成后按配置发送外部回调。
+- `endpoints/review/callbacks.py`：在批注 DOCX 生成后按配置发送外部回调。
 - `endpoints/runtime/document_validation.py`：校验合同 DOCX 和审查要点 DOCX。
 - `endpoints/runtime/filenames.py`：清洗上传文件名并构造批注版 DOCX 展示文件名。
-- `endpoints/api/support/task_store.py`：统一生成直接 API 和异步 API 的任务目录、task.json、输入输出目录和日志路径。
+- `endpoints/review/task_store.py`：统一生成直接 API 和异步 API 的任务目录、task.json、输入输出目录和日志路径。
 - `main_workflow/main_workflow.py`：执行完整合同审查流程并生成批注版 DOCX。
 
 ## 直接结论
@@ -223,7 +223,7 @@ workflow 输出的批注版 DOCX 会写入本次 API 任务目录：
 output_path=str(final_report_path)
 ```
 
-路径由 `endpoints/api/support/task_store.py` 生成：
+路径由 `endpoints/review/task_store.py` 生成：
 
 ```python
 final_report_path = output_dir(task_id) / response_filename
@@ -290,7 +290,7 @@ def api_events_path(self) -> Path:
 
 ## 路径生成规则
 
-`/api/review` 与 `/api/review/jobs` 统一使用 `endpoints/api/support/task_store.py` 生成路径：
+`/api/review` 与 `/api/review/jobs` 统一使用 `endpoints/review/task_store.py` 生成路径：
 
 ```text
 data/api/<task_id>/
@@ -309,7 +309,7 @@ data/api/<task_id>/
 | `api_events_path` | `api.write_logs=true` 时为 `data/api/<task_id>/logs/api_events.jsonl`；否则为 `null` |
 | `workflow_log_dir` | `api.write_logs=true` 时为 `data/api/<task_id>/logs/workflow/`；否则为 `null` |
 | `conversation_log_dir` | `api.write_logs=true` 时为 `data/api/<task_id>/logs/conversations/`；否则为 `null` |
-| `mcp_log_file` | `api.write_logs=true` 时为 `data/api/<task_id>/logs/mcp/mcp_client.log`；否则为 `null` |
+| `mcp_log_dir` | `api.write_logs=true` 时为 `data/api/<task_id>/logs/mcp/`；否则为 `null` |
 
 ## Workflow 调用链路
 

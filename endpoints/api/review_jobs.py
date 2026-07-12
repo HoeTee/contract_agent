@@ -3,12 +3,16 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse
 
 from config import DEFAULT_REVIEW_CRITERIA_PATH
-from endpoints.api.support.review_job_worker import run_async_review_job
-from endpoints.api.support.review_meta import extract_api_meta_fields
-from endpoints.api.support.task_store import (
+from endpoints.review.job_worker import run_async_review_job
+from endpoints.review.meta import extract_api_meta_fields
+from endpoints.review.response import (
+    present_export_response,
+    present_review_task,
+    present_submit_response,
+)
+from endpoints.review.task_store import (
     create_task,
     ensure_task_dirs,
     export_task_result,
@@ -87,17 +91,7 @@ async def submit_review_job(
         meta_fields=meta_fields,
     )
     background_tasks.add_task(run_async_review_job, task_id)
-    return pretty_json_response(
-        {
-            "task_id": task["task_id"],
-            "status": task["status"],
-            "message": task["message"],
-            "status_url": task["status_url"],
-            "result_url": task["result_url"],
-            "cancel_url": task["cancel_url"],
-        },
-        status_code=202,
-    )
+    return pretty_json_response(present_submit_response(task), status_code=202)
 
 
 @api_jobs_router.get("/api/review/jobs/{task_id}")
@@ -108,34 +102,10 @@ async def get_review_job(task_id: str):
         raise HTTPException(status_code=404, detail="Task not found.")
     if task is None:
         raise HTTPException(status_code=404, detail="Task not found.")
-    return pretty_json_response(task)
+    return pretty_json_response(present_review_task(task))
 
 
-@api_jobs_router.get("/api/review/jobs/{task_id}/result")
-async def download_review_job_result(task_id: str):
-    try:
-        task = read_task(task_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Task not found.")
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found.")
-
-    status = task["status"]
-    if status != "succeeded":
-        raise HTTPException(status_code=409, detail=f"Task is not finished. Current status: {status}")
-
-    result_path = Path(task["output"]["result_path"])
-    if not result_path.exists():
-        raise HTTPException(status_code=500, detail="Result file does not exist.")
-
-    return FileResponse(
-        path=result_path,
-        filename=task["output"]["result_filename"],
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
-
-
-@api_jobs_router.post("/api/review/jobs/{task_id}/result/export")
+@api_jobs_router.post("/api/review/jobs/{task_id}/result")
 async def export_review_job_result(
     task_id: str,
     payload: dict | None = Body(None),
@@ -178,12 +148,7 @@ async def export_review_job_result(
         )
 
     return pretty_json_response(
-        {
-            "task_id": task_id,
-            "status": task["status"],
-            "message": "Result exported.",
-            "output_path": str(exported_path),
-        }
+        present_export_response(task, exported_path)
     )
 
 

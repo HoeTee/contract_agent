@@ -136,6 +136,12 @@ def task_mcp_log_file(task_id: str) -> Path | None:
     return mcp_log_dir(task_id) / "mcp_client.log"
 
 
+def task_mcp_log_dir(task_id: str) -> Path | None:
+    if not should_write_task_file("logs"):
+        return None
+    return mcp_log_dir(task_id)
+
+
 def write_task_log_event(task_id: str, event: str, **fields: Any) -> Path | None:
     if not should_write_task_file("logs"):
         return None
@@ -213,13 +219,10 @@ def create_task(
     task_api_log = task_api_events_path(task_id)
     task_workflow_log = task_workflow_log_dir(task_id)
     task_conversation_log = task_conversation_log_dir(task_id)
-    task_mcp_log = task_mcp_log_file(task_id)
+    task_mcp_log = task_mcp_log_dir(task_id)
     task = {
         "task_id": task_id,
         "status": "queued",
-        "status_url": f"/api/review/jobs/{task_id}",
-        "result_url": f"/api/review/jobs/{task_id}/result",
-        "cancel_url": f"/api/review/jobs/{task_id}/cancel",
         "created_at": now_iso(),
         "started_at": None,
         "finished_at": None,
@@ -244,9 +247,9 @@ def create_task(
         },
         "logs": {
             "api_events_path": str(task_api_log) if task_api_log else None,
-            "workflow_log_dir": str(task_workflow_log) if task_workflow_log else None,
             "conversation_log_dir": str(task_conversation_log) if task_conversation_log else None,
-            "mcp_log_file": str(task_mcp_log) if task_mcp_log else None,
+            "mcp_log_dir": str(task_mcp_log) if task_mcp_log else None,
+            "workflow_log_dir": str(task_workflow_log) if task_workflow_log else None,
         },
     }
     return write_task(task)
