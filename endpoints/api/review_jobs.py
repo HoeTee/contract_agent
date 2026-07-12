@@ -5,8 +5,8 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Request, UploadFile
 
 from config import DEFAULT_REVIEW_CRITERIA_PATH
+from endpoints.api.client_auth import resolve_api_client
 from endpoints.review.job_worker import run_async_review_job
-from endpoints.review.meta import extract_api_meta_fields
 from endpoints.review.response import (
     present_export_response,
     present_review_task,
@@ -38,15 +38,16 @@ async def submit_review_job(
     file: UploadFile = File(...),
     criteria_file: UploadFile | None = File(None),
 ):
+    client = await resolve_api_client(request)
     task_id = new_task_id()
-    ensure_task_dirs(task_id)
+    ensure_task_dirs(client.client_dir, task_id)
 
     filename = safe_upload_filename(file.filename)
     if not filename.lower().endswith(".docx"):
         raise HTTPException(status_code=400, detail="Contract file must be DOCX.")
 
-    meta_fields = await extract_api_meta_fields(request)
     contract_path = save_task_input_upload(
+        client.client_dir,
         task_id=task_id,
         upload_file=file,
         filename=filename,
@@ -63,6 +64,7 @@ async def submit_review_job(
         if not criteria_filename.lower().endswith(".docx"):
             raise HTTPException(status_code=400, detail="Review criteria file must be DOCX.")
         selected_criteria_path = save_task_input_upload(
+            client.client_dir,
             task_id=task_id,
             upload_file=criteria_file,
             filename=criteria_filename,
@@ -72,8 +74,10 @@ async def submit_review_job(
         criteria_source = "uploaded"
 
     result_filename = build_report_display_name(filename)
-    result_path = output_dir(task_id) / result_filename
+    result_path = output_dir(client.client_dir, task_id) / result_filename
     task = create_task(
+        client_id=client.client_id,
+        client_dir=client.client_dir,
         task_id=task_id,
         contract_filename=filename,
         contract_path=contract_path,
@@ -82,22 +86,24 @@ async def submit_review_job(
         criteria_path=selected_criteria_path,
         result_filename=result_filename,
         result_path=result_path,
-        meta_fields=meta_fields,
     )
     write_task_log_event(
+        client.client_dir,
         task_id,
         "api_review_job_received",
         filename=filename,
-        meta_fields=meta_fields,
+        client_id=client.client_id,
+        source_ip=client.source_ip,
     )
-    background_tasks.add_task(run_async_review_job, task_id)
+    background_tasks.add_task(run_async_review_job, client.client_dir, task_id)
     return pretty_json_response(present_submit_response(task), status_code=202)
 
 
 @api_jobs_router.get("/api/review/jobs/{task_id}")
-async def get_review_job(task_id: str):
+async def get_review_job(request: Request, task_id: str):
+    client = await resolve_api_client(request)
     try:
-        task = read_task(task_id)
+        task = read_task(client.client_dir, task_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Task not found.")
     if task is None:
@@ -107,11 +113,13 @@ async def get_review_job(task_id: str):
 
 @api_jobs_router.post("/api/review/jobs/{task_id}/result")
 async def export_review_job_result(
+    request: Request,
     task_id: str,
     payload: dict | None = Body(None),
 ):
+    client = await resolve_api_client(request, payload)
     try:
-        task = read_task(task_id)
+        task = read_task(client.client_dir, task_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Task not found.")
     if task is None:
@@ -153,9 +161,10 @@ async def export_review_job_result(
 
 
 @api_jobs_router.post("/api/review/jobs/{task_id}/cancel")
-async def cancel_review_job(task_id: str):
+async def cancel_review_job(request: Request, task_id: str):
+    client = await resolve_api_client(request)
     try:
-        task = read_task(task_id)
+        task = read_task(client.client_dir, task_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Task not found.")
     if task is None:
@@ -174,7 +183,7 @@ async def cancel_review_job(task_id: str):
     if task["status"] in {"succeeded", "failed", "cancelled"}:
         raise HTTPException(status_code=409, detail="Task is already finished and cannot be cancelled.")
 
-    updated = request_cancel(task_id)
+    updated = request_cancel(client.client_dir, task_id)
     return pretty_json_response(
         {
             "task_id": updated["task_id"],

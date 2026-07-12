@@ -32,44 +32,51 @@ def validate_task_id(task_id: str) -> str:
     return task_id
 
 
-def task_dir(task_id: str) -> Path:
-    return Path(DATA_DIR) / "api" / validate_task_id(task_id)
+def validate_client_dir(client_dir: str) -> str:
+    value = str(client_dir).strip()
+    if not value or any(part in value for part in ('/', '\\')) or value in {".", ".."}:
+        raise ValueError("invalid client_dir")
+    return value
 
 
-def task_json_path(task_id: str) -> Path:
-    return task_dir(task_id) / "task.json"
+def task_dir(client_dir: str, task_id: str) -> Path:
+    return Path(DATA_DIR) / "api" / "clients" / validate_client_dir(client_dir) / "tasks" / validate_task_id(task_id)
 
 
-def input_dir(task_id: str) -> Path:
-    return task_dir(task_id) / "input"
+def task_json_path(client_dir: str, task_id: str) -> Path:
+    return task_dir(client_dir, task_id) / "task.json"
 
 
-def output_dir(task_id: str) -> Path:
-    return task_dir(task_id) / "output"
+def input_dir(client_dir: str, task_id: str) -> Path:
+    return task_dir(client_dir, task_id) / "input"
 
 
-def logs_dir(task_id: str) -> Path:
-    return task_dir(task_id) / "logs"
+def output_dir(client_dir: str, task_id: str) -> Path:
+    return task_dir(client_dir, task_id) / "output"
 
 
-def workflow_log_dir(task_id: str) -> Path:
-    return logs_dir(task_id) / "workflow"
+def logs_dir(client_dir: str, task_id: str) -> Path:
+    return task_dir(client_dir, task_id) / "logs"
 
 
-def conversation_log_dir(task_id: str) -> Path:
-    return logs_dir(task_id) / "conversations"
+def workflow_log_dir(client_dir: str, task_id: str) -> Path:
+    return logs_dir(client_dir, task_id) / "workflow"
 
 
-def mcp_log_dir(task_id: str) -> Path:
-    return logs_dir(task_id) / "mcp"
+def conversation_log_dir(client_dir: str, task_id: str) -> Path:
+    return logs_dir(client_dir, task_id) / "conversations"
 
 
-def api_events_path(task_id: str) -> Path:
-    return logs_dir(task_id) / "api_events.jsonl"
+def mcp_log_dir(client_dir: str, task_id: str) -> Path:
+    return logs_dir(client_dir, task_id) / "mcp"
 
 
-def runtime_input_dir(task_id: str) -> Path:
-    return task_dir(task_id) / "runtime_input"
+def api_events_path(client_dir: str, task_id: str) -> Path:
+    return logs_dir(client_dir, task_id) / "api_events.jsonl"
+
+
+def runtime_input_dir(client_dir: str, task_id: str) -> Path:
+    return task_dir(client_dir, task_id) / "runtime_input"
 
 
 def should_write_task_file(kind: str) -> bool:
@@ -82,14 +89,14 @@ def should_write_task_file(kind: str) -> bool:
     raise ValueError(f"Unknown task file kind: {kind}")
 
 
-def task_input_work_dir(task_id: str) -> Path:
+def task_input_work_dir(client_dir: str, task_id: str) -> Path:
     if should_write_task_file("input"):
-        return input_dir(task_id)
-    return runtime_input_dir(task_id)
+        return input_dir(client_dir, task_id)
+    return runtime_input_dir(client_dir, task_id)
 
 
-def save_task_input_upload(task_id: str, upload_file: UploadFile, filename: str) -> Path:
-    target_dir = task_input_work_dir(task_id)
+def save_task_input_upload(client_dir: str, task_id: str, upload_file: UploadFile, filename: str) -> Path:
+    target_dir = task_input_work_dir(client_dir, task_id)
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / filename
     with target_path.open("wb") as f:
@@ -97,77 +104,77 @@ def save_task_input_upload(task_id: str, upload_file: UploadFile, filename: str)
     return target_path
 
 
-def save_task_input_copy(task_id: str, source_path: Path, filename: str) -> Path:
-    target_dir = task_input_work_dir(task_id)
+def save_task_input_copy(client_dir: str, task_id: str, source_path: Path, filename: str) -> Path:
+    target_dir = task_input_work_dir(client_dir, task_id)
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / filename
     shutil.copy2(source_path, target_path)
     return target_path
 
 
-def cleanup_runtime_input(task_id: str) -> None:
-    runtime_dir = runtime_input_dir(task_id)
+def cleanup_runtime_input(client_dir: str, task_id: str) -> None:
+    runtime_dir = runtime_input_dir(client_dir, task_id)
     if not runtime_dir.exists():
         return
     shutil.rmtree(runtime_dir)
 
 
-def task_api_events_path(task_id: str) -> Path | None:
+def task_api_events_path(client_dir: str, task_id: str) -> Path | None:
     if not should_write_task_file("logs"):
         return None
-    return api_events_path(task_id)
+    return api_events_path(client_dir, task_id)
 
 
-def task_workflow_log_dir(task_id: str) -> Path | None:
+def task_workflow_log_dir(client_dir: str, task_id: str) -> Path | None:
     if not should_write_task_file("logs"):
         return None
-    return workflow_log_dir(task_id)
+    return workflow_log_dir(client_dir, task_id)
 
 
-def task_conversation_log_dir(task_id: str) -> Path | None:
+def task_conversation_log_dir(client_dir: str, task_id: str) -> Path | None:
     if not should_write_task_file("logs"):
         return None
-    return conversation_log_dir(task_id)
+    return conversation_log_dir(client_dir, task_id)
 
 
-def task_mcp_log_file(task_id: str) -> Path | None:
+def task_mcp_log_file(client_dir: str, task_id: str) -> Path | None:
     if not should_write_task_file("logs"):
         return None
-    return mcp_log_dir(task_id) / "mcp_client.log"
+    return mcp_log_dir(client_dir, task_id) / "mcp_client.log"
 
 
-def task_mcp_log_dir(task_id: str) -> Path | None:
+def task_mcp_log_dir(client_dir: str, task_id: str) -> Path | None:
     if not should_write_task_file("logs"):
         return None
-    return mcp_log_dir(task_id)
+    return mcp_log_dir(client_dir, task_id)
 
 
-def write_task_log_event(task_id: str, event: str, **fields: Any) -> Path | None:
+def write_task_log_event(client_dir: str, task_id: str, event: str, **fields: Any) -> Path | None:
     if not should_write_task_file("logs"):
         return None
-    path = api_events_path(task_id)
+    path = api_events_path(client_dir, task_id)
     append_api_event(path, event, task_id=task_id, **fields)
     return path
 
 
-def ensure_task_dirs(task_id: str) -> None:
-    task_dir(task_id).mkdir(parents=True, exist_ok=True)
-    output_dir(task_id).mkdir(parents=True, exist_ok=True)
+def ensure_task_dirs(client_dir: str, task_id: str) -> None:
+    task_dir(client_dir, task_id).mkdir(parents=True, exist_ok=True)
+    output_dir(client_dir, task_id).mkdir(parents=True, exist_ok=True)
 
     if should_write_task_file("input"):
-        input_dir(task_id).mkdir(parents=True, exist_ok=True)
+        input_dir(client_dir, task_id).mkdir(parents=True, exist_ok=True)
 
     if should_write_task_file("logs"):
         for path in (
-            workflow_log_dir(task_id),
-            conversation_log_dir(task_id),
-            mcp_log_dir(task_id),
+            workflow_log_dir(client_dir, task_id),
+            conversation_log_dir(client_dir, task_id),
+            mcp_log_dir(client_dir, task_id),
         ):
             path.mkdir(parents=True, exist_ok=True)
 
 
 def write_task(task: dict[str, Any]) -> dict[str, Any]:
-    path = task_json_path(task["task_id"])
+    path = task_json_path(task["client_dir"], task["task_id"])
     path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = path.with_suffix(".json.tmp")
     temp_path.write_text(json.dumps(task, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -175,8 +182,8 @@ def write_task(task: dict[str, Any]) -> dict[str, Any]:
     return task
 
 
-def read_task(task_id: str) -> dict[str, Any] | None:
-    path = task_json_path(task_id)
+def read_task(client_dir: str, task_id: str) -> dict[str, Any] | None:
+    path = task_json_path(client_dir, task_id)
     if not path.exists():
         return None
     return json.loads(path.read_text(encoding="utf-8"))
@@ -196,8 +203,8 @@ def export_task_result(task: dict[str, Any], output_path: str) -> Path:
     return target_path
 
 
-def update_task(task_id: str, **updates: Any) -> dict[str, Any]:
-    task = read_task(task_id)
+def update_task(client_dir: str, task_id: str, **updates: Any) -> dict[str, Any]:
+    task = read_task(client_dir, task_id)
     if task is None:
         raise FileNotFoundError(task_id)
     task.update(updates)
@@ -206,6 +213,8 @@ def update_task(task_id: str, **updates: Any) -> dict[str, Any]:
 
 def create_task(
     *,
+    client_id: str,
+    client_dir: str,
     task_id: str,
     contract_filename: str,
     contract_path: Path,
@@ -214,13 +223,14 @@ def create_task(
     criteria_path: Path,
     result_filename: str,
     result_path: Path,
-    meta_fields: dict[str, str],
 ) -> dict[str, Any]:
-    task_api_log = task_api_events_path(task_id)
-    task_workflow_log = task_workflow_log_dir(task_id)
-    task_conversation_log = task_conversation_log_dir(task_id)
-    task_mcp_log = task_mcp_log_dir(task_id)
+    task_api_log = task_api_events_path(client_dir, task_id)
+    task_workflow_log = task_workflow_log_dir(client_dir, task_id)
+    task_conversation_log = task_conversation_log_dir(client_dir, task_id)
+    task_mcp_log = task_mcp_log_dir(client_dir, task_id)
     task = {
+        "client_id": client_id,
+        "client_dir": validate_client_dir(client_dir),
         "task_id": task_id,
         "status": "pending",
         "created_at": now_iso(),
@@ -239,7 +249,6 @@ def create_task(
             "result_filename": result_filename,
             "result_path": str(result_path),
         },
-        "meta_fields": meta_fields,
         "cancel": {
             "requested": False,
             "requested_at": None,
@@ -255,8 +264,9 @@ def create_task(
     return write_task(task)
 
 
-def mark_running(task_id: str) -> dict[str, Any]:
+def mark_running(client_dir: str, task_id: str) -> dict[str, Any]:
     return update_task(
+        client_dir,
         task_id,
         status="running",
         started_at=now_iso(),
@@ -264,16 +274,18 @@ def mark_running(task_id: str) -> dict[str, Any]:
     )
 
 
-def mark_queued(task_id: str) -> dict[str, Any]:
+def mark_queued(client_dir: str, task_id: str) -> dict[str, Any]:
     return update_task(
+        client_dir,
         task_id,
         status="queued",
         message="Review job is waiting for an execution slot.",
     )
 
 
-def mark_succeeded(task_id: str) -> dict[str, Any]:
+def mark_succeeded(client_dir: str, task_id: str) -> dict[str, Any]:
     return update_task(
+        client_dir,
         task_id,
         status="succeeded",
         finished_at=now_iso(),
@@ -282,8 +294,9 @@ def mark_succeeded(task_id: str) -> dict[str, Any]:
     )
 
 
-def mark_failed(task_id: str, *, code: str, message: str) -> dict[str, Any]:
+def mark_failed(client_dir: str, task_id: str, *, code: str, message: str) -> dict[str, Any]:
     return update_task(
+        client_dir,
         task_id,
         status="failed",
         finished_at=now_iso(),
@@ -292,8 +305,8 @@ def mark_failed(task_id: str, *, code: str, message: str) -> dict[str, Any]:
     )
 
 
-def request_cancel(task_id: str) -> dict[str, Any]:
-    task = read_task(task_id)
+def request_cancel(client_dir: str, task_id: str) -> dict[str, Any]:
+    task = read_task(client_dir, task_id)
     if task is None:
         raise FileNotFoundError(task_id)
 
@@ -310,15 +323,15 @@ def request_cancel(task_id: str) -> dict[str, Any]:
     return task
 
 
-def is_cancel_requested(task_id: str) -> bool:
-    task = read_task(task_id)
+def is_cancel_requested(client_dir: str, task_id: str) -> bool:
+    task = read_task(client_dir, task_id)
     if task is None:
         return False
     return bool(task.get("cancel", {}).get("requested"))
 
 
-def mark_cancelled(task_id: str) -> dict[str, Any]:
-    task = read_task(task_id)
+def mark_cancelled(client_dir: str, task_id: str) -> dict[str, Any]:
+    task = read_task(client_dir, task_id)
     if task is None:
         raise FileNotFoundError(task_id)
     timestamp = now_iso()

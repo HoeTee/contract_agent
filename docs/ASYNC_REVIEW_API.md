@@ -1,21 +1,28 @@
-# 异步 `/api/review` 任务 API
+# `/api` 异步审查任务 API
 
-本文说明无 Cookie、直接调用的异步合同审查 API。异步设计用于避免 HTTP 长请求超时：提交任务后立即返回 `task_id`，后台继续审核，调用方后续查询状态并导出结果。
+本文说明普通外部客户使用的 `/api` 审查接口。当前 `/api` 只提供异步任务式调用，不再暴露同步 `POST /api/review`，也不接收 `metafields`，不做 callback。
 
-## 代码目录
+## 身份鉴权
+
+API client 由脚本管理：
+
+```powershell
+python scripts/manage_api_clients.py create --client-id "某某行社" --allowed-ip "127.0.0.1"
+python scripts/manage_api_clients.py list
+python scripts/manage_api_clients.py list --client-id "某某行社"
+python scripts/manage_api_clients.py reset-secret --client-id "某某行社"
+python scripts/manage_api_clients.py set-ips --client-id "某某行社" --allowed-ip "127.0.0.1"
+python scripts/manage_api_clients.py disable --client-id "某某行社"
+python scripts/manage_api_clients.py enable --client-id "某某行社"
+```
+
+`create` 和 `reset-secret` 会在终端打印 secret：
 
 ```text
-endpoints/
-  api/
-    review.py       # 同步 POST /api/review
-    review_jobs.py  # 异步任务 API 路由
-  review/
-    task_store.py   # task.json、任务目录、input/output/logs 写入策略
-    response.py     # 对外 API 响应过滤，避免暴露服务端路径
-    meta.py         # meta fields 解析
-    job_worker.py   # 异步审核后台任务
-    callbacks.py    # 同步 API callback helper
+Store this secret securely. It is shown only once. If lost, reset it.
 ```
+
+明文 secret 不落盘。服务端只在 `user_profiles/api_clients.json` 保存 `secret_hash`。
 
 ## API 节点
 
@@ -30,10 +37,10 @@ Content-Type: multipart/form-data
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
+| `client_id` | string | 是 | API 客户 ID，也是数据分区主键 |
+| `secret_key` | string | 是 | 脚本创建或重置时打印的 secret |
 | `file` | file | 是 | 待审查合同 DOCX |
 | `criteria_file` | file | 否 | 本次审查标准 DOCX；不传则使用默认审查标准 |
-| `templateCode` | string | 取决于配置 | 普通 `/api` 可接收的扩展字段 |
-| `serialNo` | string | 取决于配置 | 普通 `/api` 可接收的扩展字段 |
 
 成功响应：
 
@@ -49,47 +56,19 @@ Content-Type: multipart/form-data
 
 ```http
 GET /api/review/jobs/{task_id}
+Content-Type: application/json
 ```
 
-返回给普通 `/api` 调用方的是过滤后的任务视图，不暴露服务端绝对路径、日志路径或 `meta_fields`。
-
-示例：
+请求 JSON：
 
 ```json
 {
-  "task_id": "20260712-144123-dccf",
-  "status": "running",
-  "created_at": "2026-07-12T14:41:23+08:00",
-  "started_at": "2026-07-12T14:42:01+08:00",
-  "finished_at": null,
-  "message": "Contract review is running.",
-  "error": null,
-  "input": {
-    "contract_filename": "合同.docx",
-    "criteria_source": "uploaded",
-    "criteria_filename": "审查标准.docx",
-    "stored": true
-  },
-  "output": {
-    "result_filename": "合同_批注版.docx",
-    "ready": false
-  },
-  "logs": {
-    "enabled": true
-  }
+  "client_id": "某某行社",
+  "secret_key": "api_xxx"
 }
 ```
 
-状态语义：
-
-| 状态 | 含义 |
-| --- | --- |
-| `pending` | 已提交，后台任务尚未判断并发状态 |
-| `queued` | 并发已满，等待并发执行槽位 |
-| `running` | 已获得执行槽位，正在执行 workflow |
-| `succeeded` | 审核成功，结果可导出 |
-| `failed` | 审核失败 |
-| `cancelled` | pending 或 queued 阶段被取消 |
+返回给调用方的是过滤后的任务视图，不暴露服务端绝对路径、日志路径或 `secret_hash`。
 
 ### 导出结果
 
@@ -102,6 +81,8 @@ Content-Type: application/json
 
 ```json
 {
+  "client_id": "某某行社",
+  "secret_key": "api_xxx",
   "output_path": "C:\\Users\\lenovo\\Desktop\\review_result.docx"
 }
 ```
@@ -116,31 +97,22 @@ Content-Type: application/json
 | `pending` / `queued` / `running` / `failed` / `cancelled` | `409` |
 | 结果源文件不存在 | `500` |
 
-成功响应：
-
-```json
-{
-  "task_id": "20260712-144123-dccf",
-  "status": "succeeded",
-  "message": "Result exported.",
-  "output_path": "C:\\Users\\lenovo\\Desktop\\review_result.docx"
-}
-```
-
-curl 示例：
-
-```powershell
-curl.exe -X POST "http://localhost:5000/api/review/jobs/20260712-144123-dccf/result" `
-  -H "Content-Type: application/json" `
-  -d "{\"output_path\":\"C:\\Users\\lenovo\\Desktop\\review_result.docx\"}"
-```
-
-注意：`output_path` 是服务端机器上的路径。当前本机运行服务时可以写本机路径；Docker 或远端部署时必须写容器或服务器可访问的路径。
+`output_path` 是服务端机器上的路径。Docker 或远端部署时必须写容器或服务器可访问的路径。
 
 ### 取消任务
 
 ```http
 POST /api/review/jobs/{task_id}/cancel
+Content-Type: application/json
+```
+
+请求 JSON：
+
+```json
+{
+  "client_id": "某某行社",
+  "secret_key": "api_xxx"
+}
 ```
 
 行为：
@@ -152,44 +124,52 @@ POST /api/review/jobs/{task_id}/cancel
 | `running` | 返回 `409`，审核已经开始后不支持取消 |
 | `succeeded` / `failed` / `cancelled` | 返回 `409` |
 
-## task.json
+## 状态语义
 
-内部 `task.json` 存放在：
+| 状态 | 含义 |
+| --- | --- |
+| `pending` | 已提交，后台任务尚未判断并发状态 |
+| `queued` | 并发已满，等待执行槽位 |
+| `running` | 已获得执行槽位，正在执行 workflow |
+| `succeeded` | 审核成功，结果可导出 |
+| `failed` | 审核失败 |
+| `cancelled` | pending 或 queued 阶段被取消 |
+
+## 数据目录
+
+`/api` 任务按 `client_id` 分区。真实目录名会经过安全化处理，避免 Windows 路径非法字符。
 
 ```text
-data/api/<task_id>/task.json
+data/api/clients/<client_dir>/tasks/<task_id>/
+  task.json
+  input/
+  output/
+  logs/
 ```
 
-内部数据允许保留 workflow 需要的服务端路径，但这些路径不会直接返回给普通 `/api` 调用方。
-
-`task.json` 不再保存：
-
-```text
-status_url
-result_url
-cancel_url
-```
+其中 `task.json` 内部记录原始 `client_id` 和安全目录名 `client_dir`。服务端内部可以保留 workflow 需要的路径，但普通 `/api` 响应不会返回这些绝对路径。
 
 `logs` 字段按字母顺序保存：
 
 ```json
 {
   "logs": {
-    "api_events_path": "data/api/<task_id>/logs/api_events.jsonl",
-    "conversation_log_dir": "data/api/<task_id>/logs/conversations",
-    "mcp_log_dir": "data/api/<task_id>/logs/mcp",
-    "workflow_log_dir": "data/api/<task_id>/logs/workflow"
+    "api_events_path": "data/api/clients/<client_dir>/tasks/<task_id>/logs/api_events.jsonl",
+    "conversation_log_dir": "data/api/clients/<client_dir>/tasks/<task_id>/logs/conversations",
+    "mcp_log_dir": "data/api/clients/<client_dir>/tasks/<task_id>/logs/mcp",
+    "workflow_log_dir": "data/api/clients/<client_dir>/tasks/<task_id>/logs/workflow"
   }
 }
 ```
 
-当 `api.write_logs: false` 时，上述值为 `null`，且不创建对应日志目录。
+当 `api.write_logs: false` 时，上述值为 `null`，且不创建对应日志目录。`output/` 始终写入；`input/` 是否保留由 `api.keep_input` 控制。
 
 ## 状态更新逻辑
 
 ```text
 POST /api/review/jobs
-  -> 创建 data/api/<task_id>/
+  -> 校验 client_id + secret_key + source IP
+  -> 创建 data/api/clients/<client_dir>/tasks/<task_id>/
   -> 保存上传文件
   -> 写 task.json: pending
   -> 返回 task_id

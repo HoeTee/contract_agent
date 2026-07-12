@@ -5,7 +5,6 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from config import PROJECT_ROOT, SESSION_SECRET_KEY
-from endpoints.api.review import api_router
 from endpoints.api.review_jobs import api_jobs_router
 from endpoints.runtime.json_response import pretty_json_response
 from endpoints.web.admin_routes import admin_router
@@ -28,7 +27,6 @@ app.add_middleware(
 )
 
 app.mount("/static", StaticFiles(directory=str(Path(PROJECT_ROOT) / "frontend" / "static")), name="static")
-app.include_router(api_router)
 app.include_router(api_jobs_router)
 app.include_router(user_router)
 app.include_router(admin_router)
