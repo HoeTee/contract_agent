@@ -17,6 +17,7 @@ from endpoints.runtime.auth import hash_password
 
 
 API_CLIENTS_FILE = PROJECT_ROOT / "user_profiles" / "api_clients.json"
+API_CLIENT_TASKS_ROOT = PROJECT_ROOT / "data" / "api" / "clients"
 
 
 class ApiClientCliError(Exception):
@@ -61,6 +62,13 @@ def find_client_index(clients: list[dict[str, Any]], client_id: str) -> int | No
         if client.get("client_id") == client_id:
             return index
     return None
+
+
+def find_client(clients: list[dict[str, Any]], client_id: str) -> dict[str, Any] | None:
+    index = find_client_index(clients, client_id)
+    if index is None:
+        return None
+    return clients[index]
 
 
 def secret_fingerprint(secret_key: str) -> str:
@@ -162,6 +170,48 @@ def set_api_client_enabled(
     return clients[index]
 
 
+def delete_api_client(
+    *,
+    client_id: str,
+    clients_file: str | Path = API_CLIENTS_FILE,
+) -> dict[str, Any]:
+    clients = load_api_clients(clients_file)
+    index = find_client_index(clients, client_id)
+    if index is None:
+        raise ApiClientCliError(f"API client not found: {client_id}")
+    client = clients.pop(index)
+    save_api_clients(clients, clients_file)
+    return client
+
+
+def task_root_for_client(client: dict[str, Any]) -> Path:
+    client_id = str(client.get("client_id") or "")
+    client_dir = str(client.get("client_dir") or client_dir_name(client_id))
+    return API_CLIENT_TASKS_ROOT / client_dir / "tasks"
+
+
+def load_client_tasks(client: dict[str, Any]) -> list[dict[str, Any]]:
+    root = task_root_for_client(client)
+    if not root.exists():
+        return []
+    tasks: list[dict[str, Any]] = []
+    for task_json in sorted(root.glob("*/task.json")):
+        try:
+            task = json.loads(task_json.read_text(encoding="utf-8"))
+        except Exception as exc:
+            tasks.append(
+                {
+                    "task_id": task_json.parent.name,
+                    "status": "unreadable",
+                    "error": repr(exc),
+                }
+            )
+            continue
+        if isinstance(task, dict):
+            tasks.append(task)
+    return tasks
+
+
 def register_client(args) -> None:
     try:
         client = register_api_client(client_id=args.client_id, secret_key=args.secret_key)
@@ -185,15 +235,23 @@ def list_clients(args) -> None:
         raise SystemExit(str(exc))
 
     if args.client_id:
-        matches = [client for client in clients if client.get("client_id") == args.client_id]
-        if not matches:
+        client = find_client(clients, args.client_id)
+        if client is None:
             raise SystemExit(f"API client not found: {args.client_id}")
-        client = matches[0]
-        print(f"client_id: {client.get('client_id', '')}")
-        print(f"client_dir: {client.get('client_dir', '')}")
-        print(f"enabled: {str(bool(client.get('enabled', True))).lower()}")
-        print(f"created_at: {client.get('created_at', '')}")
-        print(f"secret_updated_at: {client.get('secret_updated_at', '')}")
+        tasks = load_client_tasks(client)
+        print("task_id\tstatus\tcreated_at\tstarted_at\tfinished_at\tcontract_filename\tresult_filename")
+        for task in tasks:
+            input_data = task.get("input", {}) if isinstance(task.get("input"), dict) else {}
+            output_data = task.get("output", {}) if isinstance(task.get("output"), dict) else {}
+            print(
+                f"{task.get('task_id', '')}\t"
+                f"{task.get('status', '')}\t"
+                f"{task.get('created_at', '')}\t"
+                f"{task.get('started_at', '')}\t"
+                f"{task.get('finished_at', '')}\t"
+                f"{input_data.get('contract_filename', '')}\t"
+                f"{output_data.get('result_filename', '')}"
+            )
         return
 
     print("client_id\tenabled\tclient_dir\tcreated_at\tsecret_updated_at")
@@ -206,6 +264,26 @@ def list_clients(args) -> None:
             f"{client.get('created_at', '')}\t"
             f"{client.get('secret_updated_at', '')}"
         )
+
+
+def check_client(args) -> None:
+    try:
+        clients = load_api_clients()
+    except ApiClientCliError as exc:
+        raise SystemExit(str(exc))
+    client = find_client(clients, args.client_id)
+    if client is None:
+        raise SystemExit(f"API client not found: {args.client_id}")
+    tasks = load_client_tasks(client)
+    print(f"client_id: {client.get('client_id', '')}")
+    print(f"client_dir: {client.get('client_dir', '')}")
+    print(f"enabled: {str(bool(client.get('enabled', True))).lower()}")
+    print(f"created_at: {client.get('created_at', '')}")
+    print(f"secret_updated_at: {client.get('secret_updated_at', '')}")
+    print(f"has_secret_hash: {str(bool(client.get('secret_hash'))).lower()}")
+    print(f"has_secret_fingerprint: {str(bool(client.get('secret_fingerprint'))).lower()}")
+    print(f"task_count: {len(tasks)}")
+    print(f"task_root: {task_root_for_client(client)}")
 
 
 def disable_client(args) -> None:
@@ -222,6 +300,15 @@ def enable_client(args) -> None:
     except ApiClientCliError as exc:
         raise SystemExit(str(exc))
     print(f"Enabled API client: {client['client_id']}")
+
+
+def delete_client(args) -> None:
+    try:
+        client = delete_api_client(client_id=args.client_id)
+    except ApiClientCliError as exc:
+        raise SystemExit(str(exc))
+    print(f"Deleted API client: {client['client_id']}")
+    print("Task data was not deleted.")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -242,6 +329,10 @@ def build_parser() -> argparse.ArgumentParser:
     list_parser.add_argument("--client-id")
     list_parser.set_defaults(func=list_clients)
 
+    check = subparsers.add_parser("check", help="Check one API client")
+    check.add_argument("--client-id", required=True)
+    check.set_defaults(func=check_client)
+
     disable = subparsers.add_parser("disable", help="Disable an API client")
     disable.add_argument("--client-id", required=True)
     disable.set_defaults(func=disable_client)
@@ -249,6 +340,10 @@ def build_parser() -> argparse.ArgumentParser:
     enable = subparsers.add_parser("enable", help="Enable an API client")
     enable.add_argument("--client-id", required=True)
     enable.set_defaults(func=enable_client)
+
+    delete = subparsers.add_parser("delete", help="Delete an API client mapping")
+    delete.add_argument("--client-id", required=True)
+    delete.set_defaults(func=delete_client)
 
     return parser
 

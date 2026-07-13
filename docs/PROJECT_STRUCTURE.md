@@ -30,7 +30,7 @@
 
 - `scripts/manage_users.py`：Web 用户管理脚本。
 - `endpoints/web/user_management.py`：`/web` 管理端使用的用户管理逻辑。
-- `scripts/manage_api_clients.py`：`/api` client 管理脚本，支持 register/list/reset-secret/enable/disable。
+- `scripts/manage_api_clients.py`：`/api` client 管理脚本，支持 register/list/check/reset-secret/enable/disable/delete。
 - `scripts/api_review_callback_receiver.py`：本地测试 callback 的临时接收服务；普通 `/api` 异步主流程不依赖 callback。
 
 ## Identity Files

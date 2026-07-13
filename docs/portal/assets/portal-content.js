@@ -507,10 +507,10 @@ window.DOCS_PORTAL_CONTENT = {
       ],
     },
     { type: "heading", text: "API Client Management" },
-    { type: "para", text: "/api clients are managed by scripts/manage_api_clients.py. The platform key is registered manually and only its PBKDF2 secret_hash and irreversible secret_fingerprint are stored." },
+    { type: "para", text: "/api clients are managed by scripts/manage_api_clients.py. list shows clients, check shows one client detail, list --client-id shows tasks, and delete removes only the auth mapping." },
     {
       type: "code",
-      text: "python scripts/manage_api_clients.py register --client-id \"client_a\" --secret-key \"<platform_key>\"\npython scripts/manage_api_clients.py list\npython scripts/manage_api_clients.py list --client-id \"client_a\"\npython scripts/manage_api_clients.py reset-secret --client-id \"client_a\" --secret-key \"<new_platform_key>\"\npython scripts/manage_api_clients.py disable --client-id \"client_a\"\npython scripts/manage_api_clients.py enable --client-id \"client_a\"",
+      text: "python scripts/manage_api_clients.py register --client-id \"client_a\" --secret-key \"<platform_key>\"\npython scripts/manage_api_clients.py list\npython scripts/manage_api_clients.py check --client-id \"client_a\"\npython scripts/manage_api_clients.py list --client-id \"client_a\"\npython scripts/manage_api_clients.py reset-secret --client-id \"client_a\" --secret-key \"<new_platform_key>\"\npython scripts/manage_api_clients.py disable --client-id \"client_a\"\npython scripts/manage_api_clients.py enable --client-id \"client_a\"\npython scripts/manage_api_clients.py delete --client-id \"client_a\"",
     },
     {
       type: "callout",

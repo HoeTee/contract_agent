@@ -28,13 +28,17 @@ OA 集成不属于 `/api`。OA 后续应放在 `/oa`，使用独立鉴权和 cal
 API client 不在 `config.yaml` 配置。使用脚本管理：
 
 ```powershell
-python scripts/manage_api_clients.py register --client-id "某某行社" --secret-key "<platform_key>"
+python scripts/manage_api_clients.py register --client-id "client_a" --secret-key "<platform_key>"
 python scripts/manage_api_clients.py list
-python scripts/manage_api_clients.py list --client-id "某某行社"
-python scripts/manage_api_clients.py reset-secret --client-id "某某行社" --secret-key "<new_platform_key>"
-python scripts/manage_api_clients.py disable --client-id "某某行社"
-python scripts/manage_api_clients.py enable --client-id "某某行社"
+python scripts/manage_api_clients.py check --client-id "client_a"
+python scripts/manage_api_clients.py list --client-id "client_a"
+python scripts/manage_api_clients.py reset-secret --client-id "client_a" --secret-key "<new_platform_key>"
+python scripts/manage_api_clients.py disable --client-id "client_a"
+python scripts/manage_api_clients.py enable --client-id "client_a"
+python scripts/manage_api_clients.py delete --client-id "client_a"
 ```
+
+`list` shows registered clients. `check --client-id` shows one client detail. `list --client-id` shows tasks under that client. `delete --client-id` removes only the auth mapping and keeps task data.
 
 数据保存位置：
 
