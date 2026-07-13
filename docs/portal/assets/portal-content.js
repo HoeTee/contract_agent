@@ -506,20 +506,20 @@ window.DOCS_PORTAL_CONTENT = {
         "同步 endpoints/api/review.py 文件暂时保留，但 app.py 不再注册它。",
       ],
     },
-    { type: "heading", text: "API Client 管理" },
-    { type: "para", text: "API client 不写在 config.yaml 中，而是通过脚本管理 user_profiles/api_clients.json。" },
+    { type: "heading", text: "API Client Management" },
+    { type: "para", text: "/api clients are managed by scripts/manage_api_clients.py. The platform key is registered manually and only its PBKDF2 secret_hash is stored." },
     {
       type: "code",
-      text: "python scripts/manage_api_clients.py create --client-id \"某某行社\" --allowed-ip \"127.0.0.1\"\npython scripts/manage_api_clients.py list\npython scripts/manage_api_clients.py list --client-id \"某某行社\"\npython scripts/manage_api_clients.py reset-secret --client-id \"某某行社\"\npython scripts/manage_api_clients.py set-ips --client-id \"某某行社\" --allowed-ip \"127.0.0.1\"\npython scripts/manage_api_clients.py disable --client-id \"某某行社\"\npython scripts/manage_api_clients.py enable --client-id \"某某行社\"",
+      text: "python scripts/manage_api_clients.py register --client-id \"client_a\" --secret-key \"<platform_key>\"\npython scripts/manage_api_clients.py list\npython scripts/manage_api_clients.py list --client-id \"client_a\"\npython scripts/manage_api_clients.py reset-secret --client-id \"client_a\" --secret-key \"<new_platform_key>\"\npython scripts/manage_api_clients.py disable --client-id \"client_a\"\npython scripts/manage_api_clients.py enable --client-id \"client_a\"",
     },
     {
       type: "callout",
-      title: "Secret 只显示一次",
-      text: "create 和 reset-secret 会打印明文 secret，并提示：Store this secret securely. It is shown only once. If lost, reset it. 明文 secret 不落盘，文件中只保存 PBKDF2 secret_hash。",
+      title: "Secret is not stored",
+      text: "The service stores only PBKDF2 secret_hash, not the plaintext platform key.",
     },
     {
       type: "code",
-      text: "user_profiles/\n  users.json          # /web 用户\n  api_clients.json    # /api client_id、allowed_ips、enabled、secret_hash",
+      text: "user_profiles/\n  users.json          # /web users\n  api_clients.json    # /api client_id, enabled, secret_hash",
     },
     { type: "heading", text: "请求鉴权" },
     { type: "para", text: "提交任务使用 multipart/form-data，必须包含 client_id 和 secret_key。" },
@@ -538,7 +538,6 @@ window.DOCS_PORTAL_CONTENT = {
       rows: [
         ["缺少 client_id 或 secret_key", "401"],
         ["client_id 不存在、禁用或 secret 错误", "401"],
-        ["来源 IP 不在 allowed_ips", "403"],
       ],
     },
     { type: "heading", text: "任务目录" },
@@ -550,7 +549,7 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "heading", text: "状态流" },
     {
       type: "code",
-      text: "POST /api/review/jobs\n  -> 校验 client_id + secret_key + source IP\n  -> 创建 data/api/clients/<client_dir>/tasks/<task_id>/\n  -> 写 task.json: pending\n\n如果并发已满\n  -> task.json: queued\n\n获得执行槽位\n  -> task.json: running\n  -> workflow.run()\n\n完成\n  -> succeeded / failed\n\n取消\n  -> pending: cancelled\n  -> queued: cancelled\n  -> running: 409",
+      text: "POST /api/review/jobs\n  -> 校验 client_id + secret_key\n  -> 创建 data/api/clients/<client_dir>/tasks/<task_id>/\n  -> 写 task.json: pending\n\n如果并发已满\n  -> task.json: queued\n\n获得执行槽位\n  -> task.json: running\n  -> workflow.run()\n\n完成\n  -> succeeded / failed\n\n取消\n  -> pending: cancelled\n  -> queued: cancelled\n  -> running: 409",
     },
     { type: "heading", text: "结果导出" },
     {
@@ -562,10 +561,8 @@ window.DOCS_PORTAL_CONTENT = {
     {
       type: "list",
       items: [
-        "endpoints/api/client_auth.py：读取 body，校验 client_id、secret_key、allowed_ips。",
         "endpoints/api/review_jobs.py：提交、查询、导出、取消任务。",
-        "services/api_client_management.py：生成 secret，保存和验证 secret_hash。",
-        "scripts/manage_api_clients.py：管理 API client。",
+        "scripts/manage_api_clients.py：管理 API client，登记外部平台 key 的 secret_hash。",
         "endpoints/review/task_store.py：按 client_dir + task_id 读写 task 数据。",
         "endpoints/review/job_worker.py：执行后台审查任务。",
       ],
@@ -663,7 +660,7 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "para", text: "系统默认审查要点模板是 `resources/review_criteria/criteria.docx`，新建用户时复制到 `data/<username>/contract_review_criteria/criteria.docx`。普通用户在 `/web/work` 上传的审查要点只用于本次任务；管理员在用户详情页上传会覆盖该用户默认文件。上传前会做 DOCX 格式检查和内容检查，拒绝明显不是审查要点的 DOCX。" },
 
     { type: "heading", text: "共享用户管理服务与 CLI" },
-    { type: "para", text: "CLI 和管理员 Web 页面共用 `services/user_management.py`：`create_user_account()`、`set_user_role()`、`reset_user_password()`、`set_user_enabled()`、`delete_user_account()`。CLI 文件为 `scripts/manage_users.py`。" },
+    { type: "para", text: "CLI 和管理员 Web 页面共用 `endpoints/web/user_management.py`：`create_user_account()`、`set_user_role()`、`reset_user_password()`、`set_user_enabled()`、`delete_user_account()`。CLI 文件为 `scripts/manage_users.py`。" },
     {
       type: "code",
       text: "# 创建普通用户\npython scripts/manage_users.py create --username user001 --password Abc123456 --display-name 张三\n# 创建管理员\npython scripts/manage_users.py create --username admin --password Admin123456 --display-name 管理员 --role admin\n# 改角色 / 重置密码 / 启停 / 删除\npython scripts/manage_users.py set-role --username user001 --role admin\npython scripts/manage_users.py reset-password --username user001 --password NewPass123\npython scripts/manage_users.py disable --username user001\npython scripts/manage_users.py delete --username user001 --keep-data",
@@ -710,7 +707,7 @@ window.DOCS_PORTAL_CONTENT = {
       type: "table",
       headers: ["目录", "职责"],
       rows: [
-        ["endpoints/api/client_auth.py", "普通 /api 请求鉴权，校验 client_id、secret_key 和来源 IP。"],
+        ["endpoints/api/client_auth.py", "普通 /api 请求鉴权，校验 client_id 和 secret_key。"],
         ["endpoints/api/review_jobs.py", "普通 /api 异步任务 API：提交、查询、结果导出、取消。"],
         ["endpoints/api/review.py", "旧同步 API 文件，当前不再注册到 app.py，不作为普通外部 API 暴露。"],
         ["endpoints/web/user_routes.py", "浏览器普通用户页面和表单路由，URL 以 /web 开头。"],
@@ -733,8 +730,8 @@ window.DOCS_PORTAL_CONTENT = {
     {
       type: "list",
       items: [
-        "services/user_management.py + scripts/manage_users.py：管理 /web 用户。",
-        "services/api_client_management.py + scripts/manage_api_clients.py：管理 /api clients，生成 secret，保存 secret_hash。",
+        "endpoints/web/user_management.py + scripts/manage_users.py：管理 /web 用户。",
+        "scripts/manage_api_clients.py：管理 /api clients，登记外部平台 key 的 secret_hash。",
         "scripts/api_review_callback_receiver.py：本地测试 callback 的临时接收服务；普通 /api 当前不依赖 callback。",
       ],
     },

@@ -290,7 +290,7 @@ data/<username>/contract_review_criteria/criteria.docx
 CLI 和管理员 Web 页面共用同一套用户管理逻辑：
 
 ```text
-services/user_management.py
+endpoints/web/user_management.py
 ```
 
 主要函数：

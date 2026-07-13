@@ -7,22 +7,15 @@
 API client 由脚本管理：
 
 ```powershell
-python scripts/manage_api_clients.py create --client-id "某某行社" --allowed-ip "127.0.0.1"
+python scripts/manage_api_clients.py register --client-id "某某行社" --secret-key "<platform_key>"
 python scripts/manage_api_clients.py list
 python scripts/manage_api_clients.py list --client-id "某某行社"
-python scripts/manage_api_clients.py reset-secret --client-id "某某行社"
-python scripts/manage_api_clients.py set-ips --client-id "某某行社" --allowed-ip "127.0.0.1"
+python scripts/manage_api_clients.py reset-secret --client-id "某某行社" --secret-key "<new_platform_key>"
 python scripts/manage_api_clients.py disable --client-id "某某行社"
 python scripts/manage_api_clients.py enable --client-id "某某行社"
 ```
 
-`create` 和 `reset-secret` 会在终端打印 secret：
-
-```text
-Store this secret securely. It is shown only once. If lost, reset it.
-```
-
-明文 secret 不落盘。服务端只在 `user_profiles/api_clients.json` 保存 `secret_hash`。
+`/api` secret 来自外部平台注册 key，由脚本手动登记。明文 secret 不落盘，服务端只在 `user_profiles/api_clients.json` 保存 `secret_hash`。
 
 ## API 节点
 
@@ -38,7 +31,7 @@ Content-Type: multipart/form-data
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `client_id` | string | 是 | API 客户 ID，也是数据分区主键 |
-| `secret_key` | string | 是 | 脚本创建或重置时打印的 secret |
+| `secret_key` | string | 是 | 外部平台注册 key；本系统仅保存 hash |
 | `file` | file | 是 | 待审查合同 DOCX |
 | `criteria_file` | file | 否 | 本次审查标准 DOCX；不传则使用默认审查标准 |
 
@@ -168,7 +161,7 @@ data/api/clients/<client_dir>/tasks/<task_id>/
 
 ```text
 POST /api/review/jobs
-  -> 校验 client_id + secret_key + source IP
+  -> 校验 client_id + secret_key
   -> 创建 data/api/clients/<client_dir>/tasks/<task_id>/
   -> 保存上传文件
   -> 写 task.json: pending

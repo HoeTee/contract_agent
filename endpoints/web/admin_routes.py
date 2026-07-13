@@ -24,7 +24,7 @@ from endpoints.runtime.document_validation import (
 )
 from endpoints.runtime.filenames import safe_upload_filename
 from endpoints.web.user_routes import ctx_path, get_request_ctx, sync_context_user
-from services.user_management import (
+from endpoints.web.user_management import (
     UserManagementError,
     create_user_account,
     delete_user_account,

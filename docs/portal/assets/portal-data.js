@@ -60,7 +60,7 @@ window.DOCS_PORTAL_DATA = {
       tags: ["/api", "client_id", "secret_key", "task.json"],
       signals: [
         "普通 /api 不再暴露同步 POST /api/review。",
-        "API client 使用 scripts/manage_api_clients.py 管理，明文 secret 只打印一次。",
+        "API client 使用 scripts/manage_api_clients.py 管理，脚本登记外部平台 key 的 secret_hash。",
         "任务目录为 data/api/clients/<client_dir>/tasks/<task_id>/。",
         "普通 /api 不接收 metafields，不 callback。",
       ],
@@ -69,7 +69,6 @@ window.DOCS_PORTAL_DATA = {
         "endpoints/api/review_jobs.py",
         "endpoints/review/task_store.py",
         "endpoints/review/job_worker.py",
-        "services/api_client_management.py",
         "scripts/manage_api_clients.py",
         "docs/API_REVIEW_ENDPOINT.md",
         "docs/ASYNC_REVIEW_API.md",
@@ -115,10 +114,8 @@ window.DOCS_PORTAL_DATA = {
         "user_profiles/users.json 和 user_profiles/api_clients.json 分别管理两类身份。",
       ],
       paths: [
-        "services/user_management.py",
-        "services/api_client_management.py",
+        "endpoints/web/user_management.py",
         "scripts/manage_users.py",
-        "scripts/manage_api_clients.py",
         "docs/USER_MANAGEMENT.md",
       ],
       details: [
@@ -133,7 +130,7 @@ window.DOCS_PORTAL_DATA = {
       group: "架构",
       icon: "icon-folder",
       md: "PROJECT_STRUCTURE.md",
-      summary: "说明 /api、/web、runtime、review support、services/scripts、data 和后续 /oa 的边界。",
+      summary: "说明 /api、/web、runtime、review support、scripts、data 和后续 /oa 的边界。",
       tags: ["architecture", "/api", "/web", "runtime", "/oa"],
       signals: [
         "/api = 普通外部客户异步任务 API。",
@@ -279,7 +276,7 @@ window.DOCS_PORTAL_DATA = {
       paths: ["app.py", "endpoints/web/user_routes.py", "docs/QUICK_START.md", ".env.example"],
       details: [
         "快速开始适合验证本地功能，不等价于生产部署检查清单。",
-        "API client 测试需先运行 scripts/manage_api_clients.py create。",
+        "API client 测试需先运行 scripts/manage_api_clients.py register。",
       ],
     },
   ],

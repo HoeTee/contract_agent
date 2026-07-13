@@ -65,7 +65,7 @@
         <mxCell id="auth_module" value="endpoints/runtime/auth.py&lt;br&gt;load_users / verify_login&lt;br&gt;sync_session_user 强制退出" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#8B5CF6;" vertex="1" parent="auth_group">
           <mxGeometry x="30" y="138" width="300" height="68" as="geometry" />
         </mxCell>
-        <mxCell id="user_mgmt" value="services/user_management.py&lt;br&gt;创建、更新、删除用户&lt;br&gt;初始化用户目录" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#8B5CF6;" vertex="1" parent="auth_group">
+        <mxCell id="user_mgmt" value="endpoints/web/user_management.py&lt;br&gt;创建、更新、删除用户&lt;br&gt;初始化用户目录" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#8B5CF6;" vertex="1" parent="auth_group">
           <mxGeometry x="30" y="230" width="300" height="68" as="geometry" />
         </mxCell>
         <mxCell id="users_file" value="USERS_FILE&lt;br&gt;user_profiles/users.json&lt;br&gt;账号、角色、启用状态、密码哈希" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#F3E8FF;strokeColor=#9333EA;" vertex="1" parent="auth_group">

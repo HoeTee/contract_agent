@@ -5,8 +5,8 @@ from datetime import datetime
 from pathlib import Path
 
 from config import DATA_DIR, USERS_FILE
-from loggers.resolve_review_task_paths import initialize_user_data_dir, safe_path_part
 from endpoints.runtime.auth import VALID_ROLES, hash_password, load_users, save_users
+from loggers.resolve_review_task_paths import initialize_user_data_dir, safe_path_part
 
 
 class UserManagementError(Exception):
@@ -23,7 +23,7 @@ def find_user_index(users: list[dict], username: str) -> int | None:
 def validate_role(role: str) -> str:
     normalized = (role or "").strip().lower()
     if normalized not in VALID_ROLES:
-        raise UserManagementError(f"角色必须是 user 或 admin：{role}")
+        raise UserManagementError(f"Role must be user or admin: {role}")
     return normalized
 
 
@@ -40,7 +40,7 @@ def create_user_account(
     normalized_role = validate_role(role)
     users = load_users(users_file)
     if find_user_index(users, safe_username) is not None:
-        raise UserManagementError(f"用户已存在：{safe_username}")
+        raise UserManagementError(f"User already exists: {safe_username}")
 
     users.append({
         "username": safe_username,
@@ -65,7 +65,7 @@ def set_user_role(
     users = load_users(users_file)
     index = find_user_index(users, username)
     if index is None:
-        raise UserManagementError(f"未找到用户：{username}")
+        raise UserManagementError(f"User not found: {username}")
     users[index]["role"] = normalized_role
     users[index]["role_updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_users(users_file, users)
@@ -81,7 +81,7 @@ def reset_user_password(
     users = load_users(users_file)
     index = find_user_index(users, username)
     if index is None:
-        raise UserManagementError(f"未找到用户：{username}")
+        raise UserManagementError(f"User not found: {username}")
     users[index]["password_hash"] = hash_password(password)
     users[index]["password_updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_users(users_file, users)
@@ -97,7 +97,7 @@ def set_user_enabled(
     users = load_users(users_file)
     index = find_user_index(users, username)
     if index is None:
-        raise UserManagementError(f"未找到用户：{username}")
+        raise UserManagementError(f"User not found: {username}")
     users[index]["enabled"] = enabled
     key = "enabled_at" if enabled else "disabled_at"
     users[index][key] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -117,7 +117,7 @@ def delete_user_account(
     users = load_users(users_file)
     index = find_user_index(users, safe_username)
     if index is None:
-        raise UserManagementError(f"未找到用户：{safe_username}")
+        raise UserManagementError(f"User not found: {safe_username}")
 
     del users[index]
     save_users(users_file, users)
@@ -129,7 +129,7 @@ def delete_user_account(
     data_root = Path(data_dir).resolve()
     resolved_user_root = user_root.resolve()
     if data_root == resolved_user_root or data_root not in resolved_user_root.parents:
-        raise UserManagementError(f"拒绝删除不安全路径：{resolved_user_root}")
+        raise UserManagementError(f"Refusing to delete unsafe path: {resolved_user_root}")
 
     if resolved_user_root.exists():
         shutil.rmtree(resolved_user_root)

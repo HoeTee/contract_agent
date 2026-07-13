@@ -10,7 +10,7 @@
 
 ## HTTP Endpoints
 
-- `endpoints/api/client_auth.py`：普通 `/api` 请求鉴权，校验 `client_id`、`secret_key` 和来源 IP。
+- `endpoints/api/client_auth.py`：普通 `/api` 请求鉴权，校验 `client_id` 和 `secret_key`。
 - `endpoints/api/review_jobs.py`：普通 `/api` 异步任务 API，提供提交、查询、结果导出、取消任务节点。
 - `endpoints/api/review.py`：旧同步 API 文件，当前不再注册到 `app.py`，不作为普通外部 API 暴露。
 - `endpoints/web/user_routes.py`：浏览器普通用户页面和表单路由，URL 以 `/web` 开头。
@@ -28,10 +28,9 @@
 
 ## Services And Scripts
 
-- `services/user_management.py`：Web 用户管理服务，供管理后台和 `scripts/manage_users.py` 使用。
-- `services/api_client_management.py`：`/api` client 管理服务，负责生成 secret、保存 `secret_hash`、维护 `user_profiles/api_clients.json`。
 - `scripts/manage_users.py`：Web 用户管理脚本。
-- `scripts/manage_api_clients.py`：`/api` client 管理脚本，支持 create/list/reset-secret/set-ips/enable/disable。
+- `endpoints/web/user_management.py`：`/web` 管理端使用的用户管理逻辑。
+- `scripts/manage_api_clients.py`：`/api` client 管理脚本，支持 register/list/reset-secret/enable/disable。
 - `scripts/api_review_callback_receiver.py`：本地测试 callback 的临时接收服务；普通 `/api` 异步主流程不依赖 callback。
 
 ## Identity Files
@@ -42,7 +41,7 @@ user_profiles/
   api_clients.json    # /api 客户，由 scripts/manage_api_clients.py 管理
 ```
 
-`api_clients.json` 保存 `client_id`、`allowed_ips`、`enabled` 和 `secret_hash`。明文 `secret_key` 只在创建或重置时打印一次，不落盘。
+`api_clients.json` 保存 `client_id`、`enabled` 和 `secret_hash`。明文 `secret_key` 不落盘；`/api` secret 来自外部平台注册 key，由脚本手动登记。
 
 ## Data Directories
 

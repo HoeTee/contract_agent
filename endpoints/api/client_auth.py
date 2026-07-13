@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+import json
+import re
 from dataclasses import dataclass
+from pathlib import Path
 
 from typing import Any
 
 from fastapi import HTTPException, Request
 
-from services.api_client_management import (
-    ApiClientManagementError,
-    client_dir_name,
-    load_api_clients,
-    verify_api_client_secret,
-)
+from endpoints.runtime.auth import verify_password
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+API_CLIENTS_FILE = PROJECT_ROOT / "user_profiles" / "api_clients.json"
 
 
 @dataclass(frozen=True)
@@ -19,6 +21,27 @@ class ApiClient:
     client_id: str
     client_dir: str
     source_ip: str
+
+
+class ApiClientAuthError(Exception):
+    pass
+
+
+def client_dir_name(client_id: str) -> str:
+    cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", client_id).strip().strip(".")
+    cleaned = re.sub(r"\s+", "_", cleaned)
+    return cleaned or "api_client"
+
+
+def load_api_clients(clients_file: str | Path = API_CLIENTS_FILE) -> list[dict[str, Any]]:
+    path = Path(clients_file)
+    if not path.exists():
+        return []
+    data = json.loads(path.read_text(encoding="utf-8"))
+    clients = data.get("clients", [])
+    if not isinstance(clients, list):
+        raise ApiClientAuthError("api_clients.json must contain a clients list.")
+    return clients
 
 
 def _request_source_ip(request: Request) -> str:
@@ -53,21 +76,17 @@ async def resolve_api_client(
 
     try:
         clients = load_api_clients()
-    except ApiClientManagementError as exc:
+    except ApiClientAuthError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     client = next((item for item in clients if item.get("client_id") == client_id), None)
     if client is None or not client.get("enabled", True):
         raise HTTPException(status_code=401, detail="Invalid API client credentials.")
 
-    if not verify_api_client_secret(client, secret_key):
+    if not verify_password(secret_key, str(client.get("secret_hash", ""))):
         raise HTTPException(status_code=401, detail="Invalid API client credentials.")
 
     source_ip = _request_source_ip(request)
-    allowed_ips = [str(ip).strip() for ip in client.get("allowed_ips", []) if str(ip).strip()]
-    if allowed_ips and source_ip not in allowed_ips:
-        raise HTTPException(status_code=403, detail="Source IP is not allowed for this API client.")
-
     return ApiClient(
         client_id=client_id,
         client_dir=str(client.get("client_dir") or client_dir_name(client_id)),
