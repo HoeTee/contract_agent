@@ -212,6 +212,66 @@ def load_client_tasks(client: dict[str, Any]) -> list[dict[str, Any]]:
     return tasks
 
 
+def task_display_fields(task: dict[str, Any]) -> dict[str, str]:
+    input_data = task.get("input", {}) if isinstance(task.get("input"), dict) else {}
+    output_data = task.get("output", {}) if isinstance(task.get("output"), dict) else {}
+    return {
+        "task_id": str(task.get("task_id") or ""),
+        "status": str(task.get("status") or ""),
+        "created_at": str(task.get("created_at") or ""),
+        "started_at": str(task.get("started_at") or ""),
+        "finished_at": str(task.get("finished_at") or ""),
+        "contract_filename": str(input_data.get("contract_filename") or ""),
+        "result_filename": str(output_data.get("result_filename") or ""),
+    }
+
+
+def ellipsize(value: str, max_length: int = 28) -> str:
+    if len(value) <= max_length:
+        return value
+    if max_length <= 3:
+        return "." * max_length
+    return value[: max_length - 3] + "..."
+
+
+def print_tasks_block(tasks: list[dict[str, Any]]) -> None:
+    if not tasks:
+        print("No tasks found.")
+        return
+    for index, task in enumerate(tasks):
+        fields = task_display_fields(task)
+        if index:
+            print("---")
+        print(f"task_id: {fields['task_id']}")
+        print(f"status: {fields['status']}")
+        print(f"created_at: {fields['created_at']}")
+        print(f"started_at: {fields['started_at']}")
+        print(f"finished_at: {fields['finished_at']}")
+        print(f"contract_filename: {fields['contract_filename']}")
+        print(f"result_filename: {fields['result_filename']}")
+
+
+def print_tasks_compact(tasks: list[dict[str, Any]]) -> None:
+    print(
+        f"{'task_id':<22} "
+        f"{'status':<10} "
+        f"{'created_at':<25} "
+        f"{'finished_at':<25} "
+        f"{'contract_filename':<31} "
+        "result_filename"
+    )
+    for task in tasks:
+        fields = task_display_fields(task)
+        print(
+            f"{ellipsize(fields['task_id'], 22):<22} "
+            f"{ellipsize(fields['status'], 10):<10} "
+            f"{ellipsize(fields['created_at'], 25):<25} "
+            f"{ellipsize(fields['finished_at'], 25):<25} "
+            f"{ellipsize(fields['contract_filename'], 31):<31} "
+            f"{ellipsize(fields['result_filename'], 31)}"
+        )
+
+
 def register_client(args) -> None:
     try:
         client = register_api_client(client_id=args.client_id, secret_key=args.secret_key)
@@ -239,19 +299,10 @@ def list_clients(args) -> None:
         if client is None:
             raise SystemExit(f"API client not found: {args.client_id}")
         tasks = load_client_tasks(client)
-        print("task_id\tstatus\tcreated_at\tstarted_at\tfinished_at\tcontract_filename\tresult_filename")
-        for task in tasks:
-            input_data = task.get("input", {}) if isinstance(task.get("input"), dict) else {}
-            output_data = task.get("output", {}) if isinstance(task.get("output"), dict) else {}
-            print(
-                f"{task.get('task_id', '')}\t"
-                f"{task.get('status', '')}\t"
-                f"{task.get('created_at', '')}\t"
-                f"{task.get('started_at', '')}\t"
-                f"{task.get('finished_at', '')}\t"
-                f"{input_data.get('contract_filename', '')}\t"
-                f"{output_data.get('result_filename', '')}"
-            )
+        if args.compact:
+            print_tasks_compact(tasks)
+        else:
+            print_tasks_block(tasks)
         return
 
     print("client_id\tenabled\tclient_dir\tcreated_at\tsecret_updated_at")
@@ -327,6 +378,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     list_parser = subparsers.add_parser("list", help="List API clients")
     list_parser.add_argument("--client-id")
+    list_parser.add_argument("--compact", action="store_true", help="Print client tasks in one-line compact rows")
     list_parser.set_defaults(func=list_clients)
 
     check = subparsers.add_parser("check", help="Check one API client")

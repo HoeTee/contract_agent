@@ -32,13 +32,14 @@ python scripts/manage_api_clients.py register --client-id "client_a" --secret-ke
 python scripts/manage_api_clients.py list
 python scripts/manage_api_clients.py check --client-id "client_a"
 python scripts/manage_api_clients.py list --client-id "client_a"
+python scripts/manage_api_clients.py list --client-id "client_a" --compact
 python scripts/manage_api_clients.py reset-secret --client-id "client_a" --secret-key "<new_platform_key>"
 python scripts/manage_api_clients.py disable --client-id "client_a"
 python scripts/manage_api_clients.py enable --client-id "client_a"
 python scripts/manage_api_clients.py delete --client-id "client_a"
 ```
 
-`list` shows registered clients. `check --client-id` shows one client detail. `list --client-id` shows tasks under that client. `delete --client-id` removes only the auth mapping and keeps task data.
+`list` shows registered clients. `check --client-id` shows one client detail. `list --client-id` shows tasks under that client in block format; add `--compact` for one-line rows with truncated filenames. `delete --client-id` removes only the auth mapping and keeps task data.
 
 数据保存位置：
 
