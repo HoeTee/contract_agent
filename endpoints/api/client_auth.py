@@ -64,28 +64,51 @@ async def _body_fields(request: Request, payload: dict[str, Any] | None = None) 
     return dict(form)
 
 
+def _header_secret_key(request: Request) -> str:
+    authorization = request.headers.get("authorization", "").strip()
+    if authorization.lower().startswith("bearer "):
+        return authorization[7:].strip()
+    if authorization:
+        return authorization
+    return request.headers.get("x-api-key", "").strip()
+
+
+def _extract_secret_key(request: Request, fields: dict[str, Any]) -> str:
+    return (
+        _header_secret_key(request)
+        or str(fields.get("secret_key") or "").strip()
+        or str(request.query_params.get("secret_key") or "").strip()
+    )
+
+
 async def resolve_api_client(
     request: Request,
     payload: dict[str, Any] | None = None,
 ) -> ApiClient:
     fields = await _body_fields(request, payload)
-    client_id = str(fields.get("client_id") or "").strip()
-    secret_key = str(fields.get("secret_key") or "").strip()
-    if not client_id or not secret_key:
-        raise HTTPException(status_code=401, detail="client_id and secret_key are required.")
+    secret_key = _extract_secret_key(request, fields)
+    if not secret_key:
+        raise HTTPException(status_code=401, detail="secret_key is required.")
 
     try:
         clients = load_api_clients()
     except ApiClientAuthError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    client = next((item for item in clients if item.get("client_id") == client_id), None)
-    if client is None or not client.get("enabled", True):
+    matches = [
+        client
+        for client in clients
+        if client.get("enabled", True) and verify_password(secret_key, str(client.get("secret_hash", "")))
+    ]
+    if not matches:
         raise HTTPException(status_code=401, detail="Invalid API client credentials.")
+    if len(matches) > 1:
+        raise HTTPException(status_code=500, detail="API client secret matches multiple clients.")
 
-    if not verify_password(secret_key, str(client.get("secret_hash", ""))):
-        raise HTTPException(status_code=401, detail="Invalid API client credentials.")
-
+    client = matches[0]
+    client_id = str(client.get("client_id") or "").strip()
+    if not client_id:
+        raise HTTPException(status_code=500, detail="API client record is missing client_id.")
     source_ip = _request_source_ip(request)
     return ApiClient(
         client_id=client_id,

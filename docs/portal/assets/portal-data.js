@@ -29,7 +29,7 @@ window.DOCS_PORTAL_DATA = {
     {
       icon: "icon-api",
       title: "Authenticate API client",
-      text: "POST /api/review/jobs reads client_id and secret_key from the request body and checks user_profiles/api_clients.json.",
+      text: "POST /api/review/jobs reads secret_key from the request body and matches secret_key against user_profiles/api_clients.json.",
     },
     {
       icon: "icon-folder",
@@ -56,7 +56,7 @@ window.DOCS_PORTAL_DATA = {
       group: "API",
       icon: "icon-api",
       md: "API_REVIEW_ENDPOINT.md",
-      summary: "普通外部客户的异步审查 API：client_id + secret_key 鉴权、按 client_id 分区、提交/查询/导出/取消任务。",
+      summary: "Async review API for external clients: secret_key auth, server-side client_id lookup, task submit/status/export/cancel.",
       tags: ["/api", "client_id", "secret_key", "task.json"],
       signals: [
         "普通 /api 不再暴露同步 POST /api/review。",
@@ -74,7 +74,7 @@ window.DOCS_PORTAL_DATA = {
         "docs/ASYNC_REVIEW_API.md",
       ],
       details: [
-        "GET/POST task endpoints must authenticate with client_id and secret_key before reading a task.",
+        "GET/POST task endpoints must authenticate with secret_key before reading a task.",
         "The client_id is the business identity; client_dir is the filesystem-safe directory name.",
         "Synchronous /api/review still exists as a file but is not registered in app.py.",
       ],

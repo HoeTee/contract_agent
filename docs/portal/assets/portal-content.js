@@ -495,7 +495,7 @@ window.DOCS_PORTAL_CONTENT = {
   ],
 
   "api-review": [
-    { type: "para", text: "当前普通 /api 只提供异步任务接口，不再暴露同步 POST /api/review。调用方需要通过 client_id + secret_key 鉴权，任务按 client_id 分区存储。" },
+    { type: "para", text: "Ordinary /api exposes async review jobs only. Callers provide only secret_key; the service resolves client_id/client_dir from the local client mapping before storing task data." },
     { type: "heading", text: "接口边界" },
     {
       type: "list",
@@ -507,7 +507,7 @@ window.DOCS_PORTAL_CONTENT = {
       ],
     },
     { type: "heading", text: "API Client Management" },
-    { type: "para", text: "/api clients are managed by scripts/manage_api_clients.py. The platform key is registered manually and only its PBKDF2 secret_hash is stored." },
+    { type: "para", text: "/api clients are managed by scripts/manage_api_clients.py. The platform key is registered manually and only its PBKDF2 secret_hash and irreversible secret_fingerprint are stored." },
     {
       type: "code",
       text: "python scripts/manage_api_clients.py register --client-id \"client_a\" --secret-key \"<platform_key>\"\npython scripts/manage_api_clients.py list\npython scripts/manage_api_clients.py list --client-id \"client_a\"\npython scripts/manage_api_clients.py reset-secret --client-id \"client_a\" --secret-key \"<new_platform_key>\"\npython scripts/manage_api_clients.py disable --client-id \"client_a\"\npython scripts/manage_api_clients.py enable --client-id \"client_a\"",
@@ -515,29 +515,29 @@ window.DOCS_PORTAL_CONTENT = {
     {
       type: "callout",
       title: "Secret is not stored",
-      text: "The service stores only PBKDF2 secret_hash, not the plaintext platform key.",
+      text: "The service stores only PBKDF2 secret_hash and irreversible secret_fingerprint, not the plaintext platform key.",
     },
     {
       type: "code",
-      text: "user_profiles/\n  users.json          # /web users\n  api_clients.json    # /api client_id, enabled, secret_hash",
+      text: "user_profiles/\n  users.json          # /web users\n  api_clients.json    # /api client_id, enabled, secret_hash, secret_fingerprint",
     },
     { type: "heading", text: "请求鉴权" },
-    { type: "para", text: "提交任务使用 multipart/form-data，必须包含 client_id 和 secret_key。" },
+    { type: "para", text: "Submit jobs with multipart/form-data. Only secret_key and file are required." },
     {
       type: "code",
-      text: "curl.exe -X POST \"http://localhost:5000/api/review/jobs\" `\n  -F \"client_id=某某行社\" `\n  -F \"secret_key=api_xxx\" `\n  -F \"file=@C:\\path\\合同.docx\"",
+      text: "curl.exe -X POST \"http://localhost:5000/api/review/jobs\" `\n  -F \"secret_key=api_xxx\" `\n  -F \"file=@C:\\path\\contract.docx\"",
     },
-    { type: "para", text: "查询、导出、取消使用 JSON body 传入 client_id 和 secret_key。" },
+    { type: "para", text: "Status, result export, and cancel also use secret_key. It can be sent by Authorization Bearer, X-API-Key, JSON body, or query string." },
     {
       type: "code",
-      text: "{\n  \"client_id\": \"某某行社\",\n  \"secret_key\": \"api_xxx\"\n}",
+      text: "{\n  \"secret_key\": \"api_xxx\"\n}",
     },
     {
       type: "table",
       headers: ["失败情况", "状态码"],
       rows: [
-        ["缺少 client_id 或 secret_key", "401"],
-        ["client_id 不存在、禁用或 secret 错误", "401"],
+        ["Missing secret_key", "401"],
+        ["Secret does not match an enabled client", "401"],
       ],
     },
     { type: "heading", text: "任务目录" },
@@ -549,12 +549,12 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "heading", text: "状态流" },
     {
       type: "code",
-      text: "POST /api/review/jobs\n  -> 校验 client_id + secret_key\n  -> 创建 data/api/clients/<client_dir>/tasks/<task_id>/\n  -> 写 task.json: pending\n\n如果并发已满\n  -> task.json: queued\n\n获得执行槽位\n  -> task.json: running\n  -> workflow.run()\n\n完成\n  -> succeeded / failed\n\n取消\n  -> pending: cancelled\n  -> queued: cancelled\n  -> running: 409",
+      text: "POST /api/review/jobs\n  -> 校验 secret_key\n  -> 创建 data/api/clients/<client_dir>/tasks/<task_id>/\n  -> 写 task.json: pending\n\n如果并发已满\n  -> task.json: queued\n\n获得执行槽位\n  -> task.json: running\n  -> workflow.run()\n\n完成\n  -> succeeded / failed\n\n取消\n  -> pending: cancelled\n  -> queued: cancelled\n  -> running: 409",
     },
     { type: "heading", text: "结果导出" },
     {
       type: "code",
-      text: "POST /api/review/jobs/{task_id}/result\nContent-Type: application/json\n\n{\n  \"client_id\": \"某某行社\",\n  \"secret_key\": \"api_xxx\",\n  \"output_path\": \"C:\\\\Users\\\\lenovo\\\\Desktop\\\\review_result.docx\"\n}",
+      text: "POST /api/review/jobs/{task_id}/result\nContent-Type: application/json\n\n{\n  \"secret_key\": \"api_xxx\",\n  \"output_path\": \"C:\\\\Users\\\\lenovo\\\\Desktop\\\\review_result.docx\"\n}",
     },
     { type: "para", text: "output_path 是服务端机器上的路径。Docker 或远端部署时必须写容器或服务器可访问的路径。" },
     { type: "heading", text: "相关代码" },
@@ -707,7 +707,7 @@ window.DOCS_PORTAL_CONTENT = {
       type: "table",
       headers: ["目录", "职责"],
       rows: [
-        ["endpoints/api/client_auth.py", "普通 /api 请求鉴权，校验 client_id 和 secret_key。"],
+        ["endpoints/api/client_auth.py", "Authenticates ordinary /api requests by secret_key, then resolves client_id/client_dir."],
         ["endpoints/api/review_jobs.py", "普通 /api 异步任务 API：提交、查询、结果导出、取消。"],
         ["endpoints/api/review.py", "旧同步 API 文件，当前不再注册到 app.py，不作为普通外部 API 暴露。"],
         ["endpoints/web/user_routes.py", "浏览器普通用户页面和表单路由，URL 以 /web 开头。"],
@@ -750,7 +750,7 @@ window.DOCS_PORTAL_CONTENT = {
       type: "table",
       headers: ["类别", "当前职责"],
       rows: [
-        ["/api", "普通外部客户异步任务 API；需要 client_id + secret_key；不接收 metafields；不 callback。"],
+        ["/api", "普通外部客户异步任务 API；需要 secret_key；不接收 metafields；不 callback。"],
         ["/web", "浏览器页面、表单、session/cookie、历史记录和下载；后续租户管理员/超级管理员另行设计。"],
         ["runtime", "HTTP 层通用运行时工具，不属于某个业务 API 类别。"],
         ["/oa", "后续独立 OA 集成：body secret 鉴权、接收 metafields、完成后 callback OA。"],

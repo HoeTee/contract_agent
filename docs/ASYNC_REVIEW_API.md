@@ -30,7 +30,6 @@ Content-Type: multipart/form-data
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `client_id` | string | 是 | API 客户 ID，也是数据分区主键 |
 | `secret_key` | string | 是 | 外部平台注册 key；本系统仅保存 hash |
 | `file` | file | 是 | 待审查合同 DOCX |
 | `criteria_file` | file | 否 | 本次审查标准 DOCX；不传则使用默认审查标准 |
@@ -56,7 +55,6 @@ Content-Type: application/json
 
 ```json
 {
-  "client_id": "某某行社",
   "secret_key": "api_xxx"
 }
 ```
@@ -74,7 +72,6 @@ Content-Type: application/json
 
 ```json
 {
-  "client_id": "某某行社",
   "secret_key": "api_xxx",
   "output_path": "C:\\Users\\lenovo\\Desktop\\review_result.docx"
 }
@@ -103,7 +100,6 @@ Content-Type: application/json
 
 ```json
 {
-  "client_id": "某某行社",
   "secret_key": "api_xxx"
 }
 ```
@@ -140,7 +136,7 @@ data/api/clients/<client_dir>/tasks/<task_id>/
   logs/
 ```
 
-其中 `task.json` 内部记录原始 `client_id` 和安全目录名 `client_dir`。服务端内部可以保留 workflow 需要的路径，但普通 `/api` 响应不会返回这些绝对路径。
+The service resolves `client_id/client_dir` from `secret_key`; `task.json` records the original `client_id` and safe `client_dir`. Internal workflow paths can remain in task storage, but ordinary `/api` responses do not expose absolute server paths.
 
 `logs` 字段按字母顺序保存：
 
@@ -161,7 +157,7 @@ data/api/clients/<client_dir>/tasks/<task_id>/
 
 ```text
 POST /api/review/jobs
-  -> 校验 client_id + secret_key
+  -> 校验 secret_key
   -> 创建 data/api/clients/<client_dir>/tasks/<task_id>/
   -> 保存上传文件
   -> 写 task.json: pending

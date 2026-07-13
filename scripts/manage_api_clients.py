@@ -5,6 +5,7 @@ import json
 import re
 import sys
 from datetime import datetime
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +63,24 @@ def find_client_index(clients: list[dict[str, Any]], client_id: str) -> int | No
     return None
 
 
+def secret_fingerprint(secret_key: str) -> str:
+    return sha256(secret_key.encode("utf-8")).hexdigest()
+
+
+def find_secret_fingerprint_owner(
+    clients: list[dict[str, Any]],
+    fingerprint: str,
+    *,
+    exclude_client_id: str | None = None,
+) -> str | None:
+    for client in clients:
+        if exclude_client_id is not None and client.get("client_id") == exclude_client_id:
+            continue
+        if client.get("secret_fingerprint") == fingerprint:
+            return str(client.get("client_id") or "")
+    return None
+
+
 def register_api_client(
     *,
     client_id: str,
@@ -78,12 +97,17 @@ def register_api_client(
     clients = load_api_clients(clients_file)
     if find_client_index(clients, client_id) is not None:
         raise ApiClientCliError(f"API client already exists: {client_id}")
+    fingerprint = secret_fingerprint(secret_key)
+    owner = find_secret_fingerprint_owner(clients, fingerprint)
+    if owner:
+        raise ApiClientCliError(f"secret_key is already registered for API client: {owner}")
 
     timestamp = now_text()
     client = {
         "client_id": client_id,
         "client_dir": client_dir_name(client_id),
         "secret_hash": hash_password(secret_key),
+        "secret_fingerprint": fingerprint,
         "enabled": True,
         "created_at": timestamp,
         "secret_updated_at": timestamp,
@@ -108,7 +132,13 @@ def reset_api_client_secret(
     if index is None:
         raise ApiClientCliError(f"API client not found: {client_id}")
 
+    fingerprint = secret_fingerprint(secret_key)
+    owner = find_secret_fingerprint_owner(clients, fingerprint, exclude_client_id=client_id)
+    if owner:
+        raise ApiClientCliError(f"secret_key is already registered for API client: {owner}")
+
     clients[index]["secret_hash"] = hash_password(secret_key)
+    clients[index]["secret_fingerprint"] = fingerprint
     clients[index]["secret_updated_at"] = now_text()
     clients[index]["client_dir"] = clients[index].get("client_dir") or client_dir_name(client_id)
     save_api_clients(clients, clients_file)
