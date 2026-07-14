@@ -2,51 +2,19 @@
 .gitignore
 .dockerignore
 
-# Secrets and local config
+# Local secrets and deployment overrides
 .env
 .env.local
 .env.*.local
-users.json
+docker-compose.yaml
 
-# Local user/account data
-user_profiles
-
-# Office documents and temporary lock files
-*.doc
-*.docx
-*.docm
-*.dot
-*.dotx
-*.dotm
-*.pdf
-~$*
-~$*.doc*
-.~lock.*#
-*.tmp
-*.bak
-!resources/review_criteria/criteria.docx
-
-# Uploaded documents, generated reports, and runtime data
+# Runtime and tenant data
 data
-uploads
-docs/contracts
-docs/contract_review_criteria
-docs/reports_md
-docs/reports_docx
-docs/reports_pdf
-
-# Runtime logs and indexes
+user_profiles
 logs
-*.log
-RAG_persist
-docx_comment_test
-md2pdf_test
-api_review_test
-results
-.tmp_patents
-.tmp_compare
+uploads
 
-# Python caches, environments, and build output
+# Python caches and local environments
 __pycache__
 *.pyc
 *.pyo
@@ -57,40 +25,25 @@ build
 .venv
 venv
 env
-.venv_old
-.wheel-venv
 
-# Model/tokenizer/cache artifacts
-local_tokenizers
-.cache
-*.tiktoken
+# Office temporary files and local scratch files
+~$*
+~$*.doc*
+.~lock.*#
+*.tmp
+*.bak
+*.log
 
 # Local tool/editor state
 .claude
 .codex
 .vscode
 .idea
-.codegraph
+.cache
 
-# Generated or external root-level app/build folders
-frontend
-src
-api
-packages
-project_experience
-project_intro
-
-# Large local archives/images
+# Local archives/images
 *.tar
 *.tar.gz
 *.zip
 *.rar
 image.tar
-
-# Chinese local material folders
-专利材料
-专利文件
-相关合同智能体系列文件
-docker 运行所需文件_v.1.0
-docker 运行所需文件_v.2.0
-docker 运行所需文件_v.3.0

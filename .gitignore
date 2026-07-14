@@ -1,11 +1,15 @@
-# Secrets and local config
+# Local secrets and deployment overrides
+.env
 .env.local
 .env.*.local
+docker-compose.yaml
 
-# Local user/account data
-users.json
+# Runtime and tenant data
+data/
 user_profiles/*
 !user_profiles/.gitkeep
+logs/
+uploads/
 
 # Office documents and temporary lock files
 *.doc
@@ -21,30 +25,10 @@ user_profiles/*
 *.tmp
 *.bak
 
-# Uploaded documents, generated reports, and runtime data
-data/
-uploads/
-docs/contracts/
-docs/contract_review_criteria/
-docs/reports_md/
-docs/reports_docx/
-docs/reports_pdf/
-
-# Default review criteria template: keep only the committed fallback file
+# Keep the committed fallback review criteria
 resources/review_criteria/*
 !resources/review_criteria/.gitkeep
 !resources/review_criteria/criteria.docx
-
-# Runtime logs and indexes
-logs/
-*.log
-RAG_persist/
-docx_comment_test/
-md2pdf_test/
-api_review_test/
-results/
-.tmp_patents/
-.tmp_compare/
 
 # Python caches, environments, and build output
 __pycache__/
@@ -56,30 +40,19 @@ dist/
 build/
 *.egg
 .venv/
-/.venv/
-.venv_old/
 venv/
 env/
-.wheel-venv/
 
-# Model/tokenizer/cache artifacts
-local_tokenizers/
-.cache/
-*.tiktoken
-
-# Local tool/editor state
+# Tool/editor state
 .claude/
 .codex/
 .vscode/
 .idea/
-.codegraph/
+.cache/
 
-# Generated or external root-level app/build folders
-/src/
-/api/
-/packages/
-/project_experience/
-/project_intro/
+# Runtime indexes and generated results
+RAG_persist/
+results/
 
 # Large local archives/images
 *.tar
@@ -87,20 +60,8 @@ local_tokenizers/
 *.zip
 *.rar
 image.tar
+/packages
 
-# Ad-hoc local notes and generated files
+# Local notes
 /PLAN.md
 /DEPLOYMENT.md
-/results.docx
-
-# Chinese local material folders
-专利材料/
-专利文件/
-相关合同智能体系列文件/
-docker 运行所需文件_v.1.0/
-docker 运行所需文件_v.2.0/
-docker 运行所需文件_v.3.0/
-
-# Keep placeholder files when needed
-!docs/**/.gitkeep
-!logs/**/.gitkeep
