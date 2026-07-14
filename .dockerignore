@@ -41,6 +41,9 @@ env
 .idea
 .cache
 
+# Development-only test suite
+/tests/
+
 # Local archives/images
 *.tar
 *.tar.gz

@@ -30,7 +30,7 @@ resources/review_criteria/*
 !resources/review_criteria/.gitkeep
 !resources/review_criteria/criteria.docx
 
-# Python caches, environments, and build output
+# Python caches, virtual environments, and build output
 __pycache__/
 *.py[cod]
 *.pyo
@@ -43,7 +43,7 @@ build/
 venv/
 env/
 
-# Tool/editor state
+# Local tool and editor state
 .claude/
 .codex/
 .vscode/
@@ -54,18 +54,16 @@ env/
 RAG_persist/
 results/
 
-# Large local archives/images
+# Local dependency cache and large archives
+/packages/
 *.tar
 *.tar.gz
 *.zip
 *.rar
 image.tar
-/packages
 
-# Local notes
-/PLAN.md
-/DEPLOYMENT.md
+# Local notes and development-only files
 /AGENTS.md
-
-# Others
-/tests
+/DEPLOYMENT.md
+/PLAN.md
+/tests/
