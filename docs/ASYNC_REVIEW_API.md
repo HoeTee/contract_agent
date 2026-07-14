@@ -1,34 +1,34 @@
-# Asynchronous Review API
+# 异步审查 API
 
-This document describes the external asynchronous contract review API under `/api`.
+本文说明普通外部客户使用的 `/api` 异步合同审查接口。
 
-The API has no synchronous `POST /api/review` endpoint. A caller submits a task, then queries the task until it succeeds, and finally asks the service to export the result.
+系统不提供同步 `POST /api/review`。调用方先提交任务，再查询任务状态，任务成功后请求导出结果。
 
-## 1. Authentication and Client Management
+## 1. 鉴权与客户管理
 
-Every `/api` request must carry the platform-provided key in the `Authorization` header:
+每个 `/api` 请求都必须在 `Authorization` 请求头中传入平台分配的密钥：
 
 ```http
 Authorization: <secret_key>
 ```
 
-`Bearer <secret_key>` and `X-API-Key: <secret_key>` are also accepted by the service. The examples below use `Authorization`.
+服务端也接受 `Bearer <secret_key>` 和 `X-API-Key: <secret_key>`。本文示例统一使用 `Authorization`。
 
-The administrator registers platform keys locally. The key is stored only as a password hash and fingerprint in `user_profiles/api_clients.json`; plaintext keys are not stored.
+管理员在本地登记平台密钥。`user_profiles/api_clients.json` 只保存密钥的密码哈希和指纹，不保存明文密钥。
 
-Run the commands from the project root, or from a temporary management container that mounts the same persistent `user_profiles/` and `data/` directories as the service container.
+以下管理命令应在项目根目录执行；Docker 部署时，应在挂载了与服务容器相同 `user_profiles/`、`data/` 持久化目录的临时管理容器中执行。
 
-| Command | Input | Output / Effect |
+| 命令 | 输入 | 输出或作用 |
 | --- | --- | --- |
-| `register` | `--client-id`, `--secret-key` | Registers one client. Duplicate `client_id` or `secret_key` returns an error. |
-| `list` | None | Lists all registered clients. |
-| `check` | `--client-id` | Shows one client's registration state and task count. |
-| `list --client-id` | `--client-id` | Shows that client's tasks in block format. |
-| `list --client-id --compact` | `--client-id` | Shows that client's tasks in compact rows. |
-| `reset-secret` | `--client-id`, `--secret-key` | Replaces the client key hash. The new key must not belong to another client. |
-| `disable` | `--client-id` | Makes the client key unable to call `/api`. |
-| `enable` | `--client-id` | Restores the client's `/api` access. |
-| `delete` | `--client-id` | Removes the authentication mapping only. Existing task data is retained. |
+| `register` | `--client-id`、`--secret-key` | 注册一个客户。重复的 `client_id` 或 `secret_key` 会报错。 |
+| `list` | 无 | 列出全部已注册客户。 |
+| `check` | `--client-id` | 显示一个客户的注册状态和任务数量。 |
+| `list --client-id` | `--client-id` | 以块状格式显示该客户的全部任务。 |
+| `list --client-id --compact` | `--client-id` | 以紧凑单行格式显示该客户的全部任务。 |
+| `reset-secret` | `--client-id`、`--secret-key` | 替换客户密钥哈希。新密钥不能属于其他客户。 |
+| `disable` | `--client-id` | 禁用该客户的 `/api` 调用权限。 |
+| `enable` | `--client-id` | 恢复该客户的 `/api` 调用权限。 |
+| `delete` | `--client-id` | 仅移除鉴权映射，已有任务数据会保留。 |
 
 ```powershell
 python scripts/manage_api_clients.py register --client-id "client_a" --secret-key "platform-key-for-client-a"
@@ -42,33 +42,31 @@ python scripts/manage_api_clients.py enable --client-id "client_a"
 python scripts/manage_api_clients.py delete --client-id "client_a"
 ```
 
-## 2. Asynchronous Calling Sequence
+## 2. 异步调用流程
 
 ```text
 POST /api/review/jobs
-  -> 202 Accepted with task_id
+  -> 返回 202 Accepted 和 task_id
 
 GET /api/review/jobs/{task_id}
-  -> pending, queued, running, succeeded, failed, or cancelled
+  -> 返回 pending、queued、running、succeeded、failed 或 cancelled
 
 POST /api/review/jobs/{task_id}/result
-  -> only after status is succeeded
+  -> 仅 succeeded 后可导出结果
 ```
 
-`POST /api/review/jobs/{task_id}/cancel` can cancel only `pending` or `queued` tasks. A `running` task has already entered `workflow.run()` and cannot be stopped by this API.
+`POST /api/review/jobs/{task_id}/cancel` 只能取消 `pending` 或 `queued` 任务。`running` 表示任务已经进入 `workflow.run()`，该 API 不支持中止。
 
-Task statuses:
-
-| Status | Meaning |
+| 状态 | 含义 |
 | --- | --- |
-| `pending` | The task was stored and the background worker has not yet checked the concurrency limit. |
-| `queued` | The concurrency limit is full; the task waits for an execution slot. |
-| `running` | The worker acquired a slot and is running the review workflow. |
-| `succeeded` | The review output exists and can be exported. |
-| `failed` | The workflow failed. The status response contains `error`. |
-| `cancelled` | The task was cancelled before it started. |
+| `pending` | 任务已写入存储，后台任务尚未检查并发限制。 |
+| `queued` | 并发已满，任务正在等待执行槽位。 |
+| `running` | 已获得执行槽位，审查工作流正在运行。 |
+| `succeeded` | 审查输出已生成，可导出。 |
+| `failed` | 工作流失败，状态查询响应中包含 `error`。 |
+| `cancelled` | 任务在开始前已取消。 |
 
-## 3. Submit a Task
+## 3. 提交任务
 
 ```http
 POST /api/review/jobs
@@ -76,14 +74,14 @@ Content-Type: multipart/form-data
 Authorization: <secret_key>
 ```
 
-Request fields:
+请求字段：
 
-| Field | Type | Required | Description |
+| 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `file` | DOCX file | Yes | Contract document to review. |
-| `criteria_file` | DOCX file | No | Review criteria document. The default criteria are used when omitted. |
+| `file` | DOCX 文件 | 是 | 待审查的合同文件。 |
+| `criteria_file` | DOCX 文件 | 否 | 本次审查标准；不传时使用默认审查标准。 |
 
-PowerShell example:
+PowerShell 示例：
 
 ```powershell
 curl.exe -X POST "http://localhost:5000/api/review/jobs" `
@@ -92,7 +90,7 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
   -F "criteria_file=@C:/Users/lenovo/Desktop/criteria.docx"
 ```
 
-Successful response, HTTP `202`:
+成功响应，HTTP `202`：
 
 ```json
 {
@@ -102,29 +100,29 @@ Successful response, HTTP `202`:
 }
 ```
 
-| HTTP status | When returned | Response |
+| HTTP 状态码 | 返回场景 | 响应 |
 | --- | --- | --- |
-| `202` | Task accepted. | The task ID, initial status, and message. |
-| `400` | Contract or criteria is not a valid DOCX, or criteria content is invalid. | `{ "detail": "..." }` |
-| `401` | Authorization key is absent, invalid, or belongs to a disabled client. | `{ "detail": "secret_key is required." }` or `{ "detail": "Invalid API client credentials." }` |
-| `422` | Required multipart field `file` is absent or request fields cannot be parsed. | FastAPI validation detail. |
-| `500` | API client mapping is malformed or ambiguous. | `{ "detail": "..." }` |
+| `202` | 任务已接收。 | 任务 ID、初始状态和消息。 |
+| `400` | 合同或审查标准不是有效 DOCX，或审查标准内容不符合要求。 | `{ "detail": "..." }` |
+| `401` | 未传密钥、密钥无效，或客户已禁用。 | `{ "detail": "secret_key is required." }` 或 `{ "detail": "Invalid API client credentials." }` |
+| `422` | 缺少必填的 `file` multipart 字段，或请求字段无法解析。 | FastAPI 校验详情。 |
+| `500` | 客户鉴权映射格式错误或密钥匹配到多个客户。 | `{ "detail": "..." }` |
 
-## 4. Query Task Status
+## 4. 查询任务状态
 
 ```http
 GET /api/review/jobs/{task_id}
 Authorization: <secret_key>
 ```
 
-PowerShell example:
+PowerShell 示例：
 
 ```powershell
 curl.exe "http://localhost:5000/api/review/jobs/20260714-143119-5ece" `
   -H "Authorization: platform-key-for-client-a"
 ```
 
-Successful response, HTTP `200`:
+成功响应，HTTP `200`：
 
 ```json
 {
@@ -151,14 +149,14 @@ Successful response, HTTP `200`:
 }
 ```
 
-| HTTP status | When returned | Response |
+| HTTP 状态码 | 返回场景 | 响应 |
 | --- | --- | --- |
-| `200` | The authenticated client owns the task. | Filtered task status; no server filesystem paths are exposed. |
-| `401` | Authorization fails. | `{ "detail": "..." }` |
-| `404` | The task ID is invalid, does not exist, or belongs to another client. | `{ "detail": "Task not found." }` |
-| `500` | API client mapping is malformed or ambiguous. | `{ "detail": "..." }` |
+| `200` | 已鉴权客户拥有该任务。 | 经过过滤的任务状态，不返回服务端文件系统路径。 |
+| `401` | 鉴权失败。 | `{ "detail": "..." }` |
+| `404` | 任务 ID 不合法、不存在，或属于其他客户。 | `{ "detail": "Task not found." }` |
+| `500` | 客户鉴权映射格式错误或密钥匹配到多个客户。 | `{ "detail": "..." }` |
 
-## 5. Export a Completed Result
+## 5. 导出已完成结果
 
 ```http
 POST /api/review/jobs/{task_id}/result
@@ -166,13 +164,13 @@ Content-Type: application/json
 Authorization: <secret_key>
 ```
 
-Request JSON:
+请求 JSON：
 
-| Field | Type | Required | Description |
-| --- | --- | --- |
-| `output_path` | string | Yes | Destination path on the machine running the API service. |
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `output_path` | string | 是 | 运行 API 服务的机器上的目标路径。 |
 
-PowerShell `curl.exe` example:
+PowerShell `curl.exe` 示例：
 
 ```powershell
 curl.exe -X POST "http://localhost:5000/api/review/jobs/20260714-143119-5ece/result" `
@@ -181,7 +179,7 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs/20260714-143119-5ece/res
   -d '{\"output_path\":\"C:/Users/lenovo/Desktop/review_result.docx\"}'
 ```
 
-Successful response, HTTP `200`:
+成功响应，HTTP `200`：
 
 ```json
 {
@@ -192,37 +190,37 @@ Successful response, HTTP `200`:
 }
 ```
 
-| HTTP status | When returned | Response |
+| HTTP 状态码 | 返回场景 | 响应 |
 | --- | --- | --- |
-| `200` | Task succeeded and the result was copied to `output_path`. | Task ID, `succeeded`, message, output path. |
-| `400` | `output_path` is absent or blank. | `{ "task_id": "...", "status": "failed", "message": "output_path is required." }` |
-| `401` | Authorization fails. | `{ "detail": "..." }` |
-| `404` | Task ID is invalid, missing, or belongs to another client. | `{ "detail": "Task not found." }` |
-| `409` | Task status is not `succeeded`. | `{ "detail": "Task is not finished. Current status: ..." }` |
-| `422` | JSON body is malformed or is not a JSON object. | FastAPI validation detail. |
-| `500` | Result source file is absent, export path cannot be written, or client mapping is invalid. | `{ "detail": "..." }` or `{ "task_id": "...", "status": "failed", "message": "Failed to export result: ...", "output_path": "..." }` |
+| `200` | 任务已成功，结果已复制到 `output_path`。 | 任务 ID、`succeeded`、消息和输出路径。 |
+| `400` | 未传 `output_path` 或该值为空。 | `{ "task_id": "...", "status": "failed", "message": "output_path is required." }` |
+| `401` | 鉴权失败。 | `{ "detail": "..." }` |
+| `404` | 任务 ID 不合法、不存在，或属于其他客户。 | `{ "detail": "Task not found." }` |
+| `409` | 任务状态不是 `succeeded`。 | `{ "detail": "Task is not finished. Current status: ..." }` |
+| `422` | JSON 请求体不合法，或请求体不是 JSON 对象。 | FastAPI 校验详情。 |
+| `500` | 结果源文件不存在、目标路径无法写入，或客户鉴权映射异常。 | `{ "detail": "..." }` 或 `{ "task_id": "...", "status": "failed", "message": "Failed to export result: ...", "output_path": "..." }` |
 
-`output_path` is evaluated by the API service, not by the machine that sent the HTTP request.
+`output_path` 由 API 服务端解释，不是发送 HTTP 请求的调用方机器路径。
 
-- On a local development machine, it is a local filesystem path.
-- In Docker, it is a path inside the running service container. To persist exports, the destination must be under a directory mounted into that container.
-- On a remote host, it is a path reachable by the remote service process or container. It cannot directly write to the caller's desktop.
+- 本地开发机运行服务时，它是本机文件系统路径。
+- Docker 部署时，它是正在运行的服务容器内路径。要持久化导出文件，目标路径必须位于挂载到该容器的目录中。
+- 远端部署时，它是远端服务进程或服务容器可访问的路径，不能直接写入调用方桌面。
 
-## 6. Cancel a Waiting Task
+## 6. 取消等待中的任务
 
 ```http
 POST /api/review/jobs/{task_id}/cancel
 Authorization: <secret_key>
 ```
 
-PowerShell example:
+PowerShell 示例：
 
 ```powershell
 curl.exe -X POST "http://localhost:5000/api/review/jobs/20260714-143119-5ece/cancel" `
   -H "Authorization: platform-key-for-client-a"
 ```
 
-Successful response, HTTP `200`:
+成功响应，HTTP `200`：
 
 ```json
 {
@@ -232,17 +230,17 @@ Successful response, HTTP `200`:
 }
 ```
 
-| HTTP status | When returned | Response |
+| HTTP 状态码 | 返回场景 | 响应 |
 | --- | --- | --- |
-| `200` | Current status is `pending` or `queued`; the task is cancelled. | Task ID, `cancelled`, and message. |
-| `401` | Authorization fails. | `{ "detail": "..." }` |
-| `404` | Task ID is invalid, missing, or belongs to another client. | `{ "detail": "Task not found." }` |
-| `409` | Task is `running`, `succeeded`, `failed`, or already `cancelled`. | `{ "detail": "..." }` or a JSON message for `running`. |
-| `500` | API client mapping is malformed or ambiguous. | `{ "detail": "..." }` |
+| `200` | 当前状态是 `pending` 或 `queued`，任务已取消。 | 任务 ID、`cancelled` 和消息。 |
+| `401` | 鉴权失败。 | `{ "detail": "..." }` |
+| `404` | 任务 ID 不合法、不存在，或属于其他客户。 | `{ "detail": "Task not found." }` |
+| `409` | 任务是 `running`、`succeeded`、`failed` 或已经 `cancelled`。 | `{ "detail": "..." }`，或针对 `running` 的 JSON 消息。 |
+| `500` | 客户鉴权映射格式错误或密钥匹配到多个客户。 | `{ "detail": "..." }` |
 
-## 7. Client Data Isolation
+## 7. 客户数据隔离
 
-API task data is partitioned by the `client_dir` resolved from the authenticated client key:
+任务按照鉴权密钥解析出的 `client_dir` 分区存储：
 
 ```text
 data/api/clients/<client_dir>/tasks/<task_id>/
@@ -252,25 +250,25 @@ data/api/clients/<client_dir>/tasks/<task_id>/
   logs/
 ```
 
-The caller does not submit `client_id` in an API request. The server identifies the client from its key, then reads tasks only below that client's `client_dir`.
+调用方不提交 `client_id`。服务端根据其密钥识别客户，然后只在该客户的 `client_dir` 下读取任务。
 
-For example, assume client A owns task `20260714-143119-5ece` and client B sends a valid key. Client B receives the following responses:
+例如，客户 A 拥有任务 `20260714-143119-5ece`，客户 B 使用自己的有效密钥访问该任务时，返回如下：
 
-| Request made by client B for client A's task | HTTP status | Response |
+| 客户 B 对客户 A 任务的请求 | HTTP 状态码 | 响应 |
 | --- | --- | --- |
 | `GET /api/review/jobs/20260714-143119-5ece` | `404` | `{ "detail": "Task not found." }` |
 | `POST /api/review/jobs/20260714-143119-5ece/result` | `404` | `{ "detail": "Task not found." }` |
 | `POST /api/review/jobs/20260714-143119-5ece/cancel` | `404` | `{ "detail": "Task not found." }` |
 
-The same `404` is returned for a nonexistent task ID. This prevents a client from using status codes to determine whether another client's task exists.
+任务不存在时也返回同一 `404`，因此客户不能通过状态码判断其他客户的任务是否存在。
 
-The isolation depends on each API client record using an exclusive `client_dir`. Do not manually create or edit `user_profiles/api_clients.json` records that share a `client_dir`.
+隔离依赖于每个 API 客户记录使用独占的 `client_dir`。不要手工创建或修改 `user_profiles/api_clients.json`，使多个客户记录共享同一个 `client_dir`。
 
-## 8. Common Route Errors
+## 8. 常见请求错误
 
-| Incorrect request | Result | Correct request |
+| 错误请求 | 返回结果 | 正确请求 |
 | --- | --- | --- |
-| `POST /review/jobs/{task_id}` | `404 Not Found` | `GET /api/review/jobs/{task_id}` for status. |
-| `POST /api/review/jobs/result` | `405 Method Not Allowed` | `POST /api/review/jobs/{task_id}/result`. |
-| `POST /api/review/jobs/{task_id}/result` with `{ "output": "..." }` | `400 output_path is required.` | Use `{ "output_path": "..." }`. |
-| PowerShell `curl.exe` JSON loses double quotes | `422 json_invalid` | Use the escaped `-d '{\"output_path\":\"...\"}'` form shown above. |
+| `POST /review/jobs/{task_id}` | `404 Not Found` | 查询状态应使用 `GET /api/review/jobs/{task_id}`。 |
+| `POST /api/review/jobs/result` | `405 Method Not Allowed` | 应使用 `POST /api/review/jobs/{task_id}/result`。 |
+| `POST /api/review/jobs/{task_id}/result` 请求体为 `{ "output": "..." }` | `400 output_path is required.` | 应使用 `{ "output_path": "..." }`。 |
+| PowerShell `curl.exe` 发送 JSON 时丢失双引号 | `422 json_invalid` | 使用上文的 `-d '{\"output_path\":\"...\"}'` 写法。 |
