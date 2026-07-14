@@ -10,7 +10,7 @@
 
 ## HTTP Endpoints
 
-- `endpoints/api/client_auth.py`: authenticates ordinary `/api` requests by `secret_key`, then resolves `client_id/client_dir` from `api_clients.json`.
+- `endpoints/api/client_mapping.py`: reads the platform-provided `Authorization` key and resolves `client_id/client_dir` from its local mapping in `api_clients.json`.
 - `endpoints/api/review_jobs.py`：普通 `/api` 异步任务 API，提供提交、查询、结果导出、取消任务节点。
 - `endpoints/api/review.py`：旧同步 API 文件，当前不再注册到 `app.py`，不作为普通外部 API 暴露。
 - `endpoints/web/user_routes.py`：浏览器普通用户页面和表单路由，URL 以 `/web` 开头。
@@ -30,7 +30,7 @@
 
 - `scripts/manage_users.py`：Web 用户管理脚本。
 - `endpoints/web/user_management.py`：`/web` 管理端使用的用户管理逻辑。
-- `scripts/manage_api_clients.py`：`/api` client 管理脚本，支持 register/list/check/reset-secret/enable/disable/delete。
+- `scripts/manage_api_clients.py`：`/api` client 映射管理脚本，支持 register/list/check/reset-api-key/enable/disable/delete。
 - `scripts/api_review_callback_receiver.py`：本地测试 callback 的临时接收服务；普通 `/api` 异步主流程不依赖 callback。
 
 ## Identity Files
@@ -41,7 +41,7 @@ user_profiles/
   api_clients.json    # /api 客户，由 scripts/manage_api_clients.py 管理
 ```
 
-`api_clients.json` stores `client_id`, `enabled`, `secret_hash`, and `secret_fingerprint`. Plaintext `secret_key` is never written to disk; `/api` secret comes from the external platform key and is registered manually by script.
+`api_clients.json` stores `client_id`, `enabled`, and `api_key_fingerprint`. Plaintext platform API keys are never written to disk; `/api` uses the key only to resolve a local client mapping.
 
 ## Data Directories
 
@@ -64,7 +64,7 @@ data/api/clients/<client_dir>/tasks/<task_id>/
 普通 `/api`：
 
 - 只做异步任务。
-- 需要 `secret_key` 鉴权。
+- 平台 key 映射到 `client_id/client_dir`。
 - 按 `client_id` 分区存储。
 - 不接收 `metafields`。
 - 不 callback。

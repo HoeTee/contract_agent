@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Request, UploadFile
 
 from config import DEFAULT_REVIEW_CRITERIA_PATH
-from endpoints.api.client_auth import resolve_api_client
+from endpoints.api.client_mapping import resolve_api_client
 from endpoints.review.job_worker import run_async_review_job
 from endpoints.review.response import (
     present_export_response,
@@ -117,7 +117,7 @@ async def export_review_job_result(
     task_id: str,
     payload: dict | None = Body(None),
 ):
-    client = await resolve_api_client(request, payload)
+    client = await resolve_api_client(request)
     try:
         task = read_task(client.client_dir, task_id)
     except ValueError:

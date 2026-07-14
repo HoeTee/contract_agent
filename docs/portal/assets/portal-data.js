@@ -29,7 +29,7 @@ window.DOCS_PORTAL_DATA = {
     {
       icon: "icon-api",
       title: "Authenticate API client",
-      text: "POST /api/review/jobs reads secret_key from the request body and matches secret_key against user_profiles/api_clients.json.",
+      text: "POST /api/review/jobs reads the platform-provided Authorization key and resolves a local client_id/client_dir mapping from user_profiles/api_clients.json.",
     },
     {
       icon: "icon-folder",
@@ -47,7 +47,7 @@ window.DOCS_PORTAL_DATA = {
       text: "The caller exports a succeeded task through POST /api/review/jobs/{task_id}/result with a server-side output_path.",
     },
   ],
-  tree: "data/\n  <username>/                         # existing /web user data\n    contract_review_criteria/\n    contracts/\n    reports_docx/\n    records/\n    logs/\n  api/\n    clients/\n      <client_dir>/\n        tasks/\n          <task_id>/\n            task.json\n            input/\n            output/\n            logs/\n\nuser_profiles/\n  users.json                          # /web users\n  api_clients.json                    # /api clients and secret_hash",
+  tree: "data/\n  <username>/                         # existing /web user data\n    contract_review_criteria/\n    contracts/\n    reports_docx/\n    records/\n    logs/\n  api/\n    clients/\n      <client_dir>/\n        tasks/\n          <task_id>/\n            task.json\n            input/\n            output/\n            logs/\n\nuser_profiles/\n  users.json                          # /web users\n  api_clients.json                    # /api clients and api_key_fingerprint",
   documents: [
     {
       id: "api-review",
@@ -56,16 +56,16 @@ window.DOCS_PORTAL_DATA = {
       group: "API",
       icon: "icon-api",
       md: "API_REVIEW_ENDPOINT.md",
-      summary: "Async review API for external clients: secret_key auth, server-side client_id lookup, task submit/status/export/cancel.",
-      tags: ["/api", "client_id", "secret_key", "task.json"],
+      summary: "Async review API for external clients: platform Authorization key mapping, server-side client_id lookup, task submit/status/export/cancel.",
+      tags: ["/api", "client_id", "api_key", "task.json"],
       signals: [
         "普通 /api 不再暴露同步 POST /api/review。",
-        "API client 使用 scripts/manage_api_clients.py 管理，脚本登记外部平台 key 的 secret_hash。",
+        "API client 使用 scripts/manage_api_clients.py 管理，脚本登记外部平台 key 的 api_key_fingerprint 映射。",
         "任务目录为 data/api/clients/<client_dir>/tasks/<task_id>/。",
         "普通 /api 不接收 metafields，不 callback。",
       ],
       paths: [
-        "endpoints/api/client_auth.py",
+        "endpoints/api/client_mapping.py",
         "endpoints/api/review_jobs.py",
         "endpoints/review/task_store.py",
         "endpoints/review/job_worker.py",
@@ -74,7 +74,7 @@ window.DOCS_PORTAL_DATA = {
         "docs/ASYNC_REVIEW_API.md",
       ],
       details: [
-        "GET/POST task endpoints must authenticate with secret_key before reading a task.",
+        "GET/POST task endpoints resolve client_id/client_dir from the platform-provided Authorization key before reading a task.",
         "The client_id is the business identity; client_dir is the filesystem-safe directory name.",
         "Synchronous /api/review still exists as a file but is not registered in app.py.",
       ],
@@ -140,7 +140,7 @@ window.DOCS_PORTAL_DATA = {
       ],
       paths: [
         "app.py",
-        "endpoints/api/client_auth.py",
+        "endpoints/api/client_mapping.py",
         "endpoints/api/review_jobs.py",
         "endpoints/web/user_routes.py",
         "endpoints/runtime/",

@@ -13,9 +13,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from endpoints.runtime.auth import hash_password
-
-
 API_CLIENTS_FILE = PROJECT_ROOT / "user_profiles" / "api_clients.json"
 API_CLIENT_TASKS_ROOT = PROJECT_ROOT / "data" / "api" / "clients"
 
@@ -71,11 +68,11 @@ def find_client(clients: list[dict[str, Any]], client_id: str) -> dict[str, Any]
     return clients[index]
 
 
-def secret_fingerprint(secret_key: str) -> str:
-    return sha256(secret_key.encode("utf-8")).hexdigest()
+def api_key_fingerprint(api_key: str) -> str:
+    return sha256(api_key.encode("utf-8")).hexdigest()
 
 
-def find_secret_fingerprint_owner(
+def find_api_key_fingerprint_owner(
     clients: list[dict[str, Any]],
     fingerprint: str,
     *,
@@ -84,7 +81,7 @@ def find_secret_fingerprint_owner(
     for client in clients:
         if exclude_client_id is not None and client.get("client_id") == exclude_client_id:
             continue
-        if client.get("secret_fingerprint") == fingerprint:
+        if client.get("api_key_fingerprint") == fingerprint:
             return str(client.get("client_id") or "")
     return None
 
@@ -92,62 +89,63 @@ def find_secret_fingerprint_owner(
 def register_api_client(
     *,
     client_id: str,
-    secret_key: str,
+    api_key: str,
     clients_file: str | Path = API_CLIENTS_FILE,
 ) -> dict[str, Any]:
     client_id = client_id.strip()
-    secret_key = secret_key.strip()
+    api_key = api_key.strip()
     if not client_id:
         raise ApiClientCliError("client_id is required.")
-    if not secret_key:
-        raise ApiClientCliError("secret_key is required.")
+    if not api_key:
+        raise ApiClientCliError("api_key is required.")
 
     clients = load_api_clients(clients_file)
     if find_client_index(clients, client_id) is not None:
         raise ApiClientCliError(f"API client already exists: {client_id}")
-    fingerprint = secret_fingerprint(secret_key)
-    owner = find_secret_fingerprint_owner(clients, fingerprint)
+    fingerprint = api_key_fingerprint(api_key)
+    owner = find_api_key_fingerprint_owner(clients, fingerprint)
     if owner:
-        raise ApiClientCliError(f"secret_key is already registered for API client: {owner}")
+        raise ApiClientCliError(f"api_key is already registered for API client: {owner}")
 
     timestamp = now_text()
     client = {
         "client_id": client_id,
         "client_dir": client_dir_name(client_id),
-        "secret_hash": hash_password(secret_key),
-        "secret_fingerprint": fingerprint,
+        "api_key_fingerprint": fingerprint,
         "enabled": True,
         "created_at": timestamp,
-        "secret_updated_at": timestamp,
+        "api_key_updated_at": timestamp,
     }
     clients.append(client)
     save_api_clients(clients, clients_file)
     return client
 
 
-def reset_api_client_secret(
+def reset_api_client_api_key(
     *,
     client_id: str,
-    secret_key: str,
+    api_key: str,
     clients_file: str | Path = API_CLIENTS_FILE,
 ) -> dict[str, Any]:
-    secret_key = secret_key.strip()
-    if not secret_key:
-        raise ApiClientCliError("secret_key is required.")
+    api_key = api_key.strip()
+    if not api_key:
+        raise ApiClientCliError("api_key is required.")
 
     clients = load_api_clients(clients_file)
     index = find_client_index(clients, client_id)
     if index is None:
         raise ApiClientCliError(f"API client not found: {client_id}")
 
-    fingerprint = secret_fingerprint(secret_key)
-    owner = find_secret_fingerprint_owner(clients, fingerprint, exclude_client_id=client_id)
+    fingerprint = api_key_fingerprint(api_key)
+    owner = find_api_key_fingerprint_owner(clients, fingerprint, exclude_client_id=client_id)
     if owner:
-        raise ApiClientCliError(f"secret_key is already registered for API client: {owner}")
+        raise ApiClientCliError(f"api_key is already registered for API client: {owner}")
 
-    clients[index]["secret_hash"] = hash_password(secret_key)
-    clients[index]["secret_fingerprint"] = fingerprint
-    clients[index]["secret_updated_at"] = now_text()
+    clients[index].pop("secret_hash", None)
+    clients[index].pop("secret_fingerprint", None)
+    clients[index].pop("secret_updated_at", None)
+    clients[index]["api_key_fingerprint"] = fingerprint
+    clients[index]["api_key_updated_at"] = now_text()
     clients[index]["client_dir"] = clients[index].get("client_dir") or client_dir_name(client_id)
     save_api_clients(clients, clients_file)
     return clients[index]
@@ -274,18 +272,18 @@ def print_tasks_compact(tasks: list[dict[str, Any]]) -> None:
 
 def register_client(args) -> None:
     try:
-        client = register_api_client(client_id=args.client_id, secret_key=args.secret_key)
+        client = register_api_client(client_id=args.client_id, api_key=args.api_key)
     except ApiClientCliError as exc:
         raise SystemExit(str(exc))
     print(f"Registered API client: {client['client_id']}")
 
 
-def reset_secret(args) -> None:
+def reset_api_key(args) -> None:
     try:
-        client = reset_api_client_secret(client_id=args.client_id, secret_key=args.secret_key)
+        client = reset_api_client_api_key(client_id=args.client_id, api_key=args.api_key)
     except ApiClientCliError as exc:
         raise SystemExit(str(exc))
-    print(f"Reset secret for API client: {client['client_id']}")
+    print(f"Reset API key mapping for API client: {client['client_id']}")
 
 
 def list_clients(args) -> None:
@@ -305,7 +303,7 @@ def list_clients(args) -> None:
             print_tasks_block(tasks)
         return
 
-    print("client_id\tenabled\tclient_dir\tcreated_at\tsecret_updated_at")
+    print("client_id\tenabled\tclient_dir\tcreated_at\tapi_key_updated_at")
     for client in clients:
         enabled = str(bool(client.get("enabled", True))).lower()
         print(
@@ -313,7 +311,7 @@ def list_clients(args) -> None:
             f"{enabled}\t"
             f"{client.get('client_dir', '')}\t"
             f"{client.get('created_at', '')}\t"
-            f"{client.get('secret_updated_at', '')}"
+            f"{client.get('api_key_updated_at', '')}"
         )
 
 
@@ -330,9 +328,8 @@ def check_client(args) -> None:
     print(f"client_dir: {client.get('client_dir', '')}")
     print(f"enabled: {str(bool(client.get('enabled', True))).lower()}")
     print(f"created_at: {client.get('created_at', '')}")
-    print(f"secret_updated_at: {client.get('secret_updated_at', '')}")
-    print(f"has_secret_hash: {str(bool(client.get('secret_hash'))).lower()}")
-    print(f"has_secret_fingerprint: {str(bool(client.get('secret_fingerprint'))).lower()}")
+    print(f"api_key_updated_at: {client.get('api_key_updated_at', '')}")
+    print(f"has_api_key_fingerprint: {str(bool(client.get('api_key_fingerprint'))).lower()}")
     print(f"task_count: {len(tasks)}")
     print(f"task_root: {task_root_for_client(client)}")
 
@@ -366,15 +363,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Manage API clients.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    register = subparsers.add_parser("register", help="Register an API client with a platform secret")
+    register = subparsers.add_parser("register", help="Register an API client platform key mapping")
     register.add_argument("--client-id", required=True)
-    register.add_argument("--secret-key", required=True)
+    register.add_argument("--api-key", required=True)
     register.set_defaults(func=register_client)
 
-    reset = subparsers.add_parser("reset-secret", help="Replace an API client secret")
+    reset = subparsers.add_parser("reset-api-key", help="Replace an API client platform key mapping")
     reset.add_argument("--client-id", required=True)
-    reset.add_argument("--secret-key", required=True)
-    reset.set_defaults(func=reset_secret)
+    reset.add_argument("--api-key", required=True)
+    reset.set_defaults(func=reset_api_key)
 
     list_parser = subparsers.add_parser("list", help="List API clients")
     list_parser.add_argument("--client-id")

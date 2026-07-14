@@ -495,7 +495,7 @@ window.DOCS_PORTAL_CONTENT = {
   ],
 
   "api-review": [
-    { type: "para", text: "Ordinary /api exposes async review jobs only. Callers provide only secret_key; the service resolves client_id/client_dir from the local client mapping before storing task data." },
+    { type: "para", text: "Ordinary /api exposes async review jobs only. The platform provides an Authorization key; the service uses it only to resolve a local client_id/client_dir mapping before storing task data." },
     { type: "heading", text: "接口边界" },
     {
       type: "list",
@@ -510,34 +510,35 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "para", text: "/api clients are managed by scripts/manage_api_clients.py. list shows clients, check shows one client detail, list --client-id shows tasks in block format, --compact shows one-line rows, and delete removes only the auth mapping." },
     {
       type: "code",
-      text: "python scripts/manage_api_clients.py register --client-id \"client_a\" --secret-key \"<platform_key>\"\npython scripts/manage_api_clients.py list\npython scripts/manage_api_clients.py check --client-id \"client_a\"\npython scripts/manage_api_clients.py list --client-id \"client_a\"\npython scripts/manage_api_clients.py reset-secret --client-id \"client_a\" --secret-key \"<new_platform_key>\"\npython scripts/manage_api_clients.py disable --client-id \"client_a\"\npython scripts/manage_api_clients.py enable --client-id \"client_a\"\npython scripts/manage_api_clients.py delete --client-id \"client_a\"",
+      text: "python scripts/manage_api_clients.py register --client-id \"client_a\" --api-key \"<platform_key>\"\npython scripts/manage_api_clients.py list\npython scripts/manage_api_clients.py check --client-id \"client_a\"\npython scripts/manage_api_clients.py list --client-id \"client_a\"\npython scripts/manage_api_clients.py reset-api-key --client-id \"client_a\" --api-key \"<new_platform_key>\"\npython scripts/manage_api_clients.py disable --client-id \"client_a\"\npython scripts/manage_api_clients.py enable --client-id \"client_a\"\npython scripts/manage_api_clients.py delete --client-id \"client_a\"",
     },
     {
       type: "callout",
-      title: "Secret is not stored",
-      text: "The service stores only PBKDF2 secret_hash and irreversible secret_fingerprint, not the plaintext platform key.",
+      title: "Platform key is not stored",
+      text: "The service stores only the irreversible api_key_fingerprint used for local client mapping, not the plaintext platform key.",
     },
     {
       type: "code",
-      text: "user_profiles/\n  users.json          # /web users\n  api_clients.json    # /api client_id, enabled, secret_hash, secret_fingerprint",
+      text: "user_profiles/\n  users.json          # /web users\n  api_clients.json    # /api client_id, enabled, api_key_fingerprint",
     },
     { type: "heading", text: "请求鉴权" },
-    { type: "para", text: "Submit jobs with multipart/form-data. Only secret_key and file are required." },
+    { type: "para", text: "Submit jobs with multipart/form-data. The platform Authorization key and file are required." },
     {
       type: "code",
-      text: "curl.exe -X POST \"http://localhost:5000/api/review/jobs\" `\n  -F \"secret_key=api_xxx\" `\n  -F \"file=@C:\\path\\contract.docx\"",
+      text: "curl.exe -X POST \"http://localhost:5000/api/review/jobs\" `\n  -H \"Authorization: <platform_api_key>\" `\n  -F \"file=@C:\\path\\contract.docx\"",
     },
-    { type: "para", text: "Status, result export, and cancel also use secret_key. It can be sent by Authorization Bearer, X-API-Key, JSON body, or query string." },
+    { type: "para", text: "Status, result export, and cancel use the same Authorization header. The service does not read API keys from JSON, form fields, query strings, or X-API-Key." },
     {
       type: "code",
-      text: "{\n  \"secret_key\": \"api_xxx\"\n}",
+      text: "Authorization: <platform_api_key>",
     },
     {
       type: "table",
       headers: ["失败情况", "状态码"],
       rows: [
-        ["Missing secret_key", "401"],
-        ["Secret does not match an enabled client", "401"],
+        ["Missing Authorization", "400"],
+        ["Platform key has no local client mapping", "400"],
+        ["Client mapping is disabled", "403"],
       ],
     },
     { type: "heading", text: "任务目录" },
@@ -545,16 +546,16 @@ window.DOCS_PORTAL_CONTENT = {
       type: "code",
       text: "data/api/clients/<client_dir>/tasks/<task_id>/\n  task.json\n  input/\n  output/\n  logs/",
     },
-    { type: "para", text: "client_id 是业务身份；client_dir 是由 client_id 生成的安全目录名。task.json 同时记录两者。普通 API 响应不会返回服务端绝对路径，也不会返回 secret_hash。" },
+    { type: "para", text: "client_id 是业务身份；client_dir 是由 client_id 生成的安全目录名。task.json 同时记录两者。普通 API 响应不会返回服务端绝对路径，也不会返回 api_key_fingerprint。" },
     { type: "heading", text: "状态流" },
     {
       type: "code",
-      text: "POST /api/review/jobs\n  -> 校验 secret_key\n  -> 创建 data/api/clients/<client_dir>/tasks/<task_id>/\n  -> 写 task.json: pending\n\n如果并发已满\n  -> task.json: queued\n\n获得执行槽位\n  -> task.json: running\n  -> workflow.run()\n\n完成\n  -> succeeded / failed\n\n取消\n  -> pending: cancelled\n  -> queued: cancelled\n  -> running: 409",
+      text: "POST /api/review/jobs\n  -> 根据 Authorization key 映射 client_id/client_dir\n  -> 创建 data/api/clients/<client_dir>/tasks/<task_id>/\n  -> 写 task.json: pending\n\n如果并发已满\n  -> task.json: queued\n\n获得执行槽位\n  -> task.json: running\n  -> workflow.run()\n\n完成\n  -> succeeded / failed\n\n取消\n  -> pending: cancelled\n  -> queued: cancelled\n  -> running: 409",
     },
     { type: "heading", text: "结果导出" },
     {
       type: "code",
-      text: "POST /api/review/jobs/{task_id}/result\nContent-Type: application/json\n\n{\n  \"secret_key\": \"api_xxx\",\n  \"output_path\": \"C:\\\\Users\\\\lenovo\\\\Desktop\\\\review_result.docx\"\n}",
+      text: "POST /api/review/jobs/{task_id}/result\nAuthorization: <platform_api_key>\nContent-Type: application/json\n\n{\n  \"output_path\": \"C:\\\\Users\\\\lenovo\\\\Desktop\\\\review_result.docx\"\n}",
     },
     { type: "para", text: "output_path 是服务端机器上的路径。Docker 或远端部署时必须写容器或服务器可访问的路径。" },
     { type: "heading", text: "相关代码" },
@@ -562,7 +563,7 @@ window.DOCS_PORTAL_CONTENT = {
       type: "list",
       items: [
         "endpoints/api/review_jobs.py：提交、查询、导出、取消任务。",
-        "scripts/manage_api_clients.py：管理 API client，登记外部平台 key 的 secret_hash。",
+        "scripts/manage_api_clients.py：管理 API client，登记外部平台 key 的 api_key_fingerprint 映射。",
         "endpoints/review/task_store.py：按 client_dir + task_id 读写 task 数据。",
         "endpoints/review/job_worker.py：执行后台审查任务。",
       ],
@@ -707,7 +708,7 @@ window.DOCS_PORTAL_CONTENT = {
       type: "table",
       headers: ["目录", "职责"],
       rows: [
-        ["endpoints/api/client_auth.py", "Authenticates ordinary /api requests by secret_key, then resolves client_id/client_dir."],
+        ["endpoints/api/client_mapping.py", "Resolves client_id/client_dir from the platform-provided Authorization key."],
         ["endpoints/api/review_jobs.py", "普通 /api 异步任务 API：提交、查询、结果导出、取消。"],
         ["endpoints/api/review.py", "旧同步 API 文件，当前不再注册到 app.py，不作为普通外部 API 暴露。"],
         ["endpoints/web/user_routes.py", "浏览器普通用户页面和表单路由，URL 以 /web 开头。"],
@@ -731,7 +732,7 @@ window.DOCS_PORTAL_CONTENT = {
       type: "list",
       items: [
         "endpoints/web/user_management.py + scripts/manage_users.py：管理 /web 用户。",
-        "scripts/manage_api_clients.py：管理 /api clients，登记外部平台 key 的 secret_hash。",
+        "scripts/manage_api_clients.py：管理 /api clients，登记外部平台 key 的 api_key_fingerprint 映射。",
         "scripts/api_review_callback_receiver.py：本地测试 callback 的临时接收服务；普通 /api 当前不依赖 callback。",
       ],
     },
@@ -750,7 +751,7 @@ window.DOCS_PORTAL_CONTENT = {
       type: "table",
       headers: ["类别", "当前职责"],
       rows: [
-        ["/api", "普通外部客户异步任务 API；需要 secret_key；不接收 metafields；不 callback。"],
+        ["/api", "普通外部客户异步任务 API；通过平台 Authorization key 映射客户目录；不接收 metafields；不 callback。"],
         ["/web", "浏览器页面、表单、session/cookie、历史记录和下载；后续租户管理员/超级管理员另行设计。"],
         ["runtime", "HTTP 层通用运行时工具，不属于某个业务 API 类别。"],
         ["/oa", "后续独立 OA 集成：body secret 鉴权、接收 metafields、完成后 callback OA。"],

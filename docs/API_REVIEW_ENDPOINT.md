@@ -15,7 +15,7 @@ POST /api/review/jobs/{task_id}/cancel
 
 `/api` 面向普通外部客户：
 
-- 需要 `secret_key` 鉴权。
+- 平台负责 `Authorization` key 鉴权；服务仅用该 key 映射 `client_id/client_dir`。
 - 只做异步任务提交、查询、结果导出、取消。
 - 不接收 `metafields`。
 - 不 callback。
@@ -33,7 +33,7 @@ python scripts/manage_api_clients.py list
 python scripts/manage_api_clients.py check --client-id "client_a"
 python scripts/manage_api_clients.py list --client-id "client_a"
 python scripts/manage_api_clients.py list --client-id "client_a" --compact
-python scripts/manage_api_clients.py reset-secret --client-id "client_a" --secret-key "<new_platform_key>"
+python scripts/manage_api_clients.py reset-api-key --client-id "client_a" --api-key "<new_platform_key>"
 python scripts/manage_api_clients.py disable --client-id "client_a"
 python scripts/manage_api_clients.py enable --client-id "client_a"
 python scripts/manage_api_clients.py delete --client-id "client_a"
@@ -47,32 +47,27 @@ python scripts/manage_api_clients.py delete --client-id "client_a"
 user_profiles/api_clients.json
 ```
 
-File stores `secret_hash` and `secret_fingerprint`, not plaintext `secret_key`. `/api` secret comes from the external platform key and is registered manually by script; run `reset-secret` to replace the old hash when lost or changed.
+File stores `api_key_fingerprint`, not a plaintext platform key. The platform key is used only to resolve the local client mapping; run `reset-api-key` when the platform key changes.
 
 ## 请求鉴权
 
-Submit job with `multipart/form-data`; only `secret_key` is required:
+Submit jobs with `multipart/form-data`; the platform key must be passed through `Authorization`:
 
 ```powershell
 curl.exe -X POST "http://localhost:5000/api/review/jobs" `
-  -F "secret_key=api_xxx" `
+  -H "Authorization: <platform_api_key>" `
   -F "file=@C:\path\contract.docx"
 ```
 
-Status, result export, and cancel also use `secret_key`. It can be sent by `Authorization: Bearer <secret>`, `X-API-Key`, JSON body, or query string.
-
-```json
-{
-  "secret_key": "api_xxx"
-}
-```
+Status, result export, and cancel use the same `Authorization` header. Body, form, query string, and `X-API-Key` are not used for API key mapping.
 
 Auth failures:
 
 | 情况 | 状态码 |
 | --- | --- |
-| Missing `secret_key` | `401` |
-| Secret does not match an enabled client | `401` |
+| Missing `Authorization` | `400` |
+| Platform key has no local client mapping | `400` |
+| Client mapping is disabled | `403` |
 
 ## 数据目录
 
@@ -97,12 +92,12 @@ data/api/clients/<client_dir>/tasks/<task_id>/
 }
 ```
 
-普通 API 响应不会返回服务端绝对路径，也不会返回 `secret_hash`。
+普通 API 响应不会返回服务端绝对路径，也不会返回 `api_key_fingerprint`。
 
 ## 代码位置
 
-- `scripts/manage_api_clients.py`：读写 `api_clients.json`，登记平台 secret hash。
-- `endpoints/api/client_auth.py`：`/api` 请求鉴权。
+- `scripts/manage_api_clients.py`：读写 `api_clients.json`，登记平台 key 指纹映射。
+- `endpoints/api/client_mapping.py`：根据平台 `Authorization` key 映射 `/api` 客户目录。
 - `endpoints/api/review_jobs.py`：异步任务 API 路由。
 - `endpoints/review/task_store.py`：按 client 分区的 task 存储。
 - `endpoints/review/job_worker.py`：异步审查 worker。

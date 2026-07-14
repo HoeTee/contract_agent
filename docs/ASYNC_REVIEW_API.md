@@ -9,38 +9,40 @@
 每个 `/api` 请求都必须在 `Authorization` 请求头中传入平台分配的密钥：
 
 ```http
-Authorization: <secret_key>
+Authorization: <api_key>
 ```
 
-服务端也接受 `Bearer <secret_key>` 和 `X-API-Key: <secret_key>`。本文示例统一使用 `Authorization`。
+服务端接受原始 key 或 `Bearer <api_key>`。平台负责该 key 的鉴权；本服务只用其 SHA-256 指纹查找本地客户映射。
 
-管理员在本地登记平台密钥。`user_profiles/api_clients.json` 只保存密钥的密码哈希和指纹，不保存明文密钥。
+管理员在本地登记平台 key 映射。`user_profiles/api_clients.json` 只保存 key 的 SHA-256 指纹，不保存明文 key。
 
 以下管理命令应在项目根目录执行；Docker 部署时，应在挂载了与服务容器相同 `user_profiles/`、`data/` 持久化目录的临时管理容器中执行。
 
 | 命令 | 输入 | 输出或作用 |
 | --- | --- | --- |
-| `register` | `--client-id`、`--secret-key` | 注册一个客户。重复的 `client_id` 或 `secret_key` 会报错。 |
+| `register` | `--client-id`、`--api-key` | 注册一个客户映射。重复的 `client_id` 或 `api_key` 会报错。 |
 | `list` | 无 | 列出全部已注册客户。 |
 | `check` | `--client-id` | 显示一个客户的注册状态和任务数量。 |
 | `list --client-id` | `--client-id` | 以块状格式显示该客户的全部任务。 |
 | `list --client-id --compact` | `--client-id` | 以紧凑单行格式显示该客户的全部任务。 |
-| `reset-secret` | `--client-id`、`--secret-key` | 替换客户密钥哈希。新密钥不能属于其他客户。 |
+| `reset-api-key` | `--client-id`、`--api-key` | 替换客户的平台 key 映射。新 key 不能属于其他客户。 |
 | `disable` | `--client-id` | 禁用该客户的 `/api` 调用权限。 |
 | `enable` | `--client-id` | 恢复该客户的 `/api` 调用权限。 |
 | `delete` | `--client-id` | 仅移除鉴权映射，已有任务数据会保留。 |
 
 ```powershell
-python scripts/manage_api_clients.py register --client-id "client_a" --secret-key "platform-key-for-client-a"
+python scripts/manage_api_clients.py register --client-id "client_a" --api-key "platform-key-for-client-a"
 python scripts/manage_api_clients.py list
 python scripts/manage_api_clients.py check --client-id "client_a"
 python scripts/manage_api_clients.py list --client-id "client_a"
 python scripts/manage_api_clients.py list --client-id "client_a" --compact
-python scripts/manage_api_clients.py reset-secret --client-id "client_a" --secret-key "new-platform-key"
+python scripts/manage_api_clients.py reset-api-key --client-id "client_a" --api-key "new-platform-key"
 python scripts/manage_api_clients.py disable --client-id "client_a"
 python scripts/manage_api_clients.py enable --client-id "client_a"
 python scripts/manage_api_clients.py delete --client-id "client_a"
 ```
+
+旧记录若只包含 `secret_hash` 或 `secret_fingerprint`，不能用于平台 key 映射。请对该 `client_id` 执行一次 `reset-api-key --api-key "<platform_api_key>"`，脚本会移除旧字段并写入 `api_key_fingerprint`。
 
 ## 2. 异步调用流程
 
@@ -71,7 +73,7 @@ POST /api/review/jobs/{task_id}/result
 ```http
 POST /api/review/jobs
 Content-Type: multipart/form-data
-Authorization: <secret_key>
+Authorization: <api_key>
 ```
 
 请求字段：
@@ -104,7 +106,8 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
 | --- | --- | --- |
 | `202` | 任务已接收。 | 任务 ID、初始状态和消息。 |
 | `400` | 合同或审查标准不是有效 DOCX，或审查标准内容不符合要求。 | `{ "detail": "..." }` |
-| `401` | 未传密钥、密钥无效，或客户已禁用。 | `{ "detail": "secret_key is required." }` 或 `{ "detail": "Invalid API client credentials." }` |
+| `400` | 未传 `Authorization`，或平台 key 没有本地客户映射。 | `{ "detail": "Authorization header is required." }` 或 `{ "detail": "API key has no local client mapping." }` |
+| `403` | 该客户映射已禁用。 | `{ "detail": "API client mapping is disabled." }` |
 | `422` | 缺少必填的 `file` multipart 字段，或请求字段无法解析。 | FastAPI 校验详情。 |
 | `500` | 客户鉴权映射格式错误或密钥匹配到多个客户。 | `{ "detail": "..." }` |
 
@@ -112,7 +115,7 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
 
 ```http
 GET /api/review/jobs/{task_id}
-Authorization: <secret_key>
+Authorization: <api_key>
 ```
 
 PowerShell 示例：
@@ -152,7 +155,8 @@ curl.exe "http://localhost:5000/api/review/jobs/20260714-143119-5ece" `
 | HTTP 状态码 | 返回场景 | 响应 |
 | --- | --- | --- |
 | `200` | 已鉴权客户拥有该任务。 | 经过过滤的任务状态，不返回服务端文件系统路径。 |
-| `401` | 鉴权失败。 | `{ "detail": "..." }` |
+| `400` | 未传 `Authorization`，或平台 key 没有本地客户映射。 | `{ "detail": "..." }` |
+| `403` | 该客户映射已禁用。 | `{ "detail": "API client mapping is disabled." }` |
 | `404` | 任务 ID 不合法、不存在，或属于其他客户。 | `{ "detail": "Task not found." }` |
 | `500` | 客户鉴权映射格式错误或密钥匹配到多个客户。 | `{ "detail": "..." }` |
 
@@ -161,7 +165,7 @@ curl.exe "http://localhost:5000/api/review/jobs/20260714-143119-5ece" `
 ```http
 POST /api/review/jobs/{task_id}/result
 Content-Type: application/json
-Authorization: <secret_key>
+Authorization: <api_key>
 ```
 
 请求 JSON：
@@ -194,7 +198,8 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs/20260714-143119-5ece/res
 | --- | --- | --- |
 | `200` | 任务已成功，结果已复制到 `output_path`。 | 任务 ID、`succeeded`、消息和输出路径。 |
 | `400` | 未传 `output_path` 或该值为空。 | `{ "task_id": "...", "status": "failed", "message": "output_path is required." }` |
-| `401` | 鉴权失败。 | `{ "detail": "..." }` |
+| `400` | 未传 `Authorization`，或平台 key 没有本地客户映射。 | `{ "detail": "..." }` |
+| `403` | 该客户映射已禁用。 | `{ "detail": "API client mapping is disabled." }` |
 | `404` | 任务 ID 不合法、不存在，或属于其他客户。 | `{ "detail": "Task not found." }` |
 | `409` | 任务状态不是 `succeeded`。 | `{ "detail": "Task is not finished. Current status: ..." }` |
 | `422` | JSON 请求体不合法，或请求体不是 JSON 对象。 | FastAPI 校验详情。 |
@@ -210,7 +215,7 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs/20260714-143119-5ece/res
 
 ```http
 POST /api/review/jobs/{task_id}/cancel
-Authorization: <secret_key>
+Authorization: <api_key>
 ```
 
 PowerShell 示例：
@@ -233,7 +238,8 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs/20260714-143119-5ece/can
 | HTTP 状态码 | 返回场景 | 响应 |
 | --- | --- | --- |
 | `200` | 当前状态是 `pending` 或 `queued`，任务已取消。 | 任务 ID、`cancelled` 和消息。 |
-| `401` | 鉴权失败。 | `{ "detail": "..." }` |
+| `400` | 未传 `Authorization`，或平台 key 没有本地客户映射。 | `{ "detail": "..." }` |
+| `403` | 该客户映射已禁用。 | `{ "detail": "API client mapping is disabled." }` |
 | `404` | 任务 ID 不合法、不存在，或属于其他客户。 | `{ "detail": "Task not found." }` |
 | `409` | 任务是 `running`、`succeeded`、`failed` 或已经 `cancelled`。 | `{ "detail": "..." }`，或针对 `running` 的 JSON 消息。 |
 | `500` | 客户鉴权映射格式错误或密钥匹配到多个客户。 | `{ "detail": "..." }` |
@@ -250,7 +256,7 @@ data/api/clients/<client_dir>/tasks/<task_id>/
   logs/
 ```
 
-调用方不提交 `client_id`。服务端根据其密钥识别客户，然后只在该客户的 `client_dir` 下读取任务。
+调用方不提交 `client_id`。平台已认证的 `Authorization` key 仅用于本地映射；服务端根据映射得到客户目录，然后只在该客户的 `client_dir` 下读取任务。
 
 例如，客户 A 拥有任务 `20260714-143119-5ece`，客户 B 使用自己的有效密钥访问该任务时，返回如下：
 
