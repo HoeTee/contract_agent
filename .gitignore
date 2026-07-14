@@ -65,3 +65,7 @@ image.tar
 # Local notes
 /PLAN.md
 /DEPLOYMENT.md
+/AGENTS.md
+
+# Others
+/tests
