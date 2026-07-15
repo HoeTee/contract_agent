@@ -11,7 +11,7 @@ from starlette.datastructures import UploadFile as StarletteUploadFile
 
 app = FastAPI(
     title="API Review Callback Receiver",
-    description="Local test receiver for POST /api/review callback requests.",
+    description="Local test receiver for POST /oa/review callback requests.",
 )
 
 MAX_IN_MEMORY_RECORDS = 20

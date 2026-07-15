@@ -12,7 +12,7 @@
 
 - `endpoints/api/client_mapping.py`: reads the platform-provided `Authorization` key and resolves `client_id/client_dir` from its local mapping in `api_clients.json`.
 - `endpoints/api/review_jobs.py`：普通 `/api` 异步任务 API，提供提交、查询、结果导出、取消任务节点。
-- `endpoints/api/review.py`：旧同步 API 文件，当前不再注册到 `app.py`，不作为普通外部 API 暴露。
+- `endpoints/oa/review.py`：OA 专用同步 API，接收 OA 文件和元字段，完成后按配置回传结果。
 - `endpoints/web/user_routes.py`：浏览器普通用户页面和表单路由，URL 以 `/web` 开头。
 - `endpoints/web/admin_routes.py`：管理端页面和表单路由，URL 以 `/web/admin` 开头。
 - `endpoints/web/admin_services.py`：管理端展示所需的数据聚合。

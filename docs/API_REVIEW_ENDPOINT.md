@@ -9,7 +9,7 @@ POST /api/review/jobs/{task_id}/result
 POST /api/review/jobs/{task_id}/cancel
 ```
 
-同步 `POST /api/review` 不再注册到 `app.py`，不再作为普通外部 API 暴露。
+普通外部 API 不提供同步 `POST /api/review`；OA 专用同步接口为 `POST /oa/review`。
 
 ## API 边界
 

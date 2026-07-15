@@ -46,7 +46,7 @@
         <mxCell id="normal_router" value="endpoints/web/user_routes.py 普通用户路由&lt;br&gt;/work /review /download /history /settings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
           <mxGeometry x="35" y="140" width="350" height="64" as="geometry" />
         </mxCell>
-        <mxCell id="api_router" value="endpoints/api/review.py&lt;br&gt;POST /api/review&lt;br&gt;file + criteria_file + meta fields" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
+        <mxCell id="api_router" value="endpoints/oa/review.py&lt;br&gt;POST /oa/review&lt;br&gt;file + criteria_file + meta fields" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">
           <mxGeometry x="35" y="225" width="350" height="70" as="geometry" />
         </mxCell>
         <mxCell id="admin_router" value="endpoints/web/admin_routes.py 管理员路由&lt;br&gt;/admin /admin/users /criteria /logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="web_group">

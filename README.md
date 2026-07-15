@@ -101,7 +101,7 @@ http://127.0.0.1:5000/admin
 
 主要 Web 代码入口：
 
-- `endpoints/api/review.py`：外部同步审查 API。
+- `endpoints/oa/review.py`：OA 专用同步审查与 callback API。
 - `endpoints/web/user_routes.py`：普通用户登录后工作台、上传、下载和历史页面。
 - `endpoints/web/admin_routes.py`：管理员后台路由。
 - `endpoints/runtime/`：DOCX 校验、文件名处理、错误类型和共享运行时对象。
