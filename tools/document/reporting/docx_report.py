@@ -885,23 +885,12 @@ class DocxReportGenerator:
                 DocxReportGenerator._add_comments_to_doc(doc, comments_data)
 
             doc.save(output_path)
-            events_path = str(Path(output_path).with_name(f"{Path(output_path).stem}_annotation_events.json"))
-            with open(events_path, "w", encoding="utf-8") as events_file:
-                json.dump(
-                    {
-                        "annotation_stats": annotation_stats,
-                        "events": annotation_events,
-                    },
-                    events_file,
-                    ensure_ascii=False,
-                    indent=2,
-                )
             print(
                 f"  DOCX: {annotation_stats['exact_matched']} anchored comments, "
                 f"{annotation_stats['light_clean_matched']} light-clean comments, "
                 f"{annotation_stats['normalized_fallback_matched']} normalized fallback comments, "
                 f"{fallback_count} document-start fallback comments, "
-                f"{skipped_count} skipped, annotation events: {events_path}",
+                f"{skipped_count} skipped",
                 file=sys.stderr,
             )
             return output_path
