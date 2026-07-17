@@ -4,14 +4,14 @@
 .env.*.local
 docker-compose.yaml
 
-# Runtime and tenant data
+# Runtime data, tenant profiles, and generated logs
 data/
-user_profiles/*
-!user_profiles/.gitkeep
 logs/
 uploads/
+user_profiles/*
+!user_profiles/.gitkeep
 
-# Office documents and temporary lock files
+# Office documents, user uploads, and temporary lock files
 *.doc
 *.docx
 *.docm
@@ -66,5 +66,5 @@ image.tar
 /AGENTS.md
 /DEPLOYMENT.md
 /PLAN.md
-/tests
-/部署
+/tests/
+/部署/

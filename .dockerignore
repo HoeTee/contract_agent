@@ -8,7 +8,7 @@
 .env.*.local
 docker-compose.yaml
 
-# Runtime and tenant data
+# Runtime data and tenant/user identity files are mounted, not baked into images
 data
 user_profiles
 logs
@@ -26,7 +26,14 @@ build
 venv
 env
 
-# Office temporary files and local scratch files
+# Office documents, user uploads, and temporary lock files
+*.doc
+*.docx
+*.docm
+*.dot
+*.dotx
+*.dotm
+*.pdf
 ~$*
 ~$*.doc*
 .~lock.*#
@@ -41,8 +48,11 @@ env
 .idea
 .cache
 
-# Development-only test suite
+# Development-only files
 /tests/
+/AGENTS.md
+/DEPLOYMENT.md
+/PLAN.md
 
 # Local archives/images
 *.tar
@@ -50,4 +60,4 @@ env
 *.zip
 *.rar
 image.tar
-/部署
+/部署/
