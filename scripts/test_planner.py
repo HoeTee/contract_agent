@@ -16,7 +16,7 @@ from mcp_service.mcp_client.mcp_minimal import MinimalMCPClient
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
-    parser.add_argument("file", help="Path to the DOCX/PDF/TXT file to ingest and plan.")
+    parser.add_argument("file", help="Path to the DOCX file to ingest and plan.")
     return parser
 
 

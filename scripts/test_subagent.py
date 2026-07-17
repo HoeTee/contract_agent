@@ -52,14 +52,13 @@ async def contract(
     client, 
     file_path: Path
 ) -> str:
-    contract_md_raw = await client.call_tool(
+    await client.call_tool(
         "ingest_file",
         {"file_path": str(file_path)},
     )
-    contract_md = contract_md_raw.split("Content:\n\n", 1)[-1]
     await client.call_tool(
         "llamaindex_build_index", 
-        {"markdown_content": contract_md}
+        {"docx_path": str(file_path)}
     )
 
 

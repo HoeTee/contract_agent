@@ -27,6 +27,8 @@ SUB_AGENT_EXPECTED_JSON = """
       "issue_comment": "问题整体说明，160字以内",
       "anchors": [
         {
+          "xml_anchor_type": "paragraph | table",
+          "xml_anchor_id": "必须复用检索结果中的 xml_anchor_id",
           "quoted_text": "逐字摘录的单一连续合同原文",
           "comment_text": "写入该处 Word 批注的修改意见，100字以内"
         }
@@ -117,7 +119,12 @@ class OrchestratorAgent:
             '章节或段落位置；若合同原文未标明具体条款编号，请写”合同缺失审查要点要求书写的内容”，'
             '绝对不要照抄检索包装标题。'
         )
-        return f"{guidance}\n\n{normalized_context}"
+        anchor_guidance = (
+            "每条检索结果会提供 xml_anchor_type 和 xml_anchor_id。"
+            "输出 anchors 时必须原样复用对应检索结果中的 xml_anchor_type/xml_anchor_id；"
+            "quoted_text 只能摘录该 anchor 对应合同文本中的单一连续片段。"
+        )
+        return f"{guidance}\n{anchor_guidance}\n\n{normalized_context}"
 
     async def _build_missing_text_review_notes(self, parsed_opinion: dict) -> str:
         """Search again for issues that claim a missing contract provision."""

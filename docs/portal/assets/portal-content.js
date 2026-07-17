@@ -162,7 +162,7 @@ window.DOCS_PORTAL_CONTENT = {
       ordered: true,
       items: [
         "`_generate_docx_with_comments()` 读取每个 issue 的 `quoted_text`。",
-        "`_find_text_range_anchor()` 尝试把 `quoted_text` 定位成 `TextAnchor`。",
+        "`_find_text_range_anchor_in_xml_anchor()` 先按 `xml_anchor_type/xml_anchor_id` 锁定 DOCX 范围，再把 `quoted_text` 首次出现位置定位成 `TextAnchor`。",
         "成功定位后，`comments_data` 中保存 `TextAnchor`、风险等级和批注正文。",
         "`_add_comments_to_doc()` 写入 `comments.xml` 中的新 `w:comment`。",
         "如果 anchor 是 `TextAnchor`，调用 `_add_comment_markers_to_text_range()`。",
@@ -424,7 +424,7 @@ window.DOCS_PORTAL_CONTENT = {
       headers: ["阶段", "实现", "说明"],
       rows: [
         ["1. 解析 ingest", "MCP ingest_file", "把合同和审查标准 DOCX 转成 markdown"],
-        ["2. 建索引 build_index", "MCP llamaindex_build_index", "为合同 markdown 建临时 LlamaIndex 向量索引"],
+        ["2. 建索引 build_index", "MCP llamaindex_build_index", "为合同 DOCX XML anchor 节点建临时 LlamaIndex 向量索引"],
         ["3. 规划 plan", "PlannerAgent.design_tasks", "把审查标准 markdown 拆成结构化任务 criteria_list"],
         ["4. 执行+反思 execute", "OrchestratorAgent.execute_criteria", "逐条审查标准，产出 results"],
         ["5. 汇总 summarize", "SummarizerAgent.compile_summary_comment", "由 results 生成 summary_sections"],

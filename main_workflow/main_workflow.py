@@ -3,7 +3,7 @@ ContractReviewWorkflow orchestrates one annotated-DOCX contract review run.
 
 Phases:
   1. Ingest criteria + contract to markdown
-  2. Build a temporary LlamaIndex contract index
+  2. Build a temporary LlamaIndex contract index from DOCX XML anchors
   3. Planner extracts review criteria
   4. Orchestrator executes criterion reviews with retrieval + reflection
   5. Summarizer creates a compact summary comment
@@ -84,7 +84,7 @@ class ContractReviewWorkflow:
 
             # Phase 2: Build index
             await self._emit_progress(progress_callback, "building_index", "Building temporary LlamaIndex contract index")
-            await self._phase_build_llamaindex(contract_md)
+            await self._phase_build_llamaindex(contract_path)
 
             # Phase 3: Plan tasks
             await self._emit_progress(progress_callback, "planning", "Extracting review criteria")
@@ -214,16 +214,16 @@ class ContractReviewWorkflow:
 
     async def _phase_build_llamaindex(
             self,
-            contract_md: str
+            contract_path: str
     ) -> str:
-        """Phase 2 (LlamaIndex mode): Build a temporary contract vector index."""
+        """Phase 2 (LlamaIndex mode): Build a temporary DOCX-anchor contract vector index."""
         print("\n[Phase 2] Building temporary LlamaIndex contract index...")
         start = time.time()
 
         result = await self.mcp_client.call_tool(
             "llamaindex_build_index",
             {
-                "markdown_content": contract_md,
+                "docx_path": contract_path,
                 "api_events_path": self.api_events_path,
             },
         )
@@ -231,7 +231,7 @@ class ContractReviewWorkflow:
         self.logger.log(
             phase="Index Building", sender="Workflow", receiver="MCP:llamaindex_build_index",
             action="llamaindex_build_index",
-            input_summary=f"{len(contract_md)} chars markdown",
+            input_summary=os.path.basename(contract_path),
             output_summary=result,
             duration=round(time.time() - start, 2)
         )

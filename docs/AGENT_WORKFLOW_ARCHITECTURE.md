@@ -13,7 +13,7 @@
 | 阶段 | 实现 | 说明 |
 | --- | --- | --- |
 | 1. 解析 ingest | MCP `ingest_file` | 把合同和审查标准 DOCX 转成 markdown |
-| 2. 建索引 build_index | MCP `llamaindex_build_index` | 为合同 markdown 建临时 LlamaIndex 向量索引 |
+| 2. 建索引 build_index | MCP `llamaindex_build_index` | 为合同 DOCX XML anchor 节点建临时 LlamaIndex 向量索引 |
 | 3. 规划 plan | `PlannerAgent.design_tasks` | 把审查标准 markdown 拆成结构化任务 `criteria_list` |
 | 4. 执行+反思 execute | `OrchestratorAgent.execute_criteria` | 逐条审查标准，产出 `results` |
 | 5. 汇总 summarize | `SummarizerAgent.compile_summary_comment` | 由 `results` 生成 `summary_sections` |

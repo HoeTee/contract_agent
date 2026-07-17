@@ -14,7 +14,7 @@ class FileParser:
 
     @staticmethod
     def parse_file(file_path: str) -> str:
-        """Parse a file with the default local parser."""
+        """Parse a DOCX file with the default local parser."""
         return DefaultFileParser.parse_file(file_path)
 
     @staticmethod

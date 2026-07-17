@@ -30,10 +30,12 @@ class PlannerOutput(StrictOutputModel):
 
 
 class SubAgentAnchor(StrictOutputModel):
+    xml_anchor_type: Literal["paragraph", "table"]
+    xml_anchor_id: str = Field(min_length=1)
     quoted_text: str = Field(min_length=1)
     comment_text: str = Field(min_length=1, max_length=100)
 
-    @field_validator("quoted_text", "comment_text")
+    @field_validator("xml_anchor_id", "quoted_text", "comment_text")
     @classmethod
     def anchor_text_not_blank(cls, value: str) -> str:
         if not value.strip():

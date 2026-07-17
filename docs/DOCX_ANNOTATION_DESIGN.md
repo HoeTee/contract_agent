@@ -145,7 +145,7 @@ ParagraphTextView
 高亮代码逻辑：
 
 1. `_generate_docx_with_comments()` 读取每个 issue 的 `quoted_text`。
-2. `_find_text_range_anchor()` 尝试把 `quoted_text` 定位成 `TextAnchor`。
+2. `_find_text_range_anchor_in_xml_anchor()` 先按 `xml_anchor_type/xml_anchor_id` 锁定 DOCX 范围，再把 `quoted_text` 首次出现位置定位成 `TextAnchor`。
 3. 成功定位后，`comments_data` 中保存 `TextAnchor`、风险等级和批注正文。
 4. `_add_comments_to_doc()` 写入 `comments.xml` 中的新 `w:comment`。
 5. 如果 anchor 是 `TextAnchor`，调用 `_add_comment_markers_to_text_range()`。

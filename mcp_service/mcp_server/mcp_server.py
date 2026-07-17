@@ -59,8 +59,10 @@ index_retriever._get_contract_llamaindex_engine()
 @mcp.tool()
 async def ingest_file(file_path: str) -> str:
     """
-    Parse a DOCX/PDF/TXT file, return full markdown content.
+    Parse a DOCX file, return full markdown content.
     """
+    if os.path.splitext(file_path)[1].lower() != ".docx":
+        return "Error parsing file: only .docx files are supported"
     if PARSE_FILE_WITH_MINERU:
         try:
             content = await FileParser.parse_file_with_mineru(file_path)
@@ -152,14 +154,14 @@ async def generate_pdf_report(
 
 # ============ Retrieval Tools ============
 
-async def llamaindex_build_index(markdown_content: str, api_events_path: str | None = None) -> str:
+async def llamaindex_build_index(docx_path: str, api_events_path: str | None = None) -> str:
     """
     Build a temporary in-memory LlamaIndex index for the current contract.
     This does not persist contract vectors to RAG_persist.
     """
     token = set_model_event_path(api_events_path)
     try:
-        return await index_retriever.build_contract_llamaindex_index(markdown_content)
+        return await index_retriever.build_contract_llamaindex_index(docx_path)
     finally:
         reset_model_event_path(token)
 

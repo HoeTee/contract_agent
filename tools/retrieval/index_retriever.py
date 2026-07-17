@@ -75,13 +75,15 @@ class IndexRetriever:
             "institutional_manifest.json",
         )
 
-    async def build_contract_llamaindex_index(self, markdown_content: str) -> str:
-        """Build a temporary in-memory LlamaIndex contract index for this run."""
+    async def build_contract_llamaindex_index(self, docx_path: str) -> str:
+        """Build a temporary in-memory LlamaIndex contract index from DOCX anchors."""
         try:
+            if os.path.splitext(docx_path)[1].lower() != ".docx":
+                raise ValueError("Only .docx contract files are supported for review indexing.")
             engine = self._get_contract_llamaindex_engine()
             node_count = await asyncio.to_thread(
-                engine.build_temporary_index_from_text,
-                markdown_content,
+                engine.build_temporary_index_from_docx,
+                docx_path,
                 "current_contract",
             )
             return json.dumps(
@@ -263,7 +265,7 @@ class IndexRetriever:
             return json.load(f)
 
     def _scan_institutional_files(self) -> dict[str, dict[str, str]]:
-        supported_suffixes = {".docx", ".pdf", ".md", ".txt"}
+        supported_suffixes = {".docx"}
         files: dict[str, dict[str, str]] = {}
         for root, _, filenames in os.walk(self.institutional_docs_dir):
             for filename in filenames:

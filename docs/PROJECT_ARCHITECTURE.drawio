@@ -84,7 +84,7 @@
         <mxCell id="workflow" value="ContractReviewWorkflow&lt;br&gt;main_workflow/main_workflow.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#EA580C;fontStyle=1;" vertex="1" parent="workflow_group">
           <mxGeometry x="30" y="55" width="210" height="58" as="geometry" />
         </mxCell>
-        <mxCell id="phase_ingest" value="Ingestion&lt;br&gt;ingest_file&lt;br&gt;DOCX/PDF/TXT -&amp;gt; Markdown" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#F97316;" vertex="1" parent="workflow_group">
+        <mxCell id="phase_ingest" value="Ingestion&lt;br&gt;ingest_file&lt;br&gt;DOCX -&amp;gt; Markdown" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#F97316;" vertex="1" parent="workflow_group">
           <mxGeometry x="275" y="45" width="145" height="75" as="geometry" />
         </mxCell>
         <mxCell id="phase_index" value="Index Building&lt;br&gt;llamaindex_build_index&lt;br&gt;临时合同索引" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#F97316;" vertex="1" parent="workflow_group">

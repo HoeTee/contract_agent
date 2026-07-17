@@ -1,11 +1,10 @@
 import os
 from docx import Document
-from pypdf import PdfReader
 from tools.document.file_cleaner import DocxCleaner
 
 
 class DefaultFileParser:
-    """Local parser for DOCX, PDF, and TXT files."""
+    """Local parser for DOCX files."""
 
     @staticmethod
     def parse_file(file_path: str) -> str:
@@ -23,12 +22,8 @@ class DefaultFileParser:
                 finally:
                     if clean_path != file_path and os.path.exists(clean_path):
                         os.unlink(clean_path)
-            elif ext == '.pdf':
-                return DefaultFileParser._parse_pdf(file_path)
-            elif ext == '.txt':
-                return DefaultFileParser._parse_txt(file_path)
             else:
-                return f"Error: Unsupported file format {ext}"
+                return "Error: Only .docx files are supported"
         except Exception as e:
             return f"Error parsing file: {str(e)}"
 
@@ -75,17 +70,3 @@ class DefaultFileParser:
             full_text.extend(preamble)
         return "\n\n".join(full_text)
 
-    @staticmethod
-    def _parse_pdf(path: str) -> str:
-        reader = PdfReader(path)
-        full_text = []
-        for page in reader.pages:
-            text = page.extract_text()
-            if text:
-                full_text.append(text)
-        return "\n".join(full_text)
-
-    @staticmethod
-    def _parse_txt(path: str) -> str:
-        with open(path, 'r', encoding='utf-8') as f:
-            return f.read()

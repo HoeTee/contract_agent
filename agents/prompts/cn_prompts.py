@@ -153,6 +153,8 @@ SUB_AGENT_BASE_PROMPT = """
       "issue_comment": "问题整体说明，160字以内",
       "anchors": [
         {
+          "xml_anchor_type": "paragraph | table",
+          "xml_anchor_id": "必须复用检索结果中的 xml_anchor_id",
           "quoted_text": "逐字摘录的单一连续合同原文",
           "comment_text": "可直接写入该处 Word 批注的修改意见，100字以内"
         }
@@ -166,9 +168,9 @@ SUB_AGENT_BASE_PROMPT = """
 
 字段约束：
 1. status 只能是 "compliant"、"issues_found" 或 "not_applicable"。
-2. 每个 issue 只能包含 issue_id、risk_level、issue_comment、anchors、reasoning、criterion、check_point 七个字段；anchors 中每项只能包含 quoted_text、comment_text。
+2. 每个 issue 只能包含 issue_id、risk_level、issue_comment、anchors、reasoning、criterion、check_point 七个字段；anchors 中每项只能包含 xml_anchor_type、xml_anchor_id、quoted_text、comment_text。
 3. risk_level 只能是 "high"、"medium"、"low"。
-4. anchors 非空时，每个 anchors[].quoted_text 必须 100% 来自提供的合同文本，且是单一连续片段；不得编造、改写、跨段拼接、使用省略号或用检索说明替代。
+4. anchors 非空时，每个 anchors[].xml_anchor_type 和 anchors[].xml_anchor_id 必须复用检索结果中提供的值；每个 anchors[].quoted_text 必须 100% 来自该检索结果对应的合同文本，且是单一连续片段；不得编造、改写、跨段拼接、使用省略号或用检索说明替代。
 5. issue_comment 和 anchors[].comment_text 不得出现第一人称、口语化表达、寒暄语或报告式长篇分析。
 6. 每条 anchors[].comment_text 必须控制在 100 个中文字符以内；issue_comment 必须控制在 160 个中文字符以内。
 7. 对包含多个检查点的审查标准，应逐项判断，但多个问题实质指向同一风险的，应合并为一条。
