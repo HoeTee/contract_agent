@@ -10,10 +10,6 @@ from docx.table import Table, _Cell
 from docx.text.paragraph import Paragraph
 from lxml import etree
 
-
-W14_NS = "http://schemas.microsoft.com/office/word/2010/wordml"
-
-
 @dataclass(frozen=True)
 class DocxAnchorNode:
     anchor_type: str
@@ -69,9 +65,6 @@ def paragraph_visible_text(paragraph: Paragraph) -> str:
 
 
 def paragraph_anchor_id(paragraph: Paragraph, path: str) -> str:
-    para_id = paragraph._element.get(f"{{{W14_NS}}}paraId")
-    if para_id:
-        return f"para:{para_id}"
     return f"path:{path}"
 
 
