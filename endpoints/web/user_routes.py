@@ -174,12 +174,6 @@ def build_report_display_name(contract_original_name: str) -> str:
     return f"{stem}_批注版.docx"
 
 
-def strip_task_file_prefix(filename: str | None) -> str:
-    if not filename:
-        return ""
-    return TASK_FILE_PREFIX_RE.sub("", safe_upload_filename(filename))
-
-
 def build_history_display_names(record: dict) -> tuple[str, str]:
     contract_name = (
         record.get("contract_original_name")
