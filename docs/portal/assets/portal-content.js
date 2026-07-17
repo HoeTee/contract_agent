@@ -544,13 +544,13 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "heading", text: "任务目录" },
     {
       type: "code",
-      text: "data/api/clients/<client_dir>/tasks/<task_id>/\n  task.json\n  input/\n  output/\n  logs/",
+      text: "data/api/<task_id>/\n  task.json\n  input/\n  output/\n  logs/",
     },
     { type: "para", text: "client_id 是业务身份；client_dir 是由 client_id 生成的安全目录名。task.json 同时记录两者。普通 API 响应不会返回服务端绝对路径，也不会返回 api_key_fingerprint。" },
     { type: "heading", text: "状态流" },
     {
       type: "code",
-      text: "POST /api/review/jobs\n  -> 根据 Authorization key 映射 client_id/client_dir\n  -> 创建 data/api/clients/<client_dir>/tasks/<task_id>/\n  -> 写 task.json: pending\n\n如果并发已满\n  -> task.json: queued\n\n获得执行槽位\n  -> task.json: running\n  -> workflow.run()\n\n完成\n  -> succeeded / failed\n\n取消\n  -> pending: cancelled\n  -> queued: cancelled\n  -> running: 409",
+      text: "POST /api/review/jobs\n  -> 根据 Authorization key 映射 client_id/client_dir\n  -> 创建 data/api/<task_id>/\n  -> 写 task.json: pending\n\n如果并发已满\n  -> task.json: queued\n\n获得执行槽位\n  -> task.json: running\n  -> workflow.run()\n\n完成\n  -> succeeded / failed\n\n取消\n  -> pending: cancelled\n  -> queued: cancelled\n  -> running: 409",
     },
     { type: "heading", text: "结果导出" },
     {
@@ -564,7 +564,7 @@ window.DOCS_PORTAL_CONTENT = {
       items: [
         "endpoints/api/review_jobs.py：提交、查询、导出、取消任务。",
         "scripts/manage_api_clients.py：管理 API client，登记外部平台 key 的 api_key_fingerprint 映射。",
-        "endpoints/review/task_store.py：按 client_dir + task_id 读写 task 数据。",
+        "endpoints/review/task_store.py：按 task_id 读写 API task 数据。",
         "endpoints/review/job_worker.py：执行后台审查任务。",
       ],
     },
@@ -720,7 +720,7 @@ window.DOCS_PORTAL_CONTENT = {
     {
       type: "list",
       items: [
-        "endpoints/review/task_store.py：读写 /api task 数据，路径为 data/api/clients/<client_dir>/tasks/<task_id>/.",
+        "endpoints/review/task_store.py：读写 /api task 数据，路径为 data/api/<task_id>/.",
         "endpoints/review/job_worker.py：执行异步审查后台任务。",
         "endpoints/review/response.py：构造对外 API 响应，避免暴露服务端路径和 secret hash。",
         "endpoints/review/meta.py：旧 meta fields helper；普通 /api 当前不再使用。",
@@ -768,7 +768,7 @@ window.DOCS_PORTAL_CONTENT = {
       type: "callout",
       text: "当前普通用户日志目录名包含 task_id 和合同文件名 stem。合同名过长时，conversations 下文件完整路径可能超过 Windows 路径长度限制。后续应收敛为短目录 `data/<username>/logs/<YYYY-MM-DD>/<task_id>/`，合同名通过 records/review_history.json 读取。",
     },
-    { type: "para", text: "普通 /api 审查使用独立日志目录 `data/api/clients/<client_dir>/tasks/<task_id>/logs/`，不写入 /web 用户合同、报告和历史记录目录。任务目录由 `endpoints/review/task_store.py` 按 client_dir + task_id 生成。" },
+    { type: "para", text: "普通 /api 审查使用独立日志目录 `data/api/<task_id>/logs/`，不写入 /web 用户合同、报告和历史记录目录。任务目录由 `endpoints/review/task_store.py` 按 task_id 生成。" },
     { type: "para", text: "任务目录按日志来源拆分：`workflow/`、`conversations/`、`mcp/`、`api_events.jsonl`。" },
 
     { type: "heading", text: "日志读取与合同名关联" },

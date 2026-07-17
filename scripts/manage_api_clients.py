@@ -14,7 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 API_CLIENTS_FILE = PROJECT_ROOT / "user_profiles" / "api_clients.json"
-API_CLIENT_TASKS_ROOT = PROJECT_ROOT / "data" / "api" / "clients"
+API_CLIENT_TASKS_ROOT = PROJECT_ROOT / "data" / "api"
 
 
 class ApiClientCliError(Exception):
@@ -183,12 +183,11 @@ def delete_api_client(
 
 
 def task_root_for_client(client: dict[str, Any]) -> Path:
-    client_id = str(client.get("client_id") or "")
-    client_dir = str(client.get("client_dir") or client_dir_name(client_id))
-    return API_CLIENT_TASKS_ROOT / client_dir / "tasks"
+    return API_CLIENT_TASKS_ROOT
 
 
 def load_client_tasks(client: dict[str, Any]) -> list[dict[str, Any]]:
+    client_id = str(client.get("client_id") or "")
     root = task_root_for_client(client)
     if not root.exists():
         return []
@@ -205,7 +204,7 @@ def load_client_tasks(client: dict[str, Any]) -> list[dict[str, Any]]:
                 }
             )
             continue
-        if isinstance(task, dict):
+        if isinstance(task, dict) and str(task.get("client_id") or "") == client_id:
             tasks.append(task)
     return tasks
 

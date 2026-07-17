@@ -40,7 +40,7 @@ def validate_client_dir(client_dir: str) -> str:
 
 
 def task_dir(client_dir: str, task_id: str) -> Path:
-    return Path(DATA_DIR) / "api" / "clients" / validate_client_dir(client_dir) / "tasks" / validate_task_id(task_id)
+    return Path(DATA_DIR) / "api" / validate_task_id(task_id)
 
 
 def task_json_path(client_dir: str, task_id: str) -> Path:
@@ -186,7 +186,10 @@ def read_task(client_dir: str, task_id: str) -> dict[str, Any] | None:
     path = task_json_path(client_dir, task_id)
     if not path.exists():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    task = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(task, dict) or task.get("client_dir") != validate_client_dir(client_dir):
+        return None
+    return task
 
 
 def export_task_result(task: dict[str, Any], output_path: str) -> Path:

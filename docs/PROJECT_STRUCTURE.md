@@ -20,7 +20,7 @@
 
 ## Review Support
 
-- `endpoints/review/task_store.py`：读写 `/api` task 数据，路径为 `data/api/clients/<client_dir>/tasks/<task_id>/`。
+- `endpoints/review/task_store.py`：读写 `/api` task 数据，路径为 `data/api/<task_id>/`。
 - `endpoints/review/job_worker.py`：执行异步审查后台任务。
 - `endpoints/review/response.py`：构造对外 API 响应，避免暴露服务端路径和 secret hash。
 - `endpoints/review/meta.py`：旧 meta fields helper；普通 `/api` 当前不再使用。
@@ -50,14 +50,14 @@ user_profiles/
 普通 `/api` 数据目录：
 
 ```text
-data/api/clients/<client_dir>/tasks/<task_id>/
+data/api/<task_id>/
   task.json
   input/
   output/
   logs/
 ```
 
-`client_id` 是业务身份，`client_dir` 是由 `client_id` 生成的安全目录名。`task.json` 同时记录两者。
+`client_id` 是业务身份，`client_dir` 为兼容既有 client 配置继续记录在 `task.json` 中，但不再参与目录分区。
 
 ## API Boundary
 
@@ -65,7 +65,7 @@ data/api/clients/<client_dir>/tasks/<task_id>/
 
 - 只做异步任务。
 - 平台 key 映射到 `client_id/client_dir`。
-- 按 `client_id` 分区存储。
+- 按 `task_id` 直接存储，读取时校验 `client_dir` 归属。
 - 不接收 `metafields`。
 - 不 callback。
 

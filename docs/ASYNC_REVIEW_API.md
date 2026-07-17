@@ -246,17 +246,17 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs/20260714-143119-5ece/can
 
 ## 7. 客户数据隔离
 
-任务按照鉴权密钥解析出的 `client_dir` 分区存储：
+任务按照 `task_id` 直接存储在 API 根目录：
 
 ```text
-data/api/clients/<client_dir>/tasks/<task_id>/
+data/api/<task_id>/
   task.json
   input/
   output/
   logs/
 ```
 
-调用方不提交 `client_id`。平台已认证的 `Authorization` key 仅用于本地映射；服务端根据映射得到客户目录，然后只在该客户的 `client_dir` 下读取任务。
+调用方不提交 `client_id`。平台已认证的 `Authorization` key 仅用于本地映射；服务端根据映射得到客户身份，并按 `task.json` 中记录的 `client_dir` 校验任务归属。
 
 例如，客户 A 拥有任务 `20260714-143119-5ece`，客户 B 使用自己的有效密钥访问该任务时，返回如下：
 
@@ -268,7 +268,7 @@ data/api/clients/<client_dir>/tasks/<task_id>/
 
 任务不存在时也返回同一 `404`，因此客户不能通过状态码判断其他客户的任务是否存在。
 
-隔离依赖于每个 API 客户记录使用独占的 `client_dir`。不要手工创建或修改 `user_profiles/api_clients.json`，使多个客户记录共享同一个 `client_dir`。
+任务目录不再按 `client_dir` 分区。不要手工创建或修改 `user_profiles/api_clients.json`，避免 API key 映射到错误业务身份。
 
 ## 8. 常见请求错误
 

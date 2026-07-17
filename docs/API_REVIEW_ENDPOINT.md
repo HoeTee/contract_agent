@@ -74,14 +74,14 @@ Auth failures:
 任务目录：
 
 ```text
-data/api/clients/<client_dir>/tasks/<task_id>/
+data/api/<task_id>/
   task.json
   input/
   output/
   logs/
 ```
 
-`client_id` 是业务身份；`client_dir` 是由 `client_id` 生成的安全目录名。`task.json` 会记录两者：
+`client_id` 是业务身份；`client_dir` 为兼容既有 client 配置继续记录在 `task.json` 中，但不再参与目录分区。`task.json` 会记录两者：
 
 ```json
 {

@@ -34,7 +34,7 @@ window.DOCS_PORTAL_DATA = {
     {
       icon: "icon-folder",
       title: "Partition task data",
-      text: "API tasks are written under data/api/clients/<client_dir>/tasks/<task_id>/.",
+      text: "API tasks are written under data/api/<task_id>/.",
     },
     {
       icon: "icon-flow",
@@ -61,7 +61,7 @@ window.DOCS_PORTAL_DATA = {
       signals: [
         "普通 /api 不再暴露同步 POST /api/review。",
         "API client 使用 scripts/manage_api_clients.py 管理，脚本登记外部平台 key 的 api_key_fingerprint 映射。",
-        "任务目录为 data/api/clients/<client_dir>/tasks/<task_id>/。",
+        "任务目录为 data/api/<task_id>/。",
         "普通 /api 不接收 metafields，不 callback。",
       ],
       paths: [
@@ -110,7 +110,7 @@ window.DOCS_PORTAL_DATA = {
       tags: ["DATA_DIR", "USERS_FILE", "api_clients", "history"],
       signals: [
         "/web 用户数据仍按 DATA_DIR/<username>/ 分区。",
-        "/api client 数据按 data/api/clients/<client_dir>/tasks/ 分区。",
+        "/api 任务数据按 data/api/<task_id>/ 存储。",
         "user_profiles/users.json 和 user_profiles/api_clients.json 分别管理两类身份。",
       ],
       paths: [
@@ -148,7 +148,7 @@ window.DOCS_PORTAL_DATA = {
       ],
       details: [
         "endpoints/api/review.py 是旧同步 API 文件，当前不再注册到 app.py。",
-        "endpoints/review/task_store.py 负责 data/api/clients/<client_dir>/tasks/<task_id>/。",
+        "endpoints/review/task_store.py 负责 data/api/<task_id>/。",
         "普通 /api 不接收 metafields，不 callback；OA 后续单独实现。",
       ],
     },
@@ -223,7 +223,7 @@ window.DOCS_PORTAL_DATA = {
       tags: ["api_events", "workflow", "conversation", "mcp"],
       signals: [
         "/web 用户任务日志位于 data/<username>/logs/。",
-        "/api 任务日志位于 data/api/clients/<client_dir>/tasks/<task_id>/logs/。",
+        "/api 任务日志位于 data/api/<task_id>/logs/。",
         "agent_steps.jsonl 只有模型调用返回后才会出现。",
       ],
       paths: ["loggers/api_event_logger.py", "loggers/agent_logger.py", "docs/LOGGER_DESIGN.md"],
