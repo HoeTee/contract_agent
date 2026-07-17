@@ -133,7 +133,7 @@ MINERU_API_KEY = env_required("MINERU_API_KEY")
 SESSION_SECRET_KEY = env_required("SESSION_SECRET_KEY")
 
 LLM_BASE_URL = _as_str(cfg("llm", "base_url"), "llm.base_url")
-LLM_NAME = _as_str(cfg("llm", "name"), "llm.name").lower()
+LLM_NAME = _as_str(cfg("llm", "name"), "llm.name")
 LLM_ENABLE_THINKING = _parse_bool(cfg("llm", "enable_thinking"), "llm.enable_thinking")
 MAX_CONTEXT_TOKENS = _as_int(cfg("llm", "max_context_tokens"), "llm.max_context_tokens")
 MAX_RESULT_TOKENS = _as_int(cfg("llm", "max_result_tokens"), "llm.max_result_tokens")

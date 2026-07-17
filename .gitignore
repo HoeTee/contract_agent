@@ -66,4 +66,5 @@ image.tar
 /AGENTS.md
 /DEPLOYMENT.md
 /PLAN.md
-/tests/
+/tests
+/部署

@@ -20,6 +20,7 @@ services:
       - ./.env:/app/.env:ro
       - ./config.yaml:/app/config.yaml:ro
       - ./agents/prompts/cn_prompts.py:/app/agents/prompts/cn_prompts.py:ro
+      - ./criteria.docx:/app/resources/review_criteria/criteria.docx
       - ./user_profiles:/app/user_profiles
       - ./data:/app/data
 
