@@ -42,8 +42,8 @@ class SummarizerAgent(Agent):
                         "criterion_id": result.get("criterion_id", ""),
                         "criterion": result.get("criterion", ""),
                         "risk_level": issue.get("risk_level", ""),
-                        "quoted_text": issue.get("quoted_text", ""),
-                        "comment_text": issue.get("comment_text", ""),
+                        "issue_comment": issue.get("issue_comment", ""),
+                        "anchors": issue.get("anchors", []),
                     }
                 )
 

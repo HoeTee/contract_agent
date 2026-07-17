@@ -24,8 +24,13 @@ SUB_AGENT_EXPECTED_JSON = """
     {
       "issue_id": "当前criterion_id.序号",
       "risk_level": "high | medium | low",
-      "quoted_text": "逐字摘录的合同原文；合同未出现对应内容时为空字符串",
-      "comment_text": "可直接写入 Word 批注的修改意见，100字以内",
+      "issue_comment": "问题整体说明，160字以内",
+      "anchors": [
+        {
+          "quoted_text": "逐字摘录的单一连续合同原文",
+          "comment_text": "写入该处 Word 批注的修改意见，100字以内"
+        }
+      ],
       "reasoning": "说明为什么构成实质风险，以及如何对应 check_point",
       "criterion": "当前审查标准原文",
       "check_point": "该 issue 对应的具体检查点"
@@ -118,7 +123,7 @@ class OrchestratorAgent:
         """Search again for issues that claim a missing contract provision."""
         notes = []
         for issue in parsed_opinion.get("issues", []):
-            if str(issue.get("quoted_text", "")).strip():
+            if issue.get("anchors"):
                 continue
 
             issue_id = issue.get("issue_id", "")
@@ -149,7 +154,7 @@ class OrchestratorAgent:
             )
 
         if not notes:
-            return "无 quoted_text 为空的缺失类 issue，无补充检索结果。"
+            return "无 anchors 为空的缺失类 issue，无补充检索结果。"
         return json.dumps(notes, ensure_ascii=False, indent=2)
 
     def _build_reflector_input(

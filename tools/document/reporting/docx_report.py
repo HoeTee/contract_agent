@@ -801,49 +801,72 @@ class DocxReportGenerator:
 
                 for issue in result.get('issues', []):
                     annotation_stats["total_issues"] += 1
-                    reference = issue.get('quoted_text', '')
-                    comment_text = issue.get('comment_text', '')
                     risk_level = issue.get('risk_level', '')
                     issue_id = issue.get('issue_id', '')
+                    anchors = issue.get('anchors') or []
 
-                    matched_anchor = DocxReportGenerator._find_text_range_anchor(doc, reference)
-
-                    if matched_anchor:
-                        comments_data.append({
-                            'anchor': matched_anchor,
-                            'comment_text': DocxReportGenerator._build_issue_comment_text(
-                                comment_text,
-                                risk_level,
-                                criterion=issue.get('criterion') or criterion,
-                            ),
-                            'author': REVIEW_COMMENT_AUTHOR,
-                        })
-                        annotation_stats["exact_matched"] += 1
-                        annotation_events.append({
-                            "event": "annotation_anchor_resolved",
-                            "criterion_id": cid,
-                            "issue_id": issue_id,
-                            "status": "anchored",
-                            "match_strategy": "accepted_revision_text_view",
-                            "paragraph_path": matched_anchor.path,
-                            "start_char": matched_anchor.match.start_index,
-                            "end_char": matched_anchor.match.end_index,
-                            "quoted_text": reference,
-                            "matched_text": matched_anchor.match.matched_text,
-                            "risk_level": risk_level,
-                            "comment_text": comment_text,
-                        })
-                    else:
+                    if not anchors:
                         unmatched_comments.append({
                             'criterion_id': cid,
                             'criterion': criterion,
                             'issue_id': issue_id,
                             'risk_level': risk_level,
-                            'comment_text': comment_text,
-                            'reference_text': reference,
+                            'comment_text': issue.get('issue_comment', ''),
+                            'reference_text': '',
                             'author': REVIEW_COMMENT_AUTHOR,
                         })
-                        if reference and reference.strip():
+                        annotation_stats["missing_text_fallback"] += 1
+                        annotation_events.append({
+                            "event": "annotation_missing_text",
+                            "criterion_id": cid,
+                            "issue_id": issue_id,
+                            "status": "missing_text_fallback",
+                            "reason": "anchors_empty",
+                            "risk_level": risk_level,
+                            "comment_text": issue.get('issue_comment', ''),
+                        })
+                        continue
+
+                    for anchor_item in anchors:
+                        reference = anchor_item.get('quoted_text', '')
+                        comment_text = anchor_item.get('comment_text', '')
+                        matched_anchor = DocxReportGenerator._find_text_range_anchor(doc, reference)
+
+                        if matched_anchor:
+                            comments_data.append({
+                                'anchor': matched_anchor,
+                                'comment_text': DocxReportGenerator._build_issue_comment_text(
+                                    comment_text,
+                                    risk_level,
+                                    criterion=issue.get('criterion') or criterion,
+                                ),
+                                'author': REVIEW_COMMENT_AUTHOR,
+                            })
+                            annotation_stats["exact_matched"] += 1
+                            annotation_events.append({
+                                "event": "annotation_anchor_resolved",
+                                "criterion_id": cid,
+                                "issue_id": issue_id,
+                                "status": "anchored",
+                                "match_strategy": "accepted_revision_text_view",
+                                "paragraph_path": matched_anchor.path,
+                                "start_char": matched_anchor.match.start_index,
+                                "end_char": matched_anchor.match.end_index,
+                                "quoted_text": reference,
+                                "matched_text": matched_anchor.match.matched_text,
+                                "risk_level": risk_level,
+                                "comment_text": comment_text,
+                            })
+                        else:
+                            unmatched_comments.append({
+                                'criterion_id': cid,
+                                'criterion': criterion,
+                                'issue_id': issue_id,
+                                'risk_level': risk_level,
+                                'comment_text': comment_text,
+                                'reference_text': reference,
+                                'author': REVIEW_COMMENT_AUTHOR,
+                            })
                             annotation_stats["unmatched"] += 1
                             annotation_events.append({
                                 "event": "annotation_anchor_unmatched",
@@ -852,17 +875,6 @@ class DocxReportGenerator:
                                 "status": "unmatched",
                                 "reason": "accepted_revision_text_view_match_failed",
                                 "quoted_text": reference,
-                                "risk_level": risk_level,
-                                "comment_text": comment_text,
-                            })
-                        else:
-                            annotation_stats["missing_text_fallback"] += 1
-                            annotation_events.append({
-                                "event": "annotation_missing_text",
-                                "criterion_id": cid,
-                                "issue_id": issue_id,
-                                "status": "missing_text_fallback",
-                                "reason": "quoted_text_is_empty",
                                 "risk_level": risk_level,
                                 "comment_text": comment_text,
                             })

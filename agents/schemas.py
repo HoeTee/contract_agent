@@ -29,16 +29,28 @@ class PlannerOutput(StrictOutputModel):
     criteria: list[PlannerCriterion] = Field(min_length=1)
 
 
+class SubAgentAnchor(StrictOutputModel):
+    quoted_text: str = Field(min_length=1)
+    comment_text: str = Field(min_length=1, max_length=100)
+
+    @field_validator("quoted_text", "comment_text")
+    @classmethod
+    def anchor_text_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("field must not be blank")
+        return value
+
+
 class SubAgentIssue(StrictOutputModel):
     issue_id: str = Field(min_length=1)
     risk_level: Literal["high", "medium", "low"] # 风险等级，必须是 "high"、"medium" 或 "low" 中的一个
-    quoted_text: str
-    comment_text: str = Field(min_length=1, max_length=100)
+    issue_comment: str = Field(min_length=1, max_length=160)
+    anchors: list[SubAgentAnchor] = Field(default_factory=list)
     reasoning: str = Field(min_length=1)
     criterion: str = Field(min_length=1)
     check_point: str = Field(min_length=1)
 
-    @field_validator("issue_id", "comment_text", "reasoning", "criterion", "check_point") # 字段验证
+    @field_validator("issue_id", "issue_comment", "reasoning", "criterion", "check_point") # 字段验证
     @classmethod # 在实例方法创建前检验某字段
     def required_text_not_blank(cls, value: str) -> str: # cls 和 value 是约定俗成的参数名
         if not value.strip():
