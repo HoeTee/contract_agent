@@ -26,6 +26,23 @@ def test_dashscope_reranker_endpoint_normalization():
         )
         == "https://gateway.example.com/api/v1/services/rerank/text-rerank/text-rerank"
     )
+
+
+def test_zjrcu_reranker_endpoint_normalization():
+    assert (
+        QwenRerankPostprocessor.normalize_api_base(
+            "https://gateway.example.com/api/v1",
+            "zjrcu",
+        )
+        == "https://gateway.example.com/api/v1/rerank"
+    )
+    assert (
+        QwenRerankPostprocessor.normalize_api_base(
+            "https://gateway.example.com/api/v1/rerank",
+            "zjrcu",
+        )
+        == "https://gateway.example.com/api/v1/rerank"
+    )
     assert (
         QwenRerankPostprocessor.normalize_api_base(
             "https://gateway.example.com/api/v1/services/rerank/text-rerank/text-rerank",

@@ -150,8 +150,8 @@ RERANK_ENDPOINT_FORMAT = _as_str(
     cfg("rerank", "endpoint_format"),
     "rerank.endpoint_format",
 ).lower()
-if RERANK_ENDPOINT_FORMAT not in {"openai", "dashscope"}:
-    raise RuntimeError("rerank.endpoint_format must be 'openai' or 'dashscope'.")
+if RERANK_ENDPOINT_FORMAT not in {"openai", "dashscope", "zjrcu"}:
+    raise RuntimeError("rerank.endpoint_format must be 'openai', 'dashscope', or 'zjrcu'.")
 RERANK_NAME = _as_str(cfg("rerank", "name"), "rerank.name")
 
 MAX_REFLECTION_ROUNDS = _as_int(

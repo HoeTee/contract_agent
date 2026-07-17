@@ -47,8 +47,8 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         if not api_key:
             raise RuntimeError("api_key is required for QwenRerankPostprocessor")
         endpoint_format = endpoint_format.lower()
-        if endpoint_format not in {"openai", "dashscope"}:
-            raise RuntimeError("endpoint_format must be 'openai' or 'dashscope'")
+        if endpoint_format not in {"openai", "dashscope", "zjrcu"}:
+            raise RuntimeError("endpoint_format must be 'openai', 'dashscope', or 'zjrcu'")
         normalized_base = self.normalize_api_base(base_url, endpoint_format)
         
 
@@ -102,10 +102,19 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
             return value + endpoint
         return value
 
+    @staticmethod
+    def normalize_zjrcu_api_base(api_base: str) -> str:
+        value = api_base.rstrip("/")
+        if value.endswith("/rerank"):
+            return value
+        return value + "/rerank"
+
     @classmethod
     def normalize_api_base(cls, api_base: str, endpoint_format: str = "openai") -> str:
         if endpoint_format == "dashscope":
             return cls.normalize_dashscope_api_base(api_base)
+        if endpoint_format == "zjrcu":
+            return cls.normalize_zjrcu_api_base(api_base)
         return cls.normalize_openai_api_base(api_base)
 
     @staticmethod
