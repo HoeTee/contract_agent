@@ -146,6 +146,12 @@ EMBED_BASE_URL = _as_str(cfg("embedding", "base_url"), "embedding.base_url")
 EMBED_NAME = _as_str(cfg("embedding", "name"), "embedding.name")
 
 RERANK_BASE_URL = _as_str(cfg("rerank", "base_url"), "rerank.base_url")
+RERANK_ENDPOINT_FORMAT = _as_str(
+    cfg("rerank", "endpoint_format"),
+    "rerank.endpoint_format",
+).lower()
+if RERANK_ENDPOINT_FORMAT not in {"openai", "dashscope"}:
+    raise RuntimeError("rerank.endpoint_format must be 'openai' or 'dashscope'.")
 RERANK_NAME = _as_str(cfg("rerank", "name"), "rerank.name")
 
 MAX_REFLECTION_ROUNDS = _as_int(

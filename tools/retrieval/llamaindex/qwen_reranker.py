@@ -17,6 +17,7 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
     
     api_key: str
     api_base: str
+    endpoint_format: str = "openai"
     model: str
     top_n: int = 3
     instruct: str = (
@@ -32,6 +33,7 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         api_key: str,
         base_url: str, 
         model: str,
+        endpoint_format: str = "openai",
         top_n: int = 3,
         instruct: str = (
             "Given a web search query, retrieve relevant passages that answer the query."
@@ -44,11 +46,16 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
     ) -> None:
         if not api_key:
             raise RuntimeError("api_key is required for QwenRerankPostprocessor")
+        endpoint_format = endpoint_format.lower()
+        if endpoint_format not in {"openai", "dashscope"}:
+            raise RuntimeError("endpoint_format must be 'openai' or 'dashscope'")
+        normalized_base = self.normalize_api_base(base_url, endpoint_format)
         
 
         super().__init__(
             api_key=api_key,
-            api_base=self.normalize_api_base(base_url),
+            api_base=normalized_base,
+            endpoint_format=endpoint_format,
             model=model,
             top_n=top_n,
             instruct=instruct,
@@ -60,22 +67,46 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         )
 
     @staticmethod
-    def normalize_api_base(api_base: str) -> str:
+    def normalize_openai_api_base(api_base: str) -> str:
         value = api_base.rstrip("/")
         parsed = urlparse(value)
         path = parsed.path.rstrip("/")
 
-        if value.endswith("/reranks") or value.endswith("/text-rerank/text-rerank"):
+        if value.endswith("/reranks"):
             return value
         if path.endswith("/chat/completions"):
             return value[: -len("/chat/completions")] + "/reranks"
         if path.endswith("/embeddings"):
             return value[: -len("/embeddings")] + "/reranks"
-        if path.endswith("/compatible-api/v1") or path.endswith("/compatible-mode/v1"):
+        if path.endswith("/compatible-api/v1"):
             return value + "/reranks"
         if parsed.scheme and parsed.netloc and not path:
             return value + "/compatible-api/v1/reranks"
         return value
+
+    @staticmethod
+    def normalize_dashscope_api_base(api_base: str) -> str:
+        value = api_base.rstrip("/")
+        parsed = urlparse(value)
+        path = parsed.path.rstrip("/")
+        endpoint = "/api/v1/services/rerank/text-rerank/text-rerank"
+
+        if path.endswith(endpoint):
+            return value
+        if path.endswith("/api/v1"):
+            return value + "/services/rerank/text-rerank/text-rerank"
+        for suffix in ("/compatible-mode/v1", "/compatible-api/v1"):
+            if path.endswith(suffix):
+                return value[: -len(suffix)] + endpoint
+        if parsed.scheme and parsed.netloc and not path:
+            return value + endpoint
+        return value
+
+    @classmethod
+    def normalize_api_base(cls, api_base: str, endpoint_format: str = "openai") -> str:
+        if endpoint_format == "dashscope":
+            return cls.normalize_dashscope_api_base(api_base)
+        return cls.normalize_openai_api_base(api_base)
 
     @staticmethod
     def _should_retry_http(status_code: int) -> bool:
@@ -181,13 +212,27 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
             for node in nodes
         ]
 
-        payload = {
-            "model": self.model,
-            "query": query_bundle.query_str,
-            "documents": documents,
-            "top_n": min(self.top_n, len(documents)),
-            "instruct": self.instruct,
-        }
+        top_n = min(self.top_n, len(documents))
+        if self.endpoint_format == "dashscope":
+            payload = {
+                "model": self.model,
+                "input": {
+                    "query": query_bundle.query_str,
+                    "documents": documents,
+                },
+                "parameters": {
+                    "return_documents": False,
+                    "top_n": top_n,
+                },
+            }
+        else:
+            payload = {
+                "model": self.model,
+                "query": query_bundle.query_str,
+                "documents": documents,
+                "top_n": top_n,
+                "instruct": self.instruct,
+            }
 
         body = None
         candidate_urls = [self.api_base]

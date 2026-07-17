@@ -27,6 +27,7 @@ class IndexRetriever:
         embed_name: str,
         rerank_api_key: str | None,
         rerank_base_url: str | None,
+        rerank_endpoint_format: str,
         rerank_name: str | None,
         chunk_size: int = 512,
         chunk_overlap: int = 200,
@@ -43,6 +44,7 @@ class IndexRetriever:
         self.embed_name = embed_name
         self.rerank_api_key = rerank_api_key
         self.rerank_base_url = rerank_base_url
+        self.rerank_endpoint_format = rerank_endpoint_format
         self.rerank_name = rerank_name
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
@@ -217,6 +219,7 @@ class IndexRetriever:
                 embed_name=self.embed_name,
                 rerank_api_key=self.rerank_api_key,
                 rerank_base_url=self.rerank_base_url,
+                rerank_endpoint_format=self.rerank_endpoint_format,
                 rerank_name=self.rerank_name,
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
@@ -244,6 +247,7 @@ class IndexRetriever:
                 embed_name=self.embed_name,
                 rerank_api_key=self.rerank_api_key,
                 rerank_base_url=self.rerank_base_url,
+                rerank_endpoint_format=self.rerank_endpoint_format,
                 rerank_name=self.rerank_name,
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
