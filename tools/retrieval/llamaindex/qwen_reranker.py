@@ -48,7 +48,7 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
 
         super().__init__(
             api_key=api_key,
-            api_base=base_url,
+            api_base=self.normalize_api_base(base_url),
             model=model,
             top_n=top_n,
             instruct=instruct,
@@ -129,11 +129,11 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
                     return json.loads(response.read().decode("utf-8"))
             except HTTPError as exc:
                 last_error = exc
-                if exc.code == 404:
-                    raise
                 if not self._should_retry_http(exc.code) or attempt >= self.max_retries:
                     raise RuntimeError(
-                        f"Reranker request failed after {attempt + 1} attempt(s): HTTP {exc.code}"
+                        "Reranker request failed after "
+                        f"{attempt + 1} attempt(s): HTTP {exc.code} "
+                        f"at {safe_endpoint(url)}"
                     ) from exc
                 sleep_seconds = self._calculate_retry_delay(attempt, exc.headers)
                 append_model_event(
@@ -191,11 +191,6 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
 
         body = None
         candidate_urls = [self.api_base]
-        default_url = self.normalize_api_base(
-            "https://dashscope.aliyuncs.com/compatible-api/v1/reranks"
-        )
-        if default_url not in candidate_urls:
-            candidate_urls.append(default_url)
 
         last_error = None
         for url in candidate_urls:
