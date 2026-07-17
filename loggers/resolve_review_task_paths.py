@@ -8,20 +8,21 @@ from datetime import datetime
 from pathlib import Path
 
 from config import DEFAULT_REVIEW_CRITERIA_PATH
+from endpoints.runtime.tenancy import tenant_user_criteria_path, validate_tenant_id
 
 
-def safe_path_part(value: str, fallback: str = "item") -> str: # 文件/文件夹名
-    cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", value).strip().strip(".") # 
-    cleaned = re.sub(r"\s+", "_", cleaned) # \s 空白字符 \s+ 一个或多个空白字符 \t TAB \n 换行 \r 回车
+def safe_path_part(value: str, fallback: str = "item") -> str:
+    cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", str(value or "")).strip().strip(".")
+    cleaned = re.sub(r"\s+", "_", cleaned)
     return cleaned or fallback
 
 
-def ensure_default_criteria_file(user_root: Path) -> Path:
-    criteria_path = user_root / "contract_review_criteria" / "criteria.docx"
+def ensure_default_criteria_file(criteria_path: Path) -> Path:
     default_criteria_path = Path(DEFAULT_REVIEW_CRITERIA_PATH)
     if not criteria_path.exists():
         if not default_criteria_path.exists():
-            raise FileNotFoundError(f"未找到系统默认审查要点文件：{default_criteria_path}")
+            raise FileNotFoundError(f"Default review criteria file was not found: {default_criteria_path}")
+        criteria_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(default_criteria_path, criteria_path)
     return criteria_path
 
@@ -34,6 +35,7 @@ class ResolvedReviewTaskPaths:
     created_at: datetime
     task_id: str
     safe_contract_stem: str
+    tenant_id: str = ""
 
     @property
     def date_str(self) -> str:
@@ -49,38 +51,65 @@ class ResolvedReviewTaskPaths:
 
     @property
     def user_root(self) -> Path:
+        if self.tenant_id:
+            return self.data_dir / "web" / self.tenant_id
         return self.data_dir / self.username
 
     @property
     def criteria_path(self) -> Path:
+        if self.tenant_id:
+            return tenant_user_criteria_path(self.tenant_id, self.username)
         return self.user_root / "contract_review_criteria" / "criteria.docx"
 
     @property
-    def uploaded_criteria_path(self) -> Path:
-        return self.task_log_dir / "criteria.docx"
+    def task_dir(self) -> Path:
+        if self.tenant_id:
+            return self.user_root / self.task_id
+        return self.task_log_dir
 
     @property
-    def contracts_dir(self) -> Path:
-        return self.user_root / "contracts"
+    def input_dir(self) -> Path:
+        return self.task_dir / "input"
 
     @property
-    def reports_docx_dir(self) -> Path:
-        return self.user_root / "reports_docx"
+    def output_dir(self) -> Path:
+        return self.task_dir / "output"
 
     @property
     def logs_dir(self) -> Path:
+        if self.tenant_id:
+            return self.task_dir / "logs"
         return self.user_root / "logs"
 
     @property
+    def uploaded_criteria_path(self) -> Path:
+        return self.input_dir / "criteria.docx"
+
+    @property
+    def contracts_dir(self) -> Path:
+        return self.input_dir if self.tenant_id else self.user_root / "contracts"
+
+    @property
+    def reports_docx_dir(self) -> Path:
+        return self.output_dir if self.tenant_id else self.user_root / "reports_docx"
+
+    @property
     def stored_contract_path(self) -> Path:
+        if self.tenant_id:
+            return self.input_dir / self.original_filename
         return self.contracts_dir / f"{self.file_prefix}_{self.original_filename}"
 
     @property
     def final_report_path(self) -> Path:
-        return self.reports_docx_dir / f"{self.file_prefix}_{self.safe_contract_stem}_批注版.docx"
+        filename = f"{self.safe_contract_stem}_reviewed.docx"
+        if self.tenant_id:
+            return self.output_dir / filename
+        return self.reports_docx_dir / f"{self.file_prefix}_{filename}"
 
     @property
     def task_log_dir(self) -> Path:
+        if self.tenant_id:
+            return self.logs_dir
         return self.logs_dir / self.date_str / self.task_name
 
     @property
@@ -99,7 +128,17 @@ class ResolvedReviewTaskPaths:
     def api_events_path(self) -> Path:
         return self.task_log_dir / "api_events.jsonl"
 
+    @property
+    def task_json_path(self) -> Path:
+        return self.task_dir / "task.json"
+
     def ensure_user_dirs(self) -> None:
+        if self.tenant_id:
+            for path in (self.input_dir, self.output_dir, self.workflow_log_dir, self.conversation_log_dir, self.mcp_log_dir):
+                path.mkdir(parents=True, exist_ok=True)
+            ensure_default_criteria_file(self.criteria_path)
+            return
+
         for path in (
             self.user_root / "contract_review_criteria",
             self.contracts_dir,
@@ -108,15 +147,11 @@ class ResolvedReviewTaskPaths:
             self.user_root / "records",
         ):
             path.mkdir(parents=True, exist_ok=True)
-        ensure_default_criteria_file(self.user_root)
+        ensure_default_criteria_file(self.criteria_path)
 
     def ensure_task_dirs(self) -> None:
         self.ensure_user_dirs()
-        for path in (
-            self.workflow_log_dir,
-            self.conversation_log_dir,
-            self.mcp_log_dir,
-        ):
+        for path in (self.workflow_log_dir, self.conversation_log_dir, self.mcp_log_dir):
             path.mkdir(parents=True, exist_ok=True)
 
 
@@ -125,12 +160,14 @@ def resolve_review_task_paths(
     username: str,
     original_filename: str,
     data_dir: Path,
+    tenant_id: str = "",
 ) -> ResolvedReviewTaskPaths:
     created_at = datetime.now()
     safe_filename = Path(original_filename.replace("\\", "/")).name
     stem = safe_path_part(Path(safe_filename).stem, "contract")
-    task_id = f"{created_at.strftime('%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    task_id = f"{created_at.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:4]}"
     return ResolvedReviewTaskPaths(
+        tenant_id=validate_tenant_id(tenant_id) if tenant_id else "",
         username=safe_path_part(username, "user"),
         original_filename=safe_filename,
         data_dir=data_dir,
@@ -140,15 +177,16 @@ def resolve_review_task_paths(
     )
 
 
-def initialize_user_data_dir(data_dir: Path, username: str) -> Path:
-    user_root = data_dir / safe_path_part(username, "user") # 用户文件夹名
-    for child in (
-        "contract_review_criteria",
-        "contracts",
-        "reports_docx",
-        "logs",
-        "records",
-    ):
-        (user_root / child).mkdir(parents=True, exist_ok=True) # 建立用户文件夹及一系列子文件夹
-    ensure_default_criteria_file(user_root)
+def initialize_user_data_dir(data_dir: Path, username: str, *, tenant_id: str = "") -> Path:
+    safe_username = safe_path_part(username, "user")
+    if tenant_id:
+        user_root = data_dir / "web" / validate_tenant_id(tenant_id)
+        user_root.mkdir(parents=True, exist_ok=True)
+        ensure_default_criteria_file(tenant_user_criteria_path(tenant_id, safe_username))
+        return user_root
+
+    user_root = data_dir / safe_username
+    for child in ("contract_review_criteria", "contracts", "reports_docx", "logs", "records"):
+        (user_root / child).mkdir(parents=True, exist_ok=True)
+    ensure_default_criteria_file(user_root / "contract_review_criteria" / "criteria.docx")
     return user_root

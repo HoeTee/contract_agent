@@ -21,9 +21,11 @@ from loggers.review_history import (
     format_file_size,
     format_timestamp,
     load_history_records,
+    save_task_record,
 )
 from main_workflow.main_workflow import ContractReviewWorkflow
 from endpoints.runtime.auth import find_user, load_users, normalize_role, save_users, verify_login, verify_password
+from endpoints.runtime.tenancy import TenantError, require_tenant, tenant_user_profiles_file
 from endpoints.runtime.document_validation import (
     DOCX_MEDIA_TYPE,
     validate_review_criteria_content,
@@ -39,8 +41,12 @@ user_router = APIRouter()
 review_tasks: dict[str, dict] = {}
 
 
-def get_running_task(username: str) -> dict | None:
-    task = review_tasks.get(username)
+def task_owner_key(tenant_id: str, username: str) -> str:
+    return f"{tenant_id}:{username}"
+
+
+def get_running_task(username: str, tenant_id: str = "") -> dict | None:
+    task = review_tasks.get(task_owner_key(tenant_id, username) if tenant_id else username)
     if task and task.get("status") in {"queued", "running"}:
         return task
     return None
@@ -68,12 +74,14 @@ def consume_login_token(request: Request, token: str) -> bool:
     return matched
 
 
-def create_auth_context(request: Request, user: dict) -> str:
+def create_auth_context(request: Request, user: dict, tenant: dict) -> str:
     ctx = secrets.token_urlsafe(16)
     contexts = request.session.get("auth_contexts")
     if not isinstance(contexts, dict):
         contexts = {}
     contexts[ctx] = {
+        "tenant_id": tenant["tenant_id"],
+        "tenant_name": tenant.get("name") or tenant["tenant_id"],
         "username": user["username"],
         "display_name": user.get("display_name") or user["username"],
         "role": normalize_role(user.get("role")),
@@ -82,13 +90,15 @@ def create_auth_context(request: Request, user: dict) -> str:
     return ctx
 
 
-def remove_auth_contexts_for_username(request: Request, username: str) -> None:
+def remove_auth_contexts_for_username(request: Request, username: str, tenant_id: str | None = None) -> None:
     contexts = request.session.get("auth_contexts")
     if not isinstance(contexts, dict):
         return
     removed = False
     for ctx, context in list(contexts.items()):
-        if isinstance(context, dict) and context.get("username") == username:
+        if isinstance(context, dict) and context.get("username") == username and (
+            tenant_id is None or context.get("tenant_id") == tenant_id
+        ):
             contexts.pop(ctx, None)
             removed = True
     if removed:
@@ -113,18 +123,29 @@ def sync_context_user(request: Request) -> dict | None:
     if not isinstance(context, dict):
         return None
 
-    user = find_user(USERS_FILE, context.get("username", ""))
+    tenant_id = context.get("tenant_id", "")
+    try:
+        tenant = require_tenant(tenant_id)
+    except TenantError:
+        contexts.pop(ctx, None)
+        request.session["auth_contexts"] = contexts
+        return None
+
+    user = find_user(tenant_user_profiles_file(tenant_id), context.get("username", ""))
     if not user or not user.get("enabled", True):
         contexts.pop(ctx, None)
         request.session["auth_contexts"] = contexts
         return None
 
+    context["tenant_name"] = tenant.get("name") or tenant_id
     context["display_name"] = user.get("display_name") or user["username"]
     context["role"] = normalize_role(user.get("role"))
     contexts[ctx] = context
     request.session["auth_contexts"] = contexts
     return {
         "ctx": ctx,
+        "tenant_id": tenant_id,
+        "tenant_name": context["tenant_name"],
         "username": user["username"],
         "display_name": context["display_name"],
         "role": context["role"],
@@ -177,12 +198,16 @@ def build_history_display_names(record: dict) -> tuple[str, str]:
 
 def build_history_record(paths, output_path: Path, task: dict) -> dict:
     contract_stat = paths.stored_contract_path.stat()
-    report_stat = output_path.stat()
+    report_stat = output_path.stat() if output_path.exists() else None
     criteria_source = task.get("criteria_source", "default")
     return {
         "schema_version": HISTORY_SCHEMA_VERSION,
+        "tenant_id": paths.tenant_id,
+        "tenant_name": task.get("tenant_name"),
+        "username": paths.username,
+        "display_name": task.get("display_name"),
         "task_id": paths.task_id,
-        "status": "completed",
+        "status": task.get("status", "completed"),
         "contract_original_name": paths.original_filename,
         "contract_stored_name": paths.stored_contract_path.name,
         "contract_size_bytes": contract_stat.st_size,
@@ -191,15 +216,17 @@ def build_history_record(paths, output_path: Path, task: dict) -> dict:
         "criteria_original_name": task.get("criteria_original_name") if criteria_source == "uploaded" else None,
         "report_display_name": build_report_display_name(paths.original_filename),
         "report_stored_name": output_path.name,
-        "report_size_bytes": report_stat.st_size,
-        "report_created_at": format_timestamp(report_stat.st_mtime),
+        "report_size_bytes": report_stat.st_size if report_stat else None,
+        "report_created_at": format_timestamp(report_stat.st_mtime) if report_stat else None,
     }
 
 
 async def run_review_task(username: str, paths, criteria_path: Path) -> None:
-    task = review_tasks[username]
+    owner_key = task_owner_key(paths.tenant_id, username) if paths.tenant_id else username
+    task = review_tasks[owner_key]
     task["status"] = "running"
     task["message"] = "正在审核。"
+    save_task_record(Path(DATA_DIR), paths.tenant_id, build_history_record(paths, paths.final_report_path, task))
 
     token = set_conversation_log_dir(paths.conversation_log_dir)
     try:
@@ -238,6 +265,7 @@ async def run_review_task(username: str, paths, criteria_path: Path) -> None:
             Path(DATA_DIR),
             username,
             build_history_record(paths, output_path, task),
+            tenant_id=paths.tenant_id,
         )
         append_api_event(paths.api_events_path, "review_completed", result_file=str(output_path))
     except Exception as exc:
@@ -253,6 +281,7 @@ async def run_review_task(username: str, paths, criteria_path: Path) -> None:
         else:
             task["message"] = "审核失败，请查看任务日志。"
         task["error"] = str(exc)
+        save_task_record(Path(DATA_DIR), paths.tenant_id, build_history_record(paths, paths.final_report_path, task))
         append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
     finally:
         reset_conversation_log_dir(token)
@@ -266,7 +295,8 @@ def get_current_username(request: Request) -> str | None:
 
 
 def require_current_username(request: Request) -> str:
-    username = get_current_username(request)
+    user = sync_context_user(request)
+    username = user["username"] if user else None
     if not username:
         raise HTTPException(
             status_code=401, 
@@ -285,7 +315,8 @@ async def session_status(request: Request):
                 context = contexts.get(ctx)
                 if not isinstance(context, dict):
                     continue
-                stored_user = find_user(USERS_FILE, context.get("username", ""))
+                tenant_id = context.get("tenant_id", "")
+                stored_user = find_user(tenant_user_profiles_file(tenant_id), context.get("username", "")) if tenant_id else None
                 if stored_user and stored_user.get("enabled", True):
                     return {
                         "active": True,
@@ -313,15 +344,14 @@ def update_display_name(users_file: str | Path, username: str, display_name: str
     raise HTTPException(status_code=404, detail="未找到当前用户。")
 
 
-def list_history(username: str) -> list[dict]:
+def list_history(username: str, tenant_id: str) -> list[dict]:
     data_dir = Path(DATA_DIR)
-    user_root = data_dir / username
     rows = []
-    for record in load_history_records(data_dir, username):
+    for record in load_history_records(data_dir, username, tenant_id=tenant_id):
         report_stored_name = record.get("report_stored_name")
         if not report_stored_name:
             continue
-        report_path = user_root / "reports_docx" / safe_upload_filename(report_stored_name)
+        report_path = data_dir / "web" / tenant_id / str(record.get("task_id") or "") / "output" / safe_upload_filename(report_stored_name)
         if not report_path.exists():
             continue
 
@@ -353,6 +383,7 @@ async def login_page(request: Request):
         {
             "error": None,
             "login_token": login_token,
+            "tenant_id": "",
         },
     )
 
@@ -362,13 +393,29 @@ async def login(
     request: Request,
     username: str = Form(...),
     password: str = Form(...),
+    tenant_id: str = Form(...),
     login_token: str = Form(...),
 ):
     if not consume_login_token(request, login_token):
         return RedirectResponse("/web/login", status_code=303)
 
     next_login_token = issue_login_token(request)
-    existing_user = find_user(USERS_FILE, username)
+    try:
+        tenant = require_tenant(tenant_id)
+        users_file = tenant_user_profiles_file(tenant["tenant_id"])
+    except TenantError as exc:
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {
+                "error": str(exc),
+                "login_token": next_login_token,
+                "tenant_id": tenant_id,
+            },
+            status_code=401,
+        )
+
+    existing_user = find_user(users_file, username)
     if (
         existing_user
         and verify_password(password, existing_user.get("password_hash", ""))
@@ -380,11 +427,12 @@ async def login(
             {
                 "error": "账号已被禁用，请联系管理员。",
                 "login_token": next_login_token,
+                "tenant_id": tenant_id,
             },
             status_code=403,
         )
 
-    user = verify_login(USERS_FILE, username, password)
+    user = verify_login(users_file, username, password)
     if not user:
         return templates.TemplateResponse(
             request,
@@ -392,12 +440,13 @@ async def login(
             {
                 "error": "用户名或密码错误。",
                 "login_token": next_login_token,
+                "tenant_id": tenant_id,
             },
             status_code=401,
         )
 
-    remove_auth_contexts_for_username(request, user["username"])
-    ctx = create_auth_context(request, user)
+    remove_auth_contexts_for_username(request, user["username"], tenant["tenant_id"])
+    ctx = create_auth_context(request, user, tenant)
     if normalize_role(user.get("role")) == "admin":
         return RedirectResponse(ctx_path("/web/admin", ctx), status_code=303)
     return RedirectResponse(ctx_path("/web/work", ctx), status_code=303)
@@ -414,13 +463,14 @@ async def update_profile_display_name(
     request: Request,
     display_name: str = Form(...),
 ):
-    username = get_current_username(request)
+    user = sync_context_user(request)
+    username = user["username"] if user else None
     ctx = get_request_ctx(request)
     if not username:
         return RedirectResponse("/web/login", status_code=303)
 
     try:
-        cleaned = update_display_name(USERS_FILE, username, display_name)
+        cleaned = update_display_name(tenant_user_profiles_file(user["tenant_id"]), username, display_name)
         request.session["display_name"] = cleaned
         request.session["flash_success"] = "显示名称已更新。"
     except HTTPException as exc:
@@ -439,6 +489,7 @@ async def entry_page(request: Request):
         {
             "error": None,
             "login_token": login_token,
+            "tenant_id": "",
         },
     )
 
@@ -451,7 +502,9 @@ async def index(request: Request):
     if user["role"] == "admin":
         return RedirectResponse(ctx_path("/web/admin", user["ctx"]), status_code=303)
     username = user["username"]
-    task = review_tasks.get(username)
+    tenant_id = user["tenant_id"]
+    owner_key = task_owner_key(tenant_id, username)
+    task = review_tasks.get(owner_key)
     error = request.session.pop("flash_error", None)
     success = request.session.pop("flash_success", None)
     result_name = None
@@ -460,19 +513,21 @@ async def index(request: Request):
             error = task.get("message") or error
         elif task.get("status") == "completed":
             result_name = task.get("result_name")
-            review_tasks.pop(username, None)
+            review_tasks.pop(owner_key, None)
     return templates.TemplateResponse(
         request,
         "index.html",
         {
             "username": username,
             "display_name": user["display_name"],
+            "tenant_id": tenant_id,
+            "tenant_name": user["tenant_name"],
             "ctx": user["ctx"],
-            "history": list_history(username),
+            "history": list_history(username, tenant_id),
             "error": error,
             "success": success,
             "result_name": result_name,
-            "active_task": get_running_task(username),
+            "active_task": get_running_task(username, tenant_id),
         },
     )
 
@@ -491,6 +546,8 @@ async def settings(request: Request):
         {
             "username": user["username"],
             "display_name": user["display_name"],
+            "tenant_id": user["tenant_id"],
+            "tenant_name": user["tenant_name"],
             "ctx": user["ctx"],
             "error": request.session.pop("flash_error", None),
             "success": request.session.pop("flash_success", None),
@@ -504,12 +561,14 @@ async def review_page(
     file: UploadFile = File(...),
     criteria_file: UploadFile | None = File(None),
 ):
-    username = get_current_username(request)
+    user = sync_context_user(request)
+    username = user["username"] if user else None
     ctx = get_request_ctx(request)
     if not username:
         return RedirectResponse("/web/login", status_code=303)
 
-    if get_running_task(username):
+    tenant_id = user["tenant_id"]
+    if get_running_task(username, tenant_id):
         request.session["flash_error"] = "已有审核任务正在运行，请等待完成后再提交。"
         await file.close()
         if criteria_file:
@@ -519,6 +578,7 @@ async def review_page(
     filename = safe_upload_filename(file.filename)
     paths = resolve_review_task_paths(
         username=username,
+        tenant_id=tenant_id,
         original_filename=filename,
         data_dir=Path(DATA_DIR),
     )
@@ -530,6 +590,7 @@ async def review_page(
             paths.api_events_path,
             "upload_received",
             username=username,
+            tenant_id=tenant_id,
             filename=filename
         )
 
@@ -587,16 +648,22 @@ async def review_page(
 
         # This is where review_tasks is written within
         created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        review_tasks[username] = {
+        owner_key = task_owner_key(tenant_id, username)
+        review_tasks[owner_key] = {
             "status": "queued",
             "message": "审核任务已排队。",
             "task_id": paths.task_id,
+            "tenant_id": tenant_id,
+            "tenant_name": user["tenant_name"],
+            "username": username,
+            "display_name": user["display_name"],
             "filename": filename,
             "criteria_source": criteria_source,
             "criteria_original_name": criteria_filename,
             "contract_uploaded_at": created_at,
             "created_at": created_at,
         }
+        save_task_record(Path(DATA_DIR), tenant_id, build_history_record(paths, paths.final_report_path, review_tasks[owner_key]))
         # This is where Semaphore comes into play.
         asyncio.create_task(run_review_task(username, paths, selected_criteria_path))
         return RedirectResponse(ctx_path("/web/work", ctx), status_code=303)
@@ -617,9 +684,20 @@ async def review_page(
 
 @user_router.get("/web/download/{filename}")
 async def download_result(request: Request, filename: str):
-    username = require_current_username(request)
+    user = sync_context_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="未登录。")
     safe_name = safe_upload_filename(filename)
-    path = Path(DATA_DIR) / username / "reports_docx" / safe_name
+    path = None
+    for record in load_history_records(Path(DATA_DIR), user["username"], tenant_id=user["tenant_id"]):
+        if safe_upload_filename(record.get("report_stored_name") or "") != safe_name:
+            continue
+        candidate = Path(DATA_DIR) / "web" / user["tenant_id"] / str(record.get("task_id") or "") / "output" / safe_name
+        if candidate.exists():
+            path = candidate
+            break
+    if path is None:
+        path = Path(DATA_DIR) / "web" / user["tenant_id"] / safe_name
     if not path.exists():
         raise HTTPException(status_code=404, detail="未找到审核结果文件。")
     return FileResponse(
@@ -643,7 +721,9 @@ async def history(request: Request):
         {
             "username": user["username"],
             "display_name": user["display_name"],
+            "tenant_id": user["tenant_id"],
+            "tenant_name": user["tenant_name"],
             "ctx": user["ctx"],
-            "history": list_history(user["username"]),
+            "history": list_history(user["username"], user["tenant_id"]),
         },
     )

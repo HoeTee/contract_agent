@@ -23,6 +23,7 @@ from endpoints.runtime.document_validation import (
     validate_uploaded_docx,
 )
 from endpoints.runtime.filenames import safe_upload_filename
+from endpoints.runtime.tenancy import tenant_user_criteria_path
 from endpoints.web.user_routes import ctx_path, get_request_ctx, sync_context_user
 from endpoints.web.user_management import (
     UserManagementError,
@@ -56,9 +57,16 @@ def admin_template_context(request: Request, **extra) -> dict:
     return {
         "username": user.get("username"),
         "display_name": user.get("display_name") or user.get("username"),
+        "tenant_id": user.get("tenant_id"),
+        "tenant_name": user.get("tenant_name"),
         "ctx": user.get("ctx"),
         **extra,
     }
+
+
+def current_tenant_id(request: Request) -> str:
+    user = sync_context_user(request) or {}
+    return str(user.get("tenant_id") or "")
 
 
 def admin_user_redirect(request: Request, username: str) -> RedirectResponse:
@@ -84,7 +92,7 @@ async def admin_index(request: Request):
     return templates.TemplateResponse(
         request,
         "admin_dashboard.html",
-        admin_template_context(request, summary=admin_summary()),
+        admin_template_context(request, summary=admin_summary(current_tenant_id(request))),
     )
 
 
@@ -96,7 +104,7 @@ async def admin_users(request: Request):
         "admin_users.html",
         admin_template_context(
             request,
-            users=list_admin_users(),
+            users=list_admin_users(current_tenant_id(request)),
             error=request.session.pop("admin_flash_error", None),
             success=request.session.pop("admin_flash_success", None),
         ),
@@ -114,6 +122,7 @@ async def admin_create_user(
     require_admin(request)
     try:
         created = create_user_account(
+            tenant_id=current_tenant_id(request),
             username=username,
             password=password,
             display_name=display_name,
@@ -128,7 +137,8 @@ async def admin_create_user(
 @admin_router.get("/users/{target_username}", response_class=HTMLResponse)
 async def admin_user_detail(request: Request, target_username: str):
     require_admin(request)
-    user = get_admin_user(target_username)
+    tenant_id = current_tenant_id(request)
+    user = get_admin_user(tenant_id, target_username)
     if not user:
         raise HTTPException(status_code=404, detail="未找到用户。")
 
@@ -140,9 +150,9 @@ async def admin_user_detail(request: Request, target_username: str):
         admin_template_context(
             request,
             target_user=user,
-            history=list_user_review_history(target_username),
-            criteria=get_user_criteria_info(target_username),
-            logs=list_user_log_tasks(target_username),
+            history=list_user_review_history(tenant_id, target_username),
+            criteria=get_user_criteria_info(tenant_id, target_username),
+            logs=list_user_log_tasks(tenant_id, target_username),
             error=error,
             success=success,
         ),
@@ -160,7 +170,7 @@ async def admin_set_user_role(
         set_admin_flash(request, error="不能移除当前管理员自己的管理员角色。")
         return admin_user_redirect(request, target_username)
     try:
-        updated_role = set_user_role(username=target_username, role=role)
+        updated_role = set_user_role(tenant_id=current_tenant_id(request), username=target_username, role=role)
         set_admin_flash(request, success=f"已更新用户角色：{updated_role}")
     except UserManagementError as exc:
         set_admin_flash(request, error=str(exc))
@@ -175,7 +185,7 @@ async def admin_reset_user_password(
 ):
     require_admin(request)
     try:
-        reset_user_password(username=target_username, password=password)
+        reset_user_password(tenant_id=current_tenant_id(request), username=target_username, password=password)
         set_admin_flash(request, success="已重置用户密码。")
     except UserManagementError as exc:
         set_admin_flash(request, error=str(exc))
@@ -186,7 +196,7 @@ async def admin_reset_user_password(
 async def admin_enable_user(request: Request, target_username: str):
     require_admin(request)
     try:
-        set_user_enabled(username=target_username, enabled=True)
+        set_user_enabled(tenant_id=current_tenant_id(request), username=target_username, enabled=True)
         set_admin_flash(request, success="已启用用户。")
     except UserManagementError as exc:
         set_admin_flash(request, error=str(exc))
@@ -200,7 +210,7 @@ async def admin_disable_user(request: Request, target_username: str):
         set_admin_flash(request, error="不能禁用当前登录的管理员账号。")
         return admin_user_redirect(request, target_username)
     try:
-        set_user_enabled(username=target_username, enabled=False)
+        set_user_enabled(tenant_id=current_tenant_id(request), username=target_username, enabled=False)
         set_admin_flash(request, success="已禁用用户。")
     except UserManagementError as exc:
         set_admin_flash(request, error=str(exc))
@@ -218,7 +228,7 @@ async def admin_delete_user(
         set_admin_flash(request, error="不能删除当前登录的管理员账号。")
         return admin_user_redirect(request, target_username)
     try:
-        delete_user_account(username=target_username, keep_data=keep_data)
+        delete_user_account(tenant_id=current_tenant_id(request), username=target_username, keep_data=keep_data)
         set_admin_flash(request, success=f"已删除用户：{target_username}")
         return RedirectResponse(ctx_path("/web/admin/users", get_request_ctx(request)), status_code=303)
     except UserManagementError as exc:
@@ -229,11 +239,12 @@ async def admin_delete_user(
 @admin_router.get("/users/{target_username}/criteria/download")
 async def admin_download_user_criteria(request: Request, target_username: str):
     require_admin(request)
-    user = get_admin_user(target_username)
+    tenant_id = current_tenant_id(request)
+    user = get_admin_user(tenant_id, target_username)
     if not user:
         raise HTTPException(status_code=404, detail="未找到用户。")
 
-    path = Path(DATA_DIR) / target_username / "contract_review_criteria" / "criteria.docx"
+    path = tenant_user_criteria_path(tenant_id, target_username)
     if not path.exists():
         raise HTTPException(status_code=404, detail="未找到用户默认审查要点。")
     return FileResponse(
@@ -251,7 +262,8 @@ async def admin_upload_user_criteria(
     criteria_file: UploadFile = File(...),
 ):
     require_admin(request)
-    if not get_admin_user(target_username):
+    tenant_id = current_tenant_id(request)
+    if not get_admin_user(tenant_id, target_username):
         raise HTTPException(status_code=404, detail="未找到用户。")
 
     try:
@@ -259,7 +271,7 @@ async def admin_upload_user_criteria(
         if not filename.lower().endswith(".docx"):
             raise HTTPException(status_code=400, detail="审查要点文件格式必须是 DOCX。")
 
-        target_path = Path(DATA_DIR) / target_username / "contract_review_criteria" / "criteria.docx"
+        target_path = tenant_user_criteria_path(tenant_id, target_username)
         temp_path = target_path.with_name("criteria.upload.tmp.docx")
         target_path.parent.mkdir(parents=True, exist_ok=True)
         with temp_path.open("wb") as f:
@@ -273,7 +285,7 @@ async def admin_upload_user_criteria(
     except Exception:
         request.session["admin_flash_error"] = "审查要点更新失败。"
     finally:
-        temp_path = Path(DATA_DIR) / target_username / "contract_review_criteria" / "criteria.upload.tmp.docx"
+        temp_path = tenant_user_criteria_path(tenant_id, target_username).with_name("criteria.upload.tmp.docx")
         if temp_path.exists():
             temp_path.unlink()
         await criteria_file.close()
@@ -283,11 +295,12 @@ async def admin_upload_user_criteria(
 @admin_router.post("/users/{target_username}/criteria/restore")
 async def admin_restore_user_criteria(request: Request, target_username: str):
     require_admin(request)
-    if not get_admin_user(target_username):
+    tenant_id = current_tenant_id(request)
+    if not get_admin_user(tenant_id, target_username):
         raise HTTPException(status_code=404, detail="未找到用户。")
 
     default_path = Path(DEFAULT_REVIEW_CRITERIA_PATH)
-    target_path = Path(DATA_DIR) / target_username / "contract_review_criteria" / "criteria.docx"
+    target_path = tenant_user_criteria_path(tenant_id, target_username)
     try:
         if not default_path.exists():
             raise HTTPException(status_code=404, detail="未找到系统默认审查要点。")
@@ -304,11 +317,12 @@ async def admin_restore_user_criteria(request: Request, target_username: str):
 @admin_router.get("/users/{target_username}/logs/{date}/{task_name}/api-events")
 async def admin_view_api_events(request: Request, target_username: str, date: str, task_name: str):
     require_admin(request)
-    if not get_admin_user(target_username):
+    tenant_id = current_tenant_id(request)
+    if not get_admin_user(tenant_id, target_username):
         raise HTTPException(status_code=404, detail="未找到用户。")
 
-    logs_root = (Path(DATA_DIR) / target_username / "logs").resolve()
-    path = (logs_root / safe_upload_filename(date) / safe_upload_filename(task_name) / "api_events.jsonl").resolve()
+    logs_root = (Path(DATA_DIR) / "web" / tenant_id).resolve()
+    path = (logs_root / safe_upload_filename(task_name) / "logs" / "api_events.jsonl").resolve()
     if logs_root not in path.parents:
         raise HTTPException(status_code=400, detail="日志路径不合法。")
     if not path.exists():

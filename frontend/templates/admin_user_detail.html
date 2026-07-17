@@ -36,6 +36,10 @@
             <h1>{{ target_user.display_name }} · {{ target_user.username }}</h1>
           </div>
           <div class="user-box">
+            <div class="user-summary">
+              <span>{{ tenant_name }}</span>
+              <strong>{{ display_name }} · {{ username }}</strong>
+            </div>
             <a class="secondary-button compact-button user-link-button" href="/web/admin/users?ctx={{ ctx }}">返回用户列表</a>
             <form method="post" action="/web/logout?ctx={{ ctx }}" class="user-action-form">
               <button type="submit" class="secondary-button compact-button">退出登录</button>

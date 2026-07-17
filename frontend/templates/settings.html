@@ -38,7 +38,7 @@
           </div>
           <div class="user-box">
             <div class="user-summary">
-              <span>当前用户</span>
+              <span>{{ tenant_name }}</span>
               <strong>{{ display_name }} · {{ username }}</strong>
             </div>
             <form method="post" action="/web/logout?ctx={{ ctx }}" class="user-action-form">

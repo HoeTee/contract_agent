@@ -27,6 +27,10 @@
           {% set login_tokens = request.session.get("login_tokens") or [] %}
           <input name="login_token" type="hidden" value="{{ login_token or (login_tokens[-1] if login_tokens else '') }}">
           <label>
+            <span>租户 ID</span>
+            <input name="tenant_id" type="text" value="{{ tenant_id or '' }}" autocomplete="organization" required>
+          </label>
+          <label>
             <span>账号</span>
             <input name="username" type="text" autocomplete="username" required>
           </label>

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from config import DATA_DIR, USERS_FILE
 from endpoints.runtime.auth import VALID_ROLES, hash_password, load_users, save_users
+from endpoints.runtime.tenancy import require_tenant, tenant_user_profiles_file
 from loggers.resolve_review_task_paths import initialize_user_data_dir, safe_path_part
 
 
@@ -29,6 +30,7 @@ def validate_role(role: str) -> str:
 
 def create_user_account(
     *,
+    tenant_id: str | None = None,
     username: str,
     password: str,
     display_name: str = "",
@@ -36,6 +38,9 @@ def create_user_account(
     users_file: str | Path = USERS_FILE,
     data_dir: str | Path = DATA_DIR,
 ) -> str:
+    if tenant_id:
+        require_tenant(tenant_id)
+        users_file = tenant_user_profiles_file(tenant_id)
     safe_username = safe_path_part(username, "user")
     normalized_role = validate_role(role)
     users = load_users(users_file)
@@ -43,6 +48,7 @@ def create_user_account(
         raise UserManagementError(f"User already exists: {safe_username}")
 
     users.append({
+        "tenant_id": tenant_id,
         "username": safe_username,
         "password_hash": hash_password(password),
         "display_name": display_name or safe_username,
@@ -51,16 +57,23 @@ def create_user_account(
         "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     })
     save_users(users_file, users)
-    initialize_user_data_dir(Path(data_dir), safe_username)
+    if tenant_id:
+        initialize_user_data_dir(Path(data_dir), safe_username, tenant_id=tenant_id)
+    else:
+        initialize_user_data_dir(Path(data_dir), safe_username)
     return safe_username
 
 
 def set_user_role(
     *,
+    tenant_id: str | None = None,
     username: str,
     role: str,
     users_file: str | Path = USERS_FILE,
 ) -> str:
+    if tenant_id:
+        require_tenant(tenant_id)
+        users_file = tenant_user_profiles_file(tenant_id)
     normalized_role = validate_role(role)
     users = load_users(users_file)
     index = find_user_index(users, username)
@@ -74,10 +87,14 @@ def set_user_role(
 
 def reset_user_password(
     *,
+    tenant_id: str | None = None,
     username: str,
     password: str,
     users_file: str | Path = USERS_FILE,
 ) -> None:
+    if tenant_id:
+        require_tenant(tenant_id)
+        users_file = tenant_user_profiles_file(tenant_id)
     users = load_users(users_file)
     index = find_user_index(users, username)
     if index is None:
@@ -89,11 +106,15 @@ def reset_user_password(
 
 def set_user_enabled(
     *,
+    tenant_id: str | None = None,
     username: str,
     enabled: bool,
     users_file: str | Path = USERS_FILE,
     data_dir: str | Path = DATA_DIR,
 ) -> None:
+    if tenant_id:
+        require_tenant(tenant_id)
+        users_file = tenant_user_profiles_file(tenant_id)
     users = load_users(users_file)
     index = find_user_index(users, username)
     if index is None:
@@ -103,16 +124,20 @@ def set_user_enabled(
     users[index][key] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     save_users(users_file, users)
     if enabled:
-        initialize_user_data_dir(Path(data_dir), username)
+        initialize_user_data_dir(Path(data_dir), username, tenant_id=tenant_id) if tenant_id else initialize_user_data_dir(Path(data_dir), username)
 
 
 def delete_user_account(
     *,
+    tenant_id: str | None = None,
     username: str,
     keep_data: bool = False,
     users_file: str | Path = USERS_FILE,
     data_dir: str | Path = DATA_DIR,
 ) -> Path | None:
+    if tenant_id:
+        require_tenant(tenant_id)
+        users_file = tenant_user_profiles_file(tenant_id)
     safe_username = safe_path_part(username, "user")
     users = load_users(users_file)
     index = find_user_index(users, safe_username)
@@ -121,6 +146,9 @@ def delete_user_account(
 
     del users[index]
     save_users(users_file, users)
+
+    if tenant_id:
+        return Path(data_dir) / "web" / tenant_id
 
     user_root = Path(data_dir) / safe_username
     if keep_data:
