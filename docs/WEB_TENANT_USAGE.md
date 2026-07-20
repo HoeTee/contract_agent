@@ -194,6 +194,8 @@ python scripts/manage_users.py delete --tenant-id tenant_a --username alice
 
 当前 Web 后台任务运行在应用进程内，没有外部任务队列。服务启动时，后端会扫描 `data/api/` 和 `data/web/` 中遗留的 `pending`、`queued`、`running` 任务，并把它们收敛为 `failed / WORKER_INTERRUPTED`。这些任务只能作为历史状态和排障线索，不能继续显示为正在执行，也不能阻止用户重新提交。
 
+经验原则：不要把持久化 `task.json` 中的 `running` 直接等同于真实运行中的 worker。只要 worker 生命周期没有持久化队列托管，服务启动时就必须做一次状态收敛，否则强制退出后留下的 `running` 会误导前端、API 调用方和排障人员。
+
 如果本次任务没有上传审查要点，工作流使用：
 
 ```text

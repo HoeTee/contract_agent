@@ -90,6 +90,14 @@ Web UI 必须区分“持久化审计数据”和“当前页面状态”：
 - pending、queued、running 只表示当前服务进程内仍有 worker 负责该任务。服务启动时，后端会扫描遗留的 pending、queued、running，并收敛为 `failed / WORKER_INTERRUPTED`；前端只读取收敛后的 `task.json`，不再自行猜测 stale 状态。
 - 不要直接根据“最新任务”推导当前 UI 报错。必须同时检查任务状态和登录上下文，否则旧 failed 任务会让后续每次登录都像失败状态。
 
+## 任务状态经验
+
+`task.json` 是持久化状态文件，但当前 worker 是进程内 `asyncio.create_task()`。这两者生命周期不同：进程被强制退出、容器重启、机器重启或 uvicorn reload 时，worker 没有机会执行异常处理和 `finally`，因此 `task.json` 可能停留在 `pending`、`queued` 或 `running`。
+
+这类状态不能被前端当作真实活动任务自行解释，必须由后端统一收敛。应用启动时会扫描 API 和 Web 任务目录，将遗留活动状态改为 `failed / WORKER_INTERRUPTED`，并写入 `worker_interrupted` 和 `review_failed` 事件。这样 Web 页面、API 状态查询和日志看到的是同一个可信终态。
+
+后续如果改为外部持久队列，可以改成恢复执行；在当前进程内 worker 架构下，正确行为是失败收敛并要求用户重新提交。
+
 ## 上传规则
 
 - 合同文件必传。

@@ -28,7 +28,7 @@ API 和 Web 数据分区独立：
 
 Web 审查任务中，`data/web/<tenant_id>/<task_id>/task.json` 是提交、运行状态、结果展示和历史记录的唯一任务状态文件。提交后不能用 history-only 记录覆盖它；任务成功后只能把历史展示字段合并进原有任务记录。
 
-前端页面状态约束，包括“重新登录后不能显示旧失败任务错误”，见 `docs/FRONTEND_USER_JOURNEY.md`。
+前端页面状态和任务生命周期约束，包括“重新登录后不能显示旧失败任务错误”和“服务重启后遗留 running 任务必须后端收敛”，见 `docs/FRONTEND_USER_JOURNEY.md`。
 
 ## 配置
 
