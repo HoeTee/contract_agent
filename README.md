@@ -28,6 +28,8 @@ API and Web data are stored separately:
 
 For Web reviews, `data/web/<tenant_id>/<task_id>/task.json` is the canonical task-state file for submit, running status, result display, and history. Do not overwrite it with a history-only record after submit; merge completed-history display fields into the existing task record instead.
 
+Frontend page-state invariants, including stale failed-task alerts after login, are documented in `docs/FRONTEND_USER_JOURNEY.md`.
+
 ## Configuration
 
 Create `.env` from `.env.example`:
