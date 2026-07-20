@@ -7,6 +7,7 @@ This document describes the Web UI flow for normal users.
 ```text
 GET /web
   -> clear transient page alerts
+  -> clear existing auth contexts
   -> render login.html
 
 POST /web/login
@@ -73,6 +74,8 @@ Model call errors are recorded with the same event code/component pattern used b
 
 Transient page alerts such as upload errors, settings errors, and admin flash messages are session-scoped. Re-entering `/web` or `/web/login`, logging out, or logging in successfully clears those transient alerts so a new login starts from an initialized page state. Direct login validation errors still render on `login.html` for the current failed submit.
 
+Entering `/web` or `/web/login` also clears existing `auth_contexts`. A stale workbench URL with an old `ctx` must not remain valid after the user intentionally returns to the login entry point.
+
 Each successful login creates a new `ctx` with its own `login_created_at`. `/web/work` does not show failed-task alerts from tasks created before that login timestamp. Older failed tasks remain in task storage/history for audit and troubleshooting, but they must not pollute a freshly logged-in workbench.
 
 ## Frontend State Invariants
@@ -81,6 +84,7 @@ The Web UI must keep persisted audit data separate from current-page state:
 
 - A fresh login must render an initialized workbench. Historical task failures may remain in `data/web/<tenant_id>/<task_id>/task.json`, but they must not reappear as current page errors unless the failed task was created in the current login context.
 - Flash messages are one-shot page state. They are allowed to survive a redirect in the same workflow, but must be cleared when entering `/web`, entering `/web/login`, logging out, or completing a successful login.
+- Returning to the login entry point is a reset boundary. It must invalidate old `ctx` values so stale tabs cannot keep rendering old workbench state after a re-login.
 - Failed tasks are audit records after the user starts a new login context. They can be shown in history or logs, but should not block a new upload or make the workbench look like the new session is already in an error state.
 - Running tasks are different from failed historical tasks. A pending, queued, or running task for the same user and tenant should still be shown and should still prevent duplicate submission.
 - Do not derive current UI alerts directly from "latest task" without checking task status and login context. This is the class of bug where a stale `failed` task makes every later login look broken.

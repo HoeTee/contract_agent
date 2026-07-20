@@ -115,6 +115,11 @@ def clear_transient_page_state(request: Request) -> None:
         request.session.pop(key, None)
 
 
+def reset_login_page_state(request: Request) -> None:
+    clear_transient_page_state(request)
+    request.session.pop("auth_contexts", None)
+
+
 def create_auth_context(request: Request, user: dict, tenant: dict) -> str:
     ctx = secrets.token_urlsafe(16)
     contexts = request.session.get("auth_contexts")
@@ -381,7 +386,7 @@ def list_history(username: str, tenant_id: str) -> list[dict]:
 
 @user_router.get("/web/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    clear_transient_page_state(request)
+    reset_login_page_state(request)
     login_token = issue_login_token(request)
     return templates.TemplateResponse(
         request,
@@ -494,7 +499,7 @@ async def update_profile_display_name(
 
 @user_router.get("/web", response_class=HTMLResponse)
 async def entry_page(request: Request):
-    clear_transient_page_state(request)
+    reset_login_page_state(request)
     login_token = issue_login_token(request)
     return templates.TemplateResponse(
         request,
