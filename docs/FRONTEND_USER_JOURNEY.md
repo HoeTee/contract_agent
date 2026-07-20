@@ -6,11 +6,12 @@ This document describes the Web UI flow for normal users.
 
 ```text
 GET /web
-  -> if session is missing: render login.html
-  -> if session is valid: redirect by role
+  -> clear transient page alerts
+  -> render login.html
 
 POST /web/login
   -> verify tenant/user/password
+  -> clear transient page alerts on successful login
   -> create ctx
   -> admin: /web/admin
   -> user: /web/work
@@ -67,6 +68,10 @@ data/web/<tenant_id>/<task_id>/logs/api_events.jsonl
 ```
 
 Model call errors are recorded with the same event code/component pattern used by API tasks.
+
+## Login State
+
+Transient page alerts such as upload errors, settings errors, and admin flash messages are session-scoped. Re-entering `/web` or `/web/login`, logging out, or logging in successfully clears those transient alerts so a new login starts from an initialized page state. Direct login validation errors still render on `login.html` for the current failed submit.
 
 ## Upload Rules
 

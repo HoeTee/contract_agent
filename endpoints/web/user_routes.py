@@ -95,6 +95,16 @@ def consume_login_token(request: Request, token: str) -> bool:
     return matched
 
 
+def clear_transient_page_state(request: Request) -> None:
+    for key in (
+        "flash_error",
+        "flash_success",
+        "admin_flash_error",
+        "admin_flash_success",
+    ):
+        request.session.pop(key, None)
+
+
 def create_auth_context(request: Request, user: dict, tenant: dict) -> str:
     ctx = secrets.token_urlsafe(16)
     contexts = request.session.get("auth_contexts")
@@ -359,6 +369,7 @@ def list_history(username: str, tenant_id: str) -> list[dict]:
 
 @user_router.get("/web/login", response_class=HTMLResponse)
 async def login_page(request: Request):
+    clear_transient_page_state(request)
     login_token = issue_login_token(request)
     return templates.TemplateResponse(
         request,
@@ -433,6 +444,7 @@ async def login(
         )
 
     remove_auth_contexts_for_username(request, user["username"], tenant["tenant_id"])
+    clear_transient_page_state(request)
     ctx = create_auth_context(request, user, tenant)
     if normalize_role(user.get("role")) == "admin":
         return RedirectResponse(ctx_path("/web/admin", ctx), status_code=303)
@@ -442,6 +454,7 @@ async def login(
 @user_router.post("/web/logout")
 async def logout(request: Request):
     remove_auth_context(request, get_request_ctx(request))
+    clear_transient_page_state(request)
     return RedirectResponse("/web/login", status_code=303)
 
 
@@ -469,6 +482,7 @@ async def update_profile_display_name(
 
 @user_router.get("/web", response_class=HTMLResponse)
 async def entry_page(request: Request):
+    clear_transient_page_state(request)
     login_token = issue_login_token(request)
     return templates.TemplateResponse(
         request,
