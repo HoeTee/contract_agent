@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Optional
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
 
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.schema import MetadataMode, NodeWithScore, QueryBundle
@@ -51,7 +50,9 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         endpoint_format = endpoint_format.lower()
         if endpoint_format not in {"openai", "zjrcu"}:
             raise RuntimeError("endpoint_format must be 'openai' or 'zjrcu'")
-        normalized_base = self.normalize_api_base(base_url, endpoint_format)
+        normalized_base = base_url.rstrip("/")
+        if not normalized_base:
+            raise RuntimeError("base_url is required for QwenRerankPostprocessor")
         
 
         super().__init__(
@@ -68,39 +69,6 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
             max_retry_delay=max_retry_delay,
             **kwargs,
         )
-
-    @staticmethod
-    def normalize_openai_api_base(api_base: str) -> str:
-        value = api_base.rstrip("/")
-        parsed = urlparse(value)
-        path = parsed.path.rstrip("/")
-
-        if value.endswith("/reranks"):
-            return value
-        if path.endswith("/chat/completions"):
-            return value[: -len("/chat/completions")] + "/reranks"
-        if path.endswith("/embeddings"):
-            return value[: -len("/embeddings")] + "/reranks"
-        if path.endswith("/v1"):
-            return value + "/reranks"
-        if path.endswith("/compatible-api/v1"):
-            return value + "/reranks"
-        if parsed.scheme and parsed.netloc and not path:
-            return value + "/compatible-api/v1/reranks"
-        return value
-
-    @staticmethod
-    def normalize_zjrcu_api_base(api_base: str) -> str:
-        value = api_base.rstrip("/")
-        if value.endswith("/rerank"):
-            return value
-        return value + "/rerank"
-
-    @classmethod
-    def normalize_api_base(cls, api_base: str, endpoint_format: str = "openai") -> str:
-        if endpoint_format == "zjrcu":
-            return cls.normalize_zjrcu_api_base(api_base)
-        return cls.normalize_openai_api_base(api_base)
 
     @staticmethod
     def _should_retry_http(status_code: int) -> bool:

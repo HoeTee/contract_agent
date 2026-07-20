@@ -39,14 +39,15 @@ SESSION_SECRET_KEY=replace-with-a-long-random-secret
 
 MinerU has been removed. `MINERU_API_KEY`, `parser.parse_file_with_mineru`, and `mineru.api_base` are no longer used.
 
-Reranker configuration supports only `openai` and `zjrcu` endpoint formats:
+Reranker `base_url` must be the full request URL. The application does not append `/rerank` or `/reranks`.
+`endpoint_format` only records the response compatibility mode:
 
 ```yaml
 rerank:
-  base_url: "http://127.0.0.1:8000/v1"
-  endpoint_format: "zjrcu"
-  name: "bge-rerank-v2-m3"
-  inject_instruct: false
+  base_url: "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
+  endpoint_format: "openai"
+  name: "qwen3-rerank"
+  inject_instruct: true
 ```
 
 Use `inject_instruct: true` only when the reranker service accepts an `instruct` request field.

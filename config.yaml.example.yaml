@@ -14,7 +14,7 @@ embedding:
   name: "text-embedding-v4"
 
 rerank:
-  base_url: "http://127.0.0.1:8000/v1"
+  base_url: "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
   # openai or zjrcu
   endpoint_format: "openai"
   name: "qwen3-rerank"
