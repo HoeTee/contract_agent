@@ -192,7 +192,7 @@ python scripts/manage_users.py delete --tenant-id tenant_a --username alice
 
 `task.json` 是任务状态的唯一文件。提交路由不能把它替换成 history-only JSON；审查成功后，只能把历史展示字段合并到已有任务记录中。
 
-当前 Web 后台任务运行在应用进程内，没有外部任务队列。服务重启后，重启前遗留在 `task.json` 中的 `pending`、`queued`、`running` 只能作为历史状态和排障线索，前端不能继续把它们显示为正在执行的活动任务，也不能用它们阻止用户重新提交。
+当前 Web 后台任务运行在应用进程内，没有外部任务队列。服务启动时，后端会扫描 `data/api/` 和 `data/web/` 中遗留的 `pending`、`queued`、`running` 任务，并把它们收敛为 `failed / WORKER_INTERRUPTED`。这些任务只能作为历史状态和排障线索，不能继续显示为正在执行，也不能阻止用户重新提交。
 
 如果本次任务没有上传审查要点，工作流使用：
 

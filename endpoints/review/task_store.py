@@ -15,6 +15,7 @@ from loggers.api_event_logger import append_api_event
 
 TASK_ID_PATTERN = re.compile(r"^[0-9]{8}-[0-9]{6}-[a-f0-9]{4}$")
 BEIJING_TZ = timezone(timedelta(hours=8))
+ACTIVE_STATUSES = {"pending", "queued", "running"}
 
 
 def now_iso() -> str:
@@ -214,6 +215,48 @@ def read_task(client_dir: str, task_id: str) -> dict[str, Any] | None:
     return task
 
 
+def read_task_json_file(path: Path) -> dict[str, Any] | None:
+    if not path.exists() or path.name != "task.json":
+        return None
+    try:
+        task = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(task, dict):
+        return None
+    task_id = str(task.get("task_id") or "")
+    client_dir = str(task.get("client_dir") or "")
+    try:
+        validate_task_id(task_id)
+        validate_client_dir(client_dir)
+    except ValueError:
+        return None
+    if task_json_path(client_dir, task_id) != path:
+        return None
+    return task
+
+
+def iter_task_json_paths() -> list[Path]:
+    data_root = Path(DATA_DIR)
+    paths: list[Path] = []
+    api_root = data_root / "api"
+    if api_root.exists():
+        paths.extend(api_root.glob("*/task.json"))
+    web_root = data_root / "web"
+    if web_root.exists():
+        paths.extend(web_root.glob("*/*/task.json"))
+    return sorted(paths)
+
+
+def iter_active_tasks() -> list[dict[str, Any]]:
+    tasks: list[dict[str, Any]] = []
+    for path in iter_task_json_paths():
+        task = read_task_json_file(path)
+        if task and task.get("status") in ACTIVE_STATUSES:
+            tasks.append(task)
+    return tasks
+
+
 def export_task_result(task: dict[str, Any], output_path: str) -> Path:
     if not output_path or not output_path.strip():
         raise ValueError("output_path is required")
@@ -279,6 +322,12 @@ def create_task(
             "requested_at": None,
             "cancelled_at": None,
         },
+        "worker": {
+            "worker_id": None,
+            "worker_started_at": None,
+            "heartbeat_at": None,
+            "interrupted_at": None,
+        },
         "logs": {
             "api_events_path": str(task_api_log) if task_api_log else None,
             "conversation_log_dir": str(task_conversation_log) if task_conversation_log else None,
@@ -286,6 +335,36 @@ def create_task(
             "workflow_log_dir": str(task_workflow_log) if task_workflow_log else None,
         },
     }
+    return write_task(task)
+
+
+def mark_worker_started(client_dir: str, task_id: str, worker_id: str) -> dict[str, Any]:
+    timestamp = now_iso()
+    task = read_task(client_dir, task_id)
+    if task is None:
+        raise FileNotFoundError(task_id)
+    worker = task.get("worker") if isinstance(task.get("worker"), dict) else {}
+    worker.update(
+        {
+            "worker_id": worker_id,
+            "worker_started_at": timestamp,
+            "heartbeat_at": timestamp,
+            "interrupted_at": None,
+        }
+    )
+    task["worker"] = worker
+    return write_task(task)
+
+
+def mark_worker_heartbeat(client_dir: str, task_id: str, worker_id: str) -> dict[str, Any] | None:
+    task = read_task(client_dir, task_id)
+    if task is None or task.get("status") not in ACTIVE_STATUSES:
+        return None
+    worker = task.get("worker") if isinstance(task.get("worker"), dict) else {}
+    if worker.get("worker_id") != worker_id:
+        return None
+    worker["heartbeat_at"] = now_iso()
+    task["worker"] = worker
     return write_task(task)
 
 
@@ -338,6 +417,55 @@ def mark_failed(
         message="Contract review failed.",
         error=error,
     )
+
+
+def mark_worker_interrupted(
+    client_dir: str,
+    task_id: str,
+    *,
+    reason: str = "service_startup_reconciliation",
+) -> dict[str, Any]:
+    timestamp = now_iso()
+    task = read_task(client_dir, task_id)
+    if task is None:
+        raise FileNotFoundError(task_id)
+    worker = task.get("worker") if isinstance(task.get("worker"), dict) else {}
+    worker["interrupted_at"] = timestamp
+    task["worker"] = worker
+    task["status"] = "failed"
+    task["finished_at"] = timestamp
+    task["message"] = "Contract review was interrupted."
+    task["error"] = {
+        "code": "WORKER_INTERRUPTED",
+        "message": "审查任务因服务重启或进程退出中断，请重新提交。",
+        "component": "worker",
+        "reason": reason,
+    }
+    return write_task(task)
+
+
+def reconcile_interrupted_tasks(*, reason: str = "service_startup_reconciliation") -> list[dict[str, Any]]:
+    interrupted: list[dict[str, Any]] = []
+    for task in iter_active_tasks():
+        client_dir = task["client_dir"]
+        task_id = task["task_id"]
+        updated = mark_worker_interrupted(client_dir, task_id, reason=reason)
+        write_task_log_event(
+            client_dir,
+            task_id,
+            "worker_interrupted",
+            previous_status=task.get("status"),
+            reason=reason,
+        )
+        write_task_log_event(
+            client_dir,
+            task_id,
+            "review_failed",
+            error="WORKER_INTERRUPTED",
+            reason=reason,
+        )
+        interrupted.append(updated)
+    return interrupted
 
 
 def request_cancel(client_dir: str, task_id: str) -> dict[str, Any]:

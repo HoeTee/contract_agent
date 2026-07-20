@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import asyncio
+import os
+import socket
+import uuid
 from pathlib import Path
 
 from config import MCP_SERVER_PATH
@@ -11,6 +15,8 @@ from endpoints.review.task_store import (
     mark_failed,
     mark_running,
     mark_succeeded,
+    mark_worker_heartbeat,
+    mark_worker_started,
     read_task,
     task_api_events_path,
     task_conversation_log_dir,
@@ -24,12 +30,32 @@ from loggers.agent_logger import reset_conversation_log_dir, set_conversation_lo
 from main_workflow.main_workflow import ContractReviewWorkflow
 
 
+HEARTBEAT_INTERVAL_SECONDS = 10
+
+
+def new_worker_id() -> str:
+    return f"{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex[:8]}"
+
+
+async def heartbeat_worker(client_dir: str, task_id: str, worker_id: str) -> None:
+    while True:
+        await asyncio.sleep(HEARTBEAT_INTERVAL_SECONDS)
+        try:
+            mark_worker_heartbeat(client_dir, task_id, worker_id)
+        except Exception:
+            pass
+
+
 async def run_async_review_job(client_dir: str, task_id: str) -> None:
     task = read_task(client_dir, task_id)
     if task is None:
         return
 
+    worker_id = new_worker_id()
+    heartbeat_task = None
     try:
+        mark_worker_started(client_dir, task_id, worker_id)
+        heartbeat_task = asyncio.create_task(heartbeat_worker(client_dir, task_id, worker_id))
         if is_cancel_requested(client_dir, task_id):
             mark_cancelled(client_dir, task_id)
             return
@@ -105,4 +131,10 @@ async def run_async_review_job(client_dir: str, task_id: str) -> None:
             mark_failed(client_dir, task_id, code="REVIEW_FAILED", message="Review failed. Check task logs.")
         write_task_log_event(client_dir, task_id, "review_failed", error=repr(exc))
     finally:
+        if heartbeat_task is not None:
+            heartbeat_task.cancel()
+            try:
+                await heartbeat_task
+            except asyncio.CancelledError:
+                pass
         cleanup_runtime_input(client_dir, task_id)
