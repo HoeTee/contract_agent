@@ -26,6 +26,8 @@ API and Web data are stored separately:
 - Web tasks: `data/web/<tenant_id>/<task_id>/`
 - User accounts: `user_profiles/users.json`
 
+For Web reviews, `data/web/<tenant_id>/<task_id>/task.json` is the canonical task-state file for submit, running status, result display, and history. Do not overwrite it with a history-only record after submit; merge completed-history display fields into the existing task record instead.
+
 ## Configuration
 
 Create `.env` from `.env.example`:
