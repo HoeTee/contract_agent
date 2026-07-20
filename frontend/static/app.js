@@ -2,22 +2,21 @@ document.querySelectorAll("[data-loading-form]").forEach((form) => {
   if (document.querySelector(".status-box")) {
     const button = form.querySelector("button[type='submit']");
     if (button) button.disabled = true;
-    window.setTimeout(() => window.location.reload(), 5000);
     return;
   }
 
   form.addEventListener("submit", () => {
     const button = form.querySelector("button[type='submit']");
     if (!button) return;
-    button.textContent = button.dataset.loadingLabel || "处理中...";
+    button.textContent = button.dataset.loadingLabel || "Processing...";
     button.disabled = true;
   });
 });
 
 document.querySelectorAll("[data-confirm-delete]").forEach((form) => {
   form.addEventListener("submit", (event) => {
-    const username = form.dataset.confirmUsername || "该用户";
-    const first = window.confirm(`确认删除用户 ${username}？此操作会移除账号登录权限。`);
+    const username = form.dataset.confirmUsername || "this user";
+    const first = window.confirm(`Delete user ${username}? This removes account login access.`);
     if (!first) {
       event.preventDefault();
       return;
@@ -26,9 +25,9 @@ document.querySelectorAll("[data-confirm-delete]").forEach((form) => {
     const keepDataInput = form.querySelector("input[name='keep_data']");
     const keepsData = keepDataInput && keepDataInput.checked;
     const dataMessage = keepsData
-      ? "当前选择会保留用户数据目录，但账号会被删除。"
-      : "当前未选择保留用户数据，用户目录也会被删除。";
-    const second = window.confirm(`${dataMessage}\n再次确认删除用户 ${username}？`);
+      ? "User data directory will be kept, but the account will be deleted."
+      : "User data directory will also be deleted.";
+    const second = window.confirm(`${dataMessage}\nConfirm deleting user ${username}?`);
     if (!second) {
       event.preventDefault();
     }

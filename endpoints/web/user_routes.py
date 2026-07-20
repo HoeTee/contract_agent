@@ -356,11 +356,12 @@ async def login_page(request: Request):
     return templates.TemplateResponse(
         request,
         "login.html",
-        {
-            "error": None,
-            "login_token": login_token,
-            "tenant_id": "",
-        },
+            {
+                "error": None,
+                "login_token": login_token,
+                "tenant_id": "",
+                "username": "",
+            },
     )
 
 
@@ -387,6 +388,7 @@ async def login(
                 "error": str(exc),
                 "login_token": next_login_token,
                 "tenant_id": tenant_id,
+                "username": username,
             },
             status_code=401,
         )
@@ -404,6 +406,7 @@ async def login(
                 "error": "Account is disabled. Contact an administrator.",
                 "login_token": next_login_token,
                 "tenant_id": tenant_id,
+                "username": username,
             },
             status_code=403,
         )
@@ -417,6 +420,7 @@ async def login(
                 "error": "Invalid username or password.",
                 "login_token": next_login_token,
                 "tenant_id": tenant_id,
+                "username": username,
             },
             status_code=401,
         )
@@ -466,6 +470,7 @@ async def entry_page(request: Request):
             "error": None,
             "login_token": login_token,
             "tenant_id": "",
+            "username": "",
         },
     )
 
