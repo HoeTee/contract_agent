@@ -42,6 +42,7 @@ from endpoints.runtime.filenames import build_report_display_name, safe_upload_f
 
 templates = Jinja2Templates(directory=str(Path(PROJECT_ROOT) / "frontend" / "templates"))
 user_router = APIRouter()
+PROCESS_STARTED_AT = now_iso()
 
 
 def task_owner_key(tenant_id: str, username: str) -> str:
@@ -68,10 +69,19 @@ def get_latest_web_task(username: str, tenant_id: str) -> dict | None:
 
 def get_running_task(username: str, tenant_id: str = "") -> dict | None:
     task = get_latest_web_task(username, tenant_id)
-    if task and task.get("status") in {"pending", "queued", "running"}:
+    if task and task_is_active_in_current_process(task):
         task["filename"] = task.get("input", {}).get("contract_filename")
         return task
     return None
+
+
+def task_is_active_in_current_process(task: dict) -> bool:
+    if task.get("status") not in {"pending", "queued", "running"}:
+        return False
+    task_created_at = str(task.get("created_at") or "")
+    if not task_created_at:
+        return False
+    return task_created_at >= PROCESS_STARTED_AT
 
 
 def task_started_in_current_login(task: dict, login_created_at: str) -> bool:
