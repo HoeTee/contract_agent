@@ -1,21 +1,25 @@
-# Web Multi-Tenant Usage
+# Web 多租户使用说明
 
-This document describes the current `/web` tenant model, local data layout, CLI operations, and frontend behavior.
+本文说明当前 `/web` 的租户模型、本地数据布局、CLI 操作和前端行为。
 
-## Direct Conclusion
+## 直接结论
 
-`/web` is tenant-scoped. Tenants and tenant users are managed by CLI. The frontend login form requires a `tenant_id`, username, and password. Runtime review data is stored under `data/web/<tenant_id>/<task_id>/`.
+`/web` 按租户隔离。租户和租户用户通过 CLI 管理。前端登录页需要填写 `tenant_id`、用户名和密码。运行期审查数据保存在：
 
-## Identity Files
+```text
+data/web/<tenant_id>/<task_id>/
+```
 
-Tenant registry:
+## 身份文件
+
+租户注册表：
 
 ```text
 user_profiles/
   tenant_profiles.json
 ```
 
-Tenant users and user review criteria:
+租户用户和用户默认审查要点：
 
 ```text
 user_profiles/
@@ -26,17 +30,17 @@ user_profiles/
         <username>.docx
 ```
 
-Meaning:
+字段含义：
 
-- `tenant_profiles.json` stores tenant records: `tenant_id`, display `name`, enabled status, and timestamps.
-- `tenants/<tenant_id>/user_profiles.json` stores users for one tenant only.
-- `tenants/<tenant_id>/criteria/<username>.docx` stores that user's default review criteria.
+- `tenant_profiles.json` 保存租户记录，包括 `tenant_id`、展示名称 `name`、启用状态和时间戳。
+- `tenants/<tenant_id>/user_profiles.json` 只保存该租户下的用户。
+- `tenants/<tenant_id>/criteria/<username>.docx` 保存该用户默认审查要点。
 
-Plaintext passwords are not stored. User passwords are stored as password hashes through `endpoints/runtime/auth.py`.
+系统不保存明文密码。用户密码通过 `endpoints/runtime/auth.py` 存储为哈希。
 
-## Runtime Data
+## 运行数据
 
-Web review task data is stored as:
+Web 审查任务数据结构：
 
 ```text
 data/
@@ -49,168 +53,168 @@ data/
         logs/
 ```
 
-Task directory meaning:
+任务目录含义：
 
-- `task.json`: task metadata, including `tenant_id`, `tenant_name`, `username`, status, file names, and timestamps.
-- `input/`: uploaded contract and optional uploaded criteria for this task.
-- `output/`: reviewed DOCX result.
-- `logs/`: workflow, conversation, MCP, and API event logs.
+- `task.json`：任务元数据，包括 `tenant_id`、`tenant_name`、`username`、状态、文件名和时间戳。
+- `input/`：本次任务上传的合同，以及可选上传的本次审查要点。
+- `output/`：审查后的 DOCX 结果。
+- `logs/`：workflow、conversation、MCP 和 API event 日志。
 
-There is no `/users` or `/tasks` layer under `data/web/`.
+`data/web/` 下没有 `/users` 或 `/tasks` 中间层。
 
-## Tenant CLI
+## 租户 CLI
 
-Create a tenant:
+创建租户：
 
 ```bash
 python scripts/manage_tenants.py create --tenant-id tenant_a --name "Tenant A"
 ```
 
-List tenants:
+列出租户：
 
 ```bash
 python scripts/manage_tenants.py list
 ```
 
-Disable or enable a tenant:
+禁用或启用租户：
 
 ```bash
 python scripts/manage_tenants.py disable --tenant-id tenant_a
 python scripts/manage_tenants.py enable --tenant-id tenant_a
 ```
 
-Delete a tenant profile:
+删除租户注册记录：
 
 ```bash
 python scripts/manage_tenants.py delete --tenant-id tenant_a
 ```
 
-Boundary: deleting a tenant profile does not delete tenant users or task data. It removes the registry entry only.
+边界：删除租户注册记录不会删除租户用户和任务数据，只会移除注册表中的租户记录。
 
-## User CLI
+## 用户 CLI
 
-Every user command requires `--tenant-id`.
+所有用户命令都必须指定 `--tenant-id`。
 
-Create a tenant admin:
+创建租户管理员：
 
 ```bash
 python scripts/manage_users.py create --tenant-id tenant_a --username admin --password "ChangeMe123" --role admin --display-name "Tenant Admin"
 ```
 
-Create a normal user:
+创建普通用户：
 
 ```bash
 python scripts/manage_users.py create --tenant-id tenant_a --username alice --password "ChangeMe123" --role user --display-name "Alice"
 ```
 
-List users in one tenant:
+列出某个租户下的用户：
 
 ```bash
 python scripts/manage_users.py list --tenant-id tenant_a
 ```
 
-Change role:
+修改角色：
 
 ```bash
 python scripts/manage_users.py set-role --tenant-id tenant_a --username alice --role admin
 ```
 
-Reset password:
+重置密码：
 
 ```bash
 python scripts/manage_users.py reset-password --tenant-id tenant_a --username alice --password "NewPassword123"
 ```
 
-Disable or enable a user:
+禁用或启用用户：
 
 ```bash
 python scripts/manage_users.py disable --tenant-id tenant_a --username alice
 python scripts/manage_users.py enable --tenant-id tenant_a --username alice
 ```
 
-Delete a user profile:
+删除用户配置：
 
 ```bash
 python scripts/manage_users.py delete --tenant-id tenant_a --username alice
 ```
 
-Boundary: deleting a user profile does not delete existing task data in `data/web/<tenant_id>/`.
+边界：删除用户配置不会删除 `data/web/<tenant_id>/` 下已有任务数据。
 
-## Frontend Login
+## 前端登录
 
-The login page is:
+登录页：
 
 ```text
 /web/login
 ```
 
-Login input:
+登录输入：
 
 - `tenant_id`
-- username
-- password
+- 用户名
+- 密码
 
-After login:
+登录后：
 
-- `role=user` enters `/web/work`.
-- `role=admin` enters `/web/admin`.
-- The top-right user area shows the tenant name and current user.
+- `role=user` 进入 `/web/work`。
+- `role=admin` 进入 `/web/admin`。
+- 右上角用户区域显示租户名称和当前用户。
 
-The tenant is stored in the server-side session auth context. Users can only see task records under their own tenant and username.
+租户信息保存在服务端 session 的认证上下文中。用户只能看到自己租户、自己用户名下的任务记录。
 
-## Tenant Admin Frontend
+## 租户管理端
 
-Tenant admins use `/web/admin`.
+租户管理员使用 `/web/admin`。
 
-Current admin frontend scope:
+当前管理端能力：
 
-- List users in the current tenant.
-- Create users in the current tenant.
-- Enable, disable, delete, reset password, and change role for users in the current tenant.
-- View current tenant user review history.
-- Download, upload, or restore a user's default review criteria.
-- View task API event logs for tasks in the current tenant.
+- 列出当前租户用户。
+- 创建当前租户用户。
+- 启用、禁用、删除、重置密码、修改当前租户用户角色。
+- 查看当前租户用户审查历史。
+- 下载、上传或恢复某个用户的默认审查要点。
+- 查看当前租户任务的 API event 日志。
 
-There is no super-admin frontend in the current implementation. Cross-tenant control is intentionally handled by CLI.
+当前实现没有超级管理员前端。跨租户控制由 CLI 处理。
 
-## Review Workflow
+## 审查流程
 
-Normal user flow:
+普通用户流程：
 
-1. Login with `tenant_id`, username, and password.
-2. Open `/web/work`.
-3. Upload a contract DOCX.
-4. Optionally upload review criteria DOCX for this task.
-5. The system creates `data/web/<tenant_id>/<task_id>/`.
-6. `task.json` starts as `pending`, may change to `queued`, then changes to `running`, then `succeeded` or `failed`.
-7. The result DOCX is written to `output/`.
-8. `/web/history` reads task records from `data/web/<tenant_id>/*/task.json`.
+1. 使用 `tenant_id`、用户名和密码登录。
+2. 打开 `/web/work`。
+3. 上传合同 DOCX。
+4. 可选上传本次审查要点 DOCX。
+5. 系统创建 `data/web/<tenant_id>/<task_id>/`。
+6. `task.json` 初始为 `pending`，可能进入 `queued`，然后进入 `running`，最终为 `succeeded` 或 `failed`。
+7. 结果 DOCX 写入 `output/`。
+8. `/web/history` 从 `data/web/<tenant_id>/*/task.json` 读取任务记录。
 
-`task.json` is kept as the canonical task-state file. The submit route must not replace it with a history-only JSON shape; successful reviews merge history display fields into the existing task record.
+`task.json` 是任务状态的唯一文件。提交路由不能把它替换成 history-only JSON；审查成功后，只能把历史展示字段合并到已有任务记录中。
 
-If no per-task criteria file is uploaded, the workflow uses:
+如果本次任务没有上传审查要点，工作流使用：
 
 ```text
 user_profiles/tenants/<tenant_id>/criteria/<username>.docx
 ```
 
-## Deployment Notes
+## 部署注意事项
 
-For Docker deployments, distinguish these locations:
+Docker 部署时要区分这些位置：
 
-- Development machine: local source and local `data/`, `user_profiles/`.
-- Remote host: the machine running Docker.
-- Service container: the running app container.
-- Temporary management container or host shell: where CLI commands may be executed.
+- 开发机器：本地源码、本地 `data/`、本地 `user_profiles/`。
+- 远程宿主机：运行 Docker 的机器。
+- 服务容器：运行应用的容器。
+- 临时管理容器或宿主机 shell：可能执行 CLI 命令的位置。
 
-Persistent data must be mounted into the service container. The service needs long-term access to:
+持久化数据必须挂载进服务容器。服务需要长期访问：
 
 ```text
 user_profiles/
 data/
 ```
 
-Recommended compose mounts:
+推荐 compose 挂载：
 
 ```yaml
 volumes:
@@ -218,13 +222,13 @@ volumes:
   - ./data:/app/data
 ```
 
-Input files come from browser uploads. The service writes task input, output, logs, and task metadata into the mounted `data/web/<tenant_id>/<task_id>/` directory. Tenant and user CLI commands write identity configuration into the mounted `user_profiles/` directory.
+输入文件来自浏览器上传。服务会把任务输入、输出、日志和任务元数据写入挂载后的 `data/web/<tenant_id>/<task_id>/` 目录。租户和用户 CLI 会把身份配置写入挂载后的 `user_profiles/` 目录。
 
-Do not write tenant profiles or task data only into a running container's temporary filesystem. If the container is recreated, that data will be lost.
+不要只把租户配置或任务数据写入正在运行容器的临时文件系统。容器重建后，这些数据会丢失。
 
-## Quick Start
+## 快速开始
 
-On the machine or management container that has the project code and mounted `user_profiles/`:
+在拥有项目代码且挂载了 `user_profiles/` 的机器或管理容器中执行：
 
 ```bash
 python scripts/manage_tenants.py create --tenant-id tenant_a --name "Tenant A"
@@ -232,13 +236,13 @@ python scripts/manage_users.py create --tenant-id tenant_a --username admin --pa
 python scripts/manage_users.py create --tenant-id tenant_a --username alice --password "ChangeMe123" --role user
 ```
 
-Then open:
+然后打开：
 
 ```text
 http://<host>/web/login
 ```
 
-Login as:
+用以下信息登录：
 
 ```text
 tenant_id: tenant_a

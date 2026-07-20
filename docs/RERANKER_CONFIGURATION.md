@@ -1,36 +1,36 @@
-# Reranker Configuration Notes
+# Reranker 配置注意事项
 
-This document records the current reranker integration boundary and common deployment pitfalls.
+本文记录当前 reranker 接入边界、配置规则和常见报错原因。
 
-## Current Contract
+## 当前配置约定
 
-The reranker is configured by:
+`config.yaml` 中只保留三个字段：
 
 ```yaml
 rerank:
-  base_url: "http://your-reranker-host/v1/rerank"
-  name: "bge-rerank-v2-m3"
+  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1/reranks"
+  name: "qwen3-rerank"
   inject_instruct: false
 ```
 
-`base_url` must be the complete HTTP request URL. The application does not append `/rerank`, `/reranks`, or any provider-specific path.
+`base_url` 必须填写完整的 HTTP 请求 URL。程序不会自动拼接 `/rerank`、`/reranks` 或任何厂商专用路径。
 
-There is no `endpoint_format` setting. If an old deployment config still contains `rerank.endpoint_format`, remove it.
+`endpoint_format` 已经移除。旧部署配置里如果还存在 `rerank.endpoint_format`，必须删除。
 
-## Request Body
+## 请求体
 
-The current implementation sends this generic request body:
+当前代码发送的是通用 rerank 请求体：
 
 ```json
 {
-  "model": "bge-rerank-v2-m3",
-  "query": "contract review query",
-  "documents": ["passage 1", "passage 2"],
+  "model": "qwen3-rerank",
+  "query": "合同审查检索问题",
+  "documents": ["候选文本 1", "候选文本 2"],
   "top_n": 5
 }
 ```
 
-When `rerank.inject_instruct: true`, the body also includes:
+当 `rerank.inject_instruct: true` 时，请求体会额外加入：
 
 ```json
 {
@@ -38,15 +38,15 @@ When `rerank.inject_instruct: true`, the body also includes:
 }
 ```
 
-Only enable `inject_instruct` when the target reranker service explicitly accepts an `instruct` field. For `bge-rerank-v2-m3` and most internal reranker services, use:
+只有目标 reranker 服务明确支持 `instruct` 字段时才开启。接入 `bge-rerank-v2-m3` 或多数内网通用 reranker 服务时，建议使用：
 
 ```yaml
 inject_instruct: false
 ```
 
-## Response Body
+## 响应体
 
-The parser accepts either of these response shapes:
+当前解析器支持两种响应结构：
 
 ```json
 {
@@ -56,7 +56,7 @@ The parser accepts either of these response shapes:
 }
 ```
 
-or:
+或：
 
 ```json
 {
@@ -68,46 +68,37 @@ or:
 }
 ```
 
-Each result item must include `index`. `relevance_score` is optional; when it is missing, the original retrieval score is preserved.
+每个结果项必须包含 `index`。`relevance_score` 可选；缺失时保留原始检索分数。
 
-## DashScope Boundary
+## DashScope 模型和 URL 边界
 
-The current code does not contain a DashScope-specific reranker branch. If `base_url` points to a DashScope native rerank endpoint such as:
+DashScope 的 rerank 模型不是都用同一个 URL。
+
+`qwen3-rerank` 应使用兼容 rerank URL，例如：
 
 ```text
-https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank
+https://dashscope.aliyuncs.com/compatible-mode/v1/reranks
 ```
 
-the request may fail with HTTP 400 if DashScope expects a provider-specific request body. In that case, either:
+部分百炼工作空间或地域化部署会使用带 WorkspaceId 的 URL，例如：
 
-- use an internal/OpenAI-compatible reranker endpoint that accepts the generic body above, or
-- add a dedicated DashScope adapter in code.
-
-Do not try to fix a DashScope native-body mismatch with `endpoint_format`; that setting has been removed and no longer exists.
-
-## Retry Behavior
-
-Reranker calls reuse workflow retry settings:
-
-```yaml
-workflow:
-  model_call_timeout_seconds: 60
-  model_call_max_retries: 5
+```text
+https://<WorkspaceId>.<region>.maas.aliyuncs.com/compatible-mode/v1/reranks
 ```
 
-Retries are only attempted for transient failures:
+请以实际工作空间控制台给出的地址为准。
 
-- HTTP `408`
-- HTTP `409`
-- HTTP `429`
-- HTTP `5xx`
-- network timeout or connection failure
+`gte-rerank-v2` 和 `qwen3-vl-rerank` 使用的是另一类原生 URL：
 
-HTTP `400` is treated as a request-format/configuration error and is not retried. A log message such as `failed after 1 attempt(s): HTTP 400` usually means the request URL, model name, request body, or `inject_instruct` setting is incompatible with the target reranker service.
+```text
+https://<WorkspaceId>.<region>.maas.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank
+```
 
-## Recommended Internal BGE Setup
+如果把 `qwen3-rerank` 配到这个原生 URL，服务端会返回 HTTP `400`。这不是重试次数问题，也不是 Web/API 差异，而是模型和 URL 不匹配。
 
-For an internal service exposing `bge-rerank-v2-m3`, use the exact endpoint provided by that service:
+## bge-rerank-v2-m3 内网配置
+
+如果内网服务暴露的是 `bge-rerank-v2-m3`，配置应使用内网服务实际提供的完整 URL：
 
 ```yaml
 rerank:
@@ -116,15 +107,40 @@ rerank:
   inject_instruct: false
 ```
 
-If the internal service exposes `/reranks` instead of `/rerank`, put `/reranks` directly in `base_url`.
+如果内网服务路径是 `/reranks`，就直接把 `/reranks` 写进 `base_url`。
 
-## Troubleshooting Checklist
+## 重试行为
 
-When `reranker_call_failed` appears:
+reranker 调用复用 workflow 的模型调用配置：
 
-1. Check `data/api/<task_id>/logs/api_events.jsonl` or `data/web/<tenant_id>/<task_id>/logs/api_events.jsonl`.
-2. Confirm the error status.
-3. For HTTP `400`, verify `base_url`, `name`, request-body compatibility, and `inject_instruct`.
-4. For HTTP `429` or `5xx`, check retry events and the upstream reranker service health.
-5. For timeout errors, increase `workflow.model_call_timeout_seconds` only after confirming the service is reachable.
+```yaml
+workflow:
+  model_call_timeout_seconds: 60
+  model_call_max_retries: 5
+```
 
+只会对临时性错误重试：
+
+- HTTP `408`
+- HTTP `409`
+- HTTP `429`
+- HTTP `5xx`
+- 网络超时或连接失败
+
+HTTP `400` 表示请求格式或配置错误，不会重试。日志中出现 `failed after 1 attempt(s): HTTP 400` 时，优先检查：
+
+1. `rerank.base_url` 是否和模型匹配。
+2. `rerank.name` 是否是该服务支持的模型名。
+3. 目标服务是否支持当前通用请求体。
+4. `inject_instruct` 是否被错误开启。
+
+## 排障入口
+
+出现 `reranker_call_failed` 时，先看任务事件日志：
+
+```text
+data/api/<task_id>/logs/api_events.jsonl
+data/web/<tenant_id>/<task_id>/logs/api_events.jsonl
+```
+
+如果日志是 HTTP `400`，优先按“模型和 URL 是否匹配”排查。当前项目已经移除 `endpoint_format`，不要再通过该字段尝试修复 URL 或请求体问题。

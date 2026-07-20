@@ -150,6 +150,18 @@ RERANK_INJECT_INSTRUCT = _parse_bool(
     cfg("rerank", "inject_instruct"),
     "rerank.inject_instruct",
 )
+_RERANK_BASE_URL_LOWER = RERANK_BASE_URL.lower()
+_RERANK_NAME_LOWER = RERANK_NAME.lower()
+if (
+    _RERANK_NAME_LOWER == "qwen3-rerank"
+    and "/api/v1/services/rerank/text-rerank/text-rerank" in _RERANK_BASE_URL_LOWER
+):
+    raise RuntimeError(
+        "rerank.name=qwen3-rerank must use a compatible rerank URL such as "
+        "https://dashscope.aliyuncs.com/compatible-mode/v1/reranks. "
+        "The /api/v1/services/rerank/text-rerank/text-rerank URL is for "
+        "gte-rerank-v2 or qwen3-vl-rerank, not qwen3-rerank."
+    )
 
 MAX_REFLECTION_ROUNDS = _as_int(
     cfg("workflow", "max_reflection_rounds"),

@@ -471,6 +471,6 @@ data/<tenant_id>/<username>/
 ```
 
 
-## Current path configuration
+## 当前路径配置
 
-DATA_DIR and USERS_FILE are fixed in config.py as project-local data/ and user_profiles/users.json. They are no longer configured through .env or config.yaml.
+`DATA_DIR` 和 `USERS_FILE` 在 `config.py` 中固定为项目内的 `data/` 和 `user_profiles/users.json`。它们不再通过 `.env` 或 `config.yaml` 配置。

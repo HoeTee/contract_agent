@@ -116,11 +116,16 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
                     return json.loads(response.read().decode("utf-8"))
             except HTTPError as exc:
                 last_error = exc
+                try:
+                    response_body = exc.read().decode("utf-8", errors="replace")
+                except Exception:
+                    response_body = ""
+                response_detail = f" response={response_body[:1000]}" if response_body else ""
                 if not self._should_retry_http(exc.code) or attempt >= self.max_retries:
                     raise RuntimeError(
                         "Reranker request failed after "
                         f"{attempt + 1} attempt(s): HTTP {exc.code} "
-                        f"at {safe_endpoint(url)}"
+                        f"at {safe_endpoint(url)}{response_detail}"
                     ) from exc
                 sleep_seconds = self._calculate_retry_delay(attempt, exc.headers)
                 append_model_event(
@@ -132,6 +137,7 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
                     sleep_seconds=round(sleep_seconds, 3),
                     error_type=type(exc).__name__,
                     status_code=exc.code,
+                    response=response_body[:1000] if response_body else None,
                     endpoint=safe_endpoint(url),
                 )
                 time.sleep(sleep_seconds)

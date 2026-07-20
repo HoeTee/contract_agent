@@ -1,10 +1,10 @@
-# Contract Review Agent
+# 合同审查 Agent
 
-Contract Review Agent provides a Web UI, API endpoints, and a local CLI for DOCX contract review. It uploads contracts, validates review criteria, runs the workflow, and generates annotated DOCX output.
+本项目提供合同 DOCX 审查的 Web 前端、异步 API 和本地 CLI。系统会读取合同、校验审查要点、运行审查工作流，并生成带批注的 DOCX 结果文件。
 
-## Runtime Data
+## 运行数据
 
-Runtime data uses fixed project-local paths:
+运行数据使用项目内固定路径：
 
 ```text
 data/
@@ -18,21 +18,21 @@ user_profiles/
   users.json
 ```
 
-`data_dir` and `users_file` are no longer configurable in `config.yaml`.
+`data_dir` 和 `users_file` 不再通过 `config.yaml` 配置。
 
-API and Web data are stored separately:
+API 和 Web 数据分区独立：
 
-- API tasks: `data/api/<task_id>/`
-- Web tasks: `data/web/<tenant_id>/<task_id>/`
-- User accounts: `user_profiles/users.json`
+- API 任务：`data/api/<task_id>/`
+- Web 任务：`data/web/<tenant_id>/<task_id>/`
+- 用户配置：`user_profiles/users.json`
 
-For Web reviews, `data/web/<tenant_id>/<task_id>/task.json` is the canonical task-state file for submit, running status, result display, and history. Do not overwrite it with a history-only record after submit; merge completed-history display fields into the existing task record instead.
+Web 审查任务中，`data/web/<tenant_id>/<task_id>/task.json` 是提交、运行状态、结果展示和历史记录的唯一任务状态文件。提交后不能用 history-only 记录覆盖它；任务成功后只能把历史展示字段合并进原有任务记录。
 
-Frontend page-state invariants, including stale failed-task alerts after login, are documented in `docs/FRONTEND_USER_JOURNEY.md`.
+前端页面状态约束，包括“重新登录后不能显示旧失败任务错误”，见 `docs/FRONTEND_USER_JOURNEY.md`。
 
-## Configuration
+## 配置
 
-Create `.env` from `.env.example`:
+从 `.env.example` 创建 `.env`：
 
 ```env
 LLM_API_KEY=...
@@ -41,22 +41,24 @@ RERANK_API_KEY=...
 SESSION_SECRET_KEY=replace-with-a-long-random-secret
 ```
 
-MinerU has been removed. `MINERU_API_KEY`, `parser.parse_file_with_mineru`, and `mineru.api_base` are no longer used.
+MinerU 已移除。`MINERU_API_KEY`、`parser.parse_file_with_mineru` 和 `mineru.api_base` 不再使用。
 
-Reranker `base_url` must be the full request URL. The application does not append `/rerank` or `/reranks`, and there is no separate endpoint-format switch.
+reranker 的 `base_url` 必须是完整请求 URL。程序不会自动拼接 `/rerank` 或 `/reranks`，也不存在 `endpoint_format` 配置。
+
+`qwen3-rerank` 示例：
 
 ```yaml
 rerank:
-  base_url: "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
+  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1/reranks"
   name: "qwen3-rerank"
   inject_instruct: true
 ```
 
-Use `inject_instruct: true` only when the reranker service accepts an `instruct` request field.
+只有目标 reranker 服务支持 `instruct` 字段时，才设置 `inject_instruct: true`。
 
-Reranker provider boundaries and troubleshooting notes are documented in `docs/RERANKER_CONFIGURATION.md`.
+reranker 的厂商边界和排障说明见 `docs/RERANKER_CONFIGURATION.md`。
 
-API retention settings:
+API 留存配置：
 
 ```yaml
 api:
@@ -65,62 +67,62 @@ api:
   callback_file_field: "file"
 ```
 
-`api.store` has been removed.
+`api.store` 已移除。
 
-## Web Service
+## Web 服务
 
-Start locally:
+本地启动：
 
 ```powershell
 uvicorn app:app --host 0.0.0.0 --port 5000
 ```
 
-Open:
+浏览器访问：
 
 ```text
 http://127.0.0.1:5000
 ```
 
-Web review tasks now use the shared review worker and task-store state model while keeping Web data under `data/web/`. This aligns task status, model-call errors, and event logging with the API path without mixing API and Web storage.
+Web 审查任务使用共享 review worker 和 task-store 状态模型，但数据仍保存在 `data/web/`。这样 Web 与 API 的任务状态、模型调用错误和事件日志保持一致，同时不混用两边的数据目录。
 
 ## API
 
-Main async API flow:
+主要异步 API 流程：
 
 - `POST /api/review/jobs`
 - `GET /api/review/jobs/{task_id}`
 - `POST /api/review/jobs/{task_id}/result`
 - `POST /api/review/jobs/{task_id}/cancel`
 
-API tasks continue to use `data/api/`.
+API 任务保存在 `data/api/`。
 
 ## CLI
 
-The CLI no longer depends on `data/` user partitions or `DEFAULT_CLI_USERNAME`.
+CLI 不再依赖 `data/` 用户分区，也不再使用 `DEFAULT_CLI_USERNAME`。
 
-Run with the default system criteria:
+使用系统默认审查要点：
 
 ```powershell
 python main.py --contract .\contract.docx
 ```
 
-Run with custom review criteria:
+使用自定义审查要点：
 
 ```powershell
 python main.py --contract .\contract.docx --criteria .\criteria.docx
 ```
 
-Choose an output path:
+指定输出路径：
 
 ```powershell
 python main.py --contract .\contract.docx --criteria .\criteria.docx --output .\contract_reviewed.docx
 ```
 
-If `--output` is omitted, the annotated DOCX is written to the current working directory.
+如果不传 `--output`，带批注的 DOCX 会写入当前命令执行目录。
 
 ## Docker
 
-Recommended persistent mounts:
+建议持久化挂载：
 
 ```yaml
 volumes:
@@ -129,15 +131,15 @@ volumes:
   - ./resources/review_criteria/criteria.docx:/app/resources/review_criteria/criteria.docx:ro
 ```
 
-## Logs
+## 日志
 
-Task event logs are written as `api_events.jsonl` inside each task's log directory when logging is enabled.
+开启日志时，任务事件日志写入每个任务目录下的 `api_events.jsonl`。
 
-Model retry events use event names such as:
+模型重试和失败事件包括：
 
 - `agent_model_call_failed`
 - `embedding_call_failed`
 - `reranker_call_retry`
 - `reranker_call_failed`
 
-See `docs/LOGGER_DESIGN.md` and `docs/API_REVIEW_ENDPOINT.md` for more detail.
+更多说明见 `docs/LOGGER_DESIGN.md` 和 `docs/API_REVIEW_ENDPOINT.md`。
