@@ -34,6 +34,8 @@ env
 *.dotx
 *.dotm
 *.pdf
+!resources/review_criteria/
+!resources/review_criteria/criteria.docx
 ~$*
 ~$*.doc*
 .~lock.*#
