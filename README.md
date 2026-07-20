@@ -49,9 +49,10 @@ reranker 的 `base_url` 必须是完整请求 URL。程序不会自动拼接 `/r
 
 ```yaml
 rerank:
-  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1/reranks"
+  base_url: "https://<WorkspaceId>.<region>.maas.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
   name: "qwen3-rerank"
-  inject_instruct: true
+  provider: "dashscope"
+  inject_instruct: false
 ```
 
 只有目标 reranker 服务支持 `instruct` 字段时，才设置 `inject_instruct: true`。

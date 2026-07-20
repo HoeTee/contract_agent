@@ -17,6 +17,7 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
     api_key: str
     api_base: str
     model: str
+    provider: str = "bge"
     top_n: int = 3
     inject_instruct: bool = True
     instruct: str = (
@@ -32,6 +33,7 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         api_key: str,
         base_url: str, 
         model: str,
+        provider: str = "bge",
         top_n: int = 3,
         inject_instruct: bool = True,
         instruct: str = (
@@ -48,12 +50,19 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         normalized_base = base_url.rstrip("/")
         if not normalized_base:
             raise RuntimeError("base_url is required for QwenRerankPostprocessor")
+        normalized_provider = provider.strip().lower()
+        if normalized_provider not in {"dashscope", "bge"}:
+            raise RuntimeError(
+                "provider must be either 'dashscope' or 'bge', "
+                f"got {provider!r}."
+            )
         
 
         super().__init__(
             api_key=api_key,
             api_base=normalized_base,
             model=model,
+            provider=normalized_provider,
             top_n=top_n,
             inject_instruct=inject_instruct,
             instruct=instruct,
@@ -161,6 +170,33 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
                 time.sleep(sleep_seconds)
         raise RuntimeError(f"Reranker request failed: {last_error}")
 
+    def _build_payload(self, query: str, documents: list[str], top_n: int) -> dict:
+        if self.provider == "dashscope":
+            payload = {
+                "model": self.model,
+                "input": {
+                    "query": query,
+                    "documents": documents,
+                },
+                "parameters": {
+                    "return_documents": False,
+                    "top_n": top_n,
+                },
+            }
+            if self.inject_instruct:
+                payload["parameters"]["instruct"] = self.instruct
+            return payload
+
+        payload = {
+            "model": self.model,
+            "query": query,
+            "documents": documents,
+            "top_n": top_n,
+        }
+        if self.inject_instruct:
+            payload["instruct"] = self.instruct
+        return payload
+
     def _postprocess_nodes(
         self,
         nodes: list[NodeWithScore],
@@ -175,14 +211,7 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         ]
 
         top_n = min(self.top_n, len(documents))
-        payload = {
-            "model": self.model,
-            "query": query_bundle.query_str,
-            "documents": documents,
-            "top_n": top_n,
-        }
-        if self.inject_instruct:
-            payload["instruct"] = self.instruct
+        payload = self._build_payload(query_bundle.query_str, documents, top_n)
 
         body = None
         candidate_urls = [self.api_base]

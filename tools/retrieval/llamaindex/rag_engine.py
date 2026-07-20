@@ -23,7 +23,12 @@ from llama_index.llms.openai_like import OpenAILike
 from tools.retrieval.llamaindex.qwen_reranker import QwenRerankPostprocessor
 from transformers import AutoTokenizer
 from pathlib import Path
-from config import MODEL_CALL_TIMEOUT_SECONDS, MODEL_CALL_MAX_RETRIES, RERANK_INJECT_INSTRUCT
+from config import (
+    MODEL_CALL_MAX_RETRIES,
+    MODEL_CALL_TIMEOUT_SECONDS,
+    RERANK_INJECT_INSTRUCT,
+    RERANK_PROVIDER,
+)
 from tools.document.docx_anchor_index import build_docx_anchor_nodes
 
 
@@ -44,6 +49,7 @@ class LlamaIndexRAG:
         rerank_api_key: str = None,
         rerank_base_url: str = None,
         rerank_name: str = None,
+        rerank_provider: str = RERANK_PROVIDER,
         similarity_top_k: int = 5,
         rerank_top_n: int = 3,
         chunk_size: int = 512,
@@ -85,6 +91,7 @@ class LlamaIndexRAG:
                 api_key=rerank_api_key,
                 base_url=rerank_base_url or embed_base_url,
                 model=rerank_name,
+                provider=rerank_provider,
                 top_n=rerank_top_n,
                 inject_instruct=RERANK_INJECT_INSTRUCT,
                 timeout=MODEL_CALL_TIMEOUT_SECONDS,

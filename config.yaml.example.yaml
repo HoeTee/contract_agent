@@ -14,9 +14,10 @@ embedding:
   name: "text-embedding-v4"
 
 rerank:
-  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1/reranks"
+  base_url: "https://<WorkspaceId>.<region>.maas.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
   name: "qwen3-rerank"
-  inject_instruct: true
+  provider: "dashscope"
+  inject_instruct: false
 
 workflow:
   max_reflection_rounds: 5

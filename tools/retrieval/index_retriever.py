@@ -27,6 +27,7 @@ class IndexRetriever:
         rerank_api_key: str | None,
         rerank_base_url: str | None,
         rerank_name: str | None,
+        rerank_provider: str = "bge",
         chunk_size: int = 512,
         chunk_overlap: int = 200,
         similarity_top_k: int = 5,
@@ -43,6 +44,7 @@ class IndexRetriever:
         self.rerank_api_key = rerank_api_key
         self.rerank_base_url = rerank_base_url
         self.rerank_name = rerank_name
+        self.rerank_provider = rerank_provider
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         self.similarity_top_k = similarity_top_k
@@ -219,6 +221,7 @@ class IndexRetriever:
                 rerank_api_key=self.rerank_api_key,
                 rerank_base_url=self.rerank_base_url,
                 rerank_name=self.rerank_name,
+                rerank_provider=self.rerank_provider,
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
                 similarity_top_k=self.similarity_top_k,
@@ -246,6 +249,7 @@ class IndexRetriever:
                 rerank_api_key=self.rerank_api_key,
                 rerank_base_url=self.rerank_base_url,
                 rerank_name=self.rerank_name,
+                rerank_provider=self.rerank_provider,
                 chunk_size=self.chunk_size,
                 chunk_overlap=self.chunk_overlap,
                 similarity_top_k=self.similarity_top_k,

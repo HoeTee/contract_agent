@@ -25,6 +25,7 @@ from config import (
     RERANK_API_KEY,
     RERANK_BASE_URL,
     RERANK_NAME,
+    RERANK_PROVIDER,
     RERANK_TOP_N,
     SIMILARITY_TOP_K,
 )
@@ -43,6 +44,7 @@ index_retriever = IndexRetriever(
     rerank_api_key=RERANK_API_KEY,
     rerank_base_url=RERANK_BASE_URL,
     rerank_name=RERANK_NAME,
+    rerank_provider=RERANK_PROVIDER,
     chunk_size=CHUNK_SIZE,
     chunk_overlap=CHUNK_OVERLAP,
     similarity_top_k=SIMILARITY_TOP_K,
