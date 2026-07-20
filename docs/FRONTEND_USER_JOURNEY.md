@@ -24,7 +24,7 @@ GET /web/work
 POST /web/review
   -> validate DOCX input
   -> optionally validate uploaded review criteria DOCX
-  -> create a Web-scoped task in data/web/<tenant_id>/<task_id>/
+  -> create task.json in data/web/<tenant_id>/<task_id>/
   -> dispatch the shared review worker
   -> redirect to /web/work
 ```
@@ -56,6 +56,8 @@ data/api/<task_id>/
 data/web/<tenant_id>/<task_id>/
 ```
 
+`task.json` remains the task-state file for the full job lifecycle. The Web route does not overwrite it with a separate history-only record after submit; when a review succeeds, the display fields needed by `/web/history` are merged into the same `task.json`.
+
 ## Logs
 
 Web review tasks write event logs through the shared task-store logging helper. The log location is:
@@ -76,4 +78,4 @@ Model call errors are recorded with the same event code/component pattern used b
 
 ## Result Download
 
-Successful Web reviews are added to the Web history records. Downloads resolve through history records and task output paths under `data/web/<tenant_id>/<task_id>/output/`.
+Successful Web reviews are shown in history from `data/web/<tenant_id>/*/task.json`. Downloads resolve through those task records and task output paths under `data/web/<tenant_id>/<task_id>/output/`.

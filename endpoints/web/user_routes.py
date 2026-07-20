@@ -14,11 +14,9 @@ from config import DATA_DIR, PROJECT_ROOT, USERS_FILE
 from loggers.resolve_review_task_paths import resolve_review_task_paths
 from loggers.review_history import (
     HISTORY_SCHEMA_VERSION,
-    append_history_record,
     format_file_size,
     format_timestamp,
     load_history_records,
-    save_task_record,
 )
 from endpoints.review.job_worker import run_async_review_job
 from endpoints.review.task_store import (
@@ -182,6 +180,21 @@ def ctx_path(path: str, ctx: str | None) -> str:
     return f"{path}{separator}ctx={quote(ctx)}"
 
 
+def localize_tenant_error(exc: TenantError) -> str:
+    message = str(exc)
+    if message.startswith("tenant_id must contain"):
+        return "租户 ID 只能包含字母、数字、下划线或短横线。"
+    if message.startswith("tenant_profiles.json must contain"):
+        return "租户配置文件格式错误，请联系管理员。"
+    if message.startswith("Tenant not found:"):
+        tenant_id = message.split(":", 1)[1].strip()
+        return f"租户不存在：{tenant_id}"
+    if message.startswith("Tenant is disabled:"):
+        tenant_id = message.split(":", 1)[1].strip()
+        return f"租户已被禁用：{tenant_id}"
+    return "租户校验失败，请联系管理员。"
+
+
 def remove_auth_context(request: Request, ctx: str | None) -> None:
     if not ctx:
         return
@@ -254,14 +267,7 @@ async def run_web_review_task(username: str, tenant_id: str, paths) -> None:
     output_path = Path(task["output"]["result_path"])
     history_record = build_history_record(paths, output_path, task)
     if task.get("status") == "succeeded":
-        append_history_record(
-            Path(DATA_DIR),
-            username,
-            history_record,
-            tenant_id=tenant_id,
-        )
-    else:
-        save_task_record(Path(DATA_DIR), tenant_id, history_record)
+        update_task(client_dir, paths.task_id, **history_record)
 
 
 def get_current_username(request: Request) -> str | None:
@@ -386,7 +392,7 @@ async def login(
             request,
             "login.html",
             {
-                "error": str(exc),
+                "error": localize_tenant_error(exc),
                 "login_token": next_login_token,
                 "tenant_id": tenant_id,
                 "username": username,
@@ -404,7 +410,7 @@ async def login(
             request,
             "login.html",
             {
-                "error": "Account is disabled. Contact an administrator.",
+                "error": "账号已被禁用，请联系管理员。",
                 "login_token": next_login_token,
                 "tenant_id": tenant_id,
                 "username": username,
@@ -418,7 +424,7 @@ async def login(
             request,
             "login.html",
             {
-                "error": "Invalid username or password.",
+                "error": "账号或密码错误。",
                 "login_token": next_login_token,
                 "tenant_id": tenant_id,
                 "username": username,
@@ -550,7 +556,7 @@ async def review_page(
 
     tenant_id = user["tenant_id"]
     if get_running_task(username, tenant_id):
-        request.session["flash_error"] = "A review task is already running. Wait for it to finish before submitting again."
+        request.session["flash_error"] = "当前已有审核任务在运行，请等待完成后再提交。"
         await file.close()
         if criteria_file:
             await criteria_file.close()
@@ -581,7 +587,7 @@ async def review_page(
         if not filename.lower().endswith(".docx"):
             raise HTTPException(
                 status_code=400, 
-                detail="Only DOCX contract files are supported.",
+                detail="仅支持 DOCX 合同文件。",
             )
         selected_criteria_path = paths.criteria_path
         criteria_source = "default"
@@ -592,7 +598,7 @@ async def review_page(
             if not criteria_filename.lower().endswith(".docx"):
                 raise HTTPException(
                     status_code=400,
-                    detail="Review criteria file must be DOCX.",
+                    detail="审查要点文件必须是 DOCX。",
                 )
             selected_criteria_path = save_task_input_upload(
                 client_dir,
@@ -613,7 +619,7 @@ async def review_page(
                 size_bytes=selected_criteria_path.stat().st_size,
             )
         elif not paths.criteria_path.exists():
-            request.session["flash_error"] = f"鏈壘鍒板鏌ヨ鐐规枃浠讹細{paths.criteria_path}"
+            request.session["flash_error"] = f"未找到审查要点文件：{paths.criteria_path}"
             return RedirectResponse(ctx_path("/web/work", ctx), status_code=303)
         contract_path = save_task_input_upload(
             client_dir,
@@ -667,7 +673,6 @@ async def review_page(
             display_name=user["display_name"],
             contract_uploaded_at=created_at,
         )
-        save_task_record(Path(DATA_DIR), tenant_id, build_history_record(paths, paths.final_report_path, task))
         asyncio.create_task(run_web_review_task(username, tenant_id, paths))
         return RedirectResponse(ctx_path("/web/work", ctx), status_code=303)
 
@@ -678,7 +683,7 @@ async def review_page(
         return RedirectResponse(ctx_path("/web/work", ctx), status_code=303)
     except Exception as exc:
         write_task_log_event(client_dir, paths.task_id, "review_failed", error=repr(exc))
-        request.session["flash_error"] = "Review failed. Check task logs."
+        request.session["flash_error"] = "审核失败，请检查任务日志。"
         return RedirectResponse(ctx_path("/web/work", ctx), status_code=303)
     finally:
         await file.close()

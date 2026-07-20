@@ -182,9 +182,11 @@ Normal user flow:
 3. Upload a contract DOCX.
 4. Optionally upload review criteria DOCX for this task.
 5. The system creates `data/web/<tenant_id>/<task_id>/`.
-6. `task.json` starts as `queued`, then changes to `running`, then `completed` or `failed`.
+6. `task.json` starts as `pending`, may change to `queued`, then changes to `running`, then `succeeded` or `failed`.
 7. The result DOCX is written to `output/`.
 8. `/web/history` reads task records from `data/web/<tenant_id>/*/task.json`.
+
+`task.json` is kept as the canonical task-state file. The submit route must not replace it with a history-only JSON shape; successful reviews merge history display fields into the existing task record.
 
 If no per-task criteria file is uploaded, the workflow uses:
 
