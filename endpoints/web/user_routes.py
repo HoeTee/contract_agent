@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import secrets
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -537,7 +538,6 @@ async def settings(request: Request):
 
 @user_router.post("/web/review", response_class=HTMLResponse)
 async def review_page(
-    background_tasks: BackgroundTasks,
     request: Request,
     file: UploadFile = File(...),
     criteria_file: UploadFile | None = File(None),
@@ -668,7 +668,7 @@ async def review_page(
             contract_uploaded_at=created_at,
         )
         save_task_record(Path(DATA_DIR), tenant_id, build_history_record(paths, paths.final_report_path, task))
-        background_tasks.add_task(run_web_review_task, username, tenant_id, paths)
+        asyncio.create_task(run_web_review_task(username, tenant_id, paths))
         return RedirectResponse(ctx_path("/web/work", ctx), status_code=303)
 
 

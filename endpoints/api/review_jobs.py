@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Body, File, HTTPException, Request, UploadFile
 
 from config import DEFAULT_REVIEW_CRITERIA_PATH
 from endpoints.api.client_mapping import resolve_api_client
@@ -33,7 +34,6 @@ api_jobs_router = APIRouter()
 
 @api_jobs_router.post("/api/review/jobs", status_code=202)
 async def submit_review_job(
-    background_tasks: BackgroundTasks,
     request: Request,
     file: UploadFile = File(...),
     criteria_file: UploadFile | None = File(None),
@@ -95,7 +95,7 @@ async def submit_review_job(
         client_id=client.client_id,
         source_ip=client.source_ip,
     )
-    background_tasks.add_task(run_async_review_job, client.client_dir, task_id)
+    asyncio.create_task(run_async_review_job(client.client_dir, task_id))
     return pretty_json_response(present_submit_response(task), status_code=202)
 
 

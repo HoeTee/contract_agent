@@ -34,7 +34,12 @@ def validate_task_id(task_id: str) -> str:
 
 def validate_client_dir(client_dir: str) -> str:
     value = str(client_dir).strip()
-    if not value or any(part in value for part in ('/', '\\')) or value in {".", ".."}:
+    if value.startswith("web:"):
+        tenant_id = value.removeprefix("web:")
+        if not tenant_id or any(part in tenant_id for part in ('/', '\\', ':')) or tenant_id in {".", ".."}:
+            raise ValueError("invalid client_dir")
+        return value
+    if not value or any(part in value for part in ('/', '\\', ':')) or value in {".", ".."}:
         raise ValueError("invalid client_dir")
     return value
 
