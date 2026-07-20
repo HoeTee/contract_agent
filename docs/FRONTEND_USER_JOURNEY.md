@@ -73,6 +73,8 @@ Model call errors are recorded with the same event code/component pattern used b
 
 Transient page alerts such as upload errors, settings errors, and admin flash messages are session-scoped. Re-entering `/web` or `/web/login`, logging out, or logging in successfully clears those transient alerts so a new login starts from an initialized page state. Direct login validation errors still render on `login.html` for the current failed submit.
 
+Each successful login creates a new `ctx` with its own `login_created_at`. `/web/work` does not show failed-task alerts from tasks created before that login timestamp. Older failed tasks remain in task storage/history for audit and troubleshooting, but they must not pollute a freshly logged-in workbench.
+
 ## Upload Rules
 
 - Contract file is required.

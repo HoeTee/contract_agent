@@ -28,6 +28,7 @@ from endpoints.review.task_store import (
     update_task,
     web_client_dir,
     write_task_log_event,
+    now_iso,
 )
 from endpoints.runtime.auth import find_user, load_users, normalize_role, save_users, verify_login, verify_password
 from endpoints.runtime.tenancy import TenantError, require_tenant, tenant_user_profiles_file
@@ -73,6 +74,15 @@ def get_running_task(username: str, tenant_id: str = "") -> dict | None:
     return None
 
 
+def task_started_in_current_login(task: dict, login_created_at: str) -> bool:
+    if not login_created_at:
+        return True
+    task_created_at = str(task.get("created_at") or "")
+    if not task_created_at:
+        return True
+    return task_created_at >= login_created_at
+
+
 def issue_login_token(request: Request) -> str:
     token = secrets.token_urlsafe(32)
     tokens = request.session.get("login_tokens")
@@ -116,6 +126,7 @@ def create_auth_context(request: Request, user: dict, tenant: dict) -> str:
         "username": user["username"],
         "display_name": user.get("display_name") or user["username"],
         "role": normalize_role(user.get("role")),
+        "login_created_at": now_iso(),
     }
     request.session["auth_contexts"] = contexts
     return ctx
@@ -180,6 +191,7 @@ def sync_context_user(request: Request) -> dict | None:
         "username": user["username"],
         "display_name": context["display_name"],
         "role": context["role"],
+        "login_created_at": context.get("login_created_at") or "",
     }
 
 
@@ -510,7 +522,10 @@ async def index(request: Request):
     success = request.session.pop("flash_success", None)
     result_name = None
     if task:
-        if task.get("status") == "failed":
+        if task.get("status") == "failed" and task_started_in_current_login(
+            task,
+            user.get("login_created_at", ""),
+        ):
             task_error = task.get("error") or {}
             error = task_error.get("message") or task.get("message") or error
         elif task.get("status") == "succeeded":
