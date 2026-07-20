@@ -149,3 +149,48 @@ data/web/<tenant_id>/<task_id>/logs/api_events.jsonl
 ```
 
 如果日志是 HTTP `400`，优先按 provider 和请求体格式排查，不要通过恢复 `endpoint_format` 解决。
+
+## 本次问题复盘
+
+这次 reranker 问题的根因不是简单的“模型和 URL 不匹配”，而是代码把所有 reranker 都按同一种通用 body 发送了。
+
+错误判断是：看到 `qwen3-rerank` 使用 DashScope 原生 URL 后，直接认为这个 URL 不能用于该模型。用户后来贴出的 DashScope 官方示例证明，`qwen3-rerank` 可以使用原生 URL，但请求体必须是 DashScope 原生格式：
+
+```json
+{
+  "model": "qwen3-rerank",
+  "input": {
+    "query": "查询文本",
+    "documents": ["候选文本"]
+  },
+  "parameters": {
+    "return_documents": true,
+    "top_n": 5
+  }
+}
+```
+
+而 BGE 或内网通用 reranker 通常使用扁平格式：
+
+```json
+{
+  "model": "bge-rerank-v2-m3",
+  "query": "查询文本",
+  "documents": ["候选文本"],
+  "top_n": 5
+}
+```
+
+因此以后不能只靠 `base_url` 或 `model name` 推断请求体，也不能恢复 `endpoint_format` 这类含义混乱的字段。当前明确使用 `rerank.provider` 控制 body：
+
+- `provider: "dashscope"`：发送 DashScope 原生 body。
+- `provider: "bge"`：发送 BGE/通用 body。
+
+排查同类问题时按这个顺序看：
+
+1. 先确认 `provider` 是否和服务类型一致。
+2. 再确认 `base_url` 是否是完整请求 URL。
+3. 再确认 `name` 是否是服务支持的模型名。
+4. 最后看 `inject_instruct` 是否导致服务端拒绝请求。
+
+HTTP `400` 一般是请求体或配置错误，不应期待通过重试解决。Web 和 API 都走同一条 reranker 调用链，如果两端表现不同，应优先看它们实际使用的配置文件、环境变量和任务日志是否一致。
