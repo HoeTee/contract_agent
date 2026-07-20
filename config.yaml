@@ -15,9 +15,8 @@ embedding:
 
 rerank:
   base_url: "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
-  endpoint_format: "openai"
   name: "qwen3-rerank"
-  inject_instruct: true
+  inject_instruct: false
 
 workflow:
   max_reflection_rounds: 5

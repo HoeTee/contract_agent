@@ -43,7 +43,6 @@ class LlamaIndexRAG:
         embed_name: str,
         rerank_api_key: str = None,
         rerank_base_url: str = None,
-        rerank_endpoint_format: str = "openai",
         rerank_name: str = None,
         similarity_top_k: int = 5,
         rerank_top_n: int = 3,
@@ -85,7 +84,6 @@ class LlamaIndexRAG:
             self.reranker = QwenRerankPostprocessor(
                 api_key=rerank_api_key,
                 base_url=rerank_base_url or embed_base_url,
-                endpoint_format=rerank_endpoint_format,
                 model=rerank_name,
                 top_n=rerank_top_n,
                 inject_instruct=RERANK_INJECT_INSTRUCT,

@@ -16,7 +16,6 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
     
     api_key: str
     api_base: str
-    endpoint_format: str = "openai"
     model: str
     top_n: int = 3
     inject_instruct: bool = True
@@ -33,7 +32,6 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         api_key: str,
         base_url: str, 
         model: str,
-        endpoint_format: str = "openai",
         top_n: int = 3,
         inject_instruct: bool = True,
         instruct: str = (
@@ -47,9 +45,6 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
     ) -> None:
         if not api_key:
             raise RuntimeError("api_key is required for QwenRerankPostprocessor")
-        endpoint_format = endpoint_format.lower()
-        if endpoint_format not in {"openai", "zjrcu"}:
-            raise RuntimeError("endpoint_format must be 'openai' or 'zjrcu'")
         normalized_base = base_url.rstrip("/")
         if not normalized_base:
             raise RuntimeError("base_url is required for QwenRerankPostprocessor")
@@ -58,7 +53,6 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         super().__init__(
             api_key=api_key,
             api_base=normalized_base,
-            endpoint_format=endpoint_format,
             model=model,
             top_n=top_n,
             inject_instruct=inject_instruct,
