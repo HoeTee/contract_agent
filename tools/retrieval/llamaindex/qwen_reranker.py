@@ -17,7 +17,7 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
     api_key: str
     api_base: str
     model: str
-    provider: str = "bge"
+    provider: str = "tei"
     top_n: int = 3
     inject_instruct: bool = True
     instruct: str = (
@@ -33,7 +33,7 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         api_key: str,
         base_url: str, 
         model: str,
-        provider: str = "bge",
+        provider: str = "tei",
         top_n: int = 3,
         inject_instruct: bool = True,
         instruct: str = (
@@ -51,9 +51,9 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         if not normalized_base:
             raise RuntimeError("base_url is required for QwenRerankPostprocessor")
         normalized_provider = provider.strip().lower()
-        if normalized_provider not in {"dashscope", "bge"}:
+        if normalized_provider not in {"dashscope", "tei"}:
             raise RuntimeError(
-                "provider must be either 'dashscope' or 'bge', "
+                "provider must be either 'dashscope' or 'tei', "
                 f"got {provider!r}."
             )
         
@@ -188,10 +188,9 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
             return payload
 
         payload = {
-            "model": self.model,
             "query": query,
-            "documents": documents,
-            "top_n": top_n,
+            "texts": documents,
+            "raw_scores": False,
         }
         if self.inject_instruct:
             payload["instruct"] = self.instruct
@@ -229,7 +228,9 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         if body is None:
             raise RuntimeError(f"Rerank request failed: {last_error}")
 
-        if "results" in body:
+        if isinstance(body, list):
+            results = body
+        elif "results" in body:
             results = body["results"]
         elif "output" in body and "results" in body["output"]:
             results = body["output"]["results"]
@@ -242,7 +243,10 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
             reranked_nodes.append(
                 NodeWithScore(
                     node=original_node.node,
-                    score=item.get("relevance_score", original_node.score),
+                    score=item.get(
+                        "relevance_score",
+                        item.get("score", original_node.score),
+                    ),
                 )
             )
 

@@ -8,7 +8,7 @@
 
 ```yaml
 rerank:
-  base_url: "https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
+  base_url: "https://<WorkspaceId>.<region>.maas.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
   name: "qwen3-rerank"
   provider: "dashscope"
   inject_instruct: false
@@ -18,8 +18,8 @@ rerank:
 
 `provider` 只允许两个值：
 
-- `dashscope`：使用 DashScope 原生 rerank 请求体。
-- `bge`：使用内网 BGE 或通用 rerank 请求体。
+- `dashscope`：使用 DashScope 原生 rerank HTTP API。
+- `tei`：使用 Hugging Face Text Embeddings Inference 的 `/rerank` HTTP API。
 
 `endpoint_format` 已经移除。旧部署配置里如果还存在 `rerank.endpoint_format`，必须删除。
 
@@ -47,7 +47,7 @@ DashScope 原生 URL 示例：
 https://<WorkspaceId>.<region>.maas.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank
 ```
 
-用户从 DashScope 官方文档复制的 `qwen3-rerank` 原生 URL 示例可以使用，但必须把 `provider` 配成 `dashscope`，否则代码会按 BGE 通用 body 发送，服务端通常会返回 HTTP `400`。
+用户从 DashScope 官方文档复制的 `qwen3-rerank` 原生 URL 示例可以使用，但必须把 `provider` 配成 `dashscope`。
 
 DashScope 原生接口通常不需要 `instruct`。除非目标服务文档明确说明支持，否则建议：
 
@@ -55,50 +55,40 @@ DashScope 原生接口通常不需要 `instruct`。除非目标服务文档明�
 inject_instruct: false
 ```
 
-## BGE 请求体
+## TEI 请求体
 
-当 `rerank.provider: "bge"` 时，代码发送通用 rerank 请求体：
+`bge-reranker-v2-m3` 是 BAAI 发布的模型，不是 HTTP API 协议。BAAI/FlagEmbedding 官方给的是本地 Python 推理用法，并没有规定统一的在线 HTTP body。
+
+如果该模型由 Hugging Face Text Embeddings Inference 部署，则应使用 TEI 官方 `/rerank` 请求体：
 
 ```json
 {
-  "model": "bge-rerank-v2-m3",
   "query": "合同审查检索问题",
-  "documents": ["候选文本 1", "候选文本 2"],
-  "top_n": 5
+  "texts": ["候选文本 1", "候选文本 2"],
+  "raw_scores": false
 }
 ```
 
-内网 BGE 配置示例：
+TEI 配置示例：
 
 ```yaml
 rerank:
-  base_url: "http://<host>:<port>/v1/rerank"
-  name: "bge-rerank-v2-m3"
-  provider: "bge"
+  base_url: "http://<host>:<port>/rerank"
+  name: "BAAI/bge-reranker-v2-m3"
+  provider: "tei"
   inject_instruct: false
 ```
 
-如果内网服务路径是 `/reranks`，就直接把完整 `/reranks` URL 写进 `base_url`。
+注意：
 
-BGE 和多数内网通用 reranker 服务不支持 `instruct` 字段，建议保持：
-
-```yaml
-inject_instruct: false
-```
+- `name` 仅用于记录模型名；TEI `/rerank` 请求体不会发送 `model` 字段。
+- `rerank_top_n` 不会发送给 TEI；代码会拿到 TEI 排序结果后在本地截取前 `top_n`。
+- TEI 官方请求体使用 `texts`，不是 `documents`。
+- TEI 官方请求体不包含 `instruct`，建议保持 `inject_instruct: false`。
 
 ## 响应体
 
-当前解析器支持两种响应结构。
-
-通用响应：
-
-```json
-{
-  "results": [
-    {"index": 0, "relevance_score": 0.98}
-  ]
-}
-```
+当前解析器支持三种响应结构。
 
 DashScope 响应：
 
@@ -112,7 +102,25 @@ DashScope 响应：
 }
 ```
 
-每个结果项必须包含 `index`。`relevance_score` 可选，缺失时保留原始检索分数。
+带 `results` 包装的响应：
+
+```json
+{
+  "results": [
+    {"index": 0, "relevance_score": 0.98}
+  ]
+}
+```
+
+TEI 响应通常是数组：
+
+```json
+[
+  {"index": 0, "score": 0.98}
+]
+```
+
+每个结果项必须包含 `index`。分数字段支持 `relevance_score` 或 `score`，缺失时保留原始检索分数。
 
 ## 重试行为
 
@@ -136,7 +144,7 @@ HTTP `400` 表示请求格式、模型名、URL 或 provider 配置错误，不�
 
 1. `rerank.provider` 是否选对。
 2. `rerank.base_url` 是否是目标服务真实完整 URL。
-3. `rerank.name` 是否是该服务支持的模型名。
+3. `rerank.name` 是否是实际部署的模型名。
 4. `inject_instruct` 是否被错误开启。
 
 ## 排障入口
@@ -152,45 +160,15 @@ data/web/<tenant_id>/<task_id>/logs/api_events.jsonl
 
 ## 本次问题复盘
 
-这次 reranker 问题的根因不是简单的“模型和 URL 不匹配”，而是代码把所有 reranker 都按同一种通用 body 发送了。
+这次 reranker 问题暴露出两个错误假设。
 
-错误判断是：看到 `qwen3-rerank` 使用 DashScope 原生 URL 后，直接认为这个 URL 不能用于该模型。用户后来贴出的 DashScope 官方示例证明，`qwen3-rerank` 可以使用原生 URL，但请求体必须是 DashScope 原生格式：
+第一，不能仅凭 `qwen3-rerank` 和 DashScope 原生 URL 就判断模型与 URL 不匹配。用户贴出的 DashScope 官方示例证明，`qwen3-rerank` 可以走 DashScope 原生 URL，但请求体必须是 DashScope 原生格式。
 
-```json
-{
-  "model": "qwen3-rerank",
-  "input": {
-    "query": "查询文本",
-    "documents": ["候选文本"]
-  },
-  "parameters": {
-    "return_documents": true,
-    "top_n": 5
-  }
-}
-```
+第二，不能把 `bge-reranker-v2-m3` 当成 HTTP API 协议。BGE 是 BAAI 发布的模型，HTTP body 由部署服务决定。如果内网使用 TEI 部署 BGE，就必须按 TEI 官方 `/rerank` 格式发送 `query/texts/raw_scores`。
 
-而 BGE 或内网通用 reranker 通常使用扁平格式：
-
-```json
-{
-  "model": "bge-rerank-v2-m3",
-  "query": "查询文本",
-  "documents": ["候选文本"],
-  "top_n": 5
-}
-```
-
-因此以后不能只靠 `base_url` 或 `model name` 推断请求体，也不能恢复 `endpoint_format` 这类含义混乱的字段。当前明确使用 `rerank.provider` 控制 body：
+因此当前只保留已知协议：
 
 - `provider: "dashscope"`：发送 DashScope 原生 body。
-- `provider: "bge"`：发送 BGE/通用 body。
+- `provider: "tei"`：发送 Hugging Face TEI body。
 
-排查同类问题时按这个顺序看：
-
-1. 先确认 `provider` 是否和服务类型一致。
-2. 再确认 `base_url` 是否是完整请求 URL。
-3. 再确认 `name` 是否是服务支持的模型名。
-4. 最后看 `inject_instruct` 是否导致服务端拒绝请求。
-
-HTTP `400` 一般是请求体或配置错误，不应期待通过重试解决。Web 和 API 都走同一条 reranker 调用链，如果两端表现不同，应优先看它们实际使用的配置文件、环境变量和任务日志是否一致。
+如果后续内网服务不是 TEI，也不是 DashScope，必须先拿到该服务自己的接口文档，再增加新的 provider；不能预设一个所谓“通用格式”。

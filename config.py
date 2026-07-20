@@ -45,13 +45,6 @@ def cfg(section: str, key: str) -> Any:
     return section_data[key]
 
 
-def cfg_optional(section: str, key: str, default: Any) -> Any:
-    section_data = CONFIG.get(section)
-    if not isinstance(section_data, dict):
-        raise RuntimeError(f"Missing config.yaml section: {section}")
-    return section_data.get(key, default)
-
-
 def env_required(name: str) -> str:
     value = os.getenv(name)
     if value is None or value.strip() == "":
@@ -154,12 +147,12 @@ EMBED_NAME = _as_str(cfg("embedding", "name"), "embedding.name")
 RERANK_BASE_URL = _as_str(cfg("rerank", "base_url"), "rerank.base_url")
 RERANK_NAME = _as_str(cfg("rerank", "name"), "rerank.name")
 RERANK_PROVIDER = _as_str(
-    cfg_optional("rerank", "provider", "bge"),
+    cfg("rerank", "provider"),
     "rerank.provider",
 ).lower()
-if RERANK_PROVIDER not in {"dashscope", "bge"}:
+if RERANK_PROVIDER not in {"dashscope", "tei"}:
     raise RuntimeError(
-        "rerank.provider must be either 'dashscope' or 'bge', "
+        "rerank.provider must be either 'dashscope' or 'tei', "
         f"got {RERANK_PROVIDER!r}."
     )
 RERANK_INJECT_INSTRUCT = _parse_bool(
