@@ -1,81 +1,81 @@
-# 用户管理
+﻿# 鐢ㄦ埛绠＄悊
 
-本文是项目用户管理专题文档，覆盖普通用户界面、管理员界面、后端数据、审查要点、CLI 和 Docker 部署落点。前端完整用户旅程、页面状态和多标签页行为见 `docs/FRONTEND_USER_JOURNEY.md`。
+鏈枃鏄」鐩敤鎴风鐞嗕笓棰樻枃妗ｏ紝瑕嗙洊鏅€氱敤鎴风晫闈€佺鐞嗗憳鐣岄潰銆佸悗绔暟鎹€佸鏌ヨ鐐广€丆LI 鍜?Docker 閮ㄧ讲钀界偣銆傚墠绔畬鏁寸敤鎴锋梾绋嬨€侀〉闈㈢姸鎬佸拰澶氭爣绛鹃〉琛屼负瑙?`docs/FRONTEND_USER_JOURNEY.md`銆?
 
-## 角色和入口
+## 瑙掕壊鍜屽叆鍙?
 
-当前系统支持两类角色：
-
-```text
-user  普通用户
-admin 管理员
-```
-
-角色定义在 `endpoints/runtime/auth.py` 的 `VALID_ROLES` 中，实际值保存在用户账号 JSON 里。
-
-前端入口：
+褰撳墠绯荤粺鏀寔涓ょ被瑙掕壊锛?
 
 ```text
-/login        登录页
-/work         普通用户上传审核页
-/history      普通用户审核历史页
-/settings     普通用户设置页
-/admin        管理员后台首页
-/admin/users  管理员用户管理页
+user  鏅€氱敤鎴?
+admin 绠＄悊鍛?
 ```
 
-登录成功后：
+瑙掕壊瀹氫箟鍦?`endpoints/runtime/auth.py` 鐨?`VALID_ROLES` 涓紝瀹為檯鍊间繚瀛樺湪鐢ㄦ埛璐﹀彿 JSON 閲屻€?
 
-- 普通用户进入 `/work`。
-- 管理员进入 `/admin`。
-- 管理员访问 `/work`、`/history`、`/settings` 会被重定向回 `/admin`。
+鍓嶇鍏ュ彛锛?
 
-## 普通用户前端
+```text
+/login        鐧诲綍椤?
+/work         鏅€氱敤鎴蜂笂浼犲鏍搁〉
+/history      鏅€氱敤鎴峰鏍稿巻鍙查〉
+/settings     鏅€氱敤鎴疯缃〉
+/admin        绠＄悊鍛樺悗鍙伴椤?
+/admin/users  绠＄悊鍛樼敤鎴风鐞嗛〉
+```
 
-普通用户界面由 `endpoints/web/user_routes.py` 提供路由，由 `frontend/templates/` 下的模板渲染。
+鐧诲綍鎴愬姛鍚庯細
+
+- 鏅€氱敤鎴疯繘鍏?`/work`銆?
+- 绠＄悊鍛樿繘鍏?`/admin`銆?
+- 绠＄悊鍛樿闂?`/work`銆乣/history`銆乣/settings` 浼氳閲嶅畾鍚戝洖 `/admin`銆?
+
+## 鏅€氱敤鎴峰墠绔?
+
+鏅€氱敤鎴风晫闈㈢敱 `endpoints/web/user_routes.py` 鎻愪緵璺敱锛岀敱 `frontend/templates/` 涓嬬殑妯℃澘娓叉煋銆?
 
 ### `/work`
 
-模板：
+妯℃澘锛?
 
 ```text
 frontend/templates/index.html
 ```
 
-能力：
+鑳藉姏锛?
 
-- 上传合同 DOCX。
-- 可选上传本次审查要点 DOCX。
-- 如果本次不上传审查要点，则使用 `data/<username>/contract_review_criteria/criteria.docx`。
-- 审核中会禁用提交按钮并定时刷新任务状态。
-- 审核完成后提供批注版 DOCX 下载入口。
+- 涓婁紶鍚堝悓 DOCX銆?
+- 鍙€変笂浼犳湰娆″鏌ヨ鐐?DOCX銆?
+- 濡傛灉鏈涓嶄笂浼犲鏌ヨ鐐癸紝鍒欎娇鐢?`data/<username>/contract_review_criteria/criteria.docx`銆?
+- 瀹℃牳涓細绂佺敤鎻愪氦鎸夐挳骞跺畾鏃跺埛鏂颁换鍔＄姸鎬併€?
+- 瀹℃牳瀹屾垚鍚庢彁渚涙壒娉ㄧ増 DOCX 涓嬭浇鍏ュ彛銆?
 
 ### `/history`
 
-模板：
+妯℃澘锛?
 
 ```text
 frontend/templates/history.html
 ```
 
-展示字段：
+灞曠ず瀛楁锛?
 
-- 输入文件名
-- 输入文件大小
-- 上传时间
-- 审查要点来源
-- 输出文件名
-- 输出文件大小
-- 输出时间
-- 下载入口
+- 杈撳叆鏂囦欢鍚?
+- 杈撳叆鏂囦欢澶у皬
+- 涓婁紶鏃堕棿
+- 瀹℃煡瑕佺偣鏉ユ簮
+- 杈撳嚭鏂囦欢鍚?
+- 杈撳嚭鏂囦欢澶у皬
+- 杈撳嚭鏃堕棿
+- 涓嬭浇鍏ュ彛
 
-历史记录不是扫描目录生成，而是读取：
+鍘嗗彶璁板綍涓嶆槸鎵弿鐩綍鐢熸垚锛岃€屾槸璇诲彇锛?
 
 ```text
 data/<username>/records/review_history.json
 ```
 
-读写逻辑在：
+璇诲啓閫昏緫鍦細
 
 ```text
 loggers/review_history.py
@@ -83,34 +83,34 @@ loggers/review_history.py
 
 ### `/settings`
 
-模板：
+妯℃澘锛?
 
 ```text
 frontend/templates/settings.html
 ```
 
-当前能力：
+褰撳墠鑳藉姏锛?
 
-- 查看用户名。
-- 修改显示名称 `display_name`。
+- 鏌ョ湅鐢ㄦ埛鍚嶃€?
+- 淇敼鏄剧ず鍚嶇О `display_name`銆?
 
-显示名称写回账号 JSON，不改变用户目录名。用户目录分区始终使用 `username`。
+鏄剧ず鍚嶇О鍐欏洖璐﹀彿 JSON锛屼笉鏀瑰彉鐢ㄦ埛鐩綍鍚嶃€傜敤鎴风洰褰曞垎鍖哄缁堜娇鐢?`username`銆?
 
-## 管理员前端
+## 绠＄悊鍛樺墠绔?
 
-管理员后台路由在：
+绠＄悊鍛樺悗鍙拌矾鐢卞湪锛?
 
 ```text
 endpoints/web/admin_routes.py
 ```
 
-后台数据聚合在：
+鍚庡彴鏁版嵁鑱氬悎鍦細
 
 ```text
 endpoints/web/admin_services.py
 ```
 
-模板：
+妯℃澘锛?
 
 ```text
 frontend/templates/admin_dashboard.html
@@ -120,74 +120,74 @@ frontend/templates/admin_user_detail.html
 
 ### `/admin`
 
-展示运行摘要：
+灞曠ず杩愯鎽樿锛?
 
-- 用户总数
-- 管理员数量
-- 禁用用户数量
-- 成功审查数量
-- 最近有审查记录的用户
+- 鐢ㄦ埛鎬绘暟
+- 绠＄悊鍛樻暟閲?
+- 绂佺敤鐢ㄦ埛鏁伴噺
+- 鎴愬姛瀹℃煡鏁伴噺
+- 鏈€杩戞湁瀹℃煡璁板綍鐨勭敤鎴?
 
-这些数据来自账号 JSON 和各用户的 `records/review_history.json`。
+杩欎簺鏁版嵁鏉ヨ嚜璐﹀彿 JSON 鍜屽悇鐢ㄦ埛鐨?`records/review_history.json`銆?
 
 ### `/admin/users`
 
-管理员可以：
+绠＄悊鍛樺彲浠ワ細
 
-- 创建用户
-- 设置初始密码
-- 设置显示名称
-- 设置角色 `user` 或 `admin`
-- 查看全部用户
-- 进入用户详情页
+- 鍒涘缓鐢ㄦ埛
+- 璁剧疆鍒濆瀵嗙爜
+- 璁剧疆鏄剧ず鍚嶇О
+- 璁剧疆瑙掕壊 `user` 鎴?`admin`
+- 鏌ョ湅鍏ㄩ儴鐢ㄦ埛
+- 杩涘叆鐢ㄦ埛璇︽儏椤?
 
-创建用户时会同时初始化用户数据目录，并复制系统默认审查要点。
+鍒涘缓鐢ㄦ埛鏃朵細鍚屾椂鍒濆鍖栫敤鎴锋暟鎹洰褰曪紝骞跺鍒剁郴缁熼粯璁ゅ鏌ヨ鐐广€?
 
 ### `/admin/users/{username}`
 
-管理员可以：
+绠＄悊鍛樺彲浠ワ細
 
-- 修改用户角色
-- 重置用户密码
-- 启用用户
-- 禁用用户
-- 删除用户
-- 删除用户时选择是否保留用户数据目录
-- 下载用户默认审查要点
-- 上传覆盖用户默认审查要点
-- 恢复系统默认审查要点
-- 查看该用户审核历史
-- 查看该用户日志目录和 API 事件
+- 淇敼鐢ㄦ埛瑙掕壊
+- 閲嶇疆鐢ㄦ埛瀵嗙爜
+- 鍚敤鐢ㄦ埛
+- 绂佺敤鐢ㄦ埛
+- 鍒犻櫎鐢ㄦ埛
+- 鍒犻櫎鐢ㄦ埛鏃堕€夋嫨鏄惁淇濈暀鐢ㄦ埛鏁版嵁鐩綍
+- 涓嬭浇鐢ㄦ埛榛樿瀹℃煡瑕佺偣
+- 涓婁紶瑕嗙洊鐢ㄦ埛榛樿瀹℃煡瑕佺偣
+- 鎭㈠绯荤粺榛樿瀹℃煡瑕佺偣
+- 鏌ョ湅璇ョ敤鎴峰鏍稿巻鍙?
+- 鏌ョ湅璇ョ敤鎴锋棩蹇楃洰褰曞拰 API 浜嬩欢
 
-删除用户有前端二次确认，逻辑在：
+鍒犻櫎鐢ㄦ埛鏈夊墠绔簩娆＄‘璁わ紝閫昏緫鍦細
 
 ```text
 frontend/static/app.js
 ```
 
-后端保护：
+鍚庣淇濇姢锛?
 
-- 管理员不能禁用当前登录的自己。
-- 管理员不能删除当前登录的自己。
-- 管理员不能移除自己的管理员角色。
+- 绠＄悊鍛樹笉鑳界鐢ㄥ綋鍓嶇櫥褰曠殑鑷繁銆?
+- 绠＄悊鍛樹笉鑳藉垹闄ゅ綋鍓嶇櫥褰曠殑鑷繁銆?
+- 绠＄悊鍛樹笉鑳界Щ闄よ嚜宸辩殑绠＄悊鍛樿鑹层€?
 
-## 后端账号数据
+## 鍚庣璐﹀彿鏁版嵁
 
-账号数据路径由 `config.py` 中的 `USERS_FILE` 决定。
+璐﹀彿鏁版嵁璺緞鐢?`config.py` 涓殑 `USERS_FILE` 鍐冲畾銆?
 
-默认值：
+榛樿鍊硷細
 
 ```text
 <PROJECT_ROOT>/user_profiles/users.json
 ```
 
-可以通过环境变量覆盖：
+鍙互閫氳繃鐜鍙橀噺瑕嗙洊锛?
 
 ```env
-USERS_FILE=/app/user_profiles/users.json
+user_profiles/users.json
 ```
 
-账号 JSON 结构：
+璐﹀彿 JSON 缁撴瀯锛?
 
 ```json
 {
@@ -195,7 +195,7 @@ USERS_FILE=/app/user_profiles/users.json
     {
       "username": "user001",
       "password_hash": "pbkdf2_sha256$...",
-      "display_name": "张三",
+      "display_name": "寮犱笁",
       "role": "user",
       "enabled": true,
       "created_at": "2026-06-01 12:00:00"
@@ -204,46 +204,46 @@ USERS_FILE=/app/user_profiles/users.json
 }
 ```
 
-字段说明：
+瀛楁璇存槑锛?
 
 ```text
-username             登录用户名，也是用户数据目录名
-password_hash        PBKDF2 密码哈希，不保存明文密码
-display_name         前端展示名称
-role                 user 或 admin
-enabled              是否允许登录
-created_at           创建时间
-role_updated_at      角色更新时间
-password_updated_at  密码更新时间
-enabled_at           启用时间
-disabled_at          禁用时间
+username             鐧诲綍鐢ㄦ埛鍚嶏紝涔熸槸鐢ㄦ埛鏁版嵁鐩綍鍚?
+password_hash        PBKDF2 瀵嗙爜鍝堝笇锛屼笉淇濆瓨鏄庢枃瀵嗙爜
+display_name         鍓嶇灞曠ず鍚嶇О
+role                 user 鎴?admin
+enabled              鏄惁鍏佽鐧诲綍
+created_at           鍒涘缓鏃堕棿
+role_updated_at      瑙掕壊鏇存柊鏃堕棿
+password_updated_at  瀵嗙爜鏇存柊鏃堕棿
+enabled_at           鍚敤鏃堕棿
+disabled_at          绂佺敤鏃堕棿
 ```
 
-禁用用户后，登录页会显示：
+绂佺敤鐢ㄦ埛鍚庯紝鐧诲綍椤典細鏄剧ず锛?
 
 ```text
-账号已被禁用，请联系管理员。
+璐﹀彿宸茶绂佺敤锛岃鑱旂郴绠＄悊鍛樸€?
 ```
 
-只有用户名存在、密码正确、但 `enabled=false` 时才显示禁用提示。用户名不存在或密码错误时显示用户名或密码错误。
+鍙湁鐢ㄦ埛鍚嶅瓨鍦ㄣ€佸瘑鐮佹纭€佷絾 `enabled=false` 鏃舵墠鏄剧ず绂佺敤鎻愮ず銆傜敤鎴峰悕涓嶅瓨鍦ㄦ垨瀵嗙爜閿欒鏃舵樉绀虹敤鎴峰悕鎴栧瘑鐮侀敊璇€?
 
-## 用户数据目录
+## 鐢ㄦ埛鏁版嵁鐩綍
 
-用户数据根目录由 `config.py` 中的 `DATA_DIR` 决定。
+鐢ㄦ埛鏁版嵁鏍圭洰褰曠敱 `config.py` 涓殑 `DATA_DIR` 鍐冲畾銆?
 
-默认值：
+榛樿鍊硷細
 
 ```text
 <PROJECT_ROOT>/data
 ```
 
-可以通过环境变量覆盖：
+鍙互閫氳繃鐜鍙橀噺瑕嗙洊锛?
 
 ```env
-DATA_DIR=/app/data
+data/
 ```
 
-创建用户后会生成：
+鍒涘缓鐢ㄦ埛鍚庝細鐢熸垚锛?
 
 ```text
 data/<username>/
@@ -257,113 +257,113 @@ data/<username>/
   logs/
 ```
 
-目录初始化逻辑在：
+鐩綍鍒濆鍖栭€昏緫鍦細
 
 ```text
 loggers/resolve_review_task_paths.py
 ```
 
-## 审查要点
+## 瀹℃煡瑕佺偣
 
-系统默认审查要点模板：
+绯荤粺榛樿瀹℃煡瑕佺偣妯℃澘锛?
 
 ```text
 resources/review_criteria/criteria.docx
 ```
 
-新建用户时，程序会复制它到：
+鏂板缓鐢ㄦ埛鏃讹紝绋嬪簭浼氬鍒跺畠鍒帮細
 
 ```text
 data/<username>/contract_review_criteria/criteria.docx
 ```
 
-普通用户在 `/work` 上传的审查要点只用于本次任务。管理员在用户详情页上传的审查要点会覆盖该用户默认文件：
+鏅€氱敤鎴峰湪 `/work` 涓婁紶鐨勫鏌ヨ鐐瑰彧鐢ㄤ簬鏈浠诲姟銆傜鐞嗗憳鍦ㄧ敤鎴疯鎯呴〉涓婁紶鐨勫鏌ヨ鐐逛細瑕嗙洊璇ョ敤鎴烽粯璁ゆ枃浠讹細
 
 ```text
 data/<username>/contract_review_criteria/criteria.docx
 ```
 
-审查要点上传前会做 DOCX 格式检查和内容检查。内容检查逻辑在 `endpoints/runtime/document_validation.py`，目标是拒绝明显不是审查要点的 DOCX。
+瀹℃煡瑕佺偣涓婁紶鍓嶄細鍋?DOCX 鏍煎紡妫€鏌ュ拰鍐呭妫€鏌ャ€傚唴瀹规鏌ラ€昏緫鍦?`endpoints/runtime/document_validation.py`锛岀洰鏍囨槸鎷掔粷鏄庢樉涓嶆槸瀹℃煡瑕佺偣鐨?DOCX銆?
 
-## 共享用户管理服务
+## 鍏变韩鐢ㄦ埛绠＄悊鏈嶅姟
 
-CLI 和管理员 Web 页面共用同一套用户管理逻辑：
+CLI 鍜岀鐞嗗憳 Web 椤甸潰鍏辩敤鍚屼竴濂楃敤鎴风鐞嗛€昏緫锛?
 
 ```text
 endpoints/web/user_management.py
 ```
 
-主要函数：
+涓昏鍑芥暟锛?
 
 ```text
-create_user_account()   创建用户并初始化用户目录
-set_user_role()         修改用户角色
-reset_user_password()   重置密码
-set_user_enabled()      启用或禁用用户
-delete_user_account()   删除用户账号，可选删除用户目录
+create_user_account()   鍒涘缓鐢ㄦ埛骞跺垵濮嬪寲鐢ㄦ埛鐩綍
+set_user_role()         淇敼鐢ㄦ埛瑙掕壊
+reset_user_password()   閲嶇疆瀵嗙爜
+set_user_enabled()      鍚敤鎴栫鐢ㄧ敤鎴?
+delete_user_account()   鍒犻櫎鐢ㄦ埛璐﹀彿锛屽彲閫夊垹闄ょ敤鎴风洰褰?
 ```
 
-这些函数会写入或更新 `USERS_FILE`，并按需要创建或删除 `DATA_DIR/<username>`。
+杩欎簺鍑芥暟浼氬啓鍏ユ垨鏇存柊 `USERS_FILE`锛屽苟鎸夐渶瑕佸垱寤烘垨鍒犻櫎 `DATA_DIR/<username>`銆?
 
 ## CLI
 
-CLI 文件：
+CLI 鏂囦欢锛?
 
 ```text
 scripts/manage_users.py
 ```
 
-查看帮助：
+鏌ョ湅甯姪锛?
 
 ```powershell
 python scripts/manage_users.py --help
 ```
 
-创建普通用户：
+鍒涘缓鏅€氱敤鎴凤細
 
 ```powershell
-python scripts/manage_users.py create --username user001 --password Abc123456 --display-name 张三
+python scripts/manage_users.py create --username user001 --password Abc123456 --display-name 寮犱笁
 ```
 
-创建管理员：
+鍒涘缓绠＄悊鍛橈細
 
 ```powershell
-python scripts/manage_users.py create --username admin --password Admin123456 --display-name 管理员 --role admin
+python scripts/manage_users.py create --username admin --password Admin123456 --display-name 绠＄悊鍛?--role admin
 ```
 
-修改角色：
+淇敼瑙掕壊锛?
 
 ```powershell
 python scripts/manage_users.py set-role --username user001 --role admin
 python scripts/manage_users.py set-role --username user001 --role user
 ```
 
-重置密码：
+閲嶇疆瀵嗙爜锛?
 
 ```powershell
 python scripts/manage_users.py reset-password --username user001 --password NewPass123
 ```
 
-禁用或启用用户：
+绂佺敤鎴栧惎鐢ㄧ敤鎴凤細
 
 ```powershell
 python scripts/manage_users.py disable --username user001
 python scripts/manage_users.py enable --username user001
 ```
 
-删除账号但保留用户数据目录：
+鍒犻櫎璐﹀彿浣嗕繚鐣欑敤鎴锋暟鎹洰褰曪細
 
 ```powershell
 python scripts/manage_users.py delete --username user001 --keep-data
 ```
 
-删除账号并删除用户数据目录：
+鍒犻櫎璐﹀彿骞跺垹闄ょ敤鎴锋暟鎹洰褰曪細
 
 ```powershell
 python scripts/manage_users.py delete --username user001
 ```
 
-删除目录前，后端会检查目标路径必须位于 `DATA_DIR` 内，避免误删不安全路径。
+鍒犻櫎鐩綍鍓嶏紝鍚庣浼氭鏌ョ洰鏍囪矾寰勫繀椤讳綅浜?`DATA_DIR` 鍐咃紝閬垮厤璇垹涓嶅畨鍏ㄨ矾寰勩€?
 
 ## ???? Session
 
@@ -391,25 +391,24 @@ auth_contexts[ctx] = {
 
 ??????`POST /logout?ctx=<ctx>` ????? ctx??????????????? tab?
 
-## Docker 部署落点
+## Docker 閮ㄧ讲钀界偣
 
-需要区分开发机、远端宿主机、正在运行的服务容器和临时管理容器。
+闇€瑕佸尯鍒嗗紑鍙戞満銆佽繙绔涓绘満銆佹鍦ㄨ繍琛岀殑鏈嶅姟瀹瑰櫒鍜屼复鏃剁鐞嗗鍣ㄣ€?
 
-当前仓库默认 `.env.example` 配置：
+褰撳墠浠撳簱榛樿 `.env.example` 閰嶇疆锛?
 
 ```env
-DATA_DIR=data
-USERS_FILE=user_profiles/users.json
+data/ and user_profiles/users.json
 ```
 
-当前 `docker-compose.yaml` 挂载后，容器内实际等价于：
+褰撳墠 `docker-compose.yaml` 鎸傝浇鍚庯紝瀹瑰櫒鍐呭疄闄呯瓑浠蜂簬锛?
 
 ```text
-DATA_DIR=/app/data
-USERS_FILE=/app/user_profiles/users.json
+data/
+user_profiles/users.json
 ```
 
-compose 挂载：
+compose 鎸傝浇锛?
 
 ```yaml
 volumes:
@@ -417,36 +416,36 @@ volumes:
   - ./data:/app/data
 ```
 
-此时 Web 后台和 CLI 创建用户后，最终写到远端宿主机：
+姝ゆ椂 Web 鍚庡彴鍜?CLI 鍒涘缓鐢ㄦ埛鍚庯紝鏈€缁堝啓鍒拌繙绔涓绘満锛?
 
 ```text
 ./user_profiles/users.json
 ./data/<username>/
 ```
 
-如果没有挂载 `DATA_DIR`，这些数据会写进服务容器内部文件系统，容器重建后有丢失风险。
+濡傛灉娌℃湁鎸傝浇 `DATA_DIR`锛岃繖浜涙暟鎹細鍐欒繘鏈嶅姟瀹瑰櫒鍐呴儴鏂囦欢绯荤粺锛屽鍣ㄩ噸寤哄悗鏈変涪澶遍闄┿€?
 
-如果从旧部署迁移，原来的 `users.json` 需要手动移动到：
+濡傛灉浠庢棫閮ㄧ讲杩佺Щ锛屽師鏉ョ殑 `users.json` 闇€瑕佹墜鍔ㄧЩ鍔ㄥ埌锛?
 
 ```text
 user_profiles/users.json
 ```
 
-如果希望账号 JSON 放入统一数据挂载目录，可以设置：
+濡傛灉甯屾湜璐﹀彿 JSON 鏀惧叆缁熶竴鏁版嵁鎸傝浇鐩綍锛屽彲浠ヨ缃細
 
 ```env
-DATA_DIR=/app/data
-USERS_FILE=/app/data/users.json
+data/
+user_profiles/users.json
 ```
 
-并把 compose 调整为只挂载总数据目录：
+骞舵妸 compose 璋冩暣涓哄彧鎸傝浇鎬绘暟鎹洰褰曪細
 
 ```yaml
 volumes:
   - ./data:/app/data
 ```
 
-如果要自定义新用户默认审查要点，可以挂载单个文件：
+濡傛灉瑕佽嚜瀹氫箟鏂扮敤鎴烽粯璁ゅ鏌ヨ鐐癸紝鍙互鎸傝浇鍗曚釜鏂囦欢锛?
 
 ```yaml
 volumes:
@@ -454,19 +453,24 @@ volumes:
   - ./criteria.docx:/app/resources/review_criteria/criteria.docx:ro
 ```
 
-这样新建用户时复制出来的默认审查要点来自宿主机文件。
+杩欐牱鏂板缓鐢ㄦ埛鏃跺鍒跺嚭鏉ョ殑榛樿瀹℃煡瑕佺偣鏉ヨ嚜瀹夸富鏈烘枃浠躲€?
 
-## 当前边界
+## 褰撳墠杈圭晫
 
-当前用户管理仍是单租户用户体系：
+褰撳墠鐢ㄦ埛绠＄悊浠嶆槸鍗曠鎴风敤鎴蜂綋绯伙細
 
-- 所有用户共享一个 `USERS_FILE`。
-- 用户之间通过 `DATA_DIR/<username>` 分区。
-- 管理员是全局管理员，不是租户管理员。
-- 还没有租户表或租户级权限模型。
+- 鎵€鏈夌敤鎴峰叡浜竴涓?`USERS_FILE`銆?
+- 鐢ㄦ埛涔嬮棿閫氳繃 `DATA_DIR/<username>` 鍒嗗尯銆?
+- 绠＄悊鍛樻槸鍏ㄥ眬绠＄悊鍛橈紝涓嶆槸绉熸埛绠＄悊鍛樸€?
+- 杩樻病鏈夌鎴疯〃鎴栫鎴风骇鏉冮檺妯″瀷銆?
 
-后续进入租户阶段时，需要把账号数据和目录结构扩展为租户分区，例如：
+鍚庣画杩涘叆绉熸埛闃舵鏃讹紝闇€瑕佹妸璐﹀彿鏁版嵁鍜岀洰褰曠粨鏋勬墿灞曚负绉熸埛鍒嗗尯锛屼緥濡傦細
 
 ```text
 data/<tenant_id>/<username>/
 ```
+
+
+## Current path configuration
+
+DATA_DIR and USERS_FILE are fixed in config.py as project-local data/ and user_profiles/users.json. They are no longer configured through .env or config.yaml.

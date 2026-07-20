@@ -1,83 +1,111 @@
 """
 Local CLI entry point for the contract review workflow.
 """
+from __future__ import annotations
+
 import argparse
 import asyncio
-from pathlib import Path
 import shutil
+import tempfile
+from pathlib import Path
 
-from config import DATA_DIR, DEFAULT_CLI_USERNAME, MCP_SERVER_PATH
+from config import DEFAULT_REVIEW_CRITERIA_PATH, MCP_SERVER_PATH
+from endpoints.runtime.document_validation import validate_review_criteria_content, validate_uploaded_docx
+from endpoints.runtime.filenames import build_report_display_name
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
-from loggers.resolve_review_task_paths import resolve_review_task_paths
 from main_workflow.main_workflow import ContractReviewWorkflow
-from endpoints.runtime.document_validation import validate_uploaded_docx
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run a local contract review.")
     parser.add_argument(
-        "--username",
-        default=DEFAULT_CLI_USERNAME,
-        help="User partition under data/. Defaults to DEFAULT_CLI_USERNAME.",
-    )
-    parser.add_argument(
         "--contract",
         required=True,
-        help="Contract filename under data/<username>/contracts or an absolute path.",
+        help="Contract DOCX path.",
+    )
+    parser.add_argument(
+        "--criteria",
+        help="Optional review criteria DOCX path. Defaults to the system criteria file.",
+    )
+    parser.add_argument(
+        "--output",
+        help="Optional output DOCX path. Defaults to the current working directory.",
     )
     return parser
 
 
-def resolve_contract_path(username: str, contract: str) -> Path:
-    path = Path(contract)
-    if path.is_absolute():
-        return path
-    return Path(DATA_DIR) / username / "contracts" / contract
+def resolve_existing_docx(path_value: str, label: str) -> Path:
+    path = Path(path_value).expanduser().resolve()
+    if not path.exists():
+        raise FileNotFoundError(f"{label} file was not found: {path}")
+    if path.suffix.lower() != ".docx":
+        raise ValueError(f"{label} file must be DOCX: {path}")
+    return path
 
 
-async def run_cli(username: str, contract: str) -> dict:
-    contract_path = resolve_contract_path(username, contract)
-    if not contract_path.exists():
-        raise FileNotFoundError(f"未找到合同文件：{contract_path}")
+def resolve_output_path(contract_path: Path, output: str | None) -> Path:
+    if output:
+        path = Path(output).expanduser()
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        if path.suffix.lower() != ".docx":
+            raise ValueError(f"Output path must end with .docx: {path}")
+        return path.resolve()
+    return (Path.cwd() / build_report_display_name(contract_path.name)).resolve()
 
-    paths = resolve_review_task_paths(
-        username=username,
-        original_filename=contract_path.name,
-        data_dir=Path(DATA_DIR),
+
+async def run_cli(contract: str, criteria: str | None = None, output: str | None = None) -> dict:
+    contract_path = resolve_existing_docx(contract, "Contract")
+    criteria_path = (
+        resolve_existing_docx(criteria, "Review criteria")
+        if criteria
+        else resolve_existing_docx(DEFAULT_REVIEW_CRITERIA_PATH, "Default review criteria")
     )
-    paths.ensure_task_dirs()
+    output_path = resolve_output_path(contract_path, output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if not paths.criteria_path.exists():
-        raise FileNotFoundError(f"未找到审查要点文件：{paths.criteria_path}")
+    validate_uploaded_docx(contract_path)
+    validate_uploaded_docx(criteria_path)
+    validate_review_criteria_content(criteria_path)
 
-    if contract_path.resolve() != paths.stored_contract_path.resolve():
-        shutil.copy2(contract_path, paths.stored_contract_path)
+    with tempfile.TemporaryDirectory(prefix="contract-review-cli-") as temp_dir:
+        temp_root = Path(temp_dir)
+        workflow_log_dir = temp_root / "logs" / "workflow"
+        conversation_log_dir = temp_root / "logs" / "conversations"
+        mcp_log_dir = temp_root / "logs" / "mcp"
+        for path in (workflow_log_dir, conversation_log_dir, mcp_log_dir):
+            path.mkdir(parents=True, exist_ok=True)
 
-    validate_uploaded_docx(paths.stored_contract_path)
+        temp_output_path = temp_root / output_path.name
+        token = set_conversation_log_dir(conversation_log_dir)
+        try:
+            workflow = ContractReviewWorkflow(
+                server_script_path=MCP_SERVER_PATH,
+                workflow_log_dir=str(workflow_log_dir),
+                conversation_log_dir=str(conversation_log_dir),
+                mcp_log_file=str(mcp_log_dir / "mcp_client.log"),
+            )
+            result = await workflow.run(
+                contract_path=str(contract_path),
+                criteria_path=str(criteria_path),
+                output_path=str(temp_output_path),
+            )
+        finally:
+            reset_conversation_log_dir(token)
 
-    token = set_conversation_log_dir(paths.conversation_log_dir)
-    try:
-        workflow = ContractReviewWorkflow(
-            server_script_path=MCP_SERVER_PATH,
-            workflow_log_dir=str(paths.workflow_log_dir),
-            conversation_log_dir=str(paths.conversation_log_dir),
-            mcp_log_file=str(paths.mcp_log_dir / "mcp_client.log"),
-        )
-        result = await workflow.run(
-            contract_path=str(paths.stored_contract_path),
-            criteria_path=str(paths.criteria_path),
-            output_path=str(paths.final_report_path),
-        )
-    finally:
-        reset_conversation_log_dir(token)
+        generated_path = Path(result["report_docx"])
+        if not generated_path.exists():
+            raise RuntimeError("Output DOCX file was not found.")
+        shutil.copy2(generated_path, output_path)
 
-    result["final_report_docx"] = str(paths.final_report_path)
-    print(f"Final report: {paths.final_report_path}")
+    result["final_report_docx"] = str(output_path)
+    print(f"Final report: {output_path}")
     return result
 
 
 def main() -> None:
     args = build_parser().parse_args()
-    asyncio.run(run_cli(args.username, args.contract))
+    asyncio.run(run_cli(args.contract, criteria=args.criteria, output=args.output))
 
 
 if __name__ == "__main__":

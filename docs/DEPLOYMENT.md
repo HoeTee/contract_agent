@@ -1,18 +1,18 @@
-# 部署说明
+﻿# 閮ㄧ讲璇存槑
 
-## 构建镜像
+## 鏋勫缓闀滃儚
 
 ```powershell
 docker build -t deep-research-agent:latest .
 ```
 
-## 启动服务
+## 鍚姩鏈嶅姟
 
 ```powershell
 docker compose up -d
 ```
 
-## 服务器上必须准备的文件和目录
+## 鏈嶅姟鍣ㄤ笂蹇呴』鍑嗗鐨勬枃浠跺拰鐩綍
 
 ```text
 .env
@@ -21,7 +21,7 @@ user_profiles/
 data/
 ```
 
-当前 `docker-compose.yaml` 会把 `.env`、`user_profiles/` 和 `data/` 挂载进容器：
+褰撳墠 `docker-compose.yaml` 浼氭妸 `.env`銆乣user_profiles/` 鍜?`data/` 鎸傝浇杩涘鍣細
 
 ```yaml
 volumes:
@@ -31,74 +31,73 @@ volumes:
   - ./data:/app/data
 ```
 
-`user_profiles/` 可以是空目录。首次创建用户时，程序会自动生成：
+`user_profiles/` 鍙互鏄┖鐩綍銆傞娆″垱寤虹敤鎴锋椂锛岀▼搴忎細鑷姩鐢熸垚锛?
 
 ```text
 user_profiles/users.json
 ```
 
-`user_profiles/` 需要可写挂载，因为管理员后台和 CLI 会创建账号，普通用户也可以在前端修改显示名称。
+`user_profiles/` 闇€瑕佸彲鍐欐寕杞斤紝鍥犱负绠＄悊鍛樺悗鍙板拰 CLI 浼氬垱寤鸿处鍙凤紝鏅€氱敤鎴蜂篃鍙互鍦ㄥ墠绔慨鏀规樉绀哄悕绉般€?
 
-用户运行数据会被挂载到容器中：
+鐢ㄦ埛杩愯鏁版嵁浼氳鎸傝浇鍒板鍣ㄤ腑锛?
 
 ```yaml
 - ./data:/app/data
 ```
 
-如果从旧部署迁移，原来的 `users.json` 需要手动移动到：
+濡傛灉浠庢棫閮ㄧ讲杩佺Щ锛屽師鏉ョ殑 `users.json` 闇€瑕佹墜鍔ㄧЩ鍔ㄥ埌锛?
 
 ```text
 user_profiles/users.json
 ```
 
-也可以在 `config.yaml` 中设置 `storage.users_file` 临时兼容旧路径，但新部署推荐使用 `user_profiles/` 目录挂载。
-
-如果要自定义新用户默认审查要点模板，可以挂载单个文件：
+`users_file` is no longer configurable in `config.yaml`; move legacy user data to `user_profiles/users.json`.
+濡傛灉瑕佽嚜瀹氫箟鏂扮敤鎴烽粯璁ゅ鏌ヨ鐐规ā鏉匡紝鍙互鎸傝浇鍗曚釜鏂囦欢锛?
 
 ```yaml
 - ./criteria.docx:/app/resources/review_criteria/criteria.docx:ro
 ```
 
-不要挂载空的 `resources/review_criteria/` 目录覆盖容器内默认模板，除非宿主机目录中已经有 `criteria.docx`。
+涓嶈鎸傝浇绌虹殑 `resources/review_criteria/` 鐩綍瑕嗙洊瀹瑰櫒鍐呴粯璁ゆā鏉匡紝闄ら潪瀹夸富鏈虹洰褰曚腑宸茬粡鏈?`criteria.docx`銆?
 
-## 端口说明
+## 绔彛璇存槑
 
-当前 compose 命令让容器内部服务监听：
+褰撳墠 compose 鍛戒护璁╁鍣ㄥ唴閮ㄦ湇鍔＄洃鍚細
 
 ```text
 0.0.0.0:8000
 ```
 
-`docker-compose.yaml` 中的端口映射决定外部如何访问。例如：
+`docker-compose.yaml` 涓殑绔彛鏄犲皠鍐冲畾澶栭儴濡備綍璁块棶銆備緥濡傦細
 
 ```yaml
 ports:
   - "0.0.0.0:5000:8000"
 ```
 
-表示允许通过服务器 5000 端口访问：
+琛ㄧず鍏佽閫氳繃鏈嶅姟鍣?5000 绔彛璁块棶锛?
 
 ```text
-http://服务器IP:5000
+http://鏈嶅姟鍣↖P:5000
 ```
 
-如果只允许服务器本机访问，需要改为：
+濡傛灉鍙厑璁告湇鍔″櫒鏈満璁块棶锛岄渶瑕佹敼涓猴細
 
 ```yaml
 ports:
   - "127.0.0.1:5000:8000"
 ```
 
-然后访问：
+鐒跺悗璁块棶锛?
 
 ```text
 http://127.0.0.1:5000
 ```
 
-## 健康检查
+## 鍋ュ悍妫€鏌?
 
 ```text
 http://127.0.0.1:5000/health
 ```
 
-容器内部健康检查访问的是 `http://127.0.0.1:8000/health`，这是容器内端口，不是宿主机端口。
+瀹瑰櫒鍐呴儴鍋ュ悍妫€鏌ヨ闂殑鏄?`http://127.0.0.1:8000/health`锛岃繖鏄鍣ㄥ唴绔彛锛屼笉鏄涓绘満绔彛銆?

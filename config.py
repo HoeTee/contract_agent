@@ -129,7 +129,6 @@ LOGS_DIR = str(PROJECT_ROOT_PATH / "logs" / "workflow")
 LLM_API_KEY = env_required("LLM_API_KEY")
 EMBED_API_KEY = env_required("EMBED_API_KEY")
 RERANK_API_KEY = env_required("RERANK_API_KEY")
-MINERU_API_KEY = env_required("MINERU_API_KEY")
 SESSION_SECRET_KEY = env_required("SESSION_SECRET_KEY")
 
 LLM_BASE_URL = _as_str(cfg("llm", "base_url"), "llm.base_url")
@@ -150,9 +149,13 @@ RERANK_ENDPOINT_FORMAT = _as_str(
     cfg("rerank", "endpoint_format"),
     "rerank.endpoint_format",
 ).lower()
-if RERANK_ENDPOINT_FORMAT not in {"openai", "dashscope", "zjrcu"}:
-    raise RuntimeError("rerank.endpoint_format must be 'openai', 'dashscope', or 'zjrcu'.")
+if RERANK_ENDPOINT_FORMAT not in {"openai", "zjrcu"}:
+    raise RuntimeError("rerank.endpoint_format must be 'openai' or 'zjrcu'.")
 RERANK_NAME = _as_str(cfg("rerank", "name"), "rerank.name")
+RERANK_INJECT_INSTRUCT = _parse_bool(
+    cfg("rerank", "inject_instruct"),
+    "rerank.inject_instruct",
+)
 
 MAX_REFLECTION_ROUNDS = _as_int(
     cfg("workflow", "max_reflection_rounds"),
@@ -180,19 +183,9 @@ CHUNK_OVERLAP = _as_int(cfg("retrieval", "chunk_overlap"), "retrieval.chunk_over
 SIMILARITY_TOP_K = _as_int(cfg("retrieval", "similarity_top_k"), "retrieval.similarity_top_k")
 RERANK_TOP_N = _as_int(cfg("retrieval", "rerank_top_n"), "retrieval.rerank_top_n")
 
-PARSE_FILE_WITH_MINERU = _parse_bool(
-    cfg("parser", "parse_file_with_mineru"),
-    "parser.parse_file_with_mineru",
-)
+DATA_DIR = str(PROJECT_ROOT_PATH / "data")
+USERS_FILE = str(PROJECT_ROOT_PATH / "user_profiles" / "users.json")
 
-DATA_DIR = _project_path(cfg("storage", "data_dir"), "storage.data_dir")
-USERS_FILE = _project_path(cfg("storage", "users_file"), "storage.users_file")
-DEFAULT_CLI_USERNAME = _as_str(
-    cfg("storage", "default_cli_username"),
-    "storage.default_cli_username",
-)
-
-API_STORE = _parse_bool(cfg("api", "store"), "api.store")
 API_KEEP_INPUT = _parse_bool(cfg("api", "keep_input"), "api.keep_input")
 API_WRITE_LOGS = _parse_bool(cfg("api", "write_logs"), "api.write_logs")
 API_META_REQUIRED = _parse_bool(cfg("api", "meta_required"), "api.meta_required")
@@ -213,9 +206,6 @@ ENABLE_WORKFLOW_LOGS = _parse_bool(
     cfg("logging", "enable_workflow_logs"),
     "logging.enable_workflow_logs",
 )
-
-MINERU_API_BASE = _as_str(cfg("mineru", "api_base"), "mineru.api_base").rstrip("/")
-MINERU_API_ENABLE_OCR = True
 
 print("[config] Retrieval mode : LlamaIndex temporary contract RAG (MCP)")
 print(

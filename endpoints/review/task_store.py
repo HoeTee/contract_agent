@@ -39,8 +39,25 @@ def validate_client_dir(client_dir: str) -> str:
     return value
 
 
+def web_client_dir(tenant_id: str) -> str:
+    value = str(tenant_id).strip()
+    if not value or any(part in value for part in ('/', '\\', ':')) or value in {".", ".."}:
+        raise ValueError("invalid tenant_id")
+    return f"web:{value}"
+
+
+def _task_scope_root(client_dir: str) -> Path:
+    validated = validate_client_dir(client_dir)
+    if validated.startswith("web:"):
+        tenant_id = validated.removeprefix("web:")
+        if not tenant_id:
+            raise ValueError("invalid web client_dir")
+        return Path(DATA_DIR) / "web" / tenant_id
+    return Path(DATA_DIR) / "api"
+
+
 def task_dir(client_dir: str, task_id: str) -> Path:
-    return Path(DATA_DIR) / "api" / validate_task_id(task_id)
+    return _task_scope_root(client_dir) / validate_task_id(task_id)
 
 
 def task_json_path(client_dir: str, task_id: str) -> Path:
@@ -297,14 +314,24 @@ def mark_succeeded(client_dir: str, task_id: str) -> dict[str, Any]:
     )
 
 
-def mark_failed(client_dir: str, task_id: str, *, code: str, message: str) -> dict[str, Any]:
+def mark_failed(
+    client_dir: str,
+    task_id: str,
+    *,
+    code: str,
+    message: str,
+    component: str | None = None,
+) -> dict[str, Any]:
+    error = {"code": code, "message": message}
+    if component:
+        error["component"] = component
     return update_task(
         client_dir,
         task_id,
         status="failed",
         finished_at=now_iso(),
         message="Contract review failed.",
-        error={"code": code, "message": message},
+        error=error,
     )
 
 

@@ -100,7 +100,7 @@ async def run_async_review_job(client_dir: str, task_id: str) -> None:
                 component=exc.component,
                 error=str(exc),
             )
-            mark_failed(client_dir, task_id, code=exc.event_type, message=exc.user_message)
+            mark_failed(client_dir, task_id, code=exc.event_type, message=exc.user_message, component=exc.component)
         else:
             mark_failed(client_dir, task_id, code="REVIEW_FAILED", message="Review failed. Check task logs.")
         write_task_log_event(client_dir, task_id, "review_failed", error=repr(exc))

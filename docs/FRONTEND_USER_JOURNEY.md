@@ -1,356 +1,79 @@
-# 前端用户旅程
+# Frontend User Journey
 
-补充：前端用户和管理端路由已统一迁移到 `/web` 前缀，例如 `/web/login`、`/web/work`、`/web/history`、`/web/settings`、`/web/admin`、`/web/admin/users`。外部直接调用的无 Cookie API 统一使用 `/api` 前缀，详见 `docs/ASYNC_REVIEW_API.md`。
+This document describes the Web UI flow for normal users.
 
-本文只描述 Web 前端用户旅程和页面状态，不覆盖 agent 内部审查流程。普通用户页面由 `endpoints/web/user_routes.py` 提供路由，管理员页面由 `endpoints/web/admin_routes.py` 提供路由，页面由 `frontend/templates/` 渲染，交互脚本在 `frontend/static/app.js`。
-
-## 页面入口
+## Main Flow
 
 ```text
-路径                         角色             页面/行为
----------------------------------------------------------------
-/                            未登录用户        显示登录页
-/                            普通用户          重定向到 /work
-/                            管理员            重定向到 /admin
-/login                       所有用户          显示登录页；成功登录后创建新的 ctx
-/work                        普通用户          上传审核工作台
-/history                     普通用户          审核历史
-/settings                    普通用户          用户设置
-/admin                       管理员            管理后台首页
-/admin/users                 管理员            用户管理
-/admin/users/{username}      管理员            用户详情
+GET /web
+  -> if session is missing: render login.html
+  -> if session is valid: redirect by role
+
+POST /web/login
+  -> verify tenant/user/password
+  -> create ctx
+  -> admin: /web/admin
+  -> user: /web/work
+
+GET /web/work
+  -> read latest Web task from data/web/<tenant_id>/
+  -> show upload form when no pending/queued/running task exists
+  -> show current task status when a task is active
+  -> show download entry when the latest task succeeded
+
+POST /web/review
+  -> validate DOCX input
+  -> optionally validate uploaded review criteria DOCX
+  -> create a Web-scoped task in data/web/<tenant_id>/<task_id>/
+  -> dispatch the shared review worker
+  -> redirect to /web/work
 ```
 
-关键边界：
+## Task State
 
-- `POST /login` 登录成功会创建新的账号上下文 `ctx`，不会覆盖其他 tab 的 ctx。
-- 同一浏览器再次登录同一个账号会创建新 ctx，并使该账号旧 ctx 失效。
-- `POST /logout?ctx=...` 只退出当前 ctx。
-- 访问 `/` 或 `GET /login` 不应打断同一浏览器中已有页面。
-- 同一浏览器多个 tab 共享一个 `contract_review_session` cookie，但每个 tab 通过 URL 中的 `ctx` 区分当前账号。
-- 同一个账号同一时间只允许一个审核任务处于 `queued` 或 `running`。
-
-## 完整主旅程
+Web no longer uses an in-memory `review_tasks` dictionary as the source of truth. Web tasks are stored as task-store records under:
 
 ```text
-+----------------------+
-| 打开 http://host:5000 |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| GET /                |
-+----------+-----------+
-           |
-           v
-  +------------------+
-  | session 是否有效? |
-  +----+---------+---+
-       |         |
-       | 否      | 是
-       v         v
-+-----------+  +-------------------+
-| 登录页     |  | 根据 role 跳转     |
-| login.html|  +---------+---------+
-+-----+-----+            |
-      |                  |
-      v                  v
-+-------------+   +------------------+
-| POST /login |   | user  -> /work   |
-+------+------+   | admin -> /admin  |
-       |          +------------------+
-       v
- +----------------+
- | 账号密码正确?   |
- +---+--------+---+
-     |        |
-     | 否     | 是
-     v        v
-+---------+  +----------------------+
-| 显示错误 |  | 创建 ctx              |
-+---------+  | ctx -> username/role  |
-             +-----------+----------+
-                         |
-                         v
-              +----------------------+
-              | 普通用户进入 /work    |
-              +-----------+----------+
-                          |
-                          v
-              +----------------------+
-              | 上传合同 DOCX         |
-              | 可选审查要点 DOCX     |
-              +-----------+----------+
-                          |
-                          v
-              +----------------------+
-              | POST /review          |
-              +-----------+----------+
-                          |
-                          v
-              +----------------------+
-              | 创建审核任务           |
-              | review_tasks[username]|
-              +-----------+----------+
-                          |
-                          v
-              +----------------------+
-              | 页面回到 /work         |
-              | 显示审核中             |
-              +-----------+----------+
-                          |
-                          v
-              +----------------------+
-              | 后台任务完成           |
-              | 生成批注版 DOCX        |
-              +-----------+----------+
-                          |
-                          v
-              +----------------------+
-              | /work 显示下载入口     |
-              +-----------+----------+
-                          |
-                          v
-              +----------------------+
-              | 下载结果或查看历史      |
-              +----------------------+
+data/web/<tenant_id>/<task_id>/task.json
 ```
 
-## 普通用户工作台旅程
-
-`/work` 是普通用户主页面，对应模板 `frontend/templates/index.html`。
+The Web route uses the same worker/status model as API tasks:
 
 ```text
-+------------------+
-| 进入 /work        |
-+--------+---------+
-         |
-         v
-+------------------+
-| 校验 session 用户 |
-+---+----------+---+
-    |          |
-    | 无效     | 有效
-    v          v
-+--------+  +--------------------+
-| /login |  | role 是否 admin?    |
-+--------+  +-----+----------+---+
-              |              |
-              | 是           | 否
-              v              v
-          +--------+   +----------------------+
-          | /admin |   | 渲染工作台             |
-          +--------+   +----------+-----------+
-                                  |
-                                  v
-                     +-------------------------+
-                     | 当前用户是否有运行任务?   |
-                     +----------+--------------+
-                                |
-               +----------------+----------------+
-               |                                 |
-               | 是                              | 否
-               v                                 v
-   +-------------------------+       +--------------------------+
-   | 显示审核中状态           |       | 显示上传表单              |
-   | 禁用文件输入和提交按钮    |       | 合同必填，审查要点可选      |
-   | 前端 5 秒后刷新页面       |       +------------+-------------+
-   +------------+------------+                    |
-                |                                 v
-                |                      +--------------------------+
-                |                      | 用户提交 POST /review     |
-                |                      +--------------------------+
-                v
-   +-------------------------+
-   | 任务完成后显示下载入口    |
-   +-------------------------+
+pending
+  -> queued
+  -> running
+  -> succeeded
+
+pending/queued/running
+  -> failed
 ```
 
-## 审核任务状态旅程
-
-审核任务状态由后端内存字典 `review_tasks` 按用户名记录。前端只展示当前用户自己的任务状态。
+API and Web storage remain separate:
 
 ```text
-无任务
-  |
-  | 用户提交 /review
-  v
-queued
-  |
-  | 后台任务开始执行
-  v
-running
-  |
-  +-----------------------+
-  |                       |
-  | 成功                  | 失败
-  v                       v
-completed              failed
-  |                       |
-  | /work 显示下载入口     | /work 显示错误信息
-  v                       v
-用户下载 DOCX             用户重新提交
+data/api/<task_id>/
+data/web/<tenant_id>/<task_id>/
 ```
 
-同一用户重复提交的分支：
+## Logs
+
+Web review tasks write event logs through the shared task-store logging helper. The log location is:
 
 ```text
-+----------------------+
-| POST /review          |
-+----------+-----------+
-           |
-           v
-+----------------------+
-| get_running_task(user)|
-+-----+------------+---+
-      |            |
-      | 有         | 无
-      v            v
-+------------+  +----------------+
-| 拒绝新任务   |  | 创建新任务       |
-| 回到 /work  |  | 回到 /work      |
-+------------+  +----------------+
+data/web/<tenant_id>/<task_id>/logs/api_events.jsonl
 ```
 
-## 登录和多标签页旅程
+Model call errors are recorded with the same event code/component pattern used by API tasks.
 
-浏览器按域名共享 cookie，所以同一个浏览器里的多个 tab 共享同一个 `contract_review_session`。系统用 URL 里的 `ctx` 区分每个 tab 当前绑定的账号。
+## Upload Rules
 
-```text
-Tab A: 用户 A 已登录并在 /work?ctx=A 审核中
-  |
-  | 同一浏览器打开 Tab B
-  v
-Tab B: GET /login
-  |
-  v
-用户 B 登录成功，后端创建 ctx=B
-  |
-  v
-Tab B 自动进入 /work?ctx=B 或 /admin?ctx=B
-  |
-  v
-Tab A 仍保持 /work?ctx=A
-```
+- Contract file is required.
+- Contract file must be DOCX.
+- Review criteria file is optional.
+- If provided, the review criteria file must be DOCX and must pass review-criteria validation.
+- If not provided, the user's default review criteria is used.
 
-如果 Tab A 退出登录：
+## Result Download
 
-```text
-Tab A: POST /logout?ctx=A
-  |
-  v
-后端删除 ctx=A
-  |
-  v
-Tab A 回到 /login
-  |
-  v
-Tab B 的 ctx=B 仍然有效
-```
-
-这个设计允许同一个浏览器同时保留多个账号上下文。边界是：`ctx` 是同一浏览器 session 内的账号上下文，不是跨设备共享登录链接；服务重启或 session cookie 丢失后需要重新登录。
-
-## 前端自动行为
-
-`frontend/static/app.js` 负责三个前端自动行为：
-
-```text
-行为                         触发条件
--------------------------------------------------------
-审核中页面自动刷新             页面存在 .status-box
-提交表单后禁用提交按钮          表单带 data-loading-form
-定时检查 session               body 带 data-auth-check="true"
-```
-
-session 检查分支：
-
-```text
-+------------------------------+
-| 每 10 秒请求 /session/status   |
-+---------------+--------------+
-                |
-                v
-       +----------------+
-       | 返回 401 ?      |
-       +---+--------+---+
-           |        |
-           | 是     | 否
-           v        v
-      +---------+  +------------+
-      | /login  |  | 保持当前页  |
-      +---------+  +------------+
-```
-
-## 管理员旅程
-
-管理员登录后进入 `/admin`，普通用户页面会把管理员重定向回后台。
-
-```text
-+----------------+
-| 管理员登录成功  |
-+--------+-------+
-         |
-         v
-+----------------+
-| /admin          |
-+--------+-------+
-         |
-         v
-+-------------------------+
-| 查看用户总数/管理员数/    |
-| 禁用用户数/审查统计       |
-+------------+------------+
-             |
-             v
-+-------------------------+
-| /admin/users             |
-+------------+------------+
-             |
-             v
-+-------------------------+
-| 创建用户                  |
-| 修改角色                  |
-| 启用/禁用/删除用户         |
-| 进入用户详情              |
-+------------+------------+
-             |
-             v
-+-------------------------+
-| /admin/users/{username}   |
-| 管理默认审查要点           |
-| 查看该用户历史和日志        |
-+-------------------------+
-```
-
-## 页面和代码对应关系
-
-```text
-用户可见页面                 模板文件
--------------------------------------------------------
-登录页                       frontend/templates/login.html
-普通用户工作台                frontend/templates/index.html
-审核历史                     frontend/templates/history.html
-用户设置                     frontend/templates/settings.html
-管理员首页                   frontend/templates/admin_dashboard.html
-管理员用户列表                frontend/templates/admin_users.html
-管理员用户详情                frontend/templates/admin_user_detail.html
-```
-
-```text
-前端相关逻辑                 代码文件
--------------------------------------------------------
-普通用户路由和页面状态         endpoints/web/user_routes.py
-管理员路由                   endpoints/web/admin_routes.py
-登录校验和 session 同步       endpoints/runtime/auth.py
-样式                         frontend/static/app.css
-浏览器交互脚本                frontend/static/app.js
-```
-
-## 当前产品边界
-
-- 普通用户不能直接访问管理员页面。
-- 管理员 ctx 访问普通用户 `/work` 会被重定向回 `/admin?ctx=...`。
-- 同一账号不能同时运行多个审核任务。
-- 不同账号可以分别提交任务，但实际并行数量受 `MAX_API_CONCURRENT_REVIEWS` 控制。
-- 账号 ctx 存在浏览器 session cookie 中；服务重启不需要保留服务端 ctx 状态，但正在进行的审核任务状态仍存放在服务进程内存中，服务重启后不会保留。
-- 历史记录来自 `data/<username>/records/review_history.json`，不是扫描输出目录临时生成。
+Successful Web reviews are added to the Web history records. Downloads resolve through history records and task output paths under `data/web/<tenant_id>/<task_id>/output/`.

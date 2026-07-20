@@ -23,7 +23,7 @@ from llama_index.llms.openai_like import OpenAILike
 from tools.retrieval.llamaindex.qwen_reranker import QwenRerankPostprocessor
 from transformers import AutoTokenizer
 from pathlib import Path
-from config import MODEL_CALL_TIMEOUT_SECONDS, MODEL_CALL_MAX_RETRIES
+from config import MODEL_CALL_TIMEOUT_SECONDS, MODEL_CALL_MAX_RETRIES, RERANK_INJECT_INSTRUCT
 from tools.document.docx_anchor_index import build_docx_anchor_nodes
 
 
@@ -88,6 +88,7 @@ class LlamaIndexRAG:
                 endpoint_format=rerank_endpoint_format,
                 model=rerank_name,
                 top_n=rerank_top_n,
+                inject_instruct=RERANK_INJECT_INSTRUCT,
                 timeout=MODEL_CALL_TIMEOUT_SECONDS,
                 max_retries=MODEL_CALL_MAX_RETRIES,
                 instruct="Given a contract review query, retrieve relevant institutional policy passages.",

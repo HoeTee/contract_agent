@@ -14,9 +14,10 @@ embedding:
   name: "text-embedding-v4"
 
 rerank:
-  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-  endpoint_format: "dashscope"
+  base_url: "http://127.0.0.1:8000/v1"
+  endpoint_format: "openai"
   name: "qwen3-rerank"
+  inject_instruct: true
 
 workflow:
   max_reflection_rounds: 5
@@ -31,16 +32,7 @@ retrieval:
   similarity_top_k: 10
   rerank_top_n: 5
 
-parser:
-  parse_file_with_mineru: false
-
-storage:
-  data_dir: "data"
-  users_file: "user_profiles/users.json"
-  default_cli_username: "default"
-
 api:
-  store: true
   keep_input: true
   write_logs: true
   meta_required: false
@@ -56,6 +48,3 @@ docx:
 
 logging:
   enable_workflow_logs: false
-
-mineru:
-  api_base: "https://mineru.net"

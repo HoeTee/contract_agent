@@ -6,7 +6,6 @@ import json
 import os
 from datetime import datetime
 
-from config import PARSE_FILE_WITH_MINERU
 from tools.retrieval.llamaindex import build_llamaindex_env_error, load_llamaindex_rag
 from tools.document.file_parser import FileParser
 
@@ -129,7 +128,7 @@ class IndexRetriever:
             print(f"[institutional-index] deleting: {relative_path}")
             engine.delete_ref_doc(previous_files[relative_path]["doc_id"])
 
-        parser_name = "mineru" if self._parse_with_mineru() else "local"
+        parser_name = "local"
         print(f"[institutional-index] parser={parser_name}")
         node_counts: dict[str, int] = {}
         for relative_path in modified:
@@ -284,10 +283,7 @@ class IndexRetriever:
         parser_name: str,
     ) -> int:
         absolute_path = os.path.join(self.institutional_docs_dir, relative_path)
-        if parser_name == "mineru":
-            content = await FileParser.parse_file_with_mineru(absolute_path)
-        else:
-            content = FileParser.parse_file(absolute_path)
+        content = FileParser.parse_file(absolute_path)
         return await asyncio.to_thread(
             engine.insert_text,
             content=content,
@@ -308,7 +304,3 @@ class IndexRetriever:
     @staticmethod
     def _institutional_doc_id(relative_path: str) -> str:
         return f"institutional:{relative_path}"
-
-    @staticmethod
-    def _parse_with_mineru() -> bool:
-        return bool(PARSE_FILE_WITH_MINERU)

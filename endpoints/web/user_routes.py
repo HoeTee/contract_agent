@@ -1,19 +1,15 @@
 from __future__ import annotations
 
-import asyncio
 import secrets
-import shutil
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from config import DATA_DIR, MCP_SERVER_PATH, PROJECT_ROOT, USERS_FILE
-from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
-from loggers.api_event_logger import append_api_event
+from config import DATA_DIR, PROJECT_ROOT, USERS_FILE
 from loggers.resolve_review_task_paths import resolve_review_task_paths
 from loggers.review_history import (
     HISTORY_SCHEMA_VERSION,
@@ -23,7 +19,17 @@ from loggers.review_history import (
     load_history_records,
     save_task_record,
 )
-from main_workflow.main_workflow import ContractReviewWorkflow
+from endpoints.review.job_worker import run_async_review_job
+from endpoints.review.task_store import (
+    create_task,
+    ensure_task_dirs,
+    output_dir,
+    read_task,
+    save_task_input_upload,
+    update_task,
+    web_client_dir,
+    write_task_log_event,
+)
 from endpoints.runtime.auth import find_user, load_users, normalize_role, save_users, verify_login, verify_password
 from endpoints.runtime.tenancy import TenantError, require_tenant, tenant_user_profiles_file
 from endpoints.runtime.document_validation import (
@@ -31,23 +37,39 @@ from endpoints.runtime.document_validation import (
     validate_review_criteria_content,
     validate_uploaded_docx,
 )
-from endpoints.runtime.errors import ModelCallError
 from endpoints.runtime.filenames import build_report_display_name, safe_upload_filename, strip_task_file_prefix
-from endpoints.runtime.review_runtime import review_semaphore
 
 
 templates = Jinja2Templates(directory=str(Path(PROJECT_ROOT) / "frontend" / "templates"))
 user_router = APIRouter()
-review_tasks: dict[str, dict] = {}
 
 
 def task_owner_key(tenant_id: str, username: str) -> str:
     return f"{tenant_id}:{username}"
 
 
+def get_latest_web_task(username: str, tenant_id: str) -> dict | None:
+    if not tenant_id:
+        return None
+    root = Path(DATA_DIR) / "web" / tenant_id
+    if not root.exists():
+        return None
+    client_dir = web_client_dir(tenant_id)
+    tasks: list[dict] = []
+    for task_path in root.glob("*/task.json"):
+        task = read_task(client_dir, task_path.parent.name)
+        if task and task.get("client_id") == username:
+            tasks.append(task)
+    if not tasks:
+        return None
+    tasks.sort(key=lambda item: item.get("created_at") or "", reverse=True)
+    return tasks[0]
+
+
 def get_running_task(username: str, tenant_id: str = "") -> dict | None:
-    task = review_tasks.get(task_owner_key(tenant_id, username) if tenant_id else username)
-    if task and task.get("status") in {"queued", "running"}:
+    task = get_latest_web_task(username, tenant_id)
+    if task and task.get("status") in {"pending", "queued", "running"}:
+        task["filename"] = task.get("input", {}).get("contract_filename")
         return task
     return None
 
@@ -170,8 +192,8 @@ def remove_auth_context(request: Request, ctx: str | None) -> None:
 
 
 def build_report_display_name(contract_original_name: str) -> str:
-    stem = Path(contract_original_name).stem or "审核结果" # 去除文件扩展名，如果没有文件名则使用默认 "审核结果"
-    return f"{stem}_批注版.docx"
+    stem = Path(contract_original_name).stem or "review_result"
+    return f"{stem}_reviewed.docx"
 
 
 def build_history_display_names(record: dict) -> tuple[str, str]:
@@ -193,7 +215,8 @@ def build_history_display_names(record: dict) -> tuple[str, str]:
 def build_history_record(paths, output_path: Path, task: dict) -> dict:
     contract_stat = paths.stored_contract_path.stat()
     report_stat = output_path.stat() if output_path.exists() else None
-    criteria_source = task.get("criteria_source", "default")
+    task_input = task.get("input") if isinstance(task.get("input"), dict) else {}
+    criteria_source = task.get("criteria_source") or task_input.get("criteria_source", "default")
     return {
         "schema_version": HISTORY_SCHEMA_VERSION,
         "tenant_id": paths.tenant_id,
@@ -205,9 +228,13 @@ def build_history_record(paths, output_path: Path, task: dict) -> dict:
         "contract_original_name": paths.original_filename,
         "contract_stored_name": paths.stored_contract_path.name,
         "contract_size_bytes": contract_stat.st_size,
-        "contract_uploaded_at": task.get("contract_uploaded_at") or format_timestamp(contract_stat.st_mtime),
+        "contract_uploaded_at": task.get("contract_uploaded_at") or task.get("created_at") or format_timestamp(contract_stat.st_mtime),
         "criteria_source": criteria_source,
-        "criteria_original_name": task.get("criteria_original_name") if criteria_source == "uploaded" else None,
+        "criteria_original_name": (
+            task.get("criteria_original_name") or task_input.get("criteria_filename")
+            if criteria_source == "uploaded"
+            else None
+        ),
         "report_display_name": build_report_display_name(paths.original_filename),
         "report_stored_name": output_path.name,
         "report_size_bytes": report_stat.st_size if report_stat else None,
@@ -215,70 +242,25 @@ def build_history_record(paths, output_path: Path, task: dict) -> dict:
     }
 
 
-async def run_review_task(username: str, paths, criteria_path: Path) -> None:
-    owner_key = task_owner_key(paths.tenant_id, username) if paths.tenant_id else username
-    task = review_tasks[owner_key]
-    task["status"] = "running"
-    task["message"] = "正在审核。"
-    save_task_record(Path(DATA_DIR), paths.tenant_id, build_history_record(paths, paths.final_report_path, task))
 
-    token = set_conversation_log_dir(paths.conversation_log_dir)
-    try:
-        workflow = ContractReviewWorkflow(
-            server_script_path=str(MCP_SERVER_PATH),
-            workflow_log_dir=str(paths.workflow_log_dir),
-            conversation_log_dir=str(paths.conversation_log_dir),
-            mcp_log_file=str(paths.mcp_log_dir / "mcp_client.log"),
-            api_events_path=str(paths.api_events_path),
-        )
+async def run_web_review_task(username: str, tenant_id: str, paths) -> None:
+    client_dir = web_client_dir(tenant_id)
+    await run_async_review_job(client_dir, paths.task_id)
+    task = read_task(client_dir, paths.task_id)
+    if task is None:
+        return
 
-        append_api_event(paths.api_events_path, "review_started", task_id=paths.task_id)
-
-        async def run_workflow():
-            return await workflow.run(
-                contract_path=str(paths.stored_contract_path),
-                criteria_path=str(criteria_path),
-                output_path=str(paths.final_report_path),
-            )
-
-        if review_semaphore is None:
-            result = await run_workflow()
-        else:
-            async with review_semaphore:
-                result = await run_workflow()
-
-        output_path = Path(result["report_docx"])
-        if not output_path.exists():
-            raise RuntimeError("未找到输出的 DOCX 文件。")
-
-        task["status"] = "completed"
-        task["message"] = "审核完成。"
-        task["result_name"] = output_path.name
-        task["completed_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    output_path = Path(task["output"]["result_path"])
+    history_record = build_history_record(paths, output_path, task)
+    if task.get("status") == "succeeded":
         append_history_record(
             Path(DATA_DIR),
             username,
-            build_history_record(paths, output_path, task),
-            tenant_id=paths.tenant_id,
+            history_record,
+            tenant_id=tenant_id,
         )
-        append_api_event(paths.api_events_path, "review_completed", result_file=str(output_path))
-    except Exception as exc:
-        task["status"] = "failed"
-        if isinstance(exc, ModelCallError):
-            task["message"] = f"审核失败：{exc.user_message}"
-            append_api_event(
-                paths.api_events_path,
-                exc.event_type,
-                component=exc.component,
-                error=str(exc),
-            )
-        else:
-            task["message"] = "审核失败，请查看任务日志。"
-        task["error"] = str(exc)
-        save_task_record(Path(DATA_DIR), paths.tenant_id, build_history_record(paths, paths.final_report_path, task))
-        append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
-    finally:
-        reset_conversation_log_dir(token)
+    else:
+        save_task_record(Path(DATA_DIR), tenant_id, history_record)
 
 
 def get_current_username(request: Request) -> str | None:
@@ -294,7 +276,7 @@ def require_current_username(request: Request) -> str:
     if not username:
         raise HTTPException(
             status_code=401, 
-            detail="未登录。"
+            detail="Not logged in.",
         )
     return username
 
@@ -324,9 +306,9 @@ async def session_status(request: Request):
 def update_display_name(users_file: str | Path, username: str, display_name: str) -> str:
     cleaned = display_name.strip()
     if not cleaned:
-        raise HTTPException(status_code=400, detail="显示名称不能为空。")
+        raise HTTPException(status_code=400, detail="Display name cannot be empty.")
     if len(cleaned) > 40:
-        raise HTTPException(status_code=400, detail="显示名称不能超过 40 个字符。")
+        raise HTTPException(status_code=400, detail="Display name cannot exceed 40 characters.")
 
     users = load_users(users_file)
     for user in users:
@@ -335,7 +317,7 @@ def update_display_name(users_file: str | Path, username: str, display_name: str
             save_users(users_file, users)
             return cleaned
 
-    raise HTTPException(status_code=404, detail="未找到当前用户。")
+    raise HTTPException(status_code=404, detail="Current user was not found.")
 
 
 def list_history(username: str, tenant_id: str) -> list[dict]:
@@ -350,9 +332,9 @@ def list_history(username: str, tenant_id: str) -> list[dict]:
             continue
 
         criteria_source = record.get("criteria_source")
-        criteria_label = "默认审查要点"
+        criteria_label = "Default criteria"
         if criteria_source == "uploaded":
-            criteria_label = f"本次上传：{record.get('criteria_original_name') or '-'}"
+            criteria_label = f"Uploaded: {record.get('criteria_original_name') or '-'}"
 
         contract_display_name, report_display_name = build_history_display_names(record)
         rows.append({
@@ -419,7 +401,7 @@ async def login(
             request,
             "login.html",
             {
-                "error": "账号已被禁用，请联系管理员。",
+                "error": "Account is disabled. Contact an administrator.",
                 "login_token": next_login_token,
                 "tenant_id": tenant_id,
             },
@@ -432,7 +414,7 @@ async def login(
             request,
             "login.html",
             {
-                "error": "用户名或密码错误。",
+                "error": "Invalid username or password.",
                 "login_token": next_login_token,
                 "tenant_id": tenant_id,
             },
@@ -466,11 +448,11 @@ async def update_profile_display_name(
     try:
         cleaned = update_display_name(tenant_user_profiles_file(user["tenant_id"]), username, display_name)
         request.session["display_name"] = cleaned
-        request.session["flash_success"] = "显示名称已更新。"
+        request.session["flash_success"] = "Display name updated."
     except HTTPException as exc:
         request.session["flash_error"] = exc.detail
     except OSError:
-        request.session["flash_error"] = "显示名称更新失败，请检查用户配置文件是否可写。"
+        request.session["flash_error"] = "Display name update failed. Check whether the user profile file is writable."
     return RedirectResponse(ctx_path("/web/settings", ctx), status_code=303)
 
 
@@ -497,17 +479,16 @@ async def index(request: Request):
         return RedirectResponse(ctx_path("/web/admin", user["ctx"]), status_code=303)
     username = user["username"]
     tenant_id = user["tenant_id"]
-    owner_key = task_owner_key(tenant_id, username)
-    task = review_tasks.get(owner_key)
+    task = get_latest_web_task(username, tenant_id)
     error = request.session.pop("flash_error", None)
     success = request.session.pop("flash_success", None)
     result_name = None
     if task:
         if task.get("status") == "failed":
-            error = task.get("message") or error
-        elif task.get("status") == "completed":
-            result_name = task.get("result_name")
-            review_tasks.pop(owner_key, None)
+            task_error = task.get("error") or {}
+            error = task_error.get("message") or task.get("message") or error
+        elif task.get("status") == "succeeded":
+            result_name = Path(task["output"]["result_path"]).name
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -551,6 +532,7 @@ async def settings(request: Request):
 
 @user_router.post("/web/review", response_class=HTMLResponse)
 async def review_page(
+    background_tasks: BackgroundTasks,
     request: Request,
     file: UploadFile = File(...),
     criteria_file: UploadFile | None = File(None),
@@ -563,7 +545,7 @@ async def review_page(
 
     tenant_id = user["tenant_id"]
     if get_running_task(username, tenant_id):
-        request.session["flash_error"] = "已有审核任务正在运行，请等待完成后再提交。"
+        request.session["flash_error"] = "A review task is already running. Wait for it to finish before submitting again."
         await file.close()
         if criteria_file:
             await criteria_file.close()
@@ -576,12 +558,15 @@ async def review_page(
         original_filename=filename,
         data_dir=Path(DATA_DIR),
     )
+    client_dir = web_client_dir(tenant_id)
 
     try:
-        paths.ensure_task_dirs() # create necessary directories
+        paths.ensure_user_dirs()
+        ensure_task_dirs(client_dir, paths.task_id)
         # api event I - file received for review, with metadata of username and filename (after sanitization)
-        append_api_event(
-            paths.api_events_path,
+        write_task_log_event(
+            client_dir,
+            paths.task_id,
             "upload_received",
             username=username,
             tenant_id=tenant_id,
@@ -591,7 +576,7 @@ async def review_page(
         if not filename.lower().endswith(".docx"):
             raise HTTPException(
                 status_code=400, 
-                detail="系统支持的文件格式是 DOCX 哦~"
+                detail="Only DOCX contract files are supported.",
             )
         selected_criteria_path = paths.criteria_path
         criteria_source = "default"
@@ -602,73 +587,93 @@ async def review_page(
             if not criteria_filename.lower().endswith(".docx"):
                 raise HTTPException(
                     status_code=400,
-                    detail="审查要点文件格式必须是 DOCX。",
+                    detail="Review criteria file must be DOCX.",
                 )
-            with paths.uploaded_criteria_path.open("wb") as f:
-                shutil.copyfileobj(criteria_file.file, f)
-            validate_uploaded_docx(paths.uploaded_criteria_path) 
-            validate_review_criteria_content(paths.uploaded_criteria_path)
-            selected_criteria_path = paths.uploaded_criteria_path
+            selected_criteria_path = save_task_input_upload(
+                client_dir,
+                paths.task_id,
+                criteria_file,
+                criteria_filename,
+            )
+            validate_uploaded_docx(selected_criteria_path)
+            validate_review_criteria_content(selected_criteria_path)
             criteria_source = "uploaded"
 
-            append_api_event(
-                paths.api_events_path,
+            write_task_log_event(
+                client_dir,
+                paths.task_id,
                 "criteria_uploaded",
-                file_path=str(paths.uploaded_criteria_path),
+                file_path=str(selected_criteria_path),
                 original_filename=criteria_filename,
-                size_bytes=paths.uploaded_criteria_path.stat().st_size,
+                size_bytes=selected_criteria_path.stat().st_size,
             )
         elif not paths.criteria_path.exists():
-            request.session["flash_error"] = f"未找到审查要点文件：{paths.criteria_path}"
+            request.session["flash_error"] = f"鏈壘鍒板鏌ヨ鐐规枃浠讹細{paths.criteria_path}"
             return RedirectResponse(ctx_path("/web/work", ctx), status_code=303)
-        with paths.stored_contract_path.open("wb") as f:
-            shutil.copyfileobj(file.file, f)
+        contract_path = save_task_input_upload(
+            client_dir,
+            paths.task_id,
+            file,
+            filename,
+        )
         
         # api event II - file saved and ready for validation and review
-        append_api_event(
-            paths.api_events_path,
+        write_task_log_event(
+            client_dir,
+            paths.task_id,
             "contract_saved",
-            file_path=str(paths.stored_contract_path),
-            size_bytes=paths.stored_contract_path.stat().st_size,
+            file_path=str(contract_path),
+            size_bytes=contract_path.stat().st_size,
         )
 
-        validate_uploaded_docx(paths.stored_contract_path) # Check if the uploaded file is a valid .docx file, otherwise raise HTTPException with 400 status code and error message.
+        validate_uploaded_docx(contract_path) # Check if the uploaded file is a valid .docx file, otherwise raise HTTPException with 400 status code and error message.
 
         # api event III - file passed validation and review is about to start
-        append_api_event(
-            paths.api_events_path, 
+        write_task_log_event(
+            client_dir,
+            paths.task_id,
             "docx_validation_passed"
         )
 
-        # This is where review_tasks is written within
         created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        owner_key = task_owner_key(tenant_id, username)
-        review_tasks[owner_key] = {
-            "status": "queued",
-            "message": "审核任务已排队。",
-            "task_id": paths.task_id,
-            "tenant_id": tenant_id,
-            "tenant_name": user["tenant_name"],
-            "username": username,
-            "display_name": user["display_name"],
-            "filename": filename,
-            "criteria_source": criteria_source,
-            "criteria_original_name": criteria_filename,
-            "contract_uploaded_at": created_at,
-            "created_at": created_at,
-        }
-        save_task_record(Path(DATA_DIR), tenant_id, build_history_record(paths, paths.final_report_path, review_tasks[owner_key]))
-        # This is where Semaphore comes into play.
-        asyncio.create_task(run_review_task(username, paths, selected_criteria_path))
+        task = create_task(
+            client_id=username,
+            client_dir=client_dir,
+            task_id=paths.task_id,
+            contract_filename=filename,
+            contract_path=contract_path,
+            criteria_source=criteria_source,
+            criteria_filename=criteria_filename,
+            criteria_path=selected_criteria_path,
+            result_filename=paths.final_report_path.name,
+            result_path=paths.final_report_path,
+        )
+        task["tenant_id"] = tenant_id
+        task["tenant_name"] = user["tenant_name"]
+        task["username"] = username
+        task["display_name"] = user["display_name"]
+        task["contract_uploaded_at"] = created_at
+        update_task(
+            client_dir,
+            paths.task_id,
+            tenant_id=tenant_id,
+            tenant_name=user["tenant_name"],
+            username=username,
+            display_name=user["display_name"],
+            contract_uploaded_at=created_at,
+        )
+        save_task_record(Path(DATA_DIR), tenant_id, build_history_record(paths, paths.final_report_path, task))
+        background_tasks.add_task(run_web_review_task, username, tenant_id, paths)
         return RedirectResponse(ctx_path("/web/work", ctx), status_code=303)
 
+
     except HTTPException as exc:
-        append_api_event(paths.api_events_path, "review_failed", status_code=exc.status_code, detail=exc.detail)
+        write_task_log_event(client_dir, paths.task_id, "review_failed", status_code=exc.status_code, detail=exc.detail)
         request.session["flash_error"] = exc.detail
         return RedirectResponse(ctx_path("/web/work", ctx), status_code=303)
     except Exception as exc:
-        append_api_event(paths.api_events_path, "review_failed", error=repr(exc))
-        request.session["flash_error"] = "审核失败，请查看任务日志。"
+        write_task_log_event(client_dir, paths.task_id, "review_failed", error=repr(exc))
+        request.session["flash_error"] = "Review failed. Check task logs."
         return RedirectResponse(ctx_path("/web/work", ctx), status_code=303)
     finally:
         await file.close()
@@ -680,7 +685,7 @@ async def review_page(
 async def download_result(request: Request, filename: str):
     user = sync_context_user(request)
     if not user:
-        raise HTTPException(status_code=401, detail="未登录。")
+        raise HTTPException(status_code=401, detail="Not logged in.")
     safe_name = safe_upload_filename(filename)
     path = None
     for record in load_history_records(Path(DATA_DIR), user["username"], tenant_id=user["tenant_id"]):
@@ -693,7 +698,7 @@ async def download_result(request: Request, filename: str):
     if path is None:
         path = Path(DATA_DIR) / "web" / user["tenant_id"] / safe_name
     if not path.exists():
-        raise HTTPException(status_code=404, detail="未找到审核结果文件。")
+        raise HTTPException(status_code=404, detail="Review result file was not found.")
     return FileResponse(
         path,
         media_type=DOCX_MEDIA_TYPE,

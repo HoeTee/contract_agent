@@ -22,7 +22,6 @@ from config import (
     LLM_BASE_URL,
     LLM_ENABLE_THINKING,
     LLM_NAME,
-    PARSE_FILE_WITH_MINERU,
     RERANK_API_KEY,
     RERANK_BASE_URL,
     RERANK_ENDPOINT_FORMAT,
@@ -63,16 +62,10 @@ async def ingest_file(file_path: str) -> str:
     """
     if os.path.splitext(file_path)[1].lower() != ".docx":
         return "Error parsing file: only .docx files are supported"
-    if PARSE_FILE_WITH_MINERU:
-        try:
-            content = await FileParser.parse_file_with_mineru(file_path)
-        except Exception as e:
-            return f"Error parsing file: {str(e)}"
-    else:
-        try:
-            content = FileParser.parse_file(file_path)
-        except Exception as e:
-            return f"Error parsing file: {str(e)}"
+    try:
+        content = FileParser.parse_file(file_path)
+    except Exception as e:
+        return f"Error parsing file: {str(e)}"
 
     filename = os.path.basename(file_path)
     return f"File '{filename}' ingested. Content:\n\n{content}"
