@@ -52,6 +52,8 @@ rerank:
 
 Use `inject_instruct: true` only when the reranker service accepts an `instruct` request field.
 
+Reranker provider boundaries and troubleshooting notes are documented in `docs/RERANKER_CONFIGURATION.md`.
+
 API retention settings:
 
 ```yaml
