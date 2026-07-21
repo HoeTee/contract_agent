@@ -54,7 +54,7 @@ GET /api/review/jobs/{task_id}
   -> 返回 pending、queued、running、succeeded、failed 或 cancelled
 
 POST /api/review/jobs/{task_id}/result
-  -> 仅 succeeded 后可导出结果
+  -> 仅 succeeded 后可下载结果 DOCX
 ```
 
 `POST /api/review/jobs/{task_id}/cancel` 只能取消 `pending` 或 `queued` 任务。`running` 表示任务已经进入 `workflow.run()`，该 API 不支持中止。
@@ -160,56 +160,49 @@ curl.exe "http://localhost:5000/api/review/jobs/20260714-143119-5ece" `
 | `404` | 任务 ID 不合法、不存在，或属于其他客户。 | `{ "detail": "Task not found." }` |
 | `500` | 客户鉴权映射格式错误或密钥匹配到多个客户。 | `{ "detail": "..." }` |
 
-## 5. 导出已完成结果
+## 5. 下载已完成结果
 
 ```http
 POST /api/review/jobs/{task_id}/result
-Content-Type: application/json
 Authorization: <api_key>
 ```
 
-请求 JSON：
-
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `output_path` | string | 是 | 运行 API 服务的机器上的目标路径。 |
+该接口不接收请求体。保存到哪里由调用方决定，例如 `curl.exe -o` 或 Python 客户端本地文件路径。
 
 PowerShell `curl.exe` 示例：
 
 ```powershell
 curl.exe -X POST "http://localhost:5000/api/review/jobs/20260714-143119-5ece/result" `
   -H "Authorization: platform-key-for-client-a" `
-  -H "Content-Type: application/json" `
-  -d '{\"output_path\":\"C:/Users/lenovo/Desktop/review_result.docx\"}'
+  -o "C:\Users\lenovo\Desktop\review_result.docx"
 ```
 
-成功响应，HTTP `200`：
+Python `requests` 示例：
 
-```json
-{
-  "task_id": "20260714-143119-5ece",
-  "status": "succeeded",
-  "message": "Result exported.",
-  "output_path": "C:\\Users\\lenovo\\Desktop\\review_result.docx"
-}
+```python
+import requests
+
+url = "http://localhost:5000/api/review/jobs/20260714-143119-5ece/result"
+headers = {"Authorization": "platform-key-for-client-a"}
+output_file = r"C:\Users\lenovo\Desktop\review_result.docx"
+
+response = requests.post(url, headers=headers, stream=True)
+response.raise_for_status()
+
+with open(output_file, "wb") as f:
+    for chunk in response.iter_content(chunk_size=1024 * 1024):
+        if chunk:
+            f.write(chunk)
 ```
 
 | HTTP 状态码 | 返回场景 | 响应 |
 | --- | --- | --- |
-| `200` | 任务已成功，结果已复制到 `output_path`。 | 任务 ID、`succeeded`、消息和输出路径。 |
-| `400` | 未传 `output_path` 或该值为空。 | `{ "task_id": "...", "status": "failed", "message": "output_path is required." }` |
+| `200` | 任务已成功，返回结果 DOCX 文件流。 | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` 响应体。 |
 | `400` | 未传 `Authorization`，或平台 key 没有本地客户映射。 | `{ "detail": "..." }` |
 | `403` | 该客户映射已禁用。 | `{ "detail": "API client mapping is disabled." }` |
 | `404` | 任务 ID 不合法、不存在，或属于其他客户。 | `{ "detail": "Task not found." }` |
 | `409` | 任务状态不是 `succeeded`。 | `{ "detail": "Task is not finished. Current status: ..." }` |
-| `422` | JSON 请求体不合法，或请求体不是 JSON 对象。 | FastAPI 校验详情。 |
-| `500` | 结果源文件不存在、目标路径无法写入，或客户鉴权映射异常。 | `{ "detail": "..." }` 或 `{ "task_id": "...", "status": "failed", "message": "Failed to export result: ...", "output_path": "..." }` |
-
-`output_path` 由 API 服务端解释，不是发送 HTTP 请求的调用方机器路径。
-
-- 本地开发机运行服务时，它是本机文件系统路径。
-- Docker 部署时，它是正在运行的服务容器内路径。要持久化导出文件，目标路径必须位于挂载到该容器的目录中。
-- 远端部署时，它是远端服务进程或服务容器可访问的路径，不能直接写入调用方桌面。
+| `500` | 服务端结果源文件不存在，或客户鉴权映射异常。 | `{ "detail": "..." }` |
 
 ## 6. 取消等待中的任务
 
@@ -276,5 +269,5 @@ data/api/<task_id>/
 | --- | --- | --- |
 | `POST /review/jobs/{task_id}` | `404 Not Found` | 查询状态应使用 `GET /api/review/jobs/{task_id}`。 |
 | `POST /api/review/jobs/result` | `405 Method Not Allowed` | 应使用 `POST /api/review/jobs/{task_id}/result`。 |
-| `POST /api/review/jobs/{task_id}/result` 请求体为 `{ "output": "..." }` | `400 output_path is required.` | 应使用 `{ "output_path": "..." }`。 |
-| PowerShell `curl.exe` 发送 JSON 时丢失双引号 | `422 json_invalid` | 使用上文的 `-d '{\"output_path\":\"...\"}'` 写法。 |
+| `POST /api/review/jobs/{task_id}/result` 传 `output_path` | 仍返回文件流，不会写入该路径。 | 使用 `curl.exe -o` 或客户端代码保存响应体。 |
+| PowerShell `curl.exe` 未使用 `-o` | 文件内容输出到终端。 | 使用上文的 `-o "C:\...\review_result.docx"` 写法。 |

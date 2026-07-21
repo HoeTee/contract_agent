@@ -11,7 +11,7 @@
 ## HTTP 路由
 
 - `endpoints/api/client_mapping.py`：读取平台提供的 `Authorization` key，并从本地 `api_clients.json` 映射出 `client_id/client_dir`。
-- `endpoints/api/review_jobs.py`：普通 `/api` 异步任务接口，提供提交、查询、结果导出和取消任务。
+- `endpoints/api/review_jobs.py`：普通 `/api` 异步任务接口，提供提交、查询、结果下载和取消任务。
 - `endpoints/oa/review.py`：OA 专用同步 API，接收 OA 文件和元字段，完成后按配置回传结果。
 - `endpoints/web/user_routes.py`：浏览器普通用户页面和表单路由，URL 以 `/web` 开头。
 - `endpoints/web/admin_routes.py`：管理端页面和表单路由，URL 以 `/web/admin` 开头。

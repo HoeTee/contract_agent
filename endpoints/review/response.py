@@ -44,19 +44,3 @@ def present_review_task(
         response["meta_fields"] = task.get("meta_fields", {})
     return response
 
-
-def present_export_response(
-    task: dict[str, Any],
-    output_path: Path,
-    *,
-    include_meta_fields: bool = False,
-) -> dict[str, Any]:
-    response = {
-        "task_id": task["task_id"],
-        "status": task["status"],
-        "message": "Result exported.",
-        "output_path": str(output_path),
-    }
-    if include_meta_fields:
-        response["meta_fields"] = task.get("meta_fields", {})
-    return response

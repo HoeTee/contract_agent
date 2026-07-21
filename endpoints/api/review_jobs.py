@@ -3,20 +3,19 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
-from fastapi import APIRouter, Body, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse
 
 from config import DEFAULT_REVIEW_CRITERIA_PATH
 from endpoints.api.client_mapping import resolve_api_client
 from endpoints.review.job_worker import run_async_review_job
 from endpoints.review.response import (
-    present_export_response,
     present_review_task,
     present_submit_response,
 )
 from endpoints.review.task_store import (
     create_task,
     ensure_task_dirs,
-    export_task_result,
     new_task_id,
     output_dir,
     read_task,
@@ -115,7 +114,6 @@ async def get_review_job(request: Request, task_id: str):
 async def export_review_job_result(
     request: Request,
     task_id: str,
-    payload: dict | None = Body(None),
 ):
     client = await resolve_api_client(request)
     try:
@@ -129,34 +127,14 @@ async def export_review_job_result(
     if status != "succeeded":
         raise HTTPException(status_code=409, detail=f"Task is not finished. Current status: {status}")
 
-    output_path = payload.get("output_path") if isinstance(payload, dict) else None
-    if not isinstance(output_path, str) or not output_path.strip():
-        return pretty_json_response(
-            {
-                "task_id": task_id,
-                "status": "failed",
-                "message": "output_path is required.",
-            },
-            status_code=400,
-        )
-
-    try:
-        exported_path = export_task_result(task, output_path)
-    except FileNotFoundError:
+    result_path = Path(task["output"]["result_path"])
+    if not result_path.exists():
         raise HTTPException(status_code=500, detail="Result file does not exist.")
-    except OSError as exc:
-        return pretty_json_response(
-            {
-                "task_id": task_id,
-                "status": "failed",
-                "message": f"Failed to export result: {exc}",
-                "output_path": output_path,
-            },
-            status_code=500,
-        )
 
-    return pretty_json_response(
-        present_export_response(task, exported_path)
+    return FileResponse(
+        path=result_path,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename=result_path.name,
     )
 
 

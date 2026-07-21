@@ -16,7 +16,7 @@ POST /api/review/jobs/{task_id}/cancel
 `/api` 面向普通外部客户：
 
 - 平台负责 `Authorization` key 鉴权；服务仅用该 key 映射 `client_id/client_dir`。
-- 只做异步任务提交、查询、结果导出、取消。
+- 只做异步任务提交、查询、结果下载、取消。
 - 不接收 `metafields`。
 - 不 callback。
 - 数据按 `client_id` 分区。
@@ -59,7 +59,7 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
   -F "file=@C:\path\contract.docx"
 ```
 
-Status, result export, and cancel use the same `Authorization` header. Body, form, query string, and `X-API-Key` are not used for API key mapping.
+Status, result download, and cancel use the same `Authorization` header. Body, form, query string, and `X-API-Key` are not used for API key mapping.
 
 Auth failures:
 

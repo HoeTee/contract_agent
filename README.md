@@ -92,7 +92,7 @@ Web 审查任务使用共享 review worker 和 task-store 状态模型，但数�
 
 - `POST /api/review/jobs`
 - `GET /api/review/jobs/{task_id}`
-- `POST /api/review/jobs/{task_id}/result`
+- `POST /api/review/jobs/{task_id}/result` 下载结果 DOCX
 - `POST /api/review/jobs/{task_id}/cancel`
 
 API 任务保存在 `data/api/`。
