@@ -66,9 +66,13 @@ def get_latest_web_task(username: str, tenant_id: str) -> dict | None:
     return tasks[0]
 
 
-def get_running_task(username: str, tenant_id: str = "") -> dict | None:
+def get_running_task(username: str, tenant_id: str = "", login_created_at: str = "") -> dict | None:
     task = get_latest_web_task(username, tenant_id)
-    if task and task.get("status") in {"pending", "queued", "running"}:
+    if (
+        task
+        and task.get("status") in {"pending", "queued", "running"}
+        and task_started_in_current_login(task, login_created_at)
+    ):
         task["filename"] = task.get("input", {}).get("contract_filename")
         return task
     return None
@@ -563,7 +567,10 @@ async def index(request: Request):
         ):
             task_error = task.get("error") or {}
             error = task_error.get("message") or task.get("message") or error
-        elif task.get("status") == "succeeded":
+        elif task.get("status") == "succeeded" and task_started_in_current_login(
+            task,
+            user.get("login_created_at", ""),
+        ):
             result_name = Path(task["output"]["result_path"]).name
     return templates.TemplateResponse(
         request,
@@ -578,7 +585,7 @@ async def index(request: Request):
             "error": error,
             "success": success,
             "result_name": result_name,
-            "active_task": get_running_task(username, tenant_id),
+            "active_task": get_running_task(username, tenant_id, user.get("login_created_at", "")),
         },
     )
 
