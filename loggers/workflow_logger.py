@@ -12,6 +12,18 @@ from config import ENABLE_WORKFLOW_LOGS, MAX_CONTEXT_TOKENS
 class WorkflowLogger:
     """Records workflow steps and generates a Markdown log with Mermaid."""
 
+    SUMMARY_ACTIONS = {
+        "mcp_connect",
+        "ingest_file(criteria)",
+        "ingest_file(contract)",
+        "llamaindex_build_index",
+        "design_tasks",
+        "execute_criteria_complete",
+        "compile_summary_comment",
+        "generate_docx_report",
+        "mcp_cleanup",
+    }
+
     def __init__(self, log_dir: str | Path | None = None):
         self.steps = []
         self.start_time = time.time()
@@ -49,6 +61,32 @@ class WorkflowLogger:
             "raw_tokens": tokens,
             "duration": round(duration, 2),
         })
+
+    def summarize_phase_durations(self) -> list[dict]:
+        """Summarize main workflow phase durations from logged steps."""
+        phase_totals: dict[str, float] = {}
+        for step in self.steps:
+            if step.get("action") not in self.SUMMARY_ACTIONS:
+                continue
+            phase = step.get("phase", "")
+            if not phase:
+                continue
+            phase_totals[phase] = round(
+                phase_totals.get(phase, 0.0) + float(step.get("duration", 0.0)),
+                2,
+            )
+
+        return [
+            {"phase": phase, "duration_seconds": duration}
+            for phase, duration in phase_totals.items()
+        ]
+
+    def total_logged_duration(self) -> float:
+        """Return the sum of main workflow phase durations."""
+        return round(
+            sum(item["duration_seconds"] for item in self.summarize_phase_durations()),
+            2,
+        )
 
     def _build_mermaid(self) -> str:
         def sanitize_id(name: str) -> str:

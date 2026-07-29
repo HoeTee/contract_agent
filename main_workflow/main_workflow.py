@@ -75,7 +75,16 @@ class ContractReviewWorkflow:
         print("=" * 60)
         print("This is an over-simplified workflow without web search or institutional RAG, with retrieval mode being llamaindex.")
         # Initialize MCP client
+        mcp_cleaned = False
+        start = time.time()
         await self.mcp_client.connect()
+        self.logger.log(
+            phase="MCP",
+            sender="Workflow",
+            receiver="MCP",
+            action="mcp_connect",
+            duration=round(time.time() - start, 2),
+        )
 
         try:
             # Phase 1: Ingest files
@@ -120,6 +129,17 @@ class ContractReviewWorkflow:
                 output_path=output_path,
             )
 
+            start = time.time()
+            await self.mcp_client.cleanup()
+            mcp_cleaned = True
+            self.logger.log(
+                phase="MCP",
+                sender="Workflow",
+                receiver="MCP",
+                action="mcp_cleanup",
+                duration=round(time.time() - start, 2),
+            )
+
             # Save workflow log
             log_path = self.logger.save()
             elapsed = round(time.time() - workflow_start, 1)
@@ -153,7 +173,16 @@ class ContractReviewWorkflow:
             }
 
         finally:
-            await self.mcp_client.cleanup()
+            if not mcp_cleaned:
+                start = time.time()
+                await self.mcp_client.cleanup()
+                self.logger.log(
+                    phase="MCP",
+                    sender="Workflow",
+                    receiver="MCP",
+                    action="mcp_cleanup",
+                    duration=round(time.time() - start, 2),
+                )
 
     # ==================== Phases ====================
 
@@ -402,6 +431,8 @@ class ContractReviewWorkflow:
         """Persist a compact run summary for debugging and audit."""
         if not ENABLE_WORKFLOW_LOGS:
             return None
+        phase_durations = self.logger.summarize_phase_durations()
+        logged_duration_total = self.logger.total_logged_duration()
         summary = {
             "annotated_docx_path": annotated_docx_path,
             "results_path": results_path,
@@ -410,6 +441,9 @@ class ContractReviewWorkflow:
             "issue_count": sum(len(result.get("issues", [])) for result in results),
             "error_count": sum(1 for result in results if result.get("status") == "ERROR"),
             "elapsed_seconds": elapsed_seconds,
+            "phase_durations": phase_durations,
+            "logged_duration_total_seconds": logged_duration_total,
+            "duration_gap_seconds": round(elapsed_seconds - logged_duration_total, 2),
             "token_stats": token_stats,
             "criteria_status": [
                 {
