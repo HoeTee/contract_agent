@@ -1,38 +1,38 @@
-# LlamaIndex DOCX Anchor Retrieval and Annotation Flow
+# LlamaIndex DOCX Anchor 检索与批注定位链路
 
-## Direct Conclusion
+## 直接结论
 
-The contract search index is built from DOCX XML anchors, not from markdown. The workflow converts DOCX paragraph/table anchors into LlamaIndex `TextNode` objects, retrieves them as `NodeWithScore`, reranks by replacing only the score, formats anchor metadata into text for the SubAgent, and finally writes Word comments by resolving the SubAgent's `anchors` back to the original DOCX XML range.
+合同搜索索引不是基于 markdown 建立，而是基于 DOCX XML anchor 建立。系统把 DOCX 段落和表格转换成带结构坐标的 LlamaIndex `TextNode`，检索时返回 `NodeWithScore`，reranker 只替换分数、不重建文本节点；随后 `rag_engine.search()` 把 anchor metadata 格式化进检索上下文文本，SubAgent 在输出 `anchors` 时复用这些字段，最后批注工具再根据 `xml_anchor_type/xml_anchor_id + quoted_text` 写回原 DOCX。
 
-End-to-end flow:
+整体链路：
 
 ```text
 DOCX
 -> DocxAnchorNode(text + xml_anchor_type + xml_anchor_id)
 -> TextNode(text + id_ + metadata)
 -> VectorStoreIndex
--> retriever returns list[NodeWithScore(node=TextNode, score=...)]
--> reranker postprocessor returns reranked NodeWithScore list
--> rag_engine.search() formats text + xml_anchor metadata
+-> retriever 返回 list[NodeWithScore(node=TextNode, score=...)]
+-> reranker postprocessor 返回重排后的 NodeWithScore list
+-> rag_engine.search() 拼接正文 + xml_anchor metadata
 -> SubAgentOutput.issues[].anchors
--> DocxReportGenerator writes annotated DOCX comments
+-> DocxReportGenerator 写入批注版 DOCX
 ```
 
-## 1. DOCX Anchor Nodes
+## 1. DOCX 如何生成 Anchor Node
 
-Implementation entry:
+实现入口：
 
 ```text
 tools/document/docx_anchor_index.py
 ```
 
-Core function:
+核心函数：
 
 ```python
 build_docx_anchor_nodes(docx_path)
 ```
 
-The function walks DOCX body content in document order. It reads direct XML children and yields only paragraphs and tables:
+这个函数按 DOCX XML 顺序遍历正文内容，只处理段落和表格：
 
 ```python
 for child in parent_element.iterchildren():
@@ -42,63 +42,69 @@ for child in parent_element.iterchildren():
         yield Table(child, parent)
 ```
 
-`iter_blocks()` contains `yield`, so calling `iter_blocks(parent)` returns a generator object. That generator is iterable and can be used by:
+`iter_blocks()` 里包含 `yield`，所以调用 `iter_blocks(parent)` 会返回 generator。generator 是 iterable，因此可以被 `enumerate()` 遍历：
 
 ```python
 for block_index, block in enumerate(iter_blocks(parent), start=1):
 ```
 
-Each extracted block becomes a `DocxAnchorNode`:
+每个可检索块会生成一个 `DocxAnchorNode`：
 
 ```python
 DocxAnchorNode(
     anchor_type="paragraph",
     anchor_id="path:body/p3",
-    text="visible contract text",
+    text="合同可见原文",
     path="body/p3",
 )
 ```
 
-## 2. Path ID Rules
+## 2. Path ID 规则
 
-Current anchor IDs use generated structural paths:
+当前 anchor ID 使用系统生成的结构路径：
 
 ```text
 path:body/p3
 ```
 
-This means the third top-level body block is a paragraph.
+表示正文 `w:body` 下第 3 个 block 是段落。
 
 ```text
 path:body/tbl5
 ```
 
-This means the fifth top-level body block is a table.
+表示正文 `w:body` 下第 5 个 block 是表格。
 
 ```text
 path:body/tbl5/r1c2/p1
 ```
 
-This means the first paragraph in row 1, cell 2 of the fifth top-level table.
+表示正文第 5 个表格中，第 1 行第 2 列里的第 1 个段落。
 
-Important boundary:
+边界：
 
 ```text
-path:body/... is stable within the same DOCX and the same review run.
-It is not a permanent ID across document versions or structural edits.
+path:body/... 在同一份 DOCX、同一次审查任务内稳定。
+跨文档版本、跨文件、文档结构被修改后不保证稳定。
 ```
 
-This is acceptable because the current review flow builds the index and writes comments against the same DOCX in one run.
+当前流程是在同一次任务里完成：
 
-## 3. Anchor Nodes Become TextNode
+```text
+同一份合同 DOCX -> 建索引 -> 审查 -> 写回批注
+```
 
-Implementation entry:
+所以这个结构路径可以满足当前批注定位需求。
+
+## 3. Anchor Node 如何变成 TextNode
+
+实现入口：
 
 ```text
 tools/retrieval/llamaindex/rag_engine.py
 ```
 
-`build_temporary_index_from_docx()` converts every `DocxAnchorNode` into a LlamaIndex `TextNode`:
+`build_temporary_index_from_docx()` 会把每个 `DocxAnchorNode` 转成 LlamaIndex `TextNode`：
 
 ```python
 TextNode(
@@ -115,39 +121,45 @@ TextNode(
 )
 ```
 
-Field meaning:
+字段含义：
 
-- `text`: the visible contract text used for embedding and retrieval.
-- `id_`: the LlamaIndex node ID.
-- `metadata`: project-level information used later for annotation.
+- `text`：合同可见原文，用于 embedding 和语义检索。
+- `id_`：LlamaIndex node 自身 ID。
+- `metadata`：项目业务元数据，后续用于批注定位。
 
-`metadata` is not the issue result. It is carried by the node until `rag_engine.search()` formats it into retrieved context text.
+这里的 `metadata` 不是最终 issue 结果。它先跟着 `TextNode` 进入索引，后面由 `rag_engine.search()` 格式化进检索上下文文本。
 
-## 4. VectorStoreIndex Stores TextNode
+## 4. VectorStoreIndex 里保存的是什么
 
-During index construction, `nodes` is a `list[TextNode]`:
+建索引时，`nodes` 是：
+
+```python
+list[TextNode]
+```
+
+然后进入 LlamaIndex 向量索引：
 
 ```python
 self._index = VectorStoreIndex(nodes)
 ```
 
-At this point, the index contains text nodes with XML anchor metadata.
+所以索引里保存的是带正文和 XML anchor metadata 的 `TextNode`。
 
-## 5. Query Returns NodeWithScore
+## 5. 查询时 nodes 是什么
 
-During search, the project creates a retriever from the index:
+搜索时先从索引创建 retriever：
 
 ```python
 retriever = self._index.as_retriever(similarity_top_k=self.similarity_top_k)
 ```
 
-The retriever returns:
+retriever 返回的是：
 
 ```python
 list[NodeWithScore]
 ```
 
-Each item is conceptually:
+每个元素可以理解成：
 
 ```python
 NodeWithScore(
@@ -156,18 +168,18 @@ NodeWithScore(
 )
 ```
 
-So there are two different `nodes` lists in the flow:
+所以这里有两个不同层面的 `nodes`：
 
 ```text
-index build: list[TextNode]
-reranker input: list[NodeWithScore]
+建索引时：list[TextNode]
+reranker 收到时：list[NodeWithScore]
 ```
 
-`NodeWithScore` is a LlamaIndex wrapper. It keeps the original node and adds a retrieval or rerank score.
+`NodeWithScore` 是 LlamaIndex 自带包装类。它不是替代 `TextNode`，而是在 `TextNode` 外面加一层检索分数或重排分数。
 
-## 6. RetrieverQueryEngine Applies the Reranker
+## 6. RetrieverQueryEngine 如何调用 reranker
 
-The reranker is attached as a LlamaIndex node postprocessor:
+reranker 是作为 LlamaIndex node postprocessor 挂进去的：
 
 ```python
 query_engine = RetrieverQueryEngine.from_args(
@@ -176,9 +188,9 @@ query_engine = RetrieverQueryEngine.from_args(
 )
 ```
 
-`from_args()` stores the retriever and postprocessors. The actual call happens when the query runs.
+`from_args()` 这一步只是保存 retriever 和 postprocessors，真正执行发生在 `query_engine.query(query)` 时。
 
-Internal behavior is:
+内部语义可以简化成：
 
 ```text
 retriever.retrieve(query) -> nodes
@@ -186,17 +198,17 @@ postprocessor.postprocess_nodes(nodes) -> reranked_nodes
 response_synthesizer.synthesize(query, reranked_nodes)
 ```
 
-Therefore, the reranker does not build nodes. It receives candidate `NodeWithScore` objects from the retriever and returns a reordered/rescored list.
+所以 reranker 不负责构建 node。它接收 retriever 已经找出的候选 `NodeWithScore`，然后返回重排或重打分后的 `NodeWithScore` 列表。
 
-## 7. Reranker Index Mapping
+## 7. reranker 的 index 为什么能映射回原 node
 
-Implementation entry:
+实现入口：
 
 ```text
 tools/retrieval/llamaindex/qwen_reranker.py
 ```
 
-The reranker first extracts plain text documents from the retrieved nodes:
+reranker 先从检索出的 `nodes` 里提取纯文本：
 
 ```python
 documents = [
@@ -205,15 +217,15 @@ documents = [
 ]
 ```
 
-This preserves list order:
+这个过程保持列表顺序：
 
 ```text
-documents[0] comes from nodes[0]
-documents[1] comes from nodes[1]
-documents[2] comes from nodes[2]
+documents[0] 来自 nodes[0]
+documents[1] 来自 nodes[1]
+documents[2] 来自 nodes[2]
 ```
 
-The external reranker returns indexes into that `documents` list:
+外部 reranker 返回的 `index` 指向输入 `documents` 的位置：
 
 ```json
 [
@@ -222,24 +234,24 @@ The external reranker returns indexes into that `documents` list:
 ]
 ```
 
-So the code can map the result back to the original node:
+所以代码可以这样找回原始 node：
 
 ```python
 original_node = nodes[item["index"]]
 ```
 
-This works because `item["index"]` means "the position of the input document in the request".
+这里的 `item["index"]` 不是 `TextNode.id_`，也不是 `NodeWithScore` 的字段。它是 reranker 服务返回的输入文档下标。
 
-Boundary:
+边界：
 
 ```text
-This assumes the reranker returns 0-based indexes into the submitted documents array.
-If a provider returns 1-based indexes or another ID format, this mapping must change.
+这里假设 reranker 返回的是 documents 数组的 0-based index。
+如果某个 provider 返回 1-based index 或返回其他 ID 格式，这里的映射逻辑必须改。
 ```
 
-## 8. Reranker Keeps Text and Metadata
+## 8. 为什么 reranker 不重新放 text
 
-The reranker does not rebuild `TextNode` and does not copy text manually:
+reranker 重新生成结果时没有重建 `TextNode`：
 
 ```python
 NodeWithScore(
@@ -248,18 +260,18 @@ NodeWithScore(
 )
 ```
 
-This means:
+含义是：
 
 ```text
-keep original TextNode text/id_/metadata
-replace only score
+保留原始 TextNode 的 text/id_/metadata
+只替换 score
 ```
 
-That is why the original text and XML anchor metadata survive reranking.
+这样正文、node ID、XML anchor metadata 都不会丢。
 
-## 9. Metadata Becomes SubAgent Context
+## 9. metadata 如何进入 SubAgent
 
-After query execution, `rag_engine.search()` reads `response.source_nodes`:
+查询结束后，`rag_engine.search()` 读取 `response.source_nodes`：
 
 ```python
 for i, source_node in enumerate(response.source_nodes, 1):
@@ -267,34 +279,34 @@ for i, source_node in enumerate(response.source_nodes, 1):
     metadata = getattr(source_node, "metadata", None) or {}
 ```
 
-It formats selected metadata into plain text:
+然后把部分 metadata 格式化进字符串：
 
 ```text
 xml_anchor_type: paragraph
 xml_anchor_id: path:body/p3
 内容：
-visible contract text
+合同可见原文
 ```
 
-Important boundary:
+关键边界：
 
 ```text
-The raw metadata object is not passed to the SubAgent.
-Only formatted text containing xml_anchor_type/xml_anchor_id is passed.
+SubAgent 收到的不是原始 metadata 对象。
+SubAgent 收到的是包含 xml_anchor_type/xml_anchor_id 的检索上下文字符串。
 ```
 
-## 10. SubAgent Anchors
+## 10. SubAgent anchors 如何落实
 
-The Orchestrator sends the retrieved context string to the SubAgent.
+Orchestrator 把检索上下文字符串传给 SubAgent。
 
-The prompt requires the SubAgent to reuse anchor fields from the retrieved context:
+prompt 要求 SubAgent 复用检索结果里的 anchor 字段：
 
 ```text
 输出 anchors 时必须原样复用对应检索结果中的 xml_anchor_type/xml_anchor_id；
 quoted_text 只能摘录该 anchor 对应合同文本中的单一连续片段。
 ```
 
-The output is validated by `agents/schemas.py`:
+SubAgent 输出会被 `agents/schemas.py` 校验：
 
 ```python
 class SubAgentAnchor:
@@ -304,13 +316,13 @@ class SubAgentAnchor:
     comment_text: str
 ```
 
-The resulting structure is stored under:
+最终结构保存在：
 
 ```text
 SubAgentOutput.issues[].anchors
 ```
 
-Then the workflow carries it as:
+然后沿工作流传递：
 
 ```text
 parsed_opinion["issues"]
@@ -320,15 +332,15 @@ parsed_opinion["issues"]
 -> generate_docx_report
 ```
 
-## 11. DOCX Annotation Writeback
+## 11. DOCX 批注如何写回
 
-Implementation entry:
+实现入口：
 
 ```text
 tools/document/reporting/docx_report.py
 ```
 
-The annotation phase reads every issue anchor:
+批注阶段读取每个 issue 的 anchor：
 
 ```python
 anchor_type = anchor_item.get("xml_anchor_type", "")
@@ -337,7 +349,7 @@ reference = anchor_item.get("quoted_text", "")
 comment_text = anchor_item.get("comment_text", "")
 ```
 
-Then it resolves the anchor in the original DOCX:
+然后回到原 DOCX 里解析：
 
 ```python
 _find_text_range_anchor_in_xml_anchor(
@@ -348,16 +360,16 @@ _find_text_range_anchor_in_xml_anchor(
 )
 ```
 
-The logic is:
+逻辑是：
 
 ```text
-1. Use xml_anchor_type and xml_anchor_id to lock the paragraph/table scope.
-2. Search quoted_text only inside that scope.
-3. Resolve the matching run range.
-4. Insert standard Word comment XML.
+1. 用 xml_anchor_type 和 xml_anchor_id 锁定 paragraph/table 范围。
+2. 只在该范围内查找 quoted_text。
+3. 找到具体 run range。
+4. 插入 Word 标准批注 XML。
 ```
 
-The generated DOCX uses Word comment markers, not the internal `path:body/...` ID:
+写入 DOCX 的不是 `path:body/...`，而是 Word 标准批注标记：
 
 ```xml
 <w:commentRangeStart w:id="6"/>
@@ -366,27 +378,27 @@ The generated DOCX uses Word comment markers, not the internal `path:body/...` I
 <w:commentReference w:id="6"/>
 ```
 
-## 12. Markdown Usage Boundary
+## 12. Markdown 的边界
 
-The temporary contract search index does not depend on contract markdown.
+合同临时检索索引不依赖合同 markdown。
 
-Markdown is still used for:
+markdown 仍用于：
 
-- Parsing review criteria before planning.
-- Some report-generation helper paths.
-- Workflow logging and text-length summaries.
+- 审查标准 DOCX 解析后交给 planner 拆分审查任务。
+- 部分报告生成辅助逻辑。
+- 工作流日志中的文本长度统计。
 
-Keep this boundary clear:
+需要明确区分：
 
 ```text
-contract search index: DOCX XML anchored TextNode
-review criteria planning: markdown text
+合同搜索索引：DOCX XML anchored TextNode
+审查标准规划：markdown 文本
 ```
 
-## 13. Risks and Boundaries
+## 13. 边界与风险
 
-- `path:body/...` is generated from DOCX structure and is stable only within the same DOCX review run.
-- The reranker `index` mapping assumes 0-based indexes into the input `documents` list.
-- Raw LlamaIndex metadata is not passed as a structured object to the SubAgent; it is formatted into context text.
-- If the SubAgent fabricates `xml_anchor_id` or quotes text outside the anchor scope, DOCX annotation may fail or skip that issue.
-- If the same `quoted_text` appears multiple times inside the same anchor scope, the first occurrence is used.
+- `path:body/...` 是从 DOCX 结构生成的，只保证同一份 DOCX、同一次任务内稳定。
+- reranker 的 `index` 映射假设服务返回的是输入 `documents` 数组的 0-based 下标。
+- LlamaIndex metadata 不会作为结构化对象传给 SubAgent，只会被格式化进检索上下文文本。
+- 如果 SubAgent 编造 `xml_anchor_id`，或者 `quoted_text` 不在对应 anchor 范围内，批注定位会失败或跳过该 issue。
+- 如果同一个 `quoted_text` 在同一个 anchor 范围内出现多次，当前使用首次出现位置。
