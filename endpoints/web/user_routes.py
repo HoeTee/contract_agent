@@ -339,6 +339,34 @@ async def session_status(request: Request):
     return {"active": True, "role": user["role"]}
 
 
+@user_router.get("/web/review/status")
+async def review_status(request: Request):
+    user = sync_context_user(request)
+    if not user:
+        return JSONResponse({"active": False}, status_code=401)
+    if user["role"] == "admin":
+        return JSONResponse({"active": False}, status_code=403)
+
+    task = get_latest_web_task(user["username"], user["tenant_id"])
+    if task is None:
+        return {"active": True, "has_task": False}
+
+    output = task.get("output") if isinstance(task.get("output"), dict) else {}
+    result_path_value = output.get("result_path")
+    result_path = Path(result_path_value) if result_path_value else None
+    status = task.get("status")
+    result_ready = status == "succeeded" and result_path is not None and result_path.exists()
+    return {
+        "active": True,
+        "has_task": True,
+        "task_id": task.get("task_id"),
+        "status": status,
+        "message": task.get("message"),
+        "result_ready": result_ready,
+        "result_name": result_path.name if result_ready and result_path else None,
+    }
+
+
 def update_display_name(users_file: str | Path, username: str, display_name: str) -> str:
     cleaned = display_name.strip()
     if not cleaned:

@@ -13,6 +13,37 @@ document.querySelectorAll("[data-loading-form]").forEach((form) => {
   });
 });
 
+if (document.querySelector(".status-box")) {
+  const params = new URLSearchParams(window.location.search);
+  const ctx = params.get("ctx");
+  const statusUrl = ctx
+    ? `/web/review/status?ctx=${encodeURIComponent(ctx)}`
+    : "/web/review/status";
+
+  const checkReviewStatus = async () => {
+    try {
+      const response = await fetch(statusUrl, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (response.status === 401) {
+        window.location.replace("/web/login");
+        return;
+      }
+      if (!response.ok) return;
+
+      const data = await response.json();
+      if (["succeeded", "failed", "cancelled"].includes(data.status)) {
+        window.location.reload();
+      }
+    } catch (error) {
+      // Keep the in-progress page stable if the status check fails.
+    }
+  };
+
+  window.setInterval(checkReviewStatus, 5000);
+}
+
 document.querySelectorAll("[data-confirm-delete]").forEach((form) => {
   form.addEventListener("submit", (event) => {
     const username = form.dataset.confirmUsername || "this user";
