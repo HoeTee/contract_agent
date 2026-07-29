@@ -294,7 +294,9 @@ async def run_web_review_task(username: str, tenant_id: str, paths) -> None:
     output_path = Path(task["output"]["result_path"])
     history_record = build_history_record(paths, output_path, task)
     if task.get("status") == "succeeded":
-        update_task(client_dir, paths.task_id, **history_record)
+        task_updates = history_record.copy()
+        task_updates.pop("task_id", None)
+        update_task(client_dir, paths.task_id, **task_updates)
 
 
 def get_current_username(request: Request) -> str | None:
