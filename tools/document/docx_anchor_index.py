@@ -79,7 +79,7 @@ def build_docx_anchor_nodes(docx_path: str) -> list[DocxAnchorNode]:
     seen_paragraphs: set[int] = set()
 
     def walk(parent, path_prefix: str) -> None:
-        for block_index, block in enumerate(iter_blocks(parent), start=1):
+        for block_index, block in enumerate(iter_blocks(parent), start=1): # iter_blocks() contains yield, so calling iter_blocks(parent) returns a generator object, and generator objects are iterable.
             if isinstance(block, Paragraph):
                 element_id = id(block._element)
                 if element_id in seen_paragraphs:
