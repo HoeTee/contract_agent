@@ -50,11 +50,16 @@ class PlannerOutput:
 class SubAgentIssue:
     issue_id: str
     risk_level: Literal["high", "medium", "low"]
-    quoted_text: str
-    comment_text: str                     # 1~100 字
+    anchors: list[SubAgentAnchor]
     reasoning: str
     criterion: str
     check_point: str
+
+class SubAgentAnchor:
+    xml_anchor_type: Literal["paragraph", "table"]
+    xml_anchor_id: str
+    quoted_text: str
+    comment_text: str                     # 1~100 字
 
 class SubAgentOutput:
     status: Literal["compliant", "issues_found", "not_applicable"]
@@ -74,8 +79,8 @@ class SummaryOutput:
 
 `OrchestratorAgent.execute_single_criterion` 负责一条审查标准的完整处理：
 
-1. 检索：调用 MCP `llamaindex_search`（query = 标准 + 检查要点），得到合同相关片段 `context`。检索结果会加一段 guardrail 提示，防止把“检索结果 1/2”“相关度分数”等检索包装文本误当成合同条款位置。
-2. SubAgent 审查：以 `SUB_AGENT_BASE_PROMPT` 创建 `SubAgent_<cid>`，输出 `SubAgentOutput`，`status` 为 `compliant` / `issues_found` / `not_applicable`，`issues` 含 `quoted_text`、`comment_text`、`risk_level` 等字段。
+1. 检索：调用 MCP `llamaindex_search`（query = 标准 + 检查要点），得到合同相关片段 `context`。检索结果会加一段 guardrail 提示，防止把“检索结果 1/2”“相关度分数”等检索包装文本误当成合同条款位置，并提供 `xml_anchor_type/xml_anchor_id` 给 SubAgent 复用。
+2. SubAgent 审查：以 `SUB_AGENT_BASE_PROMPT` 创建 `SubAgent_<cid>`，输出 `SubAgentOutput`，`status` 为 `compliant` / `issues_found` / `not_applicable`，`issues[].anchors` 含 `xml_anchor_type`、`xml_anchor_id`、`quoted_text`、`comment_text` 等字段。
 3. 若 `status == compliant`：短路，跳过反思直接返回。
 4. 否则进入反思循环，最多 `MAX_REFLECTION_ROUNDS` 轮：
    - 对 `quoted_text` 为空的“缺失类” issue 再检索一次，生成 `missing_text_review_notes` 供 Reflector 判断。
@@ -93,13 +98,13 @@ class SummaryOutput:
 
 ```text
 审查标准 DOCX -> ingest -> 审查标准 markdown -> Planner -> criteria_list
-合同 DOCX     -> ingest -> 合同 markdown     -> LlamaIndex 临时索引
+合同 DOCX     -> DOCX XML anchor nodes -> LlamaIndex 临时索引
 每条 criterion: 检索 context -> SubAgent -> (Reflector 反思循环) -> 单条结果
 所有单条结果 -> results -> Summarizer -> summary_sections
 results + summary_sections -> generate_docx_report -> 批注版 DOCX
 ```
 
-其中 `results` 决定逐条问题批注，`summary_sections` 决定文档开头总览批注。批注写入与 `quoted_text` 定位细节见 `DOCX_ANNOTATION_DESIGN.md`。
+其中 `results` 决定逐条问题批注，`summary_sections` 决定文档开头总览批注。LlamaIndex DOCX anchor 检索链路见 `DOCX_XML_ANCHOR_INDEXING.md`，批注写入与 `quoted_text` 定位细节见 `DOCX_ANNOTATION_DESIGN.md`。
 
 ## 架构边界
 
