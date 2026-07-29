@@ -14,10 +14,11 @@ embedding:
   name: "text-embedding-v4"
 
 rerank:
-  base_url: "https://<WorkspaceId>.<region>.maas.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
-  name: "qwen3-rerank"
-  provider: "dashscope"
-  inject_instruct: false
+  # provider can be: higress_qwen, bge, dashscope_qwen
+  base_url: "http://higress.llmgateway.dev.qa.zrub.com/v1/rerank"
+  name: "Qwen3-Reranker-8B"
+  provider: "higress_qwen"
+  instruct: "Given a contract review query, retrieve relevant institutional policy passages."
 
 workflow:
   max_reflection_rounds: 5

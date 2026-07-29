@@ -26,7 +26,7 @@ from pathlib import Path
 from config import (
     MODEL_CALL_MAX_RETRIES,
     MODEL_CALL_TIMEOUT_SECONDS,
-    RERANK_INJECT_INSTRUCT,
+    RERANK_INSTRUCT,
     RERANK_PROVIDER,
 )
 from tools.document.docx_anchor_index import build_docx_anchor_nodes
@@ -86,17 +86,16 @@ class LlamaIndexRAG:
         )
 
         self.reranker = None
-        if rerank_api_key and rerank_name:
+        if rerank_base_url:
             self.reranker = QwenRerankPostprocessor(
                 api_key=rerank_api_key,
                 base_url=rerank_base_url or embed_base_url,
                 model=rerank_name,
                 provider=rerank_provider,
                 top_n=rerank_top_n,
-                inject_instruct=RERANK_INJECT_INSTRUCT,
                 timeout=MODEL_CALL_TIMEOUT_SECONDS,
                 max_retries=MODEL_CALL_MAX_RETRIES,
-                instruct="Given a contract review query, retrieve relevant institutional policy passages.",
+                instruct=RERANK_INSTRUCT,
             )
 
         self._index = None

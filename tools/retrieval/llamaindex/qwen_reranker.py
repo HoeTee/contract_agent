@@ -17,12 +17,9 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
     api_key: str
     api_base: str
     model: str
-    provider: str = "tei"
+    provider: str = "higress_qwen"
     top_n: int = 3
-    inject_instruct: bool = True
-    instruct: str = (
-        "Given a web search query, retrieve relevant passages that answer the query."
-    )
+    instruct: str = ""
     timeout: float = 60
     max_retries: int = 5
     initial_retry_delay: float = 0.5
@@ -33,39 +30,39 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         api_key: str,
         base_url: str, 
         model: str,
-        provider: str = "tei",
+        provider: str = "higress_qwen",
         top_n: int = 3,
-        inject_instruct: bool = True,
-        instruct: str = (
-            "Given a web search query, retrieve relevant passages that answer the query."
-        ),
+        instruct: str = "",
         timeout: float = 60,
         max_retries: int = 5,
         initial_retry_delay: float = 0.5,
         max_retry_delay: float = 8.0,
         **kwargs,
     ) -> None:
-        if not api_key:
-            raise RuntimeError("api_key is required for QwenRerankPostprocessor")
         normalized_base = base_url.rstrip("/")
         if not normalized_base:
             raise RuntimeError("base_url is required for QwenRerankPostprocessor")
         normalized_provider = provider.strip().lower()
-        if normalized_provider not in {"dashscope", "tei"}:
+        if normalized_provider not in {"higress_qwen", "bge", "dashscope_qwen"}:
             raise RuntimeError(
-                "provider must be either 'dashscope' or 'tei', "
+                "provider must be one of 'higress_qwen', 'bge', or 'dashscope_qwen', "
                 f"got {provider!r}."
             )
+        normalized_model = model.strip() if model else ""
+        if normalized_provider in {"higress_qwen", "dashscope_qwen"}:
+            if not api_key:
+                raise RuntimeError(f"api_key is required for provider={normalized_provider!r}")
+            if not normalized_model:
+                raise RuntimeError(f"model is required for provider={normalized_provider!r}")
         
 
         super().__init__(
             api_key=api_key,
             api_base=normalized_base,
-            model=model,
+            model=normalized_model,
             provider=normalized_provider,
             top_n=top_n,
-            inject_instruct=inject_instruct,
-            instruct=instruct,
+            instruct=instruct.strip() if instruct else "",
             timeout=timeout,
             max_retries=max_retries,
             initial_retry_delay=initial_retry_delay,
@@ -115,11 +112,12 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
                 url,
                 data=json.dumps(payload).encode("utf-8"),
                 headers={
-                    "Authorization": f"Bearer {self.api_key}",
                     "Content-Type": "application/json",
                 },
                 method="POST",
             )
+            if self.api_key:
+                request.add_header("Authorization", f"Bearer {self.api_key}")
             try:
                 with urllib.request.urlopen(request, timeout=self.timeout) as response:
                     return json.loads(response.read().decode("utf-8"))
@@ -171,7 +169,25 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
         raise RuntimeError(f"Reranker request failed: {last_error}")
 
     def _build_payload(self, query: str, documents: list[str], top_n: int) -> dict:
-        if self.provider == "dashscope":
+        if self.provider == "higress_qwen":
+            payload = {
+                "model": self.model,
+                "query": query,
+                "documents": documents,
+                "top_n": top_n,
+            }
+            if self.instruct:
+                payload["instruct"] = self.instruct
+            return payload
+
+        if self.provider == "bge":
+            return {
+                "query": query,
+                "documents": documents,
+                "top_n": top_n,
+            }
+
+        if self.provider == "dashscope_qwen":
             payload = {
                 "model": self.model,
                 "input": {
@@ -183,18 +199,11 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
                     "top_n": top_n,
                 },
             }
-            if self.inject_instruct:
-                payload["parameters"]["instruct"] = self.instruct
+            if self.instruct:
+                payload["instruct"] = self.instruct
             return payload
 
-        payload = {
-            "query": query,
-            "texts": documents,
-            "raw_scores": False,
-        }
-        if self.inject_instruct:
-            payload["instruct"] = self.instruct
-        return payload
+        raise RuntimeError(f"Unsupported rerank provider: {self.provider!r}")
 
     def _postprocess_nodes(
         self,

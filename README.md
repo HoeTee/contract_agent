@@ -45,17 +45,17 @@ MinerU 已移除。`MINERU_API_KEY`、`parser.parse_file_with_mineru` 和 `miner
 
 reranker 的 `base_url` 必须是完整请求 URL。程序不会自动拼接 `/rerank` 或 `/reranks`，也不存在 `endpoint_format` 配置。
 
-`qwen3-rerank` 示例：
+`higress_qwen` 示例：
 
 ```yaml
 rerank:
-  base_url: "https://<WorkspaceId>.<region>.maas.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
-  name: "qwen3-rerank"
-  provider: "dashscope"
-  inject_instruct: false
+  base_url: "http://higress.llmgateway.dev.qa.zrub.com/v1/rerank"
+  name: "Qwen3-Reranker-8B"
+  provider: "higress_qwen"
+  instruct: "Given a contract review query, retrieve relevant institutional policy passages."
 ```
 
-只有目标 reranker 服务支持 `instruct` 字段时，才设置 `inject_instruct: true`。
+`instruct` 只在 `higress_qwen` 和 `dashscope_qwen` 中生效；为空时不发送。
 
 reranker 的厂商边界和排障说明见 `docs/RERANKER_CONFIGURATION.md`。
 

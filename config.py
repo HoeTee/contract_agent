@@ -52,6 +52,13 @@ def env_required(name: str) -> str:
     return value.strip()
 
 
+def env_optional(name: str) -> str:
+    value = os.getenv(name)
+    if value is None:
+        return ""
+    return value.strip()
+
+
 def env_bool(name: str, default: bool | None) -> bool | None:
     raw = os.getenv(name)
     if raw is None or raw.strip() == "":
@@ -128,7 +135,6 @@ LOGS_DIR = str(PROJECT_ROOT_PATH / "logs" / "workflow")
 
 LLM_API_KEY = env_required("LLM_API_KEY")
 EMBED_API_KEY = env_required("EMBED_API_KEY")
-RERANK_API_KEY = env_required("RERANK_API_KEY")
 SESSION_SECRET_KEY = env_required("SESSION_SECRET_KEY")
 
 LLM_BASE_URL = _as_str(cfg("llm", "base_url"), "llm.base_url")
@@ -150,15 +156,15 @@ RERANK_PROVIDER = _as_str(
     cfg("rerank", "provider"),
     "rerank.provider",
 ).lower()
-if RERANK_PROVIDER not in {"dashscope", "tei"}:
+if RERANK_PROVIDER not in {"higress_qwen", "bge", "dashscope_qwen"}:
     raise RuntimeError(
-        "rerank.provider must be either 'dashscope' or 'tei', "
+        "rerank.provider must be one of 'higress_qwen', 'bge', or 'dashscope_qwen', "
         f"got {RERANK_PROVIDER!r}."
     )
-RERANK_INJECT_INSTRUCT = _parse_bool(
-    cfg("rerank", "inject_instruct"),
-    "rerank.inject_instruct",
-)
+RERANK_INSTRUCT = _as_str(cfg("rerank", "instruct"), "rerank.instruct")
+RERANK_API_KEY = env_optional("RERANK_API_KEY")
+if RERANK_PROVIDER in {"higress_qwen", "dashscope_qwen"} and not RERANK_API_KEY:
+    raise RuntimeError(f"Missing required .env field: RERANK_API_KEY for rerank.provider={RERANK_PROVIDER!r}")
 
 MAX_REFLECTION_ROUNDS = _as_int(
     cfg("workflow", "max_reflection_rounds"),
