@@ -22,7 +22,7 @@ rerank:
 workflow:
   max_reflection_rounds: 5
   max_orchestrator_concurrency: 100
-  max_api_concurrent_reviews: 1
+  max_api_concurrent_reviews: 100
   model_call_timeout_seconds: 60
   model_call_max_retries: 5
 

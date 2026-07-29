@@ -62,4 +62,5 @@ env
 *.zip
 *.rar
 image.tar
-/部署/
+/.dockerignore/
+/deploy/
