@@ -118,10 +118,29 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
 }
 ```
 
+提交期错误响应。如果请求已通过 API client 解析并生成 `task_id`，但文件输入、URL 下载或 DOCX 校验失败，接口返回标准失败结构：
+
+```json
+{
+  "task_id": "20260714-143119-5ece",
+  "status": "failed",
+  "message": "Contract file URL download failed.",
+  "error": {
+    "code": "CONTRACT_URL_DOWNLOAD_FAILED",
+    "message": "Contract file URL download failed.",
+    "http_status": null
+  }
+}
+```
+
+鉴权失败发生在 `task_id` 生成前，因此仍返回 FastAPI 错误结构。
+
 | HTTP 状态码 | 返回场景 | 响应 |
 | --- | --- | --- |
 | `202` | 任务已接收。 | 任务 ID、初始状态和消息。 |
-| `400` | 合同或审查标准不是有效 DOCX，或审查标准内容不符合要求。 | `{ "detail": "..." }` |
+| `400` | 已生成 `task_id` 后，合同或审查标准不是有效 DOCX，URL 输入字段无效，或审查标准内容不符合要求。 | `{ "task_id": "...", "status": "failed", "message": "...", "error": {...} }` |
+| `415` | 已生成 `task_id` 后，请求 `Content-Type` 不受支持。 | `{ "task_id": "...", "status": "failed", "message": "Unsupported Content-Type.", "error": {...} }` |
+| `502` | 已生成 `task_id` 后，合同 URL 或审查标准 URL 下载失败。 | `{ "task_id": "...", "status": "failed", "message": "...", "error": {...} }` |
 | `400` | 未传 `Authorization`，或平台 key 没有本地客户映射。 | `{ "detail": "Authorization header is required." }` 或 `{ "detail": "API key has no local client mapping." }` |
 | `403` | 该客户映射已禁用。 | `{ "detail": "API client mapping is disabled." }` |
 | `422` | 缺少必填的 `file` multipart 字段，或请求字段无法解析。 | FastAPI 校验详情。 |

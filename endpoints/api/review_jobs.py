@@ -61,6 +61,41 @@ def _download_http_status(exc: Exception) -> int | None:
     return None
 
 
+def _submit_error_response(
+    *,
+    task_id: str,
+    status_code: int,
+    code: str,
+    message: str,
+    http_status: int | None = None,
+    include_http_status: bool = False,
+):
+    error = {
+        "code": code,
+        "message": message,
+    }
+    if include_http_status or http_status is not None:
+        error["http_status"] = http_status
+    return pretty_json_response(
+        {
+            "task_id": task_id,
+            "status": "failed",
+            "message": message,
+            "error": error,
+        },
+        status_code=status_code,
+    )
+
+
+def _validation_error_response(*, task_id: str, exc: HTTPException):
+    return _submit_error_response(
+        task_id=task_id,
+        status_code=exc.status_code,
+        code="INPUT_VALIDATION_FAILED",
+        message=str(exc.detail),
+    )
+
+
 @api_jobs_router.post("/api/review/jobs", status_code=202)
 async def submit_review_job(request: Request):
     client = await resolve_api_client(request)
@@ -76,14 +111,29 @@ async def submit_review_job(request: Request):
     if content_type.startswith("multipart/form-data"):
         form = await request.form()
         if "file_url" in form or "criteria_file_url" in form:
-            raise HTTPException(status_code=400, detail="URL fields require application/json.")
+            return _submit_error_response(
+                task_id=task_id,
+                status_code=400,
+                code="INVALID_CONTENT_TYPE_FIELDS",
+                message="URL fields require application/json.",
+            )
         file = form.get("file")
         if not _is_upload_file(file) or not getattr(file, "filename", ""):
-            raise HTTPException(status_code=400, detail="file is required.")
+            return _submit_error_response(
+                task_id=task_id,
+                status_code=400,
+                code="FILE_REQUIRED",
+                message="file is required.",
+            )
 
         filename = safe_upload_filename(file.filename)
         if not filename.lower().endswith(".docx"):
-            raise HTTPException(status_code=400, detail="Contract file must be DOCX.")
+            return _submit_error_response(
+                task_id=task_id,
+                status_code=400,
+                code="CONTRACT_FILE_NOT_DOCX",
+                message="Contract file must be DOCX.",
+            )
 
         contract_path = save_task_input_upload(
             client.client_dir,
@@ -98,13 +148,21 @@ async def submit_review_job(request: Request):
             file_path=str(contract_path),
             size_bytes=contract_path.stat().st_size,
         )
-        validate_uploaded_docx(contract_path)
+        try:
+            validate_uploaded_docx(contract_path)
+        except HTTPException as exc:
+            return _validation_error_response(task_id=task_id, exc=exc)
 
         criteria_file = form.get("criteria_file")
         if _is_upload_file(criteria_file) and getattr(criteria_file, "filename", ""):
             criteria_filename = safe_upload_filename(criteria_file.filename)
             if not criteria_filename.lower().endswith(".docx"):
-                raise HTTPException(status_code=400, detail="Review criteria file must be DOCX.")
+                return _submit_error_response(
+                    task_id=task_id,
+                    status_code=400,
+                    code="CRITERIA_FILE_NOT_DOCX",
+                    message="Review criteria file must be DOCX.",
+                )
             selected_criteria_path = save_task_input_upload(
                 client.client_dir,
                 task_id=task_id,
@@ -119,20 +177,38 @@ async def submit_review_job(request: Request):
                 original_filename=criteria_filename,
                 size_bytes=selected_criteria_path.stat().st_size,
             )
-            validate_uploaded_docx(selected_criteria_path)
-            validate_review_criteria_content(selected_criteria_path)
+            try:
+                validate_uploaded_docx(selected_criteria_path)
+                validate_review_criteria_content(selected_criteria_path)
+            except HTTPException as exc:
+                return _validation_error_response(task_id=task_id, exc=exc)
             criteria_source = "uploaded"
     elif content_type.startswith("application/json"):
         try:
             payload = await request.json()
         except JSONDecodeError:
-            raise HTTPException(status_code=400, detail="JSON body must be valid.")
+            return _submit_error_response(
+                task_id=task_id,
+                status_code=400,
+                code="INVALID_JSON_BODY",
+                message="JSON body must be valid.",
+            )
         if not isinstance(payload, dict):
-            raise HTTPException(status_code=400, detail="JSON body must be an object.")
+            return _submit_error_response(
+                task_id=task_id,
+                status_code=400,
+                code="INVALID_JSON_BODY",
+                message="JSON body must be an object.",
+            )
 
         file_url = payload.get("file_url")
         if not isinstance(file_url, str) or not file_url.strip():
-            raise HTTPException(status_code=400, detail="file_url is required.")
+            return _submit_error_response(
+                task_id=task_id,
+                status_code=400,
+                code="FILE_URL_REQUIRED",
+                message="file_url is required.",
+            )
         file_url = file_url.strip()
         filename = _filename_from_url(file_url, "contract_from_url.docx")
         try:
@@ -153,17 +229,30 @@ async def submit_review_job(request: Request):
                 http_status=None,
                 error=str(exc),
             )
-            raise HTTPException(status_code=400, detail=str(exc))
+            return _submit_error_response(
+                task_id=task_id,
+                status_code=400,
+                code="CONTRACT_URL_DOWNLOAD_INVALID",
+                message=str(exc),
+            )
         except httpx.HTTPError as exc:
+            http_status = _download_http_status(exc)
             write_task_log_event(
                 client.client_dir,
                 task_id,
                 "contract_url_download_failed",
                 source_url=_url_for_log(file_url),
-                http_status=_download_http_status(exc),
+                http_status=http_status,
                 error=str(exc),
             )
-            raise HTTPException(status_code=502, detail="Contract file URL download failed.")
+            return _submit_error_response(
+                task_id=task_id,
+                status_code=502,
+                code="CONTRACT_URL_DOWNLOAD_FAILED",
+                message="Contract file URL download failed.",
+                http_status=http_status,
+                include_http_status=True,
+            )
         write_task_log_event(
             client.client_dir,
             task_id,
@@ -172,12 +261,20 @@ async def submit_review_job(request: Request):
             file_path=str(contract_path),
             size_bytes=contract_path.stat().st_size,
         )
-        validate_uploaded_docx(contract_path)
+        try:
+            validate_uploaded_docx(contract_path)
+        except HTTPException as exc:
+            return _validation_error_response(task_id=task_id, exc=exc)
 
         criteria_file_url = payload.get("criteria_file_url")
         if criteria_file_url is not None:
             if not isinstance(criteria_file_url, str) or not criteria_file_url.strip():
-                raise HTTPException(status_code=400, detail="criteria_file_url must be a non-empty string.")
+                return _submit_error_response(
+                    task_id=task_id,
+                    status_code=400,
+                    code="CRITERIA_FILE_URL_INVALID",
+                    message="criteria_file_url must be a non-empty string.",
+                )
             criteria_file_url = criteria_file_url.strip()
             criteria_filename = _filename_from_url(criteria_file_url, "criteria_from_url.docx")
             try:
@@ -198,17 +295,30 @@ async def submit_review_job(request: Request):
                     http_status=None,
                     error=str(exc),
                 )
-                raise HTTPException(status_code=400, detail=str(exc))
+                return _submit_error_response(
+                    task_id=task_id,
+                    status_code=400,
+                    code="CRITERIA_URL_DOWNLOAD_INVALID",
+                    message=str(exc),
+                )
             except httpx.HTTPError as exc:
+                http_status = _download_http_status(exc)
                 write_task_log_event(
                     client.client_dir,
                     task_id,
                     "criteria_url_download_failed",
                     source_url=_url_for_log(criteria_file_url),
-                    http_status=_download_http_status(exc),
+                    http_status=http_status,
                     error=str(exc),
                 )
-                raise HTTPException(status_code=502, detail="Review criteria file URL download failed.")
+                return _submit_error_response(
+                    task_id=task_id,
+                    status_code=502,
+                    code="CRITERIA_URL_DOWNLOAD_FAILED",
+                    message="Review criteria file URL download failed.",
+                    http_status=http_status,
+                    include_http_status=True,
+                )
             write_task_log_event(
                 client.client_dir,
                 task_id,
@@ -217,11 +327,19 @@ async def submit_review_job(request: Request):
                 file_path=str(selected_criteria_path),
                 size_bytes=selected_criteria_path.stat().st_size,
             )
-            validate_uploaded_docx(selected_criteria_path)
-            validate_review_criteria_content(selected_criteria_path)
+            try:
+                validate_uploaded_docx(selected_criteria_path)
+                validate_review_criteria_content(selected_criteria_path)
+            except HTTPException as exc:
+                return _validation_error_response(task_id=task_id, exc=exc)
             criteria_source = "uploaded"
     else:
-        raise HTTPException(status_code=415, detail="Unsupported Content-Type.")
+        return _submit_error_response(
+            task_id=task_id,
+            status_code=415,
+            code="UNSUPPORTED_CONTENT_TYPE",
+            message="Unsupported Content-Type.",
+        )
 
     result_filename = build_report_display_name(filename)
     result_path = output_dir(client.client_dir, task_id) / result_filename
