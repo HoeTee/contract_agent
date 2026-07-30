@@ -70,6 +70,11 @@ POST /api/review/jobs/{task_id}/result
 
 ## 3. 提交任务
 
+该接口按 `Content-Type` 分流，且只支持以下两种请求体：
+
+- `multipart/form-data`：上传二进制 DOCX 文件，只接受 `file` / `criteria_file`。
+- `application/json`：通过 URL 下载 DOCX，只接受 `file_url` / `criteria_file_url`。
+
 ```http
 POST /api/review/jobs
 Content-Type: multipart/form-data

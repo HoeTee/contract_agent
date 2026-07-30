@@ -193,6 +193,10 @@ upload_received              收到上传请求和原始文件名
 api_review_received          收到无登录 API 审查请求和原始文件名
 criteria_uploaded            本次任务上传了临时审查要点
 contract_saved               合同文件已保存到用户数据目录
+contract_url_downloaded      合同 URL 已下载到任务 input 目录
+criteria_url_downloaded      审查要点 URL 已下载到任务 input 目录
+contract_url_download_failed 合同 URL 下载失败
+criteria_url_download_failed 审查要点 URL 下载失败
 docx_validation_passed       DOCX 文件格式校验通过
 review_started               后台审查任务开始执行
 agent_model_call_failed      Agent 大模型调用超时或重试失败
@@ -201,6 +205,27 @@ reranker_call_retry          Reranker 模型调用发生一次重试
 reranker_call_failed         Reranker 模型调用超时或重试失败
 review_completed             审查完成并生成批注 DOCX
 review_failed                审查任务失败，记录最终失败原因
+```
+
+文件保存类事件会记录本地路径和文件大小：
+
+```json
+{"event": "contract_saved", "file_path": "...", "size_bytes": 12345}
+{"event": "criteria_uploaded", "file_path": "...", "original_filename": "...", "size_bytes": 12345}
+{"event": "contract_url_downloaded", "file_path": "...", "size_bytes": 12345}
+{"event": "criteria_url_downloaded", "file_path": "...", "size_bytes": 12345}
+```
+
+URL 下载失败事件会记录上游 HTTP 状态码；连接失败、超时或没有 HTTP response 时 `http_status` 为 `null`。日志中的 `source_url` 不包含 query string，避免记录 OSS 签名参数：
+
+```json
+{"event": "contract_url_download_failed", "source_url": "https://example.com/a.docx", "http_status": 403, "error": "..."}
+```
+
+模型调用失败事件会记录组件和 HTTP 状态码；连接错误或超时时 `http_status` 为 `null`：
+
+```json
+{"event": "agent_model_call_failed", "component": "agent", "http_status": 429, "error": "..."}
 ```
 
 模型类失败事件会先记录具体组件事件，再记录 `review_failed`。前端 `/work` 页面会显示模型类失败的具体错误文案；OA 同步 API `/oa/review` 会返回 JSON 错误信息；非模型类异常仍显示或返回通用失败提示并要求查看任务日志。
