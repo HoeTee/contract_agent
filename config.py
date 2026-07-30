@@ -5,6 +5,7 @@ Central configuration for the contract review workflow.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -118,6 +119,29 @@ def _as_str_tuple(value: Any, field_name: str) -> tuple[str, ...]:
     return result
 
 
+def _as_size_bytes(value: Any, field_name: str) -> int:
+    if isinstance(value, int):
+        if value <= 0:
+            raise RuntimeError(f"{field_name} must be greater than 0.")
+        return value
+    raw = _as_str(value, field_name)
+    match = re.fullmatch(r"(\d+(?:\.\d+)?)\s*(kb|mb|gb|b)?", raw.lower())
+    if not match:
+        raise RuntimeError(f"{field_name} must be a size like '512KB', '50MB', '1GB', or bytes.")
+    amount = float(match.group(1))
+    unit = match.group(2) or "b"
+    multipliers = {
+        "b": 1,
+        "kb": 1024,
+        "mb": 1024 * 1024,
+        "gb": 1024 * 1024 * 1024,
+    }
+    size = int(amount * multipliers[unit])
+    if size <= 0:
+        raise RuntimeError(f"{field_name} must be greater than 0.")
+    return size
+
+
 def _project_path(value: Any, field_name: str) -> str:
     raw = _as_str(value, field_name)
     path = Path(raw)
@@ -205,6 +229,14 @@ API_CALLBACK_FILE_FIELD = _as_str(
     cfg("api", "callback_file_field"),
     "api.callback_file_field",
 ) or "file"
+API_URL_DOWNLOAD_TIMEOUT_SECONDS = _as_float(
+    cfg("api", "url_download_timeout_seconds"),
+    "api.url_download_timeout_seconds",
+)
+API_URL_DOWNLOAD_MAX_BYTES = _as_size_bytes(
+    cfg("api", "url_download_max_size"),
+    "api.url_download_max_size",
+)
 
 DOCX_COMMENT_INCLUDE_CRITERION = _parse_bool(
     cfg("docx", "comment_include_criterion"),

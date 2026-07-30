@@ -42,6 +42,8 @@ api:
   callback_enabled: false
   callback_url: ""
   callback_file_field: "file"
+  url_download_timeout_seconds: 60
+  url_download_max_size: "50MB"
 
 docx:
   comment_include_criterion: false

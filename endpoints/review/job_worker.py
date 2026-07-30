@@ -124,6 +124,7 @@ async def run_async_review_job(client_dir: str, task_id: str) -> None:
                 task_id,
                 exc.event_type,
                 component=exc.component,
+                http_status=exc.http_status,
                 error=str(exc),
             )
             mark_failed(client_dir, task_id, code=exc.event_type, message=exc.user_message, component=exc.component)

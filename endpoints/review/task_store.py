@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
 
+import httpx
 from fastapi import UploadFile
 from config import API_KEEP_INPUT, API_WRITE_LOGS, DATA_DIR
 from loggers.api_event_logger import append_api_event
@@ -124,6 +125,37 @@ def save_task_input_upload(client_dir: str, task_id: str, upload_file: UploadFil
     target_path = target_dir / filename
     with target_path.open("wb") as f:
         shutil.copyfileobj(upload_file.file, f)
+    return target_path
+
+
+def save_task_input_url(
+    client_dir: str,
+    task_id: str,
+    file_url: str,
+    filename: str,
+    *,
+    timeout_seconds: float,
+    max_bytes: int,
+) -> Path:
+    target_dir = task_input_work_dir(client_dir, task_id)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_path = target_dir / filename
+    total = 0
+    try:
+        with httpx.stream("GET", file_url, timeout=timeout_seconds, follow_redirects=True) as response:
+            response.raise_for_status()
+            with target_path.open("wb") as f:
+                for chunk in response.iter_bytes(chunk_size=1024 * 1024):
+                    if not chunk:
+                        continue
+                    total += len(chunk)
+                    if total > max_bytes:
+                        raise ValueError("Downloaded file exceeds configured max size.")
+                    f.write(chunk)
+    except Exception:
+        if target_path.exists():
+            target_path.unlink()
+        raise
     return target_path
 
 

@@ -239,7 +239,11 @@ class Agent:
 
                 completion = await self.client.chat.completions.create(**request_kwargs)
             except MODEL_API_ERRORS as exc:
-                raise ModelCallError("agent", f"{self.name}: {exc}") from exc
+                raise ModelCallError(
+                    "agent",
+                    f"{self.name}: {exc}",
+                    http_status=getattr(exc, "status_code", None),
+                ) from exc
 
             response_message = completion.choices[0].message
             finish_reason = completion.choices[0].finish_reason

@@ -92,6 +92,17 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
   -F "criteria_file=@C:/Users/lenovo/Desktop/criteria.docx"
 ```
 
+JSON URL 输入示例：
+
+```powershell
+curl.exe -X POST "http://localhost:5000/api/review/jobs" `
+  -H "Authorization: platform-key-for-client-a" `
+  -H "Content-Type: application/json" `
+  -d '{ "file_url": "https://example.com/contract.docx", "criteria_file_url": "https://example.com/criteria.docx" }'
+```
+
+`application/json` 只支持 URL 输入：`file_url` 必填，`criteria_file_url` 可选。URL 文件会先下载到任务 `input/` 目录，再执行与本地上传一致的 DOCX 校验。
+
 成功响应，HTTP `202`：
 
 ```json
