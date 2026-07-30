@@ -1,6 +1,6 @@
 llm:
-  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-  name: "qwen3.6-27b"
+  base_url: "https://llm-dz86nh60blqtpysi.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/"
+  name: "qwen-plus"
   enable_thinking: false
   max_context_tokens: 254000
   max_result_tokens: 64000
@@ -10,13 +10,13 @@ llm:
   seed: 42
 
 embedding:
-  base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+  base_url: "https://llm-dz86nh60blqtpysi.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
   name: "text-embedding-v4"
 
 rerank:
-  base_url: "http://higress.llmgateway.dev.qa.zrub.com/v1/rerank"
-  name: "Qwen3-Reranker-8B"
-  provider: "higress_qwen"
+  base_url: "https://llm-dz86nh60blqtpysi.cn-beijing.maas.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank"
+  name: "qwen3-rerank"
+  provider: "dashscope_qwen"
   instruct: "Given a contract review query, retrieve relevant institutional policy passages."
 
 workflow:
@@ -49,4 +49,4 @@ docx:
   comment_include_criterion: false
 
 logging:
-  enable_workflow_logs: false
+  enable_workflow_logs: true
