@@ -137,6 +137,26 @@ docker exec -it <container> python -c 'import socket; print({x[4][0] for x in so
 
 它用于让容器把指定域名解析到指定 IP。它是短期稳定修复，适合内网 DNS 暂时不可用或域名解析入口不一致的场景。
 
+不需要 hosts 映射时，不要写 `extra_hosts`。写成空列表通常不会出错，但没有意义：
+
+```yaml
+services:
+  lexora:
+    extra_hosts: []
+```
+
+不要写空字符串或不完整映射：
+
+```yaml
+services:
+  lexora:
+    extra_hosts:
+      - ""
+      - "agentar.agentx.qa.zrubft.com:"
+```
+
+这类占位值可能导致 Compose 解析失败，或向容器 `/etc/hosts` 写入异常记录。
+
 长期更好的方式是配置正确内网 DNS：
 
 ```yaml
