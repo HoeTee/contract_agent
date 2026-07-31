@@ -26,6 +26,8 @@ workflow:
   max_api_concurrent_reviews: 1
   model_call_timeout_seconds: 60
   model_call_max_retries: 5
+  subagent_allowed_tools:
+    - "llamaindex_search"
 
 retrieval:
   chunk_size: 512

@@ -46,6 +46,13 @@ def cfg(section: str, key: str) -> Any:
     return section_data[key]
 
 
+def cfg_optional(section: str, key: str, default: Any) -> Any:
+    section_data = CONFIG.get(section)
+    if not isinstance(section_data, dict):
+        return default
+    return section_data.get(key, default)
+
+
 def env_required(name: str) -> str:
     value = os.getenv(name)
     if value is None or value.strip() == "":
@@ -106,7 +113,7 @@ def _as_str(value: Any, field_name: str) -> str:
     return value.strip()
 
 
-def _as_str_tuple(value: Any, field_name: str) -> tuple[str, ...]:
+def _as_str_tuple(value: Any, field_name: str, *, allow_empty: bool = False) -> tuple[str, ...]:
     if isinstance(value, str):
         items = value.split(",")
     elif isinstance(value, list):
@@ -114,7 +121,7 @@ def _as_str_tuple(value: Any, field_name: str) -> tuple[str, ...]:
     else:
         raise RuntimeError(f"{field_name} must be a string or list, got {value!r}.")
     result = tuple(str(item).strip() for item in items if str(item).strip())
-    if not result:
+    if not result and not allow_empty:
         raise RuntimeError(f"{field_name} must contain at least one value.")
     return result
 
@@ -209,6 +216,11 @@ MODEL_CALL_TIMEOUT_SECONDS = _as_float(
 MODEL_CALL_MAX_RETRIES = _as_int(
     cfg("workflow", "model_call_max_retries"),
     "workflow.model_call_max_retries",
+)
+SUBAGENT_ALLOWED_TOOLS = _as_str_tuple(
+    cfg_optional("workflow", "subagent_allowed_tools", ["llamaindex_search"]),
+    "workflow.subagent_allowed_tools",
+    allow_empty=True,
 )
 
 CHUNK_SIZE = _as_int(cfg("retrieval", "chunk_size"), "retrieval.chunk_size")

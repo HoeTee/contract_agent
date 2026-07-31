@@ -7,7 +7,11 @@ import json
 import re
 import time
 
-from config import MAX_REFLECTION_ROUNDS, MAX_ORCHESTRATOR_CONCURRENCY
+from config import (
+    MAX_REFLECTION_ROUNDS,
+    MAX_ORCHESTRATOR_CONCURRENCY,
+    SUBAGENT_ALLOWED_TOOLS,
+)
 from agents.base_agent import Agent
 from agents.json_utils import chat_until_valid_json
 from agents.reflector import ReflectorAgent
@@ -57,15 +61,41 @@ class OrchestratorAgent:
         self.settings = settings
         self.api_events_path = api_events_path
         self.tools = None
+        self._warned_missing_subagent_tools = False
         self.reflector = ReflectorAgent(settings=self.settings)
         self.retrieval_tokens = 0  # Track MCP tool internal LLM tokens
 
-    async def _get_tools(self) -> list[str]:
+    async def _get_tools(self) -> list[dict]:
         """Cache MCP tools list."""
         if self.tools is None:
             tools = await self.mcp_client.get_available_tools()
             self.tools = tools
         return self.tools
+
+    def _filter_tools_by_name(
+        self,
+        tools: list[dict],
+        allowed_names: set[str],
+    ) -> list[dict]:
+        """Return only tools visible to the current agent role."""
+        filtered = [
+            tool
+            for tool in tools
+            if tool.get("function", {}).get("name") in allowed_names
+        ]
+        exposed_names = {
+            tool.get("function", {}).get("name")
+            for tool in tools
+            if tool.get("function", {}).get("name")
+        }
+        missing = allowed_names - exposed_names
+        if missing and not self._warned_missing_subagent_tools:
+            print(
+                "[Orchestrator] SubAgent allowed tools not exposed by MCP: "
+                f"{sorted(missing)}"
+            )
+            self._warned_missing_subagent_tools = True
+        return filtered
 
     async def _retrieve_context(
         self, cid: str,
@@ -206,7 +236,10 @@ class OrchestratorAgent:
         )
 
         # Step 2: Create sub-agent with retrieved context
-        tools = await self._get_tools()
+        tools = self._filter_tools_by_name(
+            await self._get_tools(),
+            set(SUBAGENT_ALLOWED_TOOLS),
+        )
         sub_agent = Agent(
             system_prompt=SUB_AGENT_BASE_PROMPT,
             name=f"SubAgent_{cid}",
