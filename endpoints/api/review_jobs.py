@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from json import JSONDecodeError
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
@@ -10,6 +11,9 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from config import (
+    API_KEEP_OUTPUT,
+    API_RESULT_OUTPUT_DEFAULT,
+    API_RESULT_UPLOAD_ENABLED,
     API_URL_DOWNLOAD_MAX_BYTES,
     API_URL_DOWNLOAD_TIMEOUT_SECONDS,
     DEFAULT_REVIEW_CRITERIA_PATH,
@@ -20,6 +24,7 @@ from endpoints.review.response import (
     present_review_task,
     present_submit_response,
 )
+from endpoints.review.result_upload import ResultUploadError, upload_result_file
 from endpoints.review.task_store import (
     create_task,
     ensure_task_dirs,
@@ -94,6 +99,31 @@ def _validation_error_response(*, task_id: str, exc: HTTPException):
         code="INPUT_VALIDATION_FAILED",
         message=str(exc.detail),
     )
+
+
+async def _result_output_type(request: Request) -> str:
+    body = await request.body()
+    if not body:
+        return API_RESULT_OUTPUT_DEFAULT
+
+    content_type = request.headers.get("content-type", "").lower()
+    if content_type and not content_type.startswith("application/json"):
+        raise HTTPException(status_code=415, detail="Result request body must be application/json.")
+
+    try:
+        payload = json.loads(body)
+    except JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Result request JSON body must be valid.")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Result request JSON body must be an object.")
+
+    output_type = payload.get("output_type", API_RESULT_OUTPUT_DEFAULT)
+    if not isinstance(output_type, str):
+        raise HTTPException(status_code=400, detail="output_type must be 'file' or 'url'.")
+    output_type = output_type.strip().lower()
+    if output_type not in {"file", "url"}:
+        raise HTTPException(status_code=400, detail="output_type must be 'file' or 'url'.")
+    return output_type
 
 
 @api_jobs_router.post("/api/review/jobs", status_code=202)
@@ -399,6 +429,56 @@ async def export_review_job_result(
     result_path = Path(task["output"]["result_path"])
     if not result_path.exists():
         raise HTTPException(status_code=500, detail="Result file does not exist.")
+
+    output_type = await _result_output_type(request)
+    if output_type == "url":
+        if not API_RESULT_UPLOAD_ENABLED:
+            raise HTTPException(status_code=400, detail="Result URL output is disabled.")
+        try:
+            result_url = await upload_result_file(result_path, result_path.name)
+        except HTTPException as exc:
+            write_task_log_event(
+                client.client_dir,
+                task_id,
+                "result_url_upload_failed",
+                file_path=str(result_path),
+                size_bytes=result_path.stat().st_size,
+                http_status=None,
+                error=str(exc.detail),
+            )
+            raise
+        except ResultUploadError as exc:
+            write_task_log_event(
+                client.client_dir,
+                task_id,
+                "result_url_upload_failed",
+                file_path=str(result_path),
+                size_bytes=result_path.stat().st_size,
+                http_status=exc.http_status,
+                error=str(exc),
+            )
+            raise HTTPException(status_code=502, detail="Result file URL upload failed.") from exc
+
+        write_task_log_event(
+            client.client_dir,
+            task_id,
+            "result_url_uploaded",
+            file_path=str(result_path),
+            size_bytes=result_path.stat().st_size,
+            http_status=200,
+            url=result_url,
+        )
+        if not API_KEEP_OUTPUT:
+            result_path.unlink(missing_ok=True)
+        return pretty_json_response(
+            {
+                "task_id": task["task_id"],
+                "status": task["status"],
+                "output_type": "url",
+                "filename": result_path.name,
+                "url": result_url,
+            }
+        )
 
     return FileResponse(
         path=result_path,

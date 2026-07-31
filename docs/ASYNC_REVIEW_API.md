@@ -202,7 +202,28 @@ POST /api/review/jobs/{task_id}/result
 Authorization: <api_key>
 ```
 
-该接口不接收请求体。保存到哪里由调用方决定，例如 `curl.exe -o` 或 Python 客户端本地文件路径。
+该接口支持两种输出方式：
+
+- `output_type=file`：直接返回结果 DOCX 文件流。
+- `output_type=url`：将结果 DOCX 上传到配置的附件接口，并返回上传后的 URL。
+
+不传请求体时，使用 `api.result_output_default`。默认配置为 `file`，兼容已有调用方。
+
+请求文件输出：
+
+```json
+{
+  "output_type": "file"
+}
+```
+
+请求 URL 输出：
+
+```json
+{
+  "output_type": "url"
+}
+```
 
 PowerShell `curl.exe` 示例：
 
@@ -230,14 +251,63 @@ with open(output_file, "wb") as f:
             f.write(chunk)
 ```
 
+URL 输出示例：
+
+```powershell
+curl.exe -X POST "http://localhost:5000/api/review/jobs/20260714-143119-5ece/result" `
+  -H "Authorization: platform-key-for-client-a" `
+  -H "Content-Type: application/json" `
+  -d '{ "output_type": "url" }'
+```
+
+成功响应，HTTP `200`：
+
+```json
+{
+  "task_id": "20260714-143119-5ece",
+  "status": "succeeded",
+  "output_type": "url",
+  "filename": "contract_reviewed.docx",
+  "url": "https://example.com/contract_reviewed.docx"
+}
+```
+
+URL 输出依赖以下配置：
+
+```yaml
+api:
+  keep_output: true
+  result_output_default: "file"
+  result_upload_enabled: false
+  result_upload_domain: "http://64.202.33.42:30843"
+  result_upload_path: "/openapi/agentar/v1/attachment/batchUploadAttachmentFile.json"
+  result_upload_authorization: ""
+  result_upload_timeout_seconds: 60
+```
+
+上传请求等价于：
+
+```bash
+curl -X POST "http://64.202.33.42:30843/openapi/agentar/v1/attachment/batchUploadAttachmentFile.json" \
+  -H "Authorization: <result_upload_authorization>" \
+  -F "files=@/path/to/reviewed.docx;type=application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+```
+
+`keep_output=false` 只在 URL 输出上传成功后清理本地结果文件；文件流输出不能在响应发送前删除本地结果文件。
+
+上传成功后，服务会从上传接口 JSON 响应中的常见 URL 字段解析结果地址，例如 `url`、`fileUrl`、`downloadUrl` 以及它们在 `data` 或 `data[0]` 下的形式；如果解析不到 URL，接口返回 `502`。
+
 | HTTP 状态码 | 返回场景 | 响应 |
 | --- | --- | --- |
-| `200` | 任务已成功，返回结果 DOCX 文件流。 | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` 响应体。 |
+| `200` | 任务已成功，请求 `file` 输出。 | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` 响应体。 |
+| `200` | 任务已成功，请求 `url` 输出。 | `{ "task_id": "...", "status": "succeeded", "output_type": "url", "url": "..." }` |
+| `400` | `output_type` 非 `file` / `url`，或 URL 输出未启用。 | `{ "detail": "..." }` |
 | `400` | 未传 `Authorization`，或平台 key 没有本地客户映射。 | `{ "detail": "..." }` |
 | `403` | 该客户映射已禁用。 | `{ "detail": "API client mapping is disabled." }` |
 | `404` | 任务 ID 不合法、不存在，或属于其他客户。 | `{ "detail": "Task not found." }` |
 | `409` | 任务状态不是 `succeeded`。 | `{ "detail": "Task is not finished. Current status: ..." }` |
 | `500` | 服务端结果源文件不存在，或客户鉴权映射异常。 | `{ "detail": "..." }` |
+| `502` | URL 输出上传失败，或上传响应中无法解析 URL。 | `{ "detail": "Result file URL upload failed." }` |
 
 ## 6. 取消等待中的任务
 

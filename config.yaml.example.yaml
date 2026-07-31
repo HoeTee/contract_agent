@@ -35,7 +35,14 @@ retrieval:
 
 api:
   keep_input: true
+  keep_output: true
   write_logs: true
+  result_output_default: "file"
+  result_upload_enabled: false
+  result_upload_domain: "http://64.202.33.42:30843"
+  result_upload_path: "/openapi/agentar/v1/attachment/batchUploadAttachmentFile.json"
+  result_upload_authorization: ""
+  result_upload_timeout_seconds: 60
   meta_required: false
   meta_fields:
     - "templateCode"

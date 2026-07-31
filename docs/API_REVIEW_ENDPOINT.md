@@ -16,7 +16,7 @@ POST /api/review/jobs/{task_id}/cancel
 `/api` 面向普通外部客户：
 
 - 平台负责 `Authorization` key 鉴权；服务仅用该 key 映射 `client_id/client_dir`。
-- 只做异步任务提交、查询、结果下载、取消。
+- 只做异步任务提交、查询、结果文件流输出或 URL 输出、取消。
 - 不接收 `metafields`。
 - 不 callback。
 - 数据按 `client_id` 分区。
@@ -59,7 +59,7 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
   -F "file=@C:\path\contract.docx"
 ```
 
-Status, result download, and cancel use the same `Authorization` header. Body, form, query string, and `X-API-Key` are not used for API key mapping.
+Status, result output, and cancel use the same `Authorization` header. Body, form, query string, and `X-API-Key` are not used for API key mapping.
 
 Auth failures:
 
@@ -99,6 +99,7 @@ data/api/<task_id>/
 - `scripts/manage_api_clients.py`：读写 `api_clients.json`，登记平台 key 指纹映射。
 - `endpoints/api/client_mapping.py`：根据平台 `Authorization` key 映射 `/api` 客户目录。
 - `endpoints/api/review_jobs.py`：异步任务 API 路由。
+- `endpoints/review/result_upload.py`：结果 URL 输出使用的附件上传 helper，沿用 `httpx.AsyncClient` multipart 上传。
 - `endpoints/review/task_store.py`：按 client 分区的 task 存储。
 - `endpoints/review/job_worker.py`：异步审查 worker。
 - `endpoints/review/response.py`：过滤对外响应。
@@ -110,9 +111,10 @@ data/api/<task_id>/
 ```yaml
 api:
   keep_input: true
+  keep_output: true
   write_logs: true
 ```
 
-- `output/` 始终写入。
+- `output/` 会先写入结果文件；`api.keep_output=false` 时，URL 输出上传成功后清理本地结果文件。
 - `input/` 是否保留由 `api.keep_input` 控制。
 - `logs/` 是否写入由 `api.write_logs` 控制。

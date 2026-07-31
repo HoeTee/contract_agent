@@ -220,7 +220,34 @@ DATA_DIR = str(PROJECT_ROOT_PATH / "data")
 USERS_FILE = str(PROJECT_ROOT_PATH / "user_profiles" / "users.json")
 
 API_KEEP_INPUT = _parse_bool(cfg("api", "keep_input"), "api.keep_input")
+API_KEEP_OUTPUT = _parse_bool(cfg("api", "keep_output"), "api.keep_output")
 API_WRITE_LOGS = _parse_bool(cfg("api", "write_logs"), "api.write_logs")
+API_RESULT_OUTPUT_DEFAULT = _as_str(
+    cfg("api", "result_output_default"),
+    "api.result_output_default",
+).lower()
+if API_RESULT_OUTPUT_DEFAULT not in {"file", "url"}:
+    raise RuntimeError("api.result_output_default must be 'file' or 'url'.")
+API_RESULT_UPLOAD_ENABLED = _parse_bool(
+    cfg("api", "result_upload_enabled"),
+    "api.result_upload_enabled",
+)
+API_RESULT_UPLOAD_DOMAIN = _as_str(
+    cfg("api", "result_upload_domain"),
+    "api.result_upload_domain",
+)
+API_RESULT_UPLOAD_PATH = _as_str(
+    cfg("api", "result_upload_path"),
+    "api.result_upload_path",
+)
+API_RESULT_UPLOAD_AUTHORIZATION = _as_str(
+    cfg("api", "result_upload_authorization"),
+    "api.result_upload_authorization",
+)
+API_RESULT_UPLOAD_TIMEOUT_SECONDS = _as_float(
+    cfg("api", "result_upload_timeout_seconds"),
+    "api.result_upload_timeout_seconds",
+)
 API_META_REQUIRED = _parse_bool(cfg("api", "meta_required"), "api.meta_required")
 API_META_FIELDS = _as_str_tuple(cfg("api", "meta_fields"), "api.meta_fields")
 API_CALLBACK_ENABLED = _parse_bool(cfg("api", "callback_enabled"), "api.callback_enabled")

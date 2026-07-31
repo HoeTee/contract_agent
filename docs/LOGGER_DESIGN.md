@@ -197,6 +197,8 @@ contract_url_downloaded      合同 URL 已下载到任务 input 目录
 criteria_url_downloaded      审查要点 URL 已下载到任务 input 目录
 contract_url_download_failed 合同 URL 下载失败
 criteria_url_download_failed 审查要点 URL 下载失败
+result_url_uploaded          结果 DOCX 已上传并生成 URL
+result_url_upload_failed     结果 DOCX 上传 URL 失败
 docx_validation_passed       DOCX 文件格式校验通过
 review_started               后台审查任务开始执行
 agent_model_call_failed      Agent 大模型调用超时或重试失败
@@ -214,12 +216,14 @@ review_failed                审查任务失败，记录最终失败原因
 {"event": "criteria_uploaded", "file_path": "...", "original_filename": "...", "size_bytes": 12345}
 {"event": "contract_url_downloaded", "file_path": "...", "size_bytes": 12345}
 {"event": "criteria_url_downloaded", "file_path": "...", "size_bytes": 12345}
+{"event": "result_url_uploaded", "file_path": "...", "size_bytes": 12345, "http_status": 200, "url": "https://example.com/result.docx"}
 ```
 
-URL 下载失败事件会记录上游 HTTP 状态码；连接失败、超时或没有 HTTP response 时 `http_status` 为 `null`。日志中的 `source_url` 不包含 query string，避免记录 OSS 签名参数：
+URL 下载或结果上传失败事件会记录上游 HTTP 状态码；连接失败、超时或没有 HTTP response 时 `http_status` 为 `null`。日志中的 `source_url` 不包含 query string，避免记录 OSS 签名参数：
 
 ```json
 {"event": "contract_url_download_failed", "source_url": "https://example.com/a.docx", "http_status": 403, "error": "..."}
+{"event": "result_url_upload_failed", "file_path": "...", "http_status": 502, "error": "..."}
 ```
 
 模型调用失败事件会记录组件和 HTTP 状态码；连接错误或超时时 `http_status` 为 `null`：

@@ -11,7 +11,7 @@
 ## HTTP 路由
 
 - `endpoints/api/client_mapping.py`：读取平台提供的 `Authorization` key，并从本地 `api_clients.json` 映射出 `client_id/client_dir`。
-- `endpoints/api/review_jobs.py`：普通 `/api` 异步任务接口，提供提交、查询、结果下载和取消任务。
+- `endpoints/api/review_jobs.py`：普通 `/api` 异步任务接口，提供提交、查询、结果文件流输出、结果 URL 输出和取消任务。
 - `endpoints/oa/review.py`：OA 专用同步 API，接收 OA 文件和元字段，完成后按配置回传结果。
 - `endpoints/web/user_routes.py`：浏览器普通用户页面和表单路由，URL 以 `/web` 开头。
 - `endpoints/web/admin_routes.py`：管理端页面和表单路由，URL 以 `/web/admin` 开头。
@@ -23,6 +23,7 @@
 - `endpoints/review/task_store.py`：读写 API/Web 任务状态、输入、输出和日志路径。
 - `endpoints/review/job_worker.py`：执行异步审查后台任务。
 - `endpoints/review/response.py`：构造对外 API 响应，避免暴露服务端路径和 secret hash。
+- `endpoints/review/result_upload.py`：结果 URL 输出使用的附件上传 helper，沿用 `httpx.AsyncClient` multipart 上传。
 - `endpoints/review/meta.py`：旧 meta fields helper；普通 `/api` 当前不再使用。
 - `endpoints/review/callbacks.py`：旧 callback helper；普通 `/api` 异步主流程不依赖 callback。
 
