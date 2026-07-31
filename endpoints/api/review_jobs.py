@@ -102,28 +102,133 @@ def _validation_error_response(*, task_id: str, exc: HTTPException):
 
 
 async def _result_output_type(request: Request) -> str:
-    body = await request.body()
-    if not body:
+    payload = await _json_body(request, allow_empty=True, context="Result request")
+    if payload is None:
         return API_RESULT_OUTPUT_DEFAULT
-
-    content_type = request.headers.get("content-type", "").lower()
-    if content_type and not content_type.startswith("application/json"):
-        raise HTTPException(status_code=415, detail="Result request body must be application/json.")
-
-    try:
-        payload = json.loads(body)
-    except JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Result request JSON body must be valid.")
-    if not isinstance(payload, dict):
-        raise HTTPException(status_code=400, detail="Result request JSON body must be an object.")
-
     output_type = payload.get("output_type", API_RESULT_OUTPUT_DEFAULT)
+    return _validate_result_output_type(output_type)
+
+
+def _validate_result_output_type(output_type: object) -> str:
     if not isinstance(output_type, str):
         raise HTTPException(status_code=400, detail="output_type must be 'file' or 'url'.")
     output_type = output_type.strip().lower()
     if output_type not in {"file", "url"}:
         raise HTTPException(status_code=400, detail="output_type must be 'file' or 'url'.")
     return output_type
+
+
+async def _json_body(
+    request: Request,
+    *,
+    allow_empty: bool,
+    context: str,
+) -> dict | None:
+    body = await request.body()
+    if not body:
+        if allow_empty:
+            return None
+        raise HTTPException(status_code=400, detail=f"{context} JSON body is required.")
+
+    content_type = request.headers.get("content-type", "").lower()
+    if content_type and not content_type.startswith("application/json"):
+        raise HTTPException(status_code=415, detail=f"{context} body must be application/json.")
+
+    try:
+        payload = json.loads(body)
+    except JSONDecodeError:
+        raise HTTPException(status_code=400, detail=f"{context} JSON body must be valid.")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail=f"{context} JSON body must be an object.")
+    return payload
+
+
+def _task_id_from_payload(payload: dict) -> str:
+    task_id = payload.get("task_id")
+    if not isinstance(task_id, str) or not task_id.strip():
+        raise HTTPException(status_code=400, detail="task_id is required.")
+    return task_id.strip()
+
+
+def _read_api_task_or_404(client_dir: str, task_id: str) -> dict:
+    try:
+        task = read_task(client_dir, task_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    if task is None:
+        raise HTTPException(status_code=404, detail="Task not found.")
+    return task
+
+
+async def _export_review_job_result(
+    *,
+    client_dir: str,
+    task: dict,
+    output_type: str,
+):
+    status = task["status"]
+    if status != "succeeded":
+        raise HTTPException(status_code=409, detail=f"Task is not finished. Current status: {status}")
+
+    task_id = task["task_id"]
+    result_path = Path(task["output"]["result_path"])
+    if not result_path.exists():
+        raise HTTPException(status_code=500, detail="Result file does not exist.")
+
+    if output_type == "url":
+        if not API_RESULT_UPLOAD_ENABLED:
+            raise HTTPException(status_code=400, detail="Result URL output is disabled.")
+        try:
+            result_url = await upload_result_file(result_path, result_path.name)
+        except HTTPException as exc:
+            write_task_log_event(
+                client_dir,
+                task_id,
+                "result_url_upload_failed",
+                file_path=str(result_path),
+                size_bytes=result_path.stat().st_size,
+                http_status=None,
+                error=str(exc.detail),
+            )
+            raise
+        except ResultUploadError as exc:
+            write_task_log_event(
+                client_dir,
+                task_id,
+                "result_url_upload_failed",
+                file_path=str(result_path),
+                size_bytes=result_path.stat().st_size,
+                http_status=exc.http_status,
+                error=str(exc),
+            )
+            raise HTTPException(status_code=502, detail="Result file URL upload failed.") from exc
+
+        write_task_log_event(
+            client_dir,
+            task_id,
+            "result_url_uploaded",
+            file_path=str(result_path),
+            size_bytes=result_path.stat().st_size,
+            http_status=200,
+            url=result_url,
+        )
+        if not API_KEEP_OUTPUT:
+            result_path.unlink(missing_ok=True)
+        return pretty_json_response(
+            {
+                "task_id": task["task_id"],
+                "status": task["status"],
+                "output_type": "url",
+                "filename": result_path.name,
+                "url": result_url,
+            }
+        )
+
+    return FileResponse(
+        path=result_path,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        filename=result_path.name,
+    )
 
 
 @api_jobs_router.post("/api/review/jobs", status_code=202)
@@ -400,12 +505,16 @@ async def submit_review_job(request: Request):
 @api_jobs_router.get("/api/review/jobs/{task_id}")
 async def get_review_job(request: Request, task_id: str):
     client = await resolve_api_client(request)
-    try:
-        task = read_task(client.client_dir, task_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Task not found.")
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found.")
+    task = _read_api_task_or_404(client.client_dir, task_id)
+    return pretty_json_response(present_review_task(task))
+
+
+@api_jobs_router.post("/api/review/jobs/status")
+async def get_review_job_by_body(request: Request):
+    client = await resolve_api_client(request)
+    payload = await _json_body(request, allow_empty=False, context="Status request")
+    task_id = _task_id_from_payload(payload)
+    task = _read_api_task_or_404(client.client_dir, task_id)
     return pretty_json_response(present_review_task(task))
 
 
@@ -415,75 +524,26 @@ async def export_review_job_result(
     task_id: str,
 ):
     client = await resolve_api_client(request)
-    try:
-        task = read_task(client.client_dir, task_id)
-    except ValueError:
-        raise HTTPException(status_code=404, detail="Task not found.")
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found.")
-
-    status = task["status"]
-    if status != "succeeded":
-        raise HTTPException(status_code=409, detail=f"Task is not finished. Current status: {status}")
-
-    result_path = Path(task["output"]["result_path"])
-    if not result_path.exists():
-        raise HTTPException(status_code=500, detail="Result file does not exist.")
-
+    task = _read_api_task_or_404(client.client_dir, task_id)
     output_type = await _result_output_type(request)
-    if output_type == "url":
-        if not API_RESULT_UPLOAD_ENABLED:
-            raise HTTPException(status_code=400, detail="Result URL output is disabled.")
-        try:
-            result_url = await upload_result_file(result_path, result_path.name)
-        except HTTPException as exc:
-            write_task_log_event(
-                client.client_dir,
-                task_id,
-                "result_url_upload_failed",
-                file_path=str(result_path),
-                size_bytes=result_path.stat().st_size,
-                http_status=None,
-                error=str(exc.detail),
-            )
-            raise
-        except ResultUploadError as exc:
-            write_task_log_event(
-                client.client_dir,
-                task_id,
-                "result_url_upload_failed",
-                file_path=str(result_path),
-                size_bytes=result_path.stat().st_size,
-                http_status=exc.http_status,
-                error=str(exc),
-            )
-            raise HTTPException(status_code=502, detail="Result file URL upload failed.") from exc
+    return await _export_review_job_result(
+        client_dir=client.client_dir,
+        task=task,
+        output_type=output_type,
+    )
 
-        write_task_log_event(
-            client.client_dir,
-            task_id,
-            "result_url_uploaded",
-            file_path=str(result_path),
-            size_bytes=result_path.stat().st_size,
-            http_status=200,
-            url=result_url,
-        )
-        if not API_KEEP_OUTPUT:
-            result_path.unlink(missing_ok=True)
-        return pretty_json_response(
-            {
-                "task_id": task["task_id"],
-                "status": task["status"],
-                "output_type": "url",
-                "filename": result_path.name,
-                "url": result_url,
-            }
-        )
 
-    return FileResponse(
-        path=result_path,
-        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        filename=result_path.name,
+@api_jobs_router.post("/api/review/jobs/result")
+async def export_review_job_result_by_body(request: Request):
+    client = await resolve_api_client(request)
+    payload = await _json_body(request, allow_empty=False, context="Result request")
+    task_id = _task_id_from_payload(payload)
+    task = _read_api_task_or_404(client.client_dir, task_id)
+    output_type = _validate_result_output_type(payload.get("output_type", API_RESULT_OUTPUT_DEFAULT))
+    return await _export_review_job_result(
+        client_dir=client.client_dir,
+        task=task,
+        output_type=output_type,
     )
 
 

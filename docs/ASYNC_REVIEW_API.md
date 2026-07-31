@@ -50,14 +50,14 @@ python scripts/manage_api_clients.py delete --client-id "client_a"
 POST /api/review/jobs
   -> 返回 202 Accepted 和 task_id
 
-GET /api/review/jobs/{task_id}
+POST /api/review/jobs/status
   -> 返回 pending、queued、running、succeeded、failed 或 cancelled
 
-POST /api/review/jobs/{task_id}/result
-  -> 仅 succeeded 后可下载结果 DOCX
+POST /api/review/jobs/result
+  -> 仅 succeeded 后可输出结果 DOCX 文件流或 URL
 ```
 
-`POST /api/review/jobs/{task_id}/cancel` 只能取消 `pending` 或 `queued` 任务。`running` 表示任务已经进入 `workflow.run()`，该 API 不支持中止。
+`GET /api/review/jobs/{task_id}` 和 `POST /api/review/jobs/{task_id}/result` 保留为兼容接口。`POST /api/review/jobs/{task_id}/cancel` 仍使用 path 中的 `task_id`，只能取消 `pending` 或 `queued` 任务。`running` 表示任务已经进入 `workflow.run()`，该 API 不支持中止。
 
 | 状态 | 含义 |
 | --- | --- |
@@ -149,15 +149,26 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
 ## 4. 查询任务状态
 
 ```http
-GET /api/review/jobs/{task_id}
+POST /api/review/jobs/status
+Content-Type: application/json
 Authorization: <api_key>
+```
+
+请求体：
+
+```json
+{
+  "task_id": "20260714-143119-5ece"
+}
 ```
 
 PowerShell 示例：
 
 ```powershell
-curl.exe "http://localhost:5000/api/review/jobs/20260714-143119-5ece" `
-  -H "Authorization: platform-key-for-client-a"
+curl.exe -X POST "http://localhost:5000/api/review/jobs/status" `
+  -H "Authorization: platform-key-for-client-a" `
+  -H "Content-Type: application/json" `
+  -d '{ "task_id": "20260714-143119-5ece" }'
 ```
 
 成功响应，HTTP `200`：
@@ -195,10 +206,18 @@ curl.exe "http://localhost:5000/api/review/jobs/20260714-143119-5ece" `
 | `404` | 任务 ID 不合法、不存在，或属于其他客户。 | `{ "detail": "Task not found." }` |
 | `500` | 客户鉴权映射格式错误或密钥匹配到多个客户。 | `{ "detail": "..." }` |
 
+兼容接口：
+
+```http
+GET /api/review/jobs/{task_id}
+Authorization: <api_key>
+```
+
 ## 5. 下载已完成结果
 
 ```http
-POST /api/review/jobs/{task_id}/result
+POST /api/review/jobs/result
+Content-Type: application/json
 Authorization: <api_key>
 ```
 
@@ -213,6 +232,7 @@ Authorization: <api_key>
 
 ```json
 {
+  "task_id": "20260714-143119-5ece",
   "output_type": "file"
 }
 ```
@@ -221,6 +241,7 @@ Authorization: <api_key>
 
 ```json
 {
+  "task_id": "20260714-143119-5ece",
   "output_type": "url"
 }
 ```
@@ -230,6 +251,16 @@ PowerShell `curl.exe` 示例：
 ```powershell
 curl.exe -X POST "http://localhost:5000/api/review/jobs/20260714-143119-5ece/result" `
   -H "Authorization: platform-key-for-client-a" `
+  -o "C:\Users\lenovo\Desktop\review_result.docx"
+```
+
+推荐文件输出写法：
+
+```powershell
+curl.exe -X POST "http://localhost:5000/api/review/jobs/result" `
+  -H "Authorization: platform-key-for-client-a" `
+  -H "Content-Type: application/json" `
+  -d '{ "task_id": "20260714-143119-5ece", "output_type": "file" }' `
   -o "C:\Users\lenovo\Desktop\review_result.docx"
 ```
 
@@ -254,10 +285,10 @@ with open(output_file, "wb") as f:
 URL 输出示例：
 
 ```powershell
-curl.exe -X POST "http://localhost:5000/api/review/jobs/20260714-143119-5ece/result" `
+curl.exe -X POST "http://localhost:5000/api/review/jobs/result" `
   -H "Authorization: platform-key-for-client-a" `
   -H "Content-Type: application/json" `
-  -d '{ "output_type": "url" }'
+  -d '{ "task_id": "20260714-143119-5ece", "output_type": "url" }'
 ```
 
 成功响应，HTTP `200`：
@@ -308,6 +339,15 @@ curl -X POST "http://64.202.33.42:30843/openapi/agentar/v1/attachment/batchUploa
 | `409` | 任务状态不是 `succeeded`。 | `{ "detail": "Task is not finished. Current status: ..." }` |
 | `500` | 服务端结果源文件不存在，或客户鉴权映射异常。 | `{ "detail": "..." }` |
 | `502` | URL 输出上传失败，或上传响应中无法解析 URL。 | `{ "detail": "Result file URL upload failed." }` |
+
+兼容接口：
+
+```http
+POST /api/review/jobs/{task_id}/result
+Authorization: <api_key>
+```
+
+兼容接口可继续只传 `output_type`，也可以不传请求体并使用 `api.result_output_default`。
 
 ## 6. 取消等待中的任务
 
@@ -361,6 +401,8 @@ data/api/<task_id>/
 | 客户 B 对客户 A 任务的请求 | HTTP 状态码 | 响应 |
 | --- | --- | --- |
 | `GET /api/review/jobs/20260714-143119-5ece` | `404` | `{ "detail": "Task not found." }` |
+| `POST /api/review/jobs/status` 传客户 A 的 `task_id` | `404` | `{ "detail": "Task not found." }` |
+| `POST /api/review/jobs/result` 传客户 A 的 `task_id` | `404` | `{ "detail": "Task not found." }` |
 | `POST /api/review/jobs/20260714-143119-5ece/result` | `404` | `{ "detail": "Task not found." }` |
 | `POST /api/review/jobs/20260714-143119-5ece/cancel` | `404` | `{ "detail": "Task not found." }` |
 
@@ -372,7 +414,8 @@ data/api/<task_id>/
 
 | 错误请求 | 返回结果 | 正确请求 |
 | --- | --- | --- |
-| `POST /review/jobs/{task_id}` | `404 Not Found` | 查询状态应使用 `GET /api/review/jobs/{task_id}`。 |
-| `POST /api/review/jobs/result` | `405 Method Not Allowed` | 应使用 `POST /api/review/jobs/{task_id}/result`。 |
+| `POST /review/jobs/{task_id}` | `404 Not Found` | 查询状态应使用 `POST /api/review/jobs/status` 并在 body 传 `task_id`。 |
+| `POST /api/review/jobs/status` 未传 `task_id` | `400` | 在 JSON body 中传 `{ "task_id": "..." }`。 |
+| `POST /api/review/jobs/result` 未传 `task_id` | `400` | 在 JSON body 中传 `{ "task_id": "...", "output_type": "file" }`。 |
 | `POST /api/review/jobs/{task_id}/result` 传 `output_path` | 仍返回文件流，不会写入该路径。 | 使用 `curl.exe -o` 或客户端代码保存响应体。 |
 | PowerShell `curl.exe` 未使用 `-o` | 文件内容输出到终端。 | 使用上文的 `-o "C:\...\review_result.docx"` 写法。 |

@@ -4,10 +4,12 @@
 
 ```text
 POST /api/review/jobs
-GET  /api/review/jobs/{task_id}
-POST /api/review/jobs/{task_id}/result
+POST /api/review/jobs/status
+POST /api/review/jobs/result
 POST /api/review/jobs/{task_id}/cancel
 ```
+
+`GET /api/review/jobs/{task_id}` 和 `POST /api/review/jobs/{task_id}/result` 保留为兼容接口；推荐新调用方在 JSON body 中传 `task_id`。
 
 普通外部 API 不提供同步 `POST /api/review`；OA 专用同步接口为 `POST /oa/review`。
 
@@ -60,6 +62,23 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
 ```
 
 Status, result output, and cancel use the same `Authorization` header. Body, form, query string, and `X-API-Key` are not used for API key mapping.
+
+状态查询推荐写法：
+
+```json
+{
+  "task_id": "20260712-144123-dccf"
+}
+```
+
+结果输出推荐写法：
+
+```json
+{
+  "task_id": "20260712-144123-dccf",
+  "output_type": "url"
+}
+```
 
 Auth failures:
 
