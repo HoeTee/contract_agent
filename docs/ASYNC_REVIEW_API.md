@@ -213,7 +213,7 @@ GET /api/review/jobs/{task_id}
 Authorization: <api_key>
 ```
 
-## 5. 下载已完成结果
+## 5. 获取已完成结果
 
 ```http
 POST /api/review/jobs/result
@@ -221,14 +221,18 @@ Content-Type: application/json
 Authorization: <api_key>
 ```
 
-该接口支持两种输出方式：
+该接口通过请求体中的 `task_id` 指定任务，通过 `output_type` 指定输出方式。
 
-- `output_type=file`：直接返回结果 DOCX 文件流。
-- `output_type=url`：将结果 DOCX 上传到配置的附件接口，并返回上传后的 URL。
+| `output_type` | 响应类型 | 调用方处理方式 |
+| --- | --- | --- |
+| `file` | DOCX 文件流 | 使用 `-o` 或等价方式保存为 `.docx` 文件。 |
+| `url` | JSON | 读取响应中的 `url` 字段。 |
 
 不传请求体时，使用 `api.result_output_default`。默认配置为 `file`，兼容已有调用方。
 
-请求文件输出：
+**文件流输出**
+
+请求体：
 
 ```json
 {
@@ -237,24 +241,7 @@ Authorization: <api_key>
 }
 ```
 
-请求 URL 输出：
-
-```json
-{
-  "task_id": "20260714-143119-5ece",
-  "output_type": "url"
-}
-```
-
-PowerShell `curl.exe` 示例：
-
-```powershell
-curl.exe -X POST "http://localhost:5000/api/review/jobs/20260714-143119-5ece/result" `
-  -H "Authorization: platform-key-for-client-a" `
-  -o "C:\Users\lenovo\Desktop\review_result.docx"
-```
-
-推荐文件输出写法：
+PowerShell 示例：
 
 ```powershell
 curl.exe -X POST "http://localhost:5000/api/review/jobs/result" `
@@ -264,25 +251,24 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs/result" `
   -o "C:\Users\lenovo\Desktop\review_result.docx"
 ```
 
-Python `requests` 示例：
+成功时返回 HTTP `200`，响应体是 DOCX 文件流：
 
-```python
-import requests
-
-url = "http://localhost:5000/api/review/jobs/20260714-143119-5ece/result"
-headers = {"Authorization": "platform-key-for-client-a"}
-output_file = r"C:\Users\lenovo\Desktop\review_result.docx"
-
-response = requests.post(url, headers=headers, stream=True)
-response.raise_for_status()
-
-with open(output_file, "wb") as f:
-    for chunk in response.iter_content(chunk_size=1024 * 1024):
-        if chunk:
-            f.write(chunk)
+```http
+Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
 ```
 
-URL 输出示例：
+**URL 输出**
+
+请求体：
+
+```json
+{
+  "task_id": "20260714-143119-5ece",
+  "output_type": "url"
+}
+```
+
+PowerShell 示例：
 
 ```powershell
 curl.exe -X POST "http://localhost:5000/api/review/jobs/result" `
@@ -302,6 +288,8 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs/result" `
   "url": "https://example.com/contract_reviewed.docx"
 }
 ```
+
+**URL 输出配置**
 
 URL 输出依赖以下配置：
 
@@ -328,6 +316,8 @@ curl -X POST "http://64.202.33.42:30843/openapi/agentar/v1/attachment/batchUploa
 
 上传成功后，服务会从上传接口 JSON 响应中的常见 URL 字段解析结果地址，例如 `url`、`fileUrl`、`downloadUrl` 以及它们在 `data` 或 `data[0]` 下的形式；如果解析不到 URL，接口返回 `502`。
 
+**错误响应**
+
 | HTTP 状态码 | 返回场景 | 响应 |
 | --- | --- | --- |
 | `200` | 任务已成功，请求 `file` 输出。 | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` 响应体。 |
@@ -340,7 +330,7 @@ curl -X POST "http://64.202.33.42:30843/openapi/agentar/v1/attachment/batchUploa
 | `500` | 服务端结果源文件不存在，或客户鉴权映射异常。 | `{ "detail": "..." }` |
 | `502` | URL 输出上传失败，或上传响应中无法解析 URL。 | `{ "detail": "Result file URL upload failed." }` |
 
-兼容接口：
+**兼容接口**
 
 ```http
 POST /api/review/jobs/{task_id}/result
