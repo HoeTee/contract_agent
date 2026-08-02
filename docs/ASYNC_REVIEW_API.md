@@ -130,7 +130,7 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
   -d '{ "file_url": "https://example.com/contract.docx", "criteria_file_url": "https://example.com/criteria.docx" }'
 ```
 
-`application/json` 只支持 URL 输入：`file_url` 必填，`criteria_file_url` 可选。URL 文件会先下载到任务 `input/` 目录，再执行与本地上传一致的 DOCX 校验。
+`application/json` 只支持 URL 输入：`file_url` 必填，`criteria_file_url` 可选。URL 文件会先下载到任务 `input/` 目录，再执行与本地上传一致的 DOCX 校验。保存文件名优先使用下载响应 `Content-Disposition` 中的 `filename*` / `filename`，没有时使用最终 URL path、原始 URL path，仍取不到时使用默认 fallback。
 
 **成功响应**
 
@@ -217,7 +217,7 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs/status" `
     "stored": true
   },
   "output": {
-    "result_filename": "contract_批注版.docx",
+    "result_filename": "【已AI审查】contract.docx",
     "ready": false
   },
   "logs": {
@@ -312,8 +312,8 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs/result" `
   "task_id": "20260714-143119-5ece",
   "status": "succeeded",
   "output_type": "url",
-  "filename": "contract_reviewed.docx",
-  "url": "https://example.com/contract_reviewed.docx"
+  "filename": "【已AI审查】contract.docx",
+  "url": "https://example.com/【已AI审查】contract.docx"
 }
 ```
 
@@ -337,7 +337,7 @@ api:
 ```bash
 curl -X POST "http://64.202.33.42:30843/openapi/agentar/v1/attachment/batchUploadAttachmentFile.json" \
   -H "Authorization: <result_upload_authorization>" \
-  -F "files=@/path/to/reviewed.docx;type=application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  -F "files=@/path/to/【已AI审查】contract.docx;type=application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 ```
 
 `keep_output=false` 只在 URL 输出上传成功后清理本地结果文件；文件流输出不能在响应发送前删除本地结果文件。

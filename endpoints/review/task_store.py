@@ -7,10 +7,12 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
 import httpx
 from fastapi import UploadFile
 from config import API_KEEP_INPUT, API_WRITE_LOGS, DATA_DIR
+from endpoints.runtime.filenames import safe_upload_filename
 from loggers.api_event_logger import append_api_event
 
 
@@ -128,22 +130,66 @@ def save_task_input_upload(client_dir: str, task_id: str, upload_file: UploadFil
     return target_path
 
 
+def _content_disposition_param(value: str, name: str) -> str | None:
+    match = re.search(
+        rf"(?:^|;)\s*{re.escape(name)}\s*=\s*(\"[^\"]*\"|[^;]*)",
+        value,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return None
+    return match.group(1).strip().strip('"')
+
+
+def _decode_header_filename(value: str) -> str:
+    if "''" in value:
+        charset, encoded = value.split("''", 1)
+        return unquote(encoded, encoding=charset or "utf-8", errors="replace")
+    return unquote(value)
+
+
+def filename_from_content_disposition(value: str | None) -> str | None:
+    if not value:
+        return None
+    resolved = (
+        _content_disposition_param(value, "filename*")
+        or _content_disposition_param(value, "filename")
+    )
+    if not resolved:
+        return None
+    safe_name = safe_upload_filename(_decode_header_filename(resolved))
+    return safe_name if safe_name.lower().endswith(".docx") else None
+
+
+def _filename_from_url_path(file_url: str) -> str | None:
+    raw_name = Path(urlsplit(file_url).path).name
+    if not raw_name.lower().endswith(".docx"):
+        return None
+    return safe_upload_filename(unquote(raw_name))
+
+
 def save_task_input_url(
     client_dir: str,
     task_id: str,
     file_url: str,
-    filename: str,
+    fallback_filename: str,
     *,
     timeout_seconds: float,
     max_bytes: int,
 ) -> Path:
     target_dir = task_input_work_dir(client_dir, task_id)
     target_dir.mkdir(parents=True, exist_ok=True)
-    target_path = target_dir / filename
+    target_path = target_dir / fallback_filename
     total = 0
     try:
         with httpx.stream("GET", file_url, timeout=timeout_seconds, follow_redirects=True) as response:
             response.raise_for_status()
+            resolved_filename = (
+                filename_from_content_disposition(response.headers.get("content-disposition"))
+                or _filename_from_url_path(str(response.url))
+                or fallback_filename
+            )
+            target_path = target_dir / resolved_filename
             with target_path.open("wb") as f:
                 for chunk in response.iter_bytes(chunk_size=1024 * 1024):
                     if not chunk:

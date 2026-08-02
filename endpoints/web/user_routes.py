@@ -238,7 +238,7 @@ def remove_auth_context(request: Request, ctx: str | None) -> None:
 
 def build_report_display_name(contract_original_name: str) -> str:
     stem = Path(contract_original_name).stem or "review_result"
-    return f"{stem}_reviewed.docx"
+    return f"【已AI审查】{stem}.docx"
 
 
 def build_history_display_names(record: dict) -> tuple[str, str]:

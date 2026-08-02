@@ -15,7 +15,7 @@ def safe_upload_filename(filename: str | None) -> str:
 
 def build_report_display_name(contract_original_name: str) -> str:
     stem = Path(contract_original_name).stem or "审核结果"
-    return f"{stem}_批注版.docx"
+    return f"【已AI审查】{stem}.docx"
 
 
 def strip_task_file_prefix(filename: str | None) -> str:

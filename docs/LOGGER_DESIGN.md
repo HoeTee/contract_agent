@@ -79,7 +79,7 @@ data/<username>/records/review_history.json
   "task_id": "164455_f78fbf27",
   "contract_original_name": "原始合同文件名.docx",
   "contract_stored_name": "20260614_164455_f78fbf27_原始合同文件名.docx",
-  "report_stored_name": "20260614_164455_f78fbf27_原始合同文件名_批注版.docx"
+  "report_stored_name": "20260614_164455_f78fbf27_【已AI审查】原始合同文件名.docx"
 }
 ```
 

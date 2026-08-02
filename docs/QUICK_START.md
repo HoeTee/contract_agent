@@ -175,7 +175,7 @@ data/testuser/contracts/<task_prefix>_<original_filename>.docx
 批注结果：
 
 ```text
-data/testuser/reports_docx/<task_prefix>_<contract_name>_批注版.docx
+data/testuser/reports_docx/<task_prefix>_【已AI审查】<contract_name>.docx
 ```
 
 任务日志：

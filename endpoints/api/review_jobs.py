@@ -388,6 +388,7 @@ async def submit_review_job(request: Request):
                 http_status=http_status,
                 include_http_status=True,
             )
+        filename = contract_path.name
         write_task_log_event(
             client.client_dir,
             task_id,
@@ -454,6 +455,7 @@ async def submit_review_job(request: Request):
                     http_status=http_status,
                     include_http_status=True,
                 )
+            criteria_filename = selected_criteria_path.name
             write_task_log_event(
                 client.client_dir,
                 task_id,

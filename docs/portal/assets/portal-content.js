@@ -775,7 +775,7 @@ window.DOCS_PORTAL_CONTENT = {
     { type: "para", text: "普通用户历史记录写入 `data/<username>/records/review_history.json`，用于生成历史列表，也用于建立 `task_id` 与合同名的对应关系。关键字段：" },
     {
       type: "code",
-      text: '{\n  "task_id": "164455_f78fbf27",\n  "contract_original_name": "原始合同文件名.docx",\n  "contract_stored_name": "20260614_164455_f78fbf27_原始合同文件名.docx",\n  "report_stored_name": "20260614_164455_f78fbf27_原始合同文件名_批注版.docx"\n}',
+      text: '{\n  "task_id": "164455_f78fbf27",\n  "contract_original_name": "原始合同文件名.docx",\n  "contract_stored_name": "20260614_164455_f78fbf27_原始合同文件名.docx",\n  "report_stored_name": "20260614_164455_f78fbf27_【已AI审查】原始合同文件名.docx"\n}',
     },
     { type: "para", text: "日志读取应兼容两种目录：优先用历史记录中的 `task_id` 匹配短目录；短目录不存在时，再匹配以 `<task_id>_` 开头的旧目录。" },
 
@@ -921,7 +921,7 @@ window.DOCS_PORTAL_CONTENT = {
       headers: ["内容", "路径"],
       rows: [
         ["上传合同", "data/testuser/contracts/<task_prefix>_<original_filename>.docx"],
-        ["批注结果", "data/testuser/reports_docx/<task_prefix>_<contract_name>_批注版.docx"],
+        ["批注结果", "data/testuser/reports_docx/<task_prefix>_【已AI审查】<contract_name>.docx"],
         ["任务日志", "data/testuser/logs/<YYYY-MM-DD>/<task>/"],
         ["历史索引", "data/testuser/records/review_history.json"],
       ],
