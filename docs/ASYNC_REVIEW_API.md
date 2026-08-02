@@ -70,10 +70,19 @@ POST /api/review/jobs/result
 
 ## 3. 提交任务
 
+```http
+POST /api/review/jobs
+Authorization: <api_key>
+```
+
 该接口按 `Content-Type` 分流，且只支持以下两种请求体：
 
-- `multipart/form-data`：上传二进制 DOCX 文件，只接受 `file` / `criteria_file`。
-- `application/json`：通过 URL 下载 DOCX，只接受 `file_url` / `criteria_file_url`。
+| `Content-Type` | 输入方式 | 必填字段 | 可选字段 |
+| --- | --- | --- | --- |
+| `multipart/form-data` | 上传二进制 DOCX 文件 | `file` | `criteria_file` |
+| `application/json` | 通过 URL 下载 DOCX | `file_url` | `criteria_file_url` |
+
+**本地文件上传**
 
 ```http
 POST /api/review/jobs
@@ -97,7 +106,22 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
   -F "criteria_file=@C:/Users/lenovo/Desktop/criteria.docx"
 ```
 
-JSON URL 输入示例：
+**URL 输入**
+
+```http
+POST /api/review/jobs
+Content-Type: application/json
+Authorization: <api_key>
+```
+
+请求字段：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `file_url` | URL 字符串 | 是 | 待审查合同 DOCX 的下载地址。 |
+| `criteria_file_url` | URL 字符串 | 否 | 本次审查标准 DOCX 的下载地址；不传时使用默认审查标准。 |
+
+PowerShell 示例：
 
 ```powershell
 curl.exe -X POST "http://localhost:5000/api/review/jobs" `
@@ -108,7 +132,9 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
 
 `application/json` 只支持 URL 输入：`file_url` 必填，`criteria_file_url` 可选。URL 文件会先下载到任务 `input/` 目录，再执行与本地上传一致的 DOCX 校验。
 
-成功响应，HTTP `202`：
+**成功响应**
+
+HTTP `202`：
 
 ```json
 {
@@ -118,7 +144,9 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
 }
 ```
 
-提交期错误响应。如果请求已通过 API client 解析并生成 `task_id`，但文件输入、URL 下载或 DOCX 校验失败，接口返回标准失败结构：
+**提交期错误响应**
+
+如果请求已通过 API client 解析并生成 `task_id`，但文件输入、URL 下载或 DOCX 校验失败，接口返回标准失败结构：
 
 ```json
 {
