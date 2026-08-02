@@ -58,7 +58,7 @@ Trying 64.202.33.42:80...
 
 ## 容器 DNS 验证
 
-容器可能没有 `nslookup`。可以用 Python 验证 DNS：
+当前镜像预装了常用容器排障工具，可以直接使用 `nslookup`、`dig`、`curl`、`ping`、`ip`、`nc`、`ps`、`less` 和 `vim`。如果正在排查的是旧镜像，工具可能不存在；此时可以先用 Python 验证 DNS：
 
 ```bash
 docker exec -it <container> python -c 'import socket; print({x[4][0] for x in socket.getaddrinfo("域名",80)})'
@@ -78,6 +78,30 @@ nameserver 127.0.0.11
 ```
 
 这说明容器并不是直接使用宿主机 `/etc/resolv.conf`。
+
+也可以使用镜像内预装命令：
+
+```bash
+docker exec -it <container> nslookup 域名
+docker exec -it <container> dig 域名
+```
+
+## 容器内排障工具
+
+镜像基于 `python:3.12-slim`，使用 Debian `apt` 安装以下工具：
+
+| 命令 | apt 包 | 用途 |
+| --- | --- | --- |
+| `vim` | `vim` | 临时查看或编辑容器内文件。 |
+| `curl` | `curl` | 验证 URL、HTTP 状态、响应头和实际连接入口。 |
+| `nslookup` / `dig` | `dnsutils` | 检查 DNS 解析结果。 |
+| `ping` | `iputils-ping` | 基础网络连通性验证。 |
+| `ip` | `iproute2` | 查看网卡、地址和路由。 |
+| `nc` | `netcat-openbsd` | 验证 TCP 端口连通性。 |
+| `ps` | `procps` | 查看容器内进程。 |
+| `less` | `less` | 查看较长日志或文本输出。 |
+
+这些工具只解决容器内检查命令不可用的问题，不改变容器 DNS、路由或应用下载逻辑。若容器仍访问失败，应继续按宿主机、容器 DNS、容器 HTTP 三层分别验证。
 
 ## 容器 HTTP 验证
 

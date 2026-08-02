@@ -8,6 +8,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        vim \
+        curl \
+        dnsutils \
+        iputils-ping \
+        iproute2 \
+        netcat-openbsd \
+        procps \
+        less \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install Python dependencies from the offline wheelhouse.
 COPY requirements.txt .
 COPY packages/ /packages/
