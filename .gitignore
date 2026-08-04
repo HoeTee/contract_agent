@@ -5,7 +5,10 @@
 docker-compose.yaml
 
 # Runtime data, tenant profiles, and generated logs
-data/
+data/*
+!data/.gitkeep
+!data/api/.gitkeep
+!data/web/.gitkeep
 logs/
 uploads/
 user_profiles/*
@@ -66,5 +69,8 @@ image.tar
 /AGENTS.md
 /DEPLOYMENT.md
 /PLAN.md
-/tests/
-/deploy/
+/tests
+/deploy
+/docs/.$BUSINESS_USER_JOURNEY.drawio.bkp
+/docs/portal
+/docs/superpowers
