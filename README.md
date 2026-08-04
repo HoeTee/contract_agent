@@ -1,10 +1,68 @@
-# 合同审查 Agent
+# Contract Review Agent
 
-本项目提供合同 DOCX 审查的 Web 前端、异步 API 和本地 CLI。系统会读取合同、校验审查要点、运行审查工作流，并生成带批注的 DOCX 结果文件。
+Contract Review Agent provides DOCX contract review through three entry points:
 
-## 运行数据
+- Web UI for browser-based review.
+- Async API for platform integration.
+- Local CLI for one-off review runs.
 
-运行数据使用项目内固定路径：
+The workflow reads a contract DOCX, applies review criteria, runs the agent review workflow, and generates a reviewed DOCX result with comments.
+
+## Start Here
+
+For local development:
+
+```powershell
+uvicorn app:app --host 0.0.0.0 --port 5000
+```
+
+Open:
+
+```text
+http://127.0.0.1:5000
+```
+
+For a quick CLI review:
+
+```powershell
+python main.py --contract .\contract.docx
+```
+
+For API usage, start with:
+
+- `POST /api/review/jobs`
+- `POST /api/review/jobs/status`
+- `POST /api/review/jobs/result`
+
+See [docs/ASYNC_REVIEW_API.md](docs/ASYNC_REVIEW_API.md) for request and response details.
+
+## Configuration
+
+Create `.env` from `.env.example` and provide at least:
+
+```env
+LLM_API_KEY=...
+EMBED_API_KEY=...
+RERANK_API_KEY=...
+SESSION_SECRET_KEY=replace-with-a-long-random-secret
+```
+
+Main runtime configuration lives in [config.yaml](config.yaml). The Python loader is [config.py](config.py).
+
+Important config areas:
+
+- `llm`: review model endpoint and generation limits.
+- `embedding`: embedding endpoint.
+- `rerank`: reranker provider, endpoint, model name, and optional instruction.
+- `workflow`: concurrency, retries, timeouts, and subagent tool allowlist.
+- `api`: async API retention, result URL upload, metadata fields, callback, and URL download limits.
+- `logging`: workflow log switch.
+
+Reranker details are documented in [docs/RERANKER_CONFIGURATION.md](docs/RERANKER_CONFIGURATION.md).
+
+## Data Layout
+
+Runtime data uses fixed project-local directories:
 
 ```text
 data/
@@ -16,114 +74,68 @@ data/
 
 user_profiles/
   users.json
+  api_clients.json
 ```
 
-`data_dir` 和 `users_file` 不再通过 `config.yaml` 配置。
+API and Web task data are intentionally separated:
 
-API 和 Web 数据分区独立：
+- API tasks: `data/api/<task_id>/`
+- Web tasks: `data/web/<tenant_id>/<task_id>/`
+- Web user profiles: `user_profiles/users.json`
+- API client mappings: `user_profiles/api_clients.json`
 
-- API 任务：`data/api/<task_id>/`
-- Web 任务：`data/web/<tenant_id>/<task_id>/`
-- 用户配置：`user_profiles/users.json`
-
-Web 审查任务中，`data/web/<tenant_id>/<task_id>/task.json` 是提交、运行状态、结果展示和历史记录的唯一任务状态文件。提交后不能用 history-only 记录覆盖它；任务成功后只能把历史展示字段合并进原有任务记录。
-
-前端页面状态和任务生命周期约束，包括“重新登录后不能显示旧失败任务错误”和“服务重启后遗留 running 任务必须后端收敛”，见 `docs/FRONTEND_USER_JOURNEY.md`。
-
-## 配置
-
-从 `.env.example` 创建 `.env`：
-
-```env
-LLM_API_KEY=...
-EMBED_API_KEY=...
-RERANK_API_KEY=...
-SESSION_SECRET_KEY=replace-with-a-long-random-secret
-```
-
-MinerU 已移除。`MINERU_API_KEY`、`parser.parse_file_with_mineru` 和 `mineru.api_base` 不再使用。
-
-reranker 的 `base_url` 必须是完整请求 URL。程序不会自动拼接 `/rerank` 或 `/reranks`，也不存在 `endpoint_format` 配置。
-
-`higress_qwen` 示例：
-
-```yaml
-rerank:
-  base_url: "http://higress.llmgateway.dev.qa.zrub.com/v1/rerank"
-  name: "Qwen3-Reranker-8B"
-  provider: "higress_qwen"
-  instruct: "Given a contract review query, retrieve relevant institutional policy passages."
-```
-
-`instruct` 只在 `higress_qwen` 和 `dashscope_qwen` 中生效；为空时不发送。
-
-reranker 的厂商边界和排障说明见 `docs/RERANKER_CONFIGURATION.md`。
-
-API 留存配置：
-
-```yaml
-api:
-  keep_input: true
-  write_logs: true
-  callback_file_field: "file"
-```
-
-`api.store` 已移除。
-
-## Web 服务
-
-本地启动：
-
-```powershell
-uvicorn app:app --host 0.0.0.0 --port 5000
-```
-
-浏览器访问：
-
-```text
-http://127.0.0.1:5000
-```
-
-Web 审查任务使用共享 review worker 和 task-store 状态模型，但数据仍保存在 `data/web/`。这样 Web 与 API 的任务状态、模型调用错误和事件日志保持一致，同时不混用两边的数据目录。
+Task directories contain `task.json`, input files, output files, and task-level logs when enabled.
 
 ## API
 
-主要异步 API 流程：
+Primary async API endpoints:
 
-- `POST /api/review/jobs`
-- `GET /api/review/jobs/{task_id}`
-- `POST /api/review/jobs/{task_id}/result` 下载结果 DOCX
-- `POST /api/review/jobs/{task_id}/cancel`
+- `POST /api/review/jobs`: submit a DOCX file or URL review job.
+- `POST /api/review/jobs/status`: query status by JSON body.
+- `GET /api/review/jobs/{task_id}`: query status by path.
+- `POST /api/review/jobs/result`: return result as file or URL.
+- `POST /api/review/jobs/{task_id}/result`: return result by path task id.
+- `POST /api/review/jobs/{task_id}/cancel`: request cancellation.
 
-API 任务保存在 `data/api/`。
+API documentation:
+
+- [docs/ASYNC_REVIEW_API.md](docs/ASYNC_REVIEW_API.md)
+- [docs/API_REVIEW_ENDPOINT.md](docs/API_REVIEW_ENDPOINT.md)
+- [docs/LOGGER_DESIGN.md](docs/LOGGER_DESIGN.md)
+
+## Web
+
+The Web flow uses the shared review worker and task-store model, while storing user task data under `data/web/`.
+
+Relevant docs:
+
+- [docs/FRONTEND_USER_JOURNEY.md](docs/FRONTEND_USER_JOURNEY.md)
+- [docs/WEB_TENANT_USAGE.md](docs/WEB_TENANT_USAGE.md)
+- [docs/USER_MANAGEMENT.md](docs/USER_MANAGEMENT.md)
 
 ## CLI
 
-CLI 不再依赖 `data/` 用户分区，也不再使用 `DEFAULT_CLI_USERNAME`。
-
-使用系统默认审查要点：
+Use the system default review criteria:
 
 ```powershell
 python main.py --contract .\contract.docx
 ```
 
-使用自定义审查要点：
+Use a custom criteria file:
 
 ```powershell
 python main.py --contract .\contract.docx --criteria .\criteria.docx
 ```
 
-指定输出路径：
+Write to an explicit output path:
 
 ```powershell
 python main.py --contract .\contract.docx --criteria .\criteria.docx --output .\contract_reviewed.docx
 ```
 
-如果不传 `--output`，带批注的 DOCX 会写入当前命令执行目录。
-
 ## Docker
 
-建议持久化挂载：
+Persist runtime data outside the container:
 
 ```yaml
 volumes:
@@ -132,15 +144,23 @@ volumes:
   - ./resources/review_criteria/criteria.docx:/app/resources/review_criteria/criteria.docx:ro
 ```
 
-## 日志
+Docker deployment and troubleshooting:
 
-开启日志时，任务事件日志写入每个任务目录下的 `api_events.jsonl`。
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- [docs/DOCKER_NETWORK_TROUBLESHOOTING.md](docs/DOCKER_NETWORK_TROUBLESHOOTING.md)
 
-模型重试和失败事件包括：
+## Project Docs
 
-- `agent_model_call_failed`
-- `embedding_call_failed`
-- `reranker_call_retry`
-- `reranker_call_failed`
+Architecture and workflow:
 
-更多说明见 `docs/LOGGER_DESIGN.md` 和 `docs/API_REVIEW_ENDPOINT.md`。
+- [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)
+- [docs/AGENT_WORKFLOW_ARCHITECTURE.md](docs/AGENT_WORKFLOW_ARCHITECTURE.md)
+- [docs/DOCX_XML_ANCHOR_INDEXING.md](docs/DOCX_XML_ANCHOR_INDEXING.md)
+- [docs/DOCX_ANNOTATION_DESIGN.md](docs/DOCX_ANNOTATION_DESIGN.md)
+
+Operations:
+
+- [docs/QUICK_START.md](docs/QUICK_START.md)
+- [docs/LOGGER_DESIGN.md](docs/LOGGER_DESIGN.md)
+- [docs/RERANKER_CONFIGURATION.md](docs/RERANKER_CONFIGURATION.md)
+- [docs/REVIEW_BOUNDARIES.md](docs/REVIEW_BOUNDARIES.md)
