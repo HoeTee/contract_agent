@@ -1,4 +1,4 @@
-# `/api` 审查接口说明
+﻿# `/api` 审查接口说明
 
 当前普通 `/api` 只提供异步任务接口：
 
@@ -46,7 +46,7 @@ python scripts/manage_api_clients.py delete --client-id "client_a"
 数据保存位置：
 
 ```text
-user_profiles/api_clients.json
+profiles/api_clients.json
 ```
 
 File stores `api_key_fingerprint`, not a plaintext platform key. The platform key is used only to resolve the local client mapping; run `reset-api-key` when the platform key changes.

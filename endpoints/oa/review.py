@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 
@@ -9,7 +9,7 @@ from config import (
     API_CALLBACK_ENABLED,
     API_CALLBACK_FILE_FIELD,
     API_CALLBACK_URL,
-    DEFAULT_REVIEW_CRITERIA_PATH,
+    DEFAULT_CRITERIA_PATH,
 )
 from endpoints.review.callbacks import post_api_review_callback
 from endpoints.review.job_worker import run_async_review_job
@@ -27,7 +27,7 @@ from endpoints.review.task_store import (
 )
 from endpoints.runtime.document_validation import (
     DOCX_MEDIA_TYPE,
-    validate_review_criteria_content,
+    validate_criteria_content,
     validate_uploaded_docx,
 )
 from endpoints.runtime.filenames import build_report_display_name, safe_upload_filename
@@ -76,7 +76,7 @@ async def review_for_oa(
             meta_fields=meta_fields,
         )
 
-        selected_criteria_path = Path(DEFAULT_REVIEW_CRITERIA_PATH)
+        selected_criteria_path = Path(DEFAULT_CRITERIA_PATH)
         criteria_source = "default"
         criteria_filename = None
         if criteria_file and criteria_file.filename:
@@ -87,7 +87,7 @@ async def review_for_oa(
                 OA_CLIENT_DIR, task_id, criteria_file, criteria_filename
             )
             validate_uploaded_docx(selected_criteria_path)
-            validate_review_criteria_content(selected_criteria_path)
+            validate_criteria_content(selected_criteria_path)
             criteria_source = "uploaded"
         elif not selected_criteria_path.exists():
             raise HTTPException(status_code=404, detail="Default review criteria file was not found.")

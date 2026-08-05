@@ -1,17 +1,17 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 
 from config import DATA_DIR
 from endpoints.runtime.auth import load_users, normalize_role
-from endpoints.runtime.tenancy import tenant_user_criteria_path, tenant_user_profiles_file
+from endpoints.runtime.tenancy import tenant_user_criteria_path, tenant_profiles_file
 from loggers.review_history import format_file_size, format_timestamp, load_history_records
 
 
 def list_admin_users(tenant_id: str) -> list[dict]:
     rows = []
     data_dir = Path(DATA_DIR)
-    for user in load_users(tenant_user_profiles_file(tenant_id)):
+    for user in load_users(tenant_profiles_file(tenant_id)):
         username = user.get("username", "")
         records = load_history_records(data_dir, username, tenant_id=tenant_id)
         latest_record = max(records, key=lambda item: item.get("report_created_at") or "", default={})
@@ -29,7 +29,7 @@ def list_admin_users(tenant_id: str) -> list[dict]:
 
 
 def get_admin_user(tenant_id: str, username: str) -> dict | None:
-    for user in load_users(tenant_user_profiles_file(tenant_id)):
+    for user in load_users(tenant_profiles_file(tenant_id)):
         if user.get("username") == username:
             return {
                 **user,

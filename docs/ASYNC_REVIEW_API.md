@@ -1,4 +1,4 @@
-# 异步审查 API
+﻿# 异步审查 API
 
 本文说明普通外部客户使用的 `/api` 异步合同审查接口。
 
@@ -14,9 +14,9 @@ Authorization: <api_key>
 
 服务端接受原始 key 或 `Bearer <api_key>`。平台负责该 key 的鉴权；本服务只用其 SHA-256 指纹查找本地客户映射。
 
-管理员在本地登记平台 key 映射。`user_profiles/api_clients.json` 只保存 key 的 SHA-256 指纹，不保存明文 key。
+管理员在本地登记平台 key 映射。`profiles/api_clients.json` 只保存 key 的 SHA-256 指纹，不保存明文 key。
 
-以下管理命令应在项目根目录执行；Docker 部署时，应在挂载了与服务容器相同 `user_profiles/`、`data/` 持久化目录的临时管理容器中执行。
+以下管理命令应在项目根目录执行；Docker 部署时，应在挂载了与服务容器相同 `profiles/`、`data/` 持久化目录的临时管理容器中执行。
 
 | 命令 | 输入 | 输出或作用 |
 | --- | --- | --- |
@@ -426,7 +426,7 @@ data/api/<task_id>/
 
 任务不存在时也返回同一 `404`，因此客户不能通过状态码判断其他客户的任务是否存在。
 
-任务目录不再按 `client_dir` 分区。不要手工创建或修改 `user_profiles/api_clients.json`，避免 API key 映射到错误业务身份。
+任务目录不再按 `client_dir` 分区。不要手工创建或修改 `profiles/api_clients.json`，避免 API key 映射到错误业务身份。
 
 ## 8. 常见请求错误
 

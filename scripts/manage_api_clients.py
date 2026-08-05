@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import json
@@ -13,7 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-API_CLIENTS_FILE = PROJECT_ROOT / "user_profiles" / "api_clients.json"
+API_CLIENTS_FILE = PROJECT_ROOT / "profiles" / "api_clients.json"
 API_CLIENT_TASKS_ROOT = PROJECT_ROOT / "data" / "api"
 
 

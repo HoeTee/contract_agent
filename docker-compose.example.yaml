@@ -1,4 +1,4 @@
-services:
+﻿services:
   deep-research-agent:
     image: southernbanker/lexora:latest
     container_name: lexora
@@ -20,8 +20,8 @@ services:
       - ./.env:/app/.env:ro
       - ./config.yaml:/app/config.yaml:ro
       - ./agents/prompts/cn_prompts.py:/app/agents/prompts/cn_prompts.py:ro
-      - ./criteria.docx:/app/resources/review_criteria/criteria.docx
-      - ./user_profiles:/app/user_profiles
+      - ./criteria.docx:/app/resources/criteria/criteria.docx
+      - ./profiles:/app/profiles
       - ./data:/app/data
 
     healthcheck:

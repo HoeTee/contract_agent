@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import re
@@ -11,7 +11,7 @@ from fastapi import HTTPException, Request
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-API_CLIENTS_FILE = PROJECT_ROOT / "user_profiles" / "api_clients.json"
+API_CLIENTS_FILE = PROJECT_ROOT / "profiles" / "api_clients.json"
 
 
 @dataclass(frozen=True)

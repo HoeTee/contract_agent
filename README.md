@@ -1,4 +1,4 @@
-# 合同审查 Agent
+﻿# 合同审查 Agent
 
 合同审查 Agent 提供三种 DOCX 合同审查入口：
 
@@ -72,7 +72,7 @@ data/
     <tenant_id>/
       <task_id>/
 
-user_profiles/
+profiles/
   users.json
   api_clients.json
 ```
@@ -81,8 +81,8 @@ API 和 Web 任务数据保持隔离：
 
 - API 任务：`data/api/<task_id>/`
 - Web 任务：`data/web/<tenant_id>/<task_id>/`
-- Web 用户配置：`user_profiles/users.json`
-- API client 映射：`user_profiles/api_clients.json`
+- Web 用户配置：`profiles/users.json`
+- API client 映射：`profiles/api_clients.json`
 
 任务目录中保存 `task.json`、输入文件、输出文件，以及开启日志后的任务级日志。
 
@@ -140,8 +140,8 @@ python main.py --contract .\contract.docx --criteria .\criteria.docx --output .\
 ```yaml
 volumes:
   - ./data:/app/data
-  - ./user_profiles:/app/user_profiles
-  - ./resources/review_criteria/criteria.docx:/app/resources/review_criteria/criteria.docx:ro
+  - ./profiles:/app/profiles
+  - ./resources/criteria/criteria.docx:/app/resources/criteria/criteria.docx:ro
 ```
 
 Docker 部署和排障文档：

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import shutil
 from datetime import datetime
@@ -6,7 +6,7 @@ from pathlib import Path
 
 from config import DATA_DIR, USERS_FILE
 from endpoints.runtime.auth import VALID_ROLES, hash_password, load_users, save_users
-from endpoints.runtime.tenancy import require_tenant, tenant_user_profiles_file
+from endpoints.runtime.tenancy import require_tenant, tenant_profiles_file
 from loggers.resolve_review_task_paths import initialize_user_data_dir, safe_path_part
 
 
@@ -40,7 +40,7 @@ def create_user_account(
 ) -> str:
     if tenant_id:
         require_tenant(tenant_id)
-        users_file = tenant_user_profiles_file(tenant_id)
+        users_file = tenant_profiles_file(tenant_id)
     safe_username = safe_path_part(username, "user")
     normalized_role = validate_role(role)
     users = load_users(users_file)
@@ -73,7 +73,7 @@ def set_user_role(
 ) -> str:
     if tenant_id:
         require_tenant(tenant_id)
-        users_file = tenant_user_profiles_file(tenant_id)
+        users_file = tenant_profiles_file(tenant_id)
     normalized_role = validate_role(role)
     users = load_users(users_file)
     index = find_user_index(users, username)
@@ -94,7 +94,7 @@ def reset_user_password(
 ) -> None:
     if tenant_id:
         require_tenant(tenant_id)
-        users_file = tenant_user_profiles_file(tenant_id)
+        users_file = tenant_profiles_file(tenant_id)
     users = load_users(users_file)
     index = find_user_index(users, username)
     if index is None:
@@ -114,7 +114,7 @@ def set_user_enabled(
 ) -> None:
     if tenant_id:
         require_tenant(tenant_id)
-        users_file = tenant_user_profiles_file(tenant_id)
+        users_file = tenant_profiles_file(tenant_id)
     users = load_users(users_file)
     index = find_user_index(users, username)
     if index is None:
@@ -137,7 +137,7 @@ def delete_user_account(
 ) -> Path | None:
     if tenant_id:
         require_tenant(tenant_id)
-        users_file = tenant_user_profiles_file(tenant_id)
+        users_file = tenant_profiles_file(tenant_id)
     safe_username = safe_path_part(username, "user")
     users = load_users(users_file)
     index = find_user_index(users, safe_username)

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import shutil
 from pathlib import Path
@@ -8,7 +8,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, PlainTextResponse
 from fastapi.templating import Jinja2Templates
 
-from config import DATA_DIR, DEFAULT_REVIEW_CRITERIA_PATH, PROJECT_ROOT, USERS_FILE
+from config import DATA_DIR, DEFAULT_CRITERIA_PATH, PROJECT_ROOT, USERS_FILE
 from endpoints.web.admin_services import (
     admin_summary,
     get_admin_user,
@@ -19,7 +19,7 @@ from endpoints.web.admin_services import (
 )
 from endpoints.runtime.document_validation import (
     DOCX_MEDIA_TYPE,
-    validate_review_criteria_content,
+    validate_criteria_content,
     validate_uploaded_docx,
 )
 from endpoints.runtime.filenames import safe_upload_filename
@@ -277,7 +277,7 @@ async def admin_upload_user_criteria(
         with temp_path.open("wb") as f:
             shutil.copyfileobj(criteria_file.file, f)
         validate_uploaded_docx(temp_path)
-        validate_review_criteria_content(temp_path)
+        validate_criteria_content(temp_path)
         temp_path.replace(target_path)
         request.session["admin_flash_success"] = "用户默认审查要点已更新。"
     except HTTPException as exc:
@@ -299,7 +299,7 @@ async def admin_restore_user_criteria(request: Request, target_username: str):
     if not get_admin_user(tenant_id, target_username):
         raise HTTPException(status_code=404, detail="未找到用户。")
 
-    default_path = Path(DEFAULT_REVIEW_CRITERIA_PATH)
+    default_path = Path(DEFAULT_CRITERIA_PATH)
     target_path = tenant_user_criteria_path(tenant_id, target_username)
     try:
         if not default_path.exists():

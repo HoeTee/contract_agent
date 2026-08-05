@@ -1,4 +1,4 @@
-# 快速启动
+﻿# 快速启动
 
 本文用于验证服务是否能端到端跑通。
 
@@ -14,7 +14,7 @@ pip install -r requirements.txt
 python scripts/manage_users.py create --username testuser --password Test123456 --display-name TestUser
 ```
 
-创建用户时会自动初始化用户目录，并从 `resources/review_criteria/criteria.docx` 复制默认审查要点。
+创建用户时会自动初始化用户目录，并从 `resources/criteria/criteria.docx` 复制默认审查要点。
 
 如果用户已经存在，可以重置密码：
 
@@ -27,7 +27,7 @@ python scripts/manage_users.py reset-password --username testuser --password Tes
 默认审查要点应已经存在于：
 
 ```text
-data/testuser/contract_review_criteria/criteria.docx
+data/testuser/contract_criteria/criteria.docx
 ```
 
 如果要临时使用其他审查要点，可以在 `/work` 页面上传合同的同时上传本次审查要点；如果要修改该用户默认审查要点，可以用管理员后台进入用户详情页上传覆盖。
@@ -132,11 +132,11 @@ Invoke-WebRequest `
 ```text
 .env
 config.yaml
-user_profiles/
+profiles/
 data/
 ```
 
-`user_profiles/` 和 `data/` 都可以是空目录。首次创建用户时，程序会自动生成 `user_profiles/users.json`。
+`profiles/` 和 `data/` 都可以是空目录。首次创建用户时，程序会自动生成 `profiles/users.json`。
 
 构建并启动：
 

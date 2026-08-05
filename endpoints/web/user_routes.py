@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import secrets
@@ -31,10 +31,10 @@ from endpoints.review.task_store import (
     now_iso,
 )
 from endpoints.runtime.auth import find_user, load_users, normalize_role, save_users, verify_login, verify_password
-from endpoints.runtime.tenancy import TenantError, require_tenant, tenant_user_profiles_file
+from endpoints.runtime.tenancy import TenantError, require_tenant, tenant_profiles_file
 from endpoints.runtime.document_validation import (
     DOCX_MEDIA_TYPE,
-    validate_review_criteria_content,
+    validate_criteria_content,
     validate_uploaded_docx,
 )
 from endpoints.runtime.filenames import build_report_display_name, safe_upload_filename, strip_task_file_prefix
@@ -182,7 +182,7 @@ def sync_context_user(request: Request) -> dict | None:
         request.session["auth_contexts"] = contexts
         return None
 
-    user = find_user(tenant_user_profiles_file(tenant_id), context.get("username", ""))
+    user = find_user(tenant_profiles_file(tenant_id), context.get("username", ""))
     if not user or not user.get("enabled", True):
         contexts.pop(ctx, None)
         request.session["auth_contexts"] = contexts
@@ -332,7 +332,7 @@ async def session_status(request: Request):
                 if not isinstance(context, dict):
                     continue
                 tenant_id = context.get("tenant_id", "")
-                stored_user = find_user(tenant_user_profiles_file(tenant_id), context.get("username", "")) if tenant_id else None
+                stored_user = find_user(tenant_profiles_file(tenant_id), context.get("username", "")) if tenant_id else None
                 if stored_user and stored_user.get("enabled", True):
                     return {
                         "active": True,
@@ -448,7 +448,7 @@ async def login(
     next_login_token = issue_login_token(request)
     try:
         tenant = require_tenant(tenant_id)
-        users_file = tenant_user_profiles_file(tenant["tenant_id"])
+        users_file = tenant_profiles_file(tenant["tenant_id"])
     except TenantError as exc:
         return templates.TemplateResponse(
             request,
@@ -521,7 +521,7 @@ async def update_profile_display_name(
         return RedirectResponse("/web/login", status_code=303)
 
     try:
-        cleaned = update_display_name(tenant_user_profiles_file(user["tenant_id"]), username, display_name)
+        cleaned = update_display_name(tenant_profiles_file(user["tenant_id"]), username, display_name)
         request.session["display_name"] = cleaned
         request.session["flash_success"] = "Display name updated."
     except HTTPException as exc:
@@ -678,7 +678,7 @@ async def review_page(
                 criteria_filename,
             )
             validate_uploaded_docx(selected_criteria_path)
-            validate_review_criteria_content(selected_criteria_path)
+            validate_criteria_content(selected_criteria_path)
             criteria_source = "uploaded"
 
             write_task_log_event(

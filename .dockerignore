@@ -1,4 +1,4 @@
-.git
+﻿.git
 .gitignore
 .dockerignore
 
@@ -10,7 +10,7 @@ docker-compose.yaml
 
 # Runtime data and tenant/user identity files are mounted, not baked into images
 data
-user_profiles
+profiles
 logs
 uploads
 
@@ -34,8 +34,8 @@ env
 *.dotx
 *.dotm
 *.pdf
-!resources/review_criteria/
-!resources/review_criteria/criteria.docx
+!resources/criteria/
+!resources/criteria/criteria.docx
 ~$*
 ~$*.doc*
 .~lock.*#

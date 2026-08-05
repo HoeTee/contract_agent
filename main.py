@@ -1,4 +1,4 @@
-"""
+﻿"""
 Local CLI entry point for the contract review workflow.
 """
 from __future__ import annotations
@@ -9,11 +9,11 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from config import DEFAULT_REVIEW_CRITERIA_PATH, MCP_SERVER_PATH
-from endpoints.runtime.document_validation import validate_review_criteria_content, validate_uploaded_docx
+from config import DEFAULT_CRITERIA_PATH, MCP_SERVER_PATH
+from endpoints.runtime.document_validation import validate_criteria_content, validate_uploaded_docx
 from endpoints.runtime.filenames import build_report_display_name
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
-from main_workflow.main_workflow import ContractReviewWorkflow
+from workflow.workflow import ContractReviewWorkflow
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -59,14 +59,14 @@ async def run_cli(contract: str, criteria: str | None = None, output: str | None
     criteria_path = (
         resolve_existing_docx(criteria, "Review criteria")
         if criteria
-        else resolve_existing_docx(DEFAULT_REVIEW_CRITERIA_PATH, "Default review criteria")
+        else resolve_existing_docx(DEFAULT_CRITERIA_PATH, "Default review criteria")
     )
     output_path = resolve_output_path(contract_path, output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     validate_uploaded_docx(contract_path)
     validate_uploaded_docx(criteria_path)
-    validate_review_criteria_content(criteria_path)
+    validate_criteria_content(criteria_path)
 
     with tempfile.TemporaryDirectory(prefix="contract-review-cli-") as temp_dir:
         temp_root = Path(temp_dir)
@@ -83,7 +83,7 @@ async def run_cli(contract: str, criteria: str | None = None, output: str | None
                 server_script_path=MCP_SERVER_PATH,
                 workflow_log_dir=str(workflow_log_dir),
                 conversation_log_dir=str(conversation_log_dir),
-                mcp_log_file=str(mcp_log_dir / "mcp_client.log"),
+                mcp_log_file=str(mcp_log_dir / "client.log"),
             )
             result = await workflow.run(
                 contract_path=str(contract_path),

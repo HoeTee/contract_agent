@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import json
@@ -16,7 +16,7 @@ from config import (
     API_RESULT_UPLOAD_ENABLED,
     API_URL_DOWNLOAD_MAX_BYTES,
     API_URL_DOWNLOAD_TIMEOUT_SECONDS,
-    DEFAULT_REVIEW_CRITERIA_PATH,
+    DEFAULT_CRITERIA_PATH,
 )
 from endpoints.api.client_mapping import resolve_api_client
 from endpoints.review.job_worker import run_async_review_job
@@ -36,7 +36,7 @@ from endpoints.review.task_store import (
     save_task_input_upload,
     write_task_log_event,
 )
-from endpoints.runtime.document_validation import validate_review_criteria_content, validate_uploaded_docx
+from endpoints.runtime.document_validation import validate_criteria_content, validate_uploaded_docx
 from endpoints.runtime.filenames import build_report_display_name, safe_upload_filename
 from endpoints.runtime.json_response import pretty_json_response
 
@@ -241,7 +241,7 @@ async def submit_review_job(request: Request):
 
     criteria_source = "default"
     criteria_filename = None
-    selected_criteria_path = Path(DEFAULT_REVIEW_CRITERIA_PATH)
+    selected_criteria_path = Path(DEFAULT_CRITERIA_PATH)
 
     if content_type.startswith("multipart/form-data"):
         form = await request.form()
@@ -314,7 +314,7 @@ async def submit_review_job(request: Request):
             )
             try:
                 validate_uploaded_docx(selected_criteria_path)
-                validate_review_criteria_content(selected_criteria_path)
+                validate_criteria_content(selected_criteria_path)
             except HTTPException as exc:
                 return _validation_error_response(task_id=task_id, exc=exc)
             criteria_source = "uploaded"
@@ -466,7 +466,7 @@ async def submit_review_job(request: Request):
             )
             try:
                 validate_uploaded_docx(selected_criteria_path)
-                validate_review_criteria_content(selected_criteria_path)
+                validate_criteria_content(selected_criteria_path)
             except HTTPException as exc:
                 return _validation_error_response(task_id=task_id, exc=exc)
             criteria_source = "uploaded"

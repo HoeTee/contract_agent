@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+﻿FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -30,7 +30,7 @@ COPY . .
 
 # These directories are expected to be bind-mounted in deployments, but creating
 # them keeps local container runs predictable when mounts are absent.
-RUN mkdir -p /app/data /app/user_profiles
+RUN mkdir -p /app/data /app/profiles
 
 EXPOSE 8000
 

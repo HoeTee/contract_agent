@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import re
@@ -241,7 +241,7 @@ def task_conversation_log_dir(client_dir: str, task_id: str) -> Path | None:
 def task_mcp_log_file(client_dir: str, task_id: str) -> Path | None:
     if not should_write_task_file("logs"):
         return None
-    return mcp_log_dir(client_dir, task_id) / "mcp_client.log"
+    return mcp_log_dir(client_dir, task_id) / "client.log"
 
 
 def task_mcp_log_dir(client_dir: str, task_id: str) -> Path | None:

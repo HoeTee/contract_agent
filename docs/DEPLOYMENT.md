@@ -17,27 +17,27 @@ docker compose up -d
 ```text
 .env
 config.yaml
-user_profiles/
+profiles/
 data/
 ```
 
-褰撳墠 `docker-compose.yaml` 浼氭妸 `.env`銆乣user_profiles/` 鍜?`data/` 鎸傝浇杩涘鍣細
+褰撳墠 `docker-compose.yaml` 浼氭妸 `.env`銆乣profiles/` 鍜?`data/` 鎸傝浇杩涘鍣細
 
 ```yaml
 volumes:
   - ./.env:/app/.env:ro
   - ./config.yaml:/app/config.yaml:ro
-  - ./user_profiles:/app/user_profiles
+  - ./profiles:/app/profiles
   - ./data:/app/data
 ```
 
-`user_profiles/` 鍙互鏄┖鐩綍銆傞娆″垱寤虹敤鎴锋椂锛岀▼搴忎細鑷姩鐢熸垚锛?
+`profiles/` 鍙互鏄┖鐩綍銆傞娆″垱寤虹敤鎴锋椂锛岀▼搴忎細鑷姩鐢熸垚锛?
 
 ```text
-user_profiles/users.json
+profiles/users.json
 ```
 
-`user_profiles/` 闇€瑕佸彲鍐欐寕杞斤紝鍥犱负绠＄悊鍛樺悗鍙板拰 CLI 浼氬垱寤鸿处鍙凤紝鏅€氱敤鎴蜂篃鍙互鍦ㄥ墠绔慨鏀规樉绀哄悕绉般€?
+`profiles/` 闇€瑕佸彲鍐欐寕杞斤紝鍥犱负绠＄悊鍛樺悗鍙板拰 CLI 浼氬垱寤鸿处鍙凤紝鏅€氱敤鎴蜂篃鍙互鍦ㄥ墠绔慨鏀规樉绀哄悕绉般€?
 
 鐢ㄦ埛杩愯鏁版嵁浼氳鎸傝浇鍒板鍣ㄤ腑锛?
 
@@ -48,17 +48,17 @@ user_profiles/users.json
 濡傛灉浠庢棫閮ㄧ讲杩佺Щ锛屽師鏉ョ殑 `users.json` 闇€瑕佹墜鍔ㄧЩ鍔ㄥ埌锛?
 
 ```text
-user_profiles/users.json
+profiles/users.json
 ```
 
-`users_file` is no longer configurable in `config.yaml`; move legacy user data to `user_profiles/users.json`.
+`users_file` is no longer configurable in `config.yaml`; move legacy user data to `profiles/users.json`.
 濡傛灉瑕佽嚜瀹氫箟鏂扮敤鎴烽粯璁ゅ鏌ヨ鐐规ā鏉匡紝鍙互鎸傝浇鍗曚釜鏂囦欢锛?
 
 ```yaml
-- ./criteria.docx:/app/resources/review_criteria/criteria.docx:ro
+- ./criteria.docx:/app/resources/criteria/criteria.docx:ro
 ```
 
-涓嶈鎸傝浇绌虹殑 `resources/review_criteria/` 鐩綍瑕嗙洊瀹瑰櫒鍐呴粯璁ゆā鏉匡紝闄ら潪瀹夸富鏈虹洰褰曚腑宸茬粡鏈?`criteria.docx`銆?
+涓嶈鎸傝浇绌虹殑 `resources/criteria/` 鐩綍瑕嗙洊瀹瑰櫒鍐呴粯璁ゆā鏉匡紝闄ら潪瀹夸富鏈虹洰褰曚腑宸茬粡鏈?`criteria.docx`銆?
 
 ## 绔彛璇存槑
 

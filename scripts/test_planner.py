@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import asyncio
@@ -11,7 +11,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from agents.planner import PlannerAgent
 from config import MCP_SERVER_PATH
-from mcp_service.mcp_client.mcp_minimal import MinimalMCPClient
+from workflow.client_loader import MinimalMCPClient
 
 
 def build_parser() -> argparse.ArgumentParser:

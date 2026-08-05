@@ -1,4 +1,4 @@
-# Local secrets and deployment overrides
+﻿# Local secrets and deployment overrides
 .env
 .env.local
 .env.*.local
@@ -12,8 +12,8 @@ data/*
 !data/web/.gitkeep
 logs/
 uploads/
-user_profiles/*
-!user_profiles/.gitkeep
+profiles/*
+!profiles/.gitkeep
 
 # Office documents, user uploads, and temporary lock files
 *.doc
@@ -30,9 +30,9 @@ user_profiles/*
 *.bak
 
 # Keep the committed fallback review criteria
-resources/review_criteria/*
-!resources/review_criteria/.gitkeep
-!resources/review_criteria/criteria.docx
+resources/criteria/*
+!resources/criteria/.gitkeep
+!resources/criteria/criteria.docx
 
 # Python caches, virtual environments, and build output
 __pycache__/

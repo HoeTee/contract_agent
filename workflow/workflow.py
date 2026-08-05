@@ -1,4 +1,4 @@
-"""
+﻿"""
 ContractReviewWorkflow orchestrates one annotated-DOCX contract review run.
 
 Phases:
@@ -24,7 +24,7 @@ from agents.base_agent import Settings
 from agents.planner import PlannerAgent
 from agents.orchestrator import OrchestratorAgent
 from agents.summarizer import SummarizerAgent
-from mcp_service.mcp_client.mcp_minimal import MinimalMCPClient
+from workflow.client_loader import MinimalMCPClient
 from endpoints.runtime.errors import classify_model_call_error
 
 
@@ -45,7 +45,7 @@ class ContractReviewWorkflow:
         mcp_log_file: str | None = None,
         api_events_path: str | None = None,
     ):
-        self.mcp_client = MinimalMCPClient(server_script_path, log_file=mcp_log_file)
+        self.client = MinimalMCPClient(server_script_path, log_file=mcp_log_file)
         self.logger = WorkflowLogger(log_dir=workflow_log_dir)
         self.workflow_log_dir = workflow_log_dir
         self.conversation_log_dir = conversation_log_dir
@@ -77,7 +77,7 @@ class ContractReviewWorkflow:
         # Initialize MCP client
         mcp_cleaned = False
         start = time.time()
-        await self.mcp_client.connect()
+        await self.client.connect()
         self.logger.log(
             phase="MCP",
             sender="Workflow",
@@ -130,7 +130,7 @@ class ContractReviewWorkflow:
             )
 
             start = time.time()
-            await self.mcp_client.cleanup()
+            await self.client.cleanup()
             mcp_cleaned = True
             self.logger.log(
                 phase="MCP",
@@ -175,7 +175,7 @@ class ContractReviewWorkflow:
         finally:
             if not mcp_cleaned:
                 start = time.time()
-                await self.mcp_client.cleanup()
+                await self.client.cleanup()
                 self.logger.log(
                     phase="MCP",
                     sender="Workflow",
@@ -229,7 +229,7 @@ class ContractReviewWorkflow:
         call, logging, and wrapper stripping in one place.
         """
         start = time.time()
-        tool_result = await self.mcp_client.call_tool(
+        tool_result = await self.client.call_tool(
             "ingest_file", {"file_path": file_path}
         )
         self.logger.log(
@@ -249,7 +249,7 @@ class ContractReviewWorkflow:
         print("\n[Phase 2] Building temporary LlamaIndex contract index...")
         start = time.time()
 
-        result = await self.mcp_client.call_tool(
+        result = await self.client.call_tool(
             "llamaindex_build_index",
             {
                 "docx_path": contract_path,
@@ -311,7 +311,7 @@ class ContractReviewWorkflow:
         start = time.time()
 
         orchestrator = OrchestratorAgent(
-            mcp_client=self.mcp_client,
+            mcp_client=self.client,
             logger=self.logger,
             settings=self.settings,
             api_events_path=self.api_events_path,
@@ -399,7 +399,7 @@ class ContractReviewWorkflow:
         if output_path is not None:
             tool_args["output_path"] = output_path
 
-        result = await self.mcp_client.call_tool(
+        result = await self.client.call_tool(
             "generate_docx_report",
             tool_args,
         )

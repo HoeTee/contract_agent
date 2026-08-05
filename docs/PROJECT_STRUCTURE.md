@@ -1,4 +1,4 @@
-# 项目结构
+﻿# 项目结构
 
 本文说明当前主要目录职责。普通 `/api`、浏览器 `/web`、后续 OA `/oa` 应保持边界清楚。
 
@@ -38,11 +38,11 @@
 ## 身份文件
 
 ```text
-user_profiles/
+profiles/
   tenant_profiles.json                 # Web 租户注册表
   tenants/
     <tenant_id>/
-      user_profiles.json               # 某租户下的 Web 用户
+      profiles.json               # 某租户下的 Web 用户
       criteria/
         <username>.docx                # 某用户默认审查要点
   api_clients.json                     # /api 客户端映射

@@ -46,7 +46,7 @@ frontend/templates/index.html
 
 - 涓婁紶鍚堝悓 DOCX銆?
 - 鍙€変笂浼犳湰娆″鏌ヨ鐐?DOCX銆?
-- 濡傛灉鏈涓嶄笂浼犲鏌ヨ鐐癸紝鍒欎娇鐢?`data/<username>/contract_review_criteria/criteria.docx`銆?
+- 濡傛灉鏈涓嶄笂浼犲鏌ヨ鐐癸紝鍒欎娇鐢?`data/<username>/contract_criteria/criteria.docx`銆?
 - 瀹℃牳涓細绂佺敤鎻愪氦鎸夐挳骞跺畾鏃跺埛鏂颁换鍔＄姸鎬併€?
 - 瀹℃牳瀹屾垚鍚庢彁渚涙壒娉ㄧ増 DOCX 涓嬭浇鍏ュ彛銆?
 
@@ -178,13 +178,13 @@ frontend/static/app.js
 榛樿鍊硷細
 
 ```text
-<PROJECT_ROOT>/user_profiles/users.json
+<PROJECT_ROOT>/profiles/users.json
 ```
 
 鍙互閫氳繃鐜鍙橀噺瑕嗙洊锛?
 
 ```env
-user_profiles/users.json
+profiles/users.json
 ```
 
 璐﹀彿 JSON 缁撴瀯锛?
@@ -247,7 +247,7 @@ data/
 
 ```text
 data/<username>/
-  contract_review_criteria/
+  criteria/
     criteria.docx
   institutional_docs/
   contracts/
@@ -268,19 +268,19 @@ loggers/resolve_review_task_paths.py
 绯荤粺榛樿瀹℃煡瑕佺偣妯℃澘锛?
 
 ```text
-resources/review_criteria/criteria.docx
+resources/criteria/criteria.docx
 ```
 
 鏂板缓鐢ㄦ埛鏃讹紝绋嬪簭浼氬鍒跺畠鍒帮細
 
 ```text
-data/<username>/contract_review_criteria/criteria.docx
+data/<username>/contract_criteria/criteria.docx
 ```
 
 鏅€氱敤鎴峰湪 `/work` 涓婁紶鐨勫鏌ヨ鐐瑰彧鐢ㄤ簬鏈浠诲姟銆傜鐞嗗憳鍦ㄧ敤鎴疯鎯呴〉涓婁紶鐨勫鏌ヨ鐐逛細瑕嗙洊璇ョ敤鎴烽粯璁ゆ枃浠讹細
 
 ```text
-data/<username>/contract_review_criteria/criteria.docx
+data/<username>/contract_criteria/criteria.docx
 ```
 
 瀹℃煡瑕佺偣涓婁紶鍓嶄細鍋?DOCX 鏍煎紡妫€鏌ュ拰鍐呭妫€鏌ャ€傚唴瀹规鏌ラ€昏緫鍦?`endpoints/runtime/document_validation.py`锛岀洰鏍囨槸鎷掔粷鏄庢樉涓嶆槸瀹℃煡瑕佺偣鐨?DOCX銆?
@@ -398,28 +398,28 @@ auth_contexts[ctx] = {
 褰撳墠浠撳簱榛樿 `.env.example` 閰嶇疆锛?
 
 ```env
-data/ and user_profiles/users.json
+data/ and profiles/users.json
 ```
 
 褰撳墠 `docker-compose.yaml` 鎸傝浇鍚庯紝瀹瑰櫒鍐呭疄闄呯瓑浠蜂簬锛?
 
 ```text
 data/
-user_profiles/users.json
+profiles/users.json
 ```
 
 compose 鎸傝浇锛?
 
 ```yaml
 volumes:
-  - ./user_profiles:/app/user_profiles
+  - ./profiles:/app/profiles
   - ./data:/app/data
 ```
 
 姝ゆ椂 Web 鍚庡彴鍜?CLI 鍒涘缓鐢ㄦ埛鍚庯紝鏈€缁堝啓鍒拌繙绔涓绘満锛?
 
 ```text
-./user_profiles/users.json
+./profiles/users.json
 ./data/<username>/
 ```
 
@@ -428,14 +428,14 @@ volumes:
 濡傛灉浠庢棫閮ㄧ讲杩佺Щ锛屽師鏉ョ殑 `users.json` 闇€瑕佹墜鍔ㄧЩ鍔ㄥ埌锛?
 
 ```text
-user_profiles/users.json
+profiles/users.json
 ```
 
 濡傛灉甯屾湜璐﹀彿 JSON 鏀惧叆缁熶竴鏁版嵁鎸傝浇鐩綍锛屽彲浠ヨ缃細
 
 ```env
 data/
-user_profiles/users.json
+profiles/users.json
 ```
 
 骞舵妸 compose 璋冩暣涓哄彧鎸傝浇鎬绘暟鎹洰褰曪細
@@ -450,7 +450,7 @@ volumes:
 ```yaml
 volumes:
   - ./data:/app/data
-  - ./criteria.docx:/app/resources/review_criteria/criteria.docx:ro
+  - ./criteria.docx:/app/resources/criteria/criteria.docx:ro
 ```
 
 杩欐牱鏂板缓鐢ㄦ埛鏃跺鍒跺嚭鏉ョ殑榛樿瀹℃煡瑕佺偣鏉ヨ嚜瀹夸富鏈烘枃浠躲€?
@@ -473,4 +473,4 @@ data/<tenant_id>/<username>/
 
 ## 当前路径配置
 
-`DATA_DIR` 和 `USERS_FILE` 在 `config.py` 中固定为项目内的 `data/` 和 `user_profiles/users.json`。它们不再通过 `.env` 或 `config.yaml` 配置。
+`DATA_DIR` 和 `USERS_FILE` 在 `config.py` 中固定为项目内的 `data/` 和 `profiles/users.json`。它们不再通过 `.env` 或 `config.yaml` 配置。

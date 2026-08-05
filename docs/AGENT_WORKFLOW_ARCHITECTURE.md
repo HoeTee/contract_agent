@@ -1,6 +1,6 @@
-# 智能体与工作流架构
+﻿# 智能体与工作流架构
 
-本文说明合同审查的智能体（agent）与工作流（workflow）架构。工作流编排在 `main_workflow/main_workflow.py`，各 agent 在 `agents/`，检索与文档解析能力通过 MCP 工具提供。
+本文说明合同审查的智能体（agent）与工作流（workflow）架构。工作流编排在 `workflow/workflow.py`，各 agent 在 `agents/`，检索与文档解析能力通过 MCP 工具提供。
 
 ## 总览
 

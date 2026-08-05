@@ -1,4 +1,4 @@
-# 日志设计
+﻿# 日志设计
 
 日志相关代码统一放在 `loggers/` 目录下。`resolve_review_task_paths.py` 负责生成任务编号和所有输入、输出、日志路径；其他 logger 模块只负责写日志。
 
@@ -159,7 +159,7 @@ loggers/mcp_logger.py
 文件：
 
 ```text
-mcp/mcp_client.log
+mcp/client.log
 ```
 
 记录内容：

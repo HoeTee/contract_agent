@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import re
@@ -9,9 +9,9 @@ from typing import Any
 from config import PROJECT_ROOT
 
 
-USER_PROFILES_ROOT = Path(PROJECT_ROOT) / "user_profiles"
-TENANT_PROFILES_FILE = USER_PROFILES_ROOT / "tenant_profiles.json"
-TENANTS_ROOT = USER_PROFILES_ROOT / "tenants"
+PROFILES_ROOT = Path(PROJECT_ROOT) / "profiles"
+TENANT_PROFILES_FILE = PROFILES_ROOT / "tenant_profiles.json"
+TENANTS_ROOT = PROFILES_ROOT / "tenants"
 TENANT_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
@@ -64,8 +64,8 @@ def require_tenant(tenant_id: str, tenants_file: str | Path | None = None) -> di
     return tenant
 
 
-def tenant_user_profiles_file(tenant_id: str) -> Path:
-    return TENANTS_ROOT / validate_tenant_id(tenant_id) / "user_profiles.json"
+def tenant_profiles_file(tenant_id: str) -> Path:
+    return TENANTS_ROOT / validate_tenant_id(tenant_id) / "profiles.json"
 
 
 def tenant_criteria_dir(tenant_id: str) -> Path:
@@ -102,7 +102,7 @@ def create_tenant(
     }
     tenants.append(tenant)
     save_tenants(tenants, tenants_file)
-    tenant_user_profiles_file(tenant_id).parent.mkdir(parents=True, exist_ok=True)
+    tenant_profiles_file(tenant_id).parent.mkdir(parents=True, exist_ok=True)
     return tenant
 
 

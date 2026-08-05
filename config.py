@@ -1,4 +1,4 @@
-"""
+﻿"""
 Central configuration for the contract review workflow.
 """
 
@@ -157,10 +157,10 @@ def _project_path(value: Any, field_name: str) -> str:
     return str(path)
 
 
-MCP_SERVER_PATH = str(PROJECT_ROOT_PATH / "mcp_service" / "mcp_server" / "mcp_server.py")
+MCP_SERVER_PATH = str(PROJECT_ROOT_PATH / "mcp" / "server" / "server.py")
 MCP_SERVER_URL = "http://localhost:8000/mcp"
 DOCS_DIR = str(PROJECT_ROOT_PATH / "docs")
-DEFAULT_REVIEW_CRITERIA_PATH = str(PROJECT_ROOT_PATH / "resources" / "review_criteria" / "criteria.docx")
+DEFAULT_CRITERIA_PATH = str(PROJECT_ROOT_PATH / "resources" / "criteria" / "criteria.docx")
 REPORTS_DIR = str(PROJECT_ROOT_PATH / "reports")
 LOGS_DIR = str(PROJECT_ROOT_PATH / "logs" / "workflow")
 
@@ -229,7 +229,7 @@ SIMILARITY_TOP_K = _as_int(cfg("retrieval", "similarity_top_k"), "retrieval.simi
 RERANK_TOP_N = _as_int(cfg("retrieval", "rerank_top_n"), "retrieval.rerank_top_n")
 
 DATA_DIR = str(PROJECT_ROOT_PATH / "data")
-USERS_FILE = str(PROJECT_ROOT_PATH / "user_profiles" / "users.json")
+USERS_FILE = str(PROJECT_ROOT_PATH / "profiles" / "users.json")
 
 API_KEEP_INPUT = _parse_bool(cfg("api", "keep_input"), "api.keep_input")
 API_KEEP_OUTPUT = _parse_bool(cfg("api", "keep_output"), "api.keep_output")

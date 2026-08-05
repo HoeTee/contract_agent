@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 import zipfile
@@ -79,7 +79,7 @@ def validate_uploaded_docx(path: Path) -> None:
         )
 
 
-def validate_review_criteria_content(path: Path) -> None:
+def validate_criteria_content(path: Path) -> None:
     try:
         doc = Document(path)
         criteria_text = "\n".join(

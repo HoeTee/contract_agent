@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2026-06-11T00:00:00.000Z" agent="Codex" version="26.0.0">
+﻿<mxfile host="app.diagrams.net" modified="2026-06-11T00:00:00.000Z" agent="Codex" version="26.0.0">
   <diagram id="project-architecture" name="deep_research_agent architecture">
     <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="1400" math="0" shadow="0">
       <root>
@@ -68,7 +68,7 @@
         <mxCell id="user_mgmt" value="endpoints/web/user_management.py&lt;br&gt;创建、更新、删除用户&lt;br&gt;初始化用户目录" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#8B5CF6;" vertex="1" parent="auth_group">
           <mxGeometry x="30" y="230" width="300" height="68" as="geometry" />
         </mxCell>
-        <mxCell id="users_file" value="USERS_FILE&lt;br&gt;user_profiles/users.json&lt;br&gt;账号、角色、启用状态、密码哈希" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#F3E8FF;strokeColor=#9333EA;" vertex="1" parent="auth_group">
+        <mxCell id="users_file" value="USERS_FILE&lt;br&gt;profiles/users.json&lt;br&gt;账号、角色、启用状态、密码哈希" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#F3E8FF;strokeColor=#9333EA;" vertex="1" parent="auth_group">
           <mxGeometry x="30" y="322" width="138" height="82" as="geometry" />
         </mxCell>
         <mxCell id="data_dir" value="DATA_DIR/&amp;lt;username&amp;gt;&lt;br&gt;contracts / reports_docx / logs / records / criteria" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#F3E8FF;strokeColor=#9333EA;" vertex="1" parent="auth_group">
@@ -81,7 +81,7 @@
         <mxCell id="workflow_group" value="4. 合同审核主工作流" style="swimlane;html=1;rounded=0;whiteSpace=wrap;fontStyle=1;fontSize=15;startSize=28;fillColor=#F8FAFC;strokeColor=#64748B;" vertex="1" parent="1">
           <mxGeometry x="40" y="680" width="1210" height="360" as="geometry" />
         </mxCell>
-        <mxCell id="workflow" value="ContractReviewWorkflow&lt;br&gt;main_workflow/main_workflow.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#EA580C;fontStyle=1;" vertex="1" parent="workflow_group">
+        <mxCell id="workflow" value="ContractReviewWorkflow&lt;br&gt;workflow/workflow.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#EA580C;fontStyle=1;" vertex="1" parent="workflow_group">
           <mxGeometry x="30" y="55" width="210" height="58" as="geometry" />
         </mxCell>
         <mxCell id="phase_ingest" value="Ingestion&lt;br&gt;ingest_file&lt;br&gt;DOCX -&amp;gt; Markdown" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#F97316;" vertex="1" parent="workflow_group">
@@ -133,10 +133,10 @@
         <mxCell id="llm_provider" value="外部 LLM 服务&lt;br&gt;LLM_API_KEY / LLM_BASE_URL / LLM_NAME&lt;br&gt;qwen-plus 等 OpenAI 兼容模型" style="ellipse;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;" vertex="1" parent="agent_group">
           <mxGeometry x="145" y="400" width="250" height="82" as="geometry" />
         </mxCell>
-        <mxCell id="mcp_client" value="MinimalMCPClient&lt;br&gt;connect / list_tools / call_tool / cleanup" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;" vertex="1" parent="agent_group">
+        <mxCell id="client" value="MinimalMCPClient&lt;br&gt;connect / list_tools / call_tool / cleanup" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;" vertex="1" parent="agent_group">
           <mxGeometry x="35" y="520" width="215" height="64" as="geometry" />
         </mxCell>
-        <mxCell id="mcp_server" value="mcp_server.py&lt;br&gt;FastMCP docs-server&lt;br&gt;暴露工具给工作流与 Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;" vertex="1" parent="agent_group">
+        <mxCell id="server" value="server.py&lt;br&gt;FastMCP docs-server&lt;br&gt;暴露工具给工作流与 Agent" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;" vertex="1" parent="agent_group">
           <mxGeometry x="290" y="520" width="215" height="64" as="geometry" />
         </mxCell>
         <mxCell id="tool_ingest" value="工具: ingest_file&lt;br&gt;FileParser / MinerU / DefaultParser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="agent_group">
@@ -161,13 +161,13 @@
         <mxCell id="dockerfile" value="Dockerfile&lt;br&gt;python -m uvicorn app:app&lt;br&gt;0.0.0.0:8000 workers=1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0E7FF;strokeColor=#4F46E5;" vertex="1" parent="deploy_group">
           <mxGeometry x="35" y="50" width="245" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="compose" value="docker-compose.yaml&lt;br&gt;端口映射 + healthcheck&lt;br&gt;挂载 data / user_profiles" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0E7FF;strokeColor=#4F46E5;" vertex="1" parent="deploy_group">
+        <mxCell id="compose" value="docker-compose.yaml&lt;br&gt;端口映射 + healthcheck&lt;br&gt;挂载 data / profiles" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0E7FF;strokeColor=#4F46E5;" vertex="1" parent="deploy_group">
           <mxGeometry x="320" y="50" width="245" height="70" as="geometry" />
         </mxCell>
         <mxCell id="env_config" value=".env / config.py&lt;br&gt;DATA_DIR / USERS_FILE&lt;br&gt;MCP_SERVER_URL / 模型超时重试" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0E7FF;strokeColor=#4F46E5;" vertex="1" parent="deploy_group">
           <mxGeometry x="605" y="50" width="245" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="mounted_data" value="宿主机挂载目录&lt;br&gt;data/ 保存合同、报告、日志、历史&lt;br&gt;user_profiles/ 保存账号文件" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#EEF2FF;strokeColor=#4F46E5;" vertex="1" parent="deploy_group">
+        <mxCell id="mounted_data" value="宿主机挂载目录&lt;br&gt;data/ 保存合同、报告、日志、历史&lt;br&gt;profiles/ 保存账号文件" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#EEF2FF;strokeColor=#4F46E5;" vertex="1" parent="deploy_group">
           <mxGeometry x="890" y="48" width="270" height="78" as="geometry" />
         </mxCell>
         <mxCell id="runtime_boundary" value="边界说明&lt;br&gt;运行服务容器不应保存唯一持久数据；长期读取的数据应落到共享挂载目录。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;" vertex="1" parent="deploy_group">
@@ -263,22 +263,22 @@
         <mxCell id="e_agent_schema" value="结构化 JSON 校验" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#DB2777;fontSize=11;" edge="1" parent="1" source="base_agent" target="schemas">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_workflow_mcp" value="call_tool" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16A34A;fontSize=11;" edge="1" parent="1" source="workflow" target="mcp_client">
+        <mxCell id="e_workflow_mcp" value="call_tool" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16A34A;fontSize=11;" edge="1" parent="1" source="workflow" target="client">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_orch_mcp" value="llamaindex_search" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16A34A;fontSize=11;" edge="1" parent="1" source="orchestrator_agent" target="mcp_client">
+        <mxCell id="e_orch_mcp" value="llamaindex_search" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16A34A;fontSize=11;" edge="1" parent="1" source="orchestrator_agent" target="client">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_mcp_server" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16A34A;" edge="1" parent="1" source="mcp_client" target="mcp_server">
+        <mxCell id="e_server" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16A34A;" edge="1" parent="1" source="client" target="server">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_tool_ingest" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16A34A;" edge="1" parent="1" source="mcp_server" target="tool_ingest">
+        <mxCell id="e_tool_ingest" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16A34A;" edge="1" parent="1" source="server" target="tool_ingest">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_tool_retrieval" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16A34A;" edge="1" parent="1" source="mcp_server" target="tool_retrieval">
+        <mxCell id="e_tool_retrieval" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16A34A;" edge="1" parent="1" source="server" target="tool_retrieval">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_tool_report" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16A34A;" edge="1" parent="1" source="mcp_server" target="tool_report">
+        <mxCell id="e_tool_report" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16A34A;" edge="1" parent="1" source="server" target="tool_report">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e_tool_logs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;strokeColor=#16A34A;" edge="1" parent="1" source="tool_logs" target="conversation_logs">

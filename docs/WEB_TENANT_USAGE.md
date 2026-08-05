@@ -1,4 +1,4 @@
-# Web 多租户使用说明
+﻿# Web 多租户使用说明
 
 本文说明当前 `/web` 的租户模型、本地数据布局、CLI 操作和前端行为。
 
@@ -15,17 +15,17 @@ data/web/<tenant_id>/<task_id>/
 租户注册表：
 
 ```text
-user_profiles/
+profiles/
   tenant_profiles.json
 ```
 
 租户用户和用户默认审查要点：
 
 ```text
-user_profiles/
+profiles/
   tenants/
     <tenant_id>/
-      user_profiles.json
+      profiles.json
       criteria/
         <username>.docx
 ```
@@ -33,7 +33,7 @@ user_profiles/
 字段含义：
 
 - `tenant_profiles.json` 保存租户记录，包括 `tenant_id`、展示名称 `name`、启用状态和时间戳。
-- `tenants/<tenant_id>/user_profiles.json` 只保存该租户下的用户。
+- `tenants/<tenant_id>/profiles.json` 只保存该租户下的用户。
 - `tenants/<tenant_id>/criteria/<username>.docx` 保存该用户默认审查要点。
 
 系统不保存明文密码。用户密码通过 `endpoints/runtime/auth.py` 存储为哈希。
@@ -199,14 +199,14 @@ python scripts/manage_users.py delete --tenant-id tenant_a --username alice
 如果本次任务没有上传审查要点，工作流使用：
 
 ```text
-user_profiles/tenants/<tenant_id>/criteria/<username>.docx
+profiles/tenants/<tenant_id>/criteria/<username>.docx
 ```
 
 ## 部署注意事项
 
 Docker 部署时要区分这些位置：
 
-- 开发机器：本地源码、本地 `data/`、本地 `user_profiles/`。
+- 开发机器：本地源码、本地 `data/`、本地 `profiles/`。
 - 远程宿主机：运行 Docker 的机器。
 - 服务容器：运行应用的容器。
 - 临时管理容器或宿主机 shell：可能执行 CLI 命令的位置。
@@ -214,7 +214,7 @@ Docker 部署时要区分这些位置：
 持久化数据必须挂载进服务容器。服务需要长期访问：
 
 ```text
-user_profiles/
+profiles/
 data/
 ```
 
@@ -222,17 +222,17 @@ data/
 
 ```yaml
 volumes:
-  - ./user_profiles:/app/user_profiles
+  - ./profiles:/app/profiles
   - ./data:/app/data
 ```
 
-输入文件来自浏览器上传。服务会把任务输入、输出、日志和任务元数据写入挂载后的 `data/web/<tenant_id>/<task_id>/` 目录。租户和用户 CLI 会把身份配置写入挂载后的 `user_profiles/` 目录。
+输入文件来自浏览器上传。服务会把任务输入、输出、日志和任务元数据写入挂载后的 `data/web/<tenant_id>/<task_id>/` 目录。租户和用户 CLI 会把身份配置写入挂载后的 `profiles/` 目录。
 
 不要只把租户配置或任务数据写入正在运行容器的临时文件系统。容器重建后，这些数据会丢失。
 
 ## 快速开始
 
-在拥有项目代码且挂载了 `user_profiles/` 的机器或管理容器中执行：
+在拥有项目代码且挂载了 `profiles/` 的机器或管理容器中执行：
 
 ```bash
 python scripts/manage_tenants.py create --tenant-id tenant_a --name "Tenant A"

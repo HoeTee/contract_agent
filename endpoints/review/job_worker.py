@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import os
@@ -27,7 +27,7 @@ from endpoints.review.task_store import (
 from endpoints.runtime.errors import ModelCallError
 from endpoints.runtime.review_runtime import review_semaphore
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
-from main_workflow.main_workflow import ContractReviewWorkflow
+from workflow.workflow import ContractReviewWorkflow
 
 
 HEARTBEAT_INTERVAL_SECONDS = 10

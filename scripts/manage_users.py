@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import sys
@@ -11,7 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from config import DATA_DIR
 from endpoints.runtime.auth import VALID_ROLES, hash_password, load_users, save_users
-from endpoints.runtime.tenancy import require_tenant, tenant_user_profiles_file
+from endpoints.runtime.tenancy import require_tenant, tenant_profiles_file
 from loggers.resolve_review_task_paths import initialize_user_data_dir, safe_path_part
 
 
@@ -35,7 +35,7 @@ def validate_role(role: str) -> str:
 
 def users_file_for_tenant(tenant_id: str) -> Path:
     require_tenant(tenant_id)
-    return tenant_user_profiles_file(tenant_id)
+    return tenant_profiles_file(tenant_id)
 
 
 def create_user_account(

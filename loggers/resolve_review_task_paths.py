@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 import shutil
@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from config import DEFAULT_REVIEW_CRITERIA_PATH
+from config import DEFAULT_CRITERIA_PATH
 from endpoints.runtime.tenancy import tenant_user_criteria_path, validate_tenant_id
 
 
@@ -18,7 +18,7 @@ def safe_path_part(value: str, fallback: str = "item") -> str:
 
 
 def ensure_default_criteria_file(criteria_path: Path) -> Path:
-    default_criteria_path = Path(DEFAULT_REVIEW_CRITERIA_PATH)
+    default_criteria_path = Path(DEFAULT_CRITERIA_PATH)
     if not criteria_path.exists():
         if not default_criteria_path.exists():
             raise FileNotFoundError(f"Default review criteria file was not found: {default_criteria_path}")
@@ -59,7 +59,7 @@ class ResolvedReviewTaskPaths:
     def criteria_path(self) -> Path:
         if self.tenant_id:
             return tenant_user_criteria_path(self.tenant_id, self.username)
-        return self.user_root / "contract_review_criteria" / "criteria.docx"
+        return self.user_root / "criteria" / "criteria.docx"
 
     @property
     def task_dir(self) -> Path:
@@ -140,7 +140,7 @@ class ResolvedReviewTaskPaths:
             return
 
         for path in (
-            self.user_root / "contract_review_criteria",
+            self.user_root / "criteria",
             self.contracts_dir,
             self.reports_docx_dir,
             self.logs_dir,
@@ -186,7 +186,7 @@ def initialize_user_data_dir(data_dir: Path, username: str, *, tenant_id: str = 
         return user_root
 
     user_root = data_dir / safe_username
-    for child in ("contract_review_criteria", "contracts", "reports_docx", "logs", "records"):
+    for child in ("criteria", "contracts", "reports_docx", "logs", "records"):
         (user_root / child).mkdir(parents=True, exist_ok=True)
-    ensure_default_criteria_file(user_root / "contract_review_criteria" / "criteria.docx")
+    ensure_default_criteria_file(user_root / "criteria" / "criteria.docx")
     return user_root
