@@ -27,7 +27,7 @@ python scripts/manage_users.py reset-password --username testuser --password Tes
 默认审查要点应已经存在于：
 
 ```text
-data/testuser/contract_criteria/criteria.docx
+data/testuser/criteria/criteria.docx
 ```
 
 如果要临时使用其他审查要点，可以在 `/work` 页面上传合同的同时上传本次审查要点；如果要修改该用户默认审查要点，可以用管理员后台进入用户详情页上传覆盖。

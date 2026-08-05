@@ -46,7 +46,7 @@ frontend/templates/index.html
 
 - 涓婁紶鍚堝悓 DOCX銆?
 - 鍙€変笂浼犳湰娆″鏌ヨ鐐?DOCX銆?
-- 濡傛灉鏈涓嶄笂浼犲鏌ヨ鐐癸紝鍒欎娇鐢?`data/<username>/contract_criteria/criteria.docx`銆?
+- 濡傛灉鏈涓嶄笂浼犲鏌ヨ鐐癸紝鍒欎娇鐢?`data/<username>/criteria/criteria.docx`銆?
 - 瀹℃牳涓細绂佺敤鎻愪氦鎸夐挳骞跺畾鏃跺埛鏂颁换鍔＄姸鎬併€?
 - 瀹℃牳瀹屾垚鍚庢彁渚涙壒娉ㄧ増 DOCX 涓嬭浇鍏ュ彛銆?
 
@@ -274,13 +274,13 @@ resources/criteria/criteria.docx
 鏂板缓鐢ㄦ埛鏃讹紝绋嬪簭浼氬鍒跺畠鍒帮細
 
 ```text
-data/<username>/contract_criteria/criteria.docx
+data/<username>/criteria/criteria.docx
 ```
 
 鏅€氱敤鎴峰湪 `/work` 涓婁紶鐨勫鏌ヨ鐐瑰彧鐢ㄤ簬鏈浠诲姟銆傜鐞嗗憳鍦ㄧ敤鎴疯鎯呴〉涓婁紶鐨勫鏌ヨ鐐逛細瑕嗙洊璇ョ敤鎴烽粯璁ゆ枃浠讹細
 
 ```text
-data/<username>/contract_criteria/criteria.docx
+data/<username>/criteria/criteria.docx
 ```
 
 瀹℃煡瑕佺偣涓婁紶鍓嶄細鍋?DOCX 鏍煎紡妫€鏌ュ拰鍐呭妫€鏌ャ€傚唴瀹规鏌ラ€昏緫鍦?`endpoints/runtime/document_validation.py`锛岀洰鏍囨槸鎷掔粷鏄庢樉涓嶆槸瀹℃煡瑕佺偣鐨?DOCX銆?
