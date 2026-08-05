@@ -16,7 +16,7 @@ from agents.json_utils import chat_until_valid_json
 from agents.schemas import SubAgentOutput
 from agents.prompts.cn_prompts import SUB_AGENT_BASE_PROMPT
 from config import MCP_SERVER_PATH
-from workflow.client_loader import MinimalMCPClient
+from mcp_service.client.client import MinimalMCPClient
 
 SUB_AGENT_EXPECTED_JSON = """
 {

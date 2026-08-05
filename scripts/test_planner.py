@@ -11,7 +11,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from agents.planner import PlannerAgent
 from config import MCP_SERVER_PATH
-from workflow.client_loader import MinimalMCPClient
+from mcp_service.client.client import MinimalMCPClient
 
 
 def build_parser() -> argparse.ArgumentParser:

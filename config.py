@@ -157,7 +157,7 @@ def _project_path(value: Any, field_name: str) -> str:
     return str(path)
 
 
-MCP_SERVER_PATH = str(PROJECT_ROOT_PATH / "mcp" / "server" / "server.py")
+MCP_SERVER_PATH = str(PROJECT_ROOT_PATH / "mcp_service" / "server" / "server.py")
 MCP_SERVER_URL = "http://localhost:8000/mcp"
 DOCS_DIR = str(PROJECT_ROOT_PATH / "docs")
 DEFAULT_CRITERIA_PATH = str(PROJECT_ROOT_PATH / "resources" / "criteria" / "criteria.docx")
