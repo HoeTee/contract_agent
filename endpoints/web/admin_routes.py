@@ -47,9 +47,9 @@ def is_current_admin(request: Request) -> bool:
 def require_admin(request: Request) -> None:
     user = sync_context_user(request)
     if not user:
-        raise HTTPException(status_code=401, detail="????")
+        raise HTTPException(status_code=401, detail="未登录")
     if user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="???????")
+        raise HTTPException(status_code=403, detail="需要管理员权限")
 
 
 def admin_template_context(request: Request, **extra) -> dict:
