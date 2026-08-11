@@ -44,13 +44,15 @@ class ContractReviewWorkflow:
         conversation_log_dir: str | None = None,
         mcp_log_file: str | None = None,
         api_events_path: str | None = None,
+        settings: Settings | None = None,
+        mcp_env: dict[str, str] | None = None,
     ):
-        self.client = MinimalMCPClient(server_script_path, log_file=mcp_log_file)
+        self.client = MinimalMCPClient(server_script_path, log_file=mcp_log_file, env=mcp_env)
         self.logger = WorkflowLogger(log_dir=workflow_log_dir)
         self.workflow_log_dir = workflow_log_dir
         self.conversation_log_dir = conversation_log_dir
         self.api_events_path = api_events_path
-        self.settings = Settings()
+        self.settings = settings or Settings()
 
     async def run(
         self,

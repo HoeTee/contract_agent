@@ -164,8 +164,13 @@ DEFAULT_CRITERIA_PATH = str(PROJECT_ROOT_PATH / "resources" / "criteria" / "crit
 REPORTS_DIR = str(PROJECT_ROOT_PATH / "reports")
 LOGS_DIR = str(PROJECT_ROOT_PATH / "logs" / "workflow")
 
-LLM_API_KEY = env_required("LLM_API_KEY")
-EMBED_API_KEY = env_required("EMBED_API_KEY")
+API_REQUIRE_REQUEST_MODEL_KEYS = _parse_bool(
+    cfg_optional("api", "require_request_model_keys", False),
+    "api.require_request_model_keys",
+)
+
+LLM_API_KEY = env_optional("LLM_API_KEY") if API_REQUIRE_REQUEST_MODEL_KEYS else env_required("LLM_API_KEY")
+EMBED_API_KEY = env_optional("EMBED_API_KEY") if API_REQUIRE_REQUEST_MODEL_KEYS else env_required("EMBED_API_KEY")
 SESSION_SECRET_KEY = env_required("SESSION_SECRET_KEY")
 
 LLM_BASE_URL = _as_str(cfg("llm", "base_url"), "llm.base_url")
@@ -194,7 +199,11 @@ if RERANK_PROVIDER not in {"higress_qwen", "bge", "dashscope_qwen"}:
     )
 RERANK_INSTRUCT = _as_str(cfg("rerank", "instruct"), "rerank.instruct")
 RERANK_API_KEY = env_optional("RERANK_API_KEY")
-if RERANK_PROVIDER in {"higress_qwen", "dashscope_qwen"} and not RERANK_API_KEY:
+if (
+    RERANK_PROVIDER in {"higress_qwen", "dashscope_qwen"}
+    and not RERANK_API_KEY
+    and not API_REQUIRE_REQUEST_MODEL_KEYS
+):
     raise RuntimeError(f"Missing required .env field: RERANK_API_KEY for rerank.provider={RERANK_PROVIDER!r}")
 
 MAX_REFLECTION_ROUNDS = _as_int(

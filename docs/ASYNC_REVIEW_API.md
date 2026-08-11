@@ -82,6 +82,16 @@ Authorization: <api_key>
 | `multipart/form-data` | 上传二进制 DOCX 文件 | `file` | `criteria_file` |
 | `application/json` | 通过 URL 下载 DOCX | `file_url` | `criteria_file_url` |
 
+如果 `config.yaml` 中 `api.require_request_model_keys: true`，服务不会采用 `.env` 中的 `LLM_API_KEY`、`EMBED_API_KEY`、`RERANK_API_KEY`，提交任务时必须在请求体中同时传入：
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `llm_api_key` | 字符串 | 是 | 本次任务使用的 LLM 密钥。 |
+| `embedding_api_key` | 字符串 | 是 | 本次任务使用的 Embedding 密钥。 |
+| `reranker_api_key` | 字符串 | 是 | 本次任务使用的 Reranker 密钥。 |
+
+如果 `api.require_request_model_keys: false`，服务采用 `.env` 中的模型密钥，请求体中的上述字段不会被使用。
+
 **本地文件上传**
 
 ```http
@@ -103,7 +113,10 @@ PowerShell 示例：
 curl.exe -X POST "http://localhost:5000/api/review/jobs" `
   -H "Authorization: platform-key-for-client-a" `
   -F "file=@C:/Users/lenovo/Desktop/contract.docx" `
-  -F "criteria_file=@C:/Users/lenovo/Desktop/criteria.docx"
+  -F "criteria_file=@C:/Users/lenovo/Desktop/criteria.docx" `
+  -F "llm_api_key=<llm_api_key>" `
+  -F "embedding_api_key=<embedding_api_key>" `
+  -F "reranker_api_key=<reranker_api_key>"
 ```
 
 **URL 输入**
@@ -127,7 +140,7 @@ PowerShell 示例：
 curl.exe -X POST "http://localhost:5000/api/review/jobs" `
   -H "Authorization: platform-key-for-client-a" `
   -H "Content-Type: application/json" `
-  -d '{ "file_url": "https://example.com/contract.docx", "criteria_file_url": "https://example.com/criteria.docx" }'
+  -d '{ "file_url": "https://example.com/contract.docx", "criteria_file_url": "https://example.com/criteria.docx", "llm_api_key": "<llm_api_key>", "embedding_api_key": "<embedding_api_key>", "reranker_api_key": "<reranker_api_key>" }'
 ```
 
 `application/json` 只支持 URL 输入：`file_url` 必填，`criteria_file_url` 可选。URL 文件会先下载到任务 `input/` 目录，再执行与本地上传一致的 DOCX 校验。保存文件名优先使用下载响应 `Content-Disposition` 中的 `filename*` / `filename`，没有时使用最终 URL path、原始 URL path，仍取不到时使用默认 fallback。
@@ -158,6 +171,18 @@ HTTP `202`：
     "message": "Contract file URL download failed.",
     "http_status": null
   }
+}
+```
+
+模型调用失败时，状态查询响应的 `error` 会包含 `http_status` 和完整错误文本 `detail`：
+
+```json
+{
+  "code": "agent_model_call_failed",
+  "message": "模型调用超时或重试失败（Agent 模型）",
+  "component": "agent",
+  "http_status": 429,
+  "detail": "模型调用超时或重试失败（Agent 模型）：Error code: 429 - ..."
 }
 ```
 

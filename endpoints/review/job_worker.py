@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 
 from config import MCP_SERVER_PATH
+from agents.base_agent import Settings
 from endpoints.review.task_store import (
     cleanup_runtime_input,
     is_cancel_requested,
@@ -18,6 +19,7 @@ from endpoints.review.task_store import (
     mark_worker_heartbeat,
     mark_worker_started,
     read_task,
+    read_task_model_keys,
     task_api_events_path,
     task_conversation_log_dir,
     task_mcp_log_file,
@@ -60,6 +62,17 @@ async def run_async_review_job(client_dir: str, task_id: str) -> None:
             mark_cancelled(client_dir, task_id)
             return
 
+        model_keys = read_task_model_keys(client_dir, task_id)
+        agent_settings = None
+        mcp_env = None
+        if model_keys:
+            agent_settings = Settings(api_key=model_keys["llm_api_key"])
+            mcp_env = {
+                "LLM_API_KEY": model_keys["llm_api_key"],
+                "EMBED_API_KEY": model_keys["embedding_api_key"],
+                "RERANK_API_KEY": model_keys["reranker_api_key"],
+            }
+
         workflow = ContractReviewWorkflow(
             server_script_path=str(MCP_SERVER_PATH),
             workflow_log_dir=(
@@ -72,6 +85,8 @@ async def run_async_review_job(client_dir: str, task_id: str) -> None:
             api_events_path=(
                 str(task_api_events_path(client_dir, task_id)) if task_api_events_path(client_dir, task_id) else None
             ),
+            settings=agent_settings,
+            mcp_env=mcp_env,
         )
 
         token = set_conversation_log_dir(task_conversation_log_dir(client_dir, task_id))
@@ -127,7 +142,14 @@ async def run_async_review_job(client_dir: str, task_id: str) -> None:
                 http_status=exc.http_status,
                 error=str(exc),
             )
-            mark_failed(client_dir, task_id, code=exc.event_type, message=exc.user_message, component=exc.component)
+            mark_failed(
+                client_dir,
+                task_id,
+                code=exc.event_type,
+                message=exc.user_message,
+                component=exc.component,
+                error=exc.as_task_error(),
+            )
         else:
             mark_failed(client_dir, task_id, code="REVIEW_FAILED", message="Review failed. Check task logs.")
         write_task_log_event(client_dir, task_id, "review_failed", error=repr(exc))

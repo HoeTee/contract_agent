@@ -25,6 +25,15 @@ class ModelCallError(RuntimeError):
         self.user_message = f"模型调用超时或重试失败（{label}）"
         super().__init__(f"模型调用超时或重试失败（{label}）：{detail}")
 
+    def as_task_error(self) -> dict:
+        return {
+            "code": self.event_type,
+            "message": self.user_message,
+            "component": self.component,
+            "http_status": self.http_status,
+            "detail": str(self),
+        }
+
 
 def _extract_http_status(detail: str) -> int | None:
     match = re.search(r"(?:error code|status|http)\D*(\d{3})", detail, flags=re.IGNORECASE)

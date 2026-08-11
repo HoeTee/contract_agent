@@ -1,6 +1,7 @@
 from __future__ import annotations # no quotes are needed for type hints
 
 import json
+import os
 import sys
 import traceback # help show where the error happended
 from contextlib import AsyncExitStack
@@ -21,8 +22,14 @@ class MinimalMCPClient:
     - executes tool calls and returns Chat Completions tool messages
     """
 
-    def __init__(self, server_script_path: str = "", log_file: str | None = None) -> None:
+    def __init__(
+        self,
+        server_script_path: str = "",
+        log_file: str | None = None,
+        env: dict[str, str] | None = None,
+    ) -> None:
         self.server_script_path = server_script_path
+        self.env = env or {}
         self.session: Optional[ClientSession] = None
         self.exit_stack = AsyncExitStack()
         self.tools: List[Dict[str, Any]] = []
@@ -76,7 +83,7 @@ class MinimalMCPClient:
                 server_params = StdioServerParameters(
                     command=command,
                     args=[server_script_path],
-                    env=None,
+                    env={**os.environ, **self.env} if self.env else None,
                 )
                 stdio_transport = await self.exit_stack.enter_async_context(
                     stdio_client(server_params)

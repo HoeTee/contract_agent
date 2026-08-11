@@ -36,6 +36,9 @@ class Settings:
     output_dir: Path
     log_dir: Path
     overwrite: bool
+    llm_api_key: str
+    embedding_api_key: str
+    reranker_api_key: str
 
 
 def parse_bool(value: str | None, *, default: bool = False) -> bool:
@@ -48,6 +51,13 @@ def require_env(name: str) -> str:
     value = os.getenv(name)
     if value is None or not value.strip():
         raise ValueError(f"{name} is required in .env.")
+    return value.strip()
+
+
+def optional_env(name: str) -> str:
+    value = os.getenv(name)
+    if value is None:
+        return ""
     return value.strip()
 
 
@@ -77,6 +87,9 @@ def load_settings() -> Settings:
         output_dir=(root / os.getenv("OUTPUT_DIR", "outputs")).resolve(),
         log_dir=(root / os.getenv("LOG_DIR", "logs")).resolve(),
         overwrite=parse_bool(os.getenv("OVERWRITE"), default=False),
+        llm_api_key=optional_env("LLM_API_KEY"),
+        embedding_api_key=optional_env("EMBEDDING_API_KEY"),
+        reranker_api_key=optional_env("RERANKER_API_KEY"),
     )
 
 
@@ -99,6 +112,15 @@ def output_name(input_path: Path) -> str:
     return f"【已AI审查】{stem}.docx"
 
 
+def request_model_key_fields(settings: Settings) -> dict[str, str]:
+    fields = {
+        "llm_api_key": settings.llm_api_key,
+        "embedding_api_key": settings.embedding_api_key,
+        "reranker_api_key": settings.reranker_api_key,
+    }
+    return {key: value for key, value in fields.items() if value}
+
+
 def list_case_files(cases_dir: Path) -> list[Path]:
     if not cases_dir.exists():
         raise FileNotFoundError(f"CASES_DIR does not exist: {cases_dir}")
@@ -117,6 +139,7 @@ async def submit_job(client: httpx.AsyncClient, settings: Settings, input_path: 
         response = await client.post(
             f"{settings.base_url}/api/review/jobs",
             headers={"Authorization": settings.api_key},
+            data=request_model_key_fields(settings),
             files=files,
         )
     data = parse_json_response(response)
@@ -237,6 +260,8 @@ def finish_record(run_dir: Path, record: dict[str, Any], start: float) -> dict[s
         f"{record['status']}: {Path(record['input_file']).name} "
         f"task_id={record['task_id'] or '-'} elapsed={record['elapsed']}"
     )
+    if record.get("status") == "failed" and record.get("error"):
+        print(f"error: {record['error']}")
     return record
 
 
