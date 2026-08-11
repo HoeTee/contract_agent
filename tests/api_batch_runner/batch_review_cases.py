@@ -18,6 +18,13 @@ DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingm
 TERMINAL_STATUSES = {"succeeded", "failed", "cancelled"}
 
 
+class SubmitJobError(Exception):
+    def __init__(self, data: dict[str, Any]) -> None:
+        super().__init__(json.dumps(data, ensure_ascii=False))
+        self.data = data
+        self.task_id = str(data.get("task_id") or "")
+
+
 @dataclass(frozen=True)
 class Settings:
     base_url: str
@@ -113,10 +120,12 @@ async def submit_job(client: httpx.AsyncClient, settings: Settings, input_path: 
             files=files,
         )
     data = parse_json_response(response)
+    if response.status_code >= 400 and data.get("task_id"):
+        raise SubmitJobError(data)
     response.raise_for_status()
     status = data.get("status")
     if status == "failed":
-        raise RuntimeError(json.dumps(data, ensure_ascii=False))
+        raise SubmitJobError(data)
     task_id = data.get("task_id")
     if not isinstance(task_id, str) or not task_id:
         raise RuntimeError(f"Submit response did not include task_id: {data}")
@@ -207,6 +216,11 @@ async def run_one_case(
             record["error"] = json.dumps(status_data.get("error") or status_data, ensure_ascii=False)
             return finish_record(run_dir, record, start)
         await download_result(client, settings, task_id, output_path)
+        return finish_record(run_dir, record, start)
+    except SubmitJobError as exc:
+        record["task_id"] = exc.task_id
+        record["status"] = "failed"
+        record["error"] = json.dumps(exc.data.get("error") or exc.data, ensure_ascii=False)
         return finish_record(run_dir, record, start)
     except Exception as exc:
         record["task_id"] = task_id
