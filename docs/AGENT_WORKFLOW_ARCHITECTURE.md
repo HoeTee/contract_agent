@@ -90,9 +90,34 @@ class SummaryOutput:
 
 并发与容错（`execute_criteria`）：
 
-- 用 `asyncio.Semaphore(MAX_ORCHESTRATOR_CONCURRENCY)` 控制并发条数。
+- `execute_criteria` 会为 `criteria_list` 中的每条审查标准创建一个 `execute_with_limit(criterion)` coroutine，并用 `asyncio.gather(*execute_tasks, return_exceptions=True)` 一次性调度和等待这些任务。
+- `asyncio.gather` 负责并发调度：多条 criterion 可以同时进入等待队列，并在外部模型调用、检索或反思等待期间交错推进。
+- `asyncio.Semaphore(MAX_ORCHESTRATOR_CONCURRENCY)` 负责并发限制：同一时间最多允许指定数量的 criterion 进入 `execute_single_criterion()`；其余 coroutine 会等待 semaphore 释放。
+- 因此，当前并发边界是“多条 criterion / 多个 SubAgent 审查任务并发”，不是单个 SubAgent 内部把同一条标准拆成多个并发步骤。
 - 单条 criterion 抛 `ModelCallError` 会直接上抛，导致整次审查失败。
 - 其他异常会被降级为该条 `status=ERROR`（记录 `error_message`），不影响其它 criterion。
+
+简化结构如下：
+
+```python
+semaphore = asyncio.Semaphore(MAX_ORCHESTRATOR_CONCURRENCY)
+
+async def execute_with_limit(criterion: dict) -> dict:
+    async with semaphore:
+        return await execute_single_criterion(criterion)
+
+execute_tasks = [
+    execute_with_limit(criterion)
+    for criterion in criteria_list
+]
+
+results = await asyncio.gather(
+    *execute_tasks,
+    return_exceptions=True,
+)
+```
+
+这里 `gather` 和 `Semaphore` 不是同一层职责：`gather` 启动并等待多个 coroutine；`Semaphore` 限制同时执行的数量。
 
 ## 数据流
 
