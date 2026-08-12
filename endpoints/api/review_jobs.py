@@ -606,6 +606,7 @@ async def submit_review_job(request: Request):
         source_ip=client.source_ip,
     )
     if QUEUE_ENABLED:
+        task = mark_queued(client.client_dir, task_id)
         try:
             from task_queue.review_queue import enqueue_review_job
 
@@ -634,7 +635,6 @@ async def submit_review_job(request: Request):
                 code="QUEUE_SUBMIT_FAILED",
                 message="Review job queue submission failed.",
             )
-        task = mark_queued(client.client_dir, task_id)
         write_task_log_event(
             client.client_dir,
             task_id,

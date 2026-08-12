@@ -3,6 +3,7 @@
 import asyncio
 import os
 import socket
+import traceback
 import uuid
 from pathlib import Path
 
@@ -162,7 +163,15 @@ async def run_async_review_job(client_dir: str, task_id: str) -> None:
             )
         else:
             mark_failed(client_dir, task_id, code="REVIEW_FAILED", message="Review failed. Check task logs.")
-        write_task_log_event(client_dir, task_id, "review_failed", error=repr(exc))
+        write_task_log_event(
+            client_dir,
+            task_id,
+            "review_failed",
+            error=repr(exc),
+            error_type=type(exc).__name__,
+            error_message=str(exc),
+            traceback=traceback.format_exc(),
+        )
     finally:
         if heartbeat_task is not None:
             heartbeat_task.cancel()

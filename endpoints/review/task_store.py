@@ -1,8 +1,11 @@
 ﻿from __future__ import annotations
 
+from contextlib import contextmanager
 import json
+import os
 import re
 import shutil
+import time
 import uuid
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -19,6 +22,9 @@ from loggers.api_event_logger import append_api_event
 TASK_ID_PATTERN = re.compile(r"^[0-9]{8}-[0-9]{6}-[a-f0-9]{4}$")
 BEIJING_TZ = timezone(timedelta(hours=8))
 ACTIVE_STATUSES = {"pending", "queued", "running"}
+TASK_WRITE_LOCK_TIMEOUT_SECONDS = 30
+TASK_WRITE_LOCK_STALE_SECONDS = 300
+TASK_WRITE_LOCK_POLL_SECONDS = 0.05
 
 
 def now_iso() -> str:
@@ -71,6 +77,44 @@ def task_dir(client_dir: str, task_id: str) -> Path:
 
 def task_json_path(client_dir: str, task_id: str) -> Path:
     return task_dir(client_dir, task_id) / "task.json"
+
+
+@contextmanager
+def task_write_lock(path: Path):
+    lock_path = path.with_name(f"{path.name}.lock")
+    deadline = time.monotonic() + TASK_WRITE_LOCK_TIMEOUT_SECONDS
+    fd: int | None = None
+
+    while True:
+        try:
+            fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, f"pid={os.getpid()} created_at={time.time()}".encode("utf-8"))
+            break
+        except (FileExistsError, PermissionError):
+            try:
+                age = time.time() - lock_path.stat().st_mtime
+                if age > TASK_WRITE_LOCK_STALE_SECONDS:
+                    try:
+                        lock_path.unlink()
+                        continue
+                    except OSError:
+                        pass
+            except OSError:
+                pass
+
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"Timed out waiting for task state write lock: {lock_path}")
+            time.sleep(TASK_WRITE_LOCK_POLL_SECONDS)
+
+    try:
+        yield
+    finally:
+        if fd is not None:
+            os.close(fd)
+        try:
+            lock_path.unlink()
+        except FileNotFoundError:
+            pass
 
 
 def input_dir(client_dir: str, task_id: str) -> Path:
@@ -328,9 +372,16 @@ def ensure_task_dirs(client_dir: str, task_id: str) -> None:
 def write_task(task: dict[str, Any]) -> dict[str, Any]:
     path = task_json_path(task["client_dir"], task["task_id"])
     path.parent.mkdir(parents=True, exist_ok=True)
-    temp_path = path.with_suffix(".json.tmp")
-    temp_path.write_text(json.dumps(task, ensure_ascii=False, indent=2), encoding="utf-8")
-    temp_path.replace(path)
+    with task_write_lock(path):
+        temp_path = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
+        try:
+            temp_path.write_text(json.dumps(task, ensure_ascii=False, indent=2), encoding="utf-8")
+            temp_path.replace(path)
+        finally:
+            try:
+                temp_path.unlink()
+            except FileNotFoundError:
+                pass
     return task
 
 
