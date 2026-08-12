@@ -23,8 +23,8 @@ from endpoints.review.task_store import (
     task_api_events_path,
     task_conversation_log_dir,
     task_mcp_log_file,
+    task_review_outputs_path,
     task_trace_path,
-    task_workflow_log_dir,
     write_task_log_event,
 )
 from endpoints.runtime.errors import ModelCallError
@@ -82,9 +82,6 @@ async def run_async_review_job(client_dir: str, task_id: str) -> None:
 
         workflow = ContractReviewWorkflow(
             server_script_path=str(MCP_SERVER_PATH),
-            workflow_log_dir=(
-                str(task_workflow_log_dir(client_dir, task_id)) if task_workflow_log_dir(client_dir, task_id) else None
-            ),
             conversation_log_dir=(
                 str(task_conversation_log_dir(client_dir, task_id)) if task_conversation_log_dir(client_dir, task_id) else None
             ),
@@ -93,6 +90,9 @@ async def run_async_review_job(client_dir: str, task_id: str) -> None:
                 str(task_api_events_path(client_dir, task_id)) if task_api_events_path(client_dir, task_id) else None
             ),
             trace_path=str(task_trace_path(client_dir, task_id)) if task_trace_path(client_dir, task_id) else None,
+            review_outputs_path=(
+                str(task_review_outputs_path(client_dir, task_id)) if task_review_outputs_path(client_dir, task_id) else None
+            ),
             settings=agent_settings,
             mcp_env=mcp_env,
         )

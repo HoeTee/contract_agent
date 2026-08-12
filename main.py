@@ -70,11 +70,11 @@ async def run_cli(contract: str, criteria: str | None = None, output: str | None
 
     with tempfile.TemporaryDirectory(prefix="contract-review-cli-") as temp_dir:
         temp_root = Path(temp_dir)
-        workflow_log_dir = temp_root / "logs" / "workflow"
+        logs_dir = temp_root / "logs"
         conversation_log_dir = temp_root / "logs" / "conversations"
-        mcp_log_dir = temp_root / "logs" / "mcp"
         trace_path = temp_root / "logs" / "trace.json"
-        for path in (workflow_log_dir, conversation_log_dir, mcp_log_dir):
+        review_outputs_path = temp_root / "logs" / "review_outputs.json"
+        for path in (logs_dir, conversation_log_dir):
             path.mkdir(parents=True, exist_ok=True)
 
         temp_output_path = temp_root / output_path.name
@@ -82,10 +82,10 @@ async def run_cli(contract: str, criteria: str | None = None, output: str | None
         try:
             workflow = ContractReviewWorkflow(
                 server_script_path=MCP_SERVER_PATH,
-                workflow_log_dir=str(workflow_log_dir),
                 conversation_log_dir=str(conversation_log_dir),
-                mcp_log_file=str(mcp_log_dir / "client.log"),
+                mcp_log_file=str(logs_dir / "mcp.log"),
                 trace_path=str(trace_path),
+                review_outputs_path=str(review_outputs_path),
             )
             result = await workflow.run(
                 contract_path=str(contract_path),

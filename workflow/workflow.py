@@ -19,7 +19,7 @@ from config import (
     ENABLE_WORKFLOW_LOGS,
     MCP_SERVER_PATH,
 )
-from loggers.workflow_logger import WorkflowLogger, save_results_json, save_run_summary_json
+from loggers.workflow_logger import WorkflowLogger, save_review_outputs_json
 from loggers.trace_logger import TraceLogger, reset_current_trace, set_current_trace
 from agents.base_agent import Settings
 from agents.planner import PlannerAgent
@@ -41,20 +41,20 @@ class ContractReviewWorkflow:
     def __init__(
         self,
         server_script_path: str = MCP_SERVER_PATH,
-        workflow_log_dir: str | None = None,
         conversation_log_dir: str | None = None,
         mcp_log_file: str | None = None,
         api_events_path: str | None = None,
         trace_path: str | None = None,
+        review_outputs_path: str | None = None,
         settings: Settings | None = None,
         mcp_env: dict[str, str] | None = None,
     ):
         self.client = MinimalMCPClient(server_script_path, log_file=mcp_log_file, env=mcp_env)
-        self.logger = WorkflowLogger(log_dir=workflow_log_dir)
+        self.logger = WorkflowLogger()
         self.trace = TraceLogger(trace_path, metadata={"component": "workflow"})
-        self.workflow_log_dir = workflow_log_dir
         self.conversation_log_dir = conversation_log_dir
         self.api_events_path = api_events_path
+        self.review_outputs_path = review_outputs_path
         self.settings = settings or Settings()
 
     async def run(
@@ -137,7 +137,7 @@ class ContractReviewWorkflow:
                         }
                     )
 
-                results_path = self._save_last_results(results)
+                review_outputs_path = self._save_review_outputs(results)
 
                 # Phase 5: Summarize
                 await self._emit_progress(progress_callback, "summarizing", "Creating summary comment")
@@ -173,33 +173,26 @@ class ContractReviewWorkflow:
                     duration=round(time.time() - start, 2),
                 )
 
-                # Save workflow log
-                log_path = self.logger.save()
                 elapsed = round(time.time() - workflow_start, 1)
-                run_summary_path = self._save_run_summary(
-                    results=results,
-                    token_stats=token_stats,
-                    annotated_docx_path=annotated_docx_path,
-                    elapsed_seconds=elapsed,
-                    results_path=results_path,
-                    workflow_log=log_path,
-                )
                 workflow_span.set_outputs(
                     {
                         "report_docx": annotated_docx_path,
                         "criteria_count": len(results),
                         "issue_count": sum(len(result.get("issues", [])) for result in results),
+                        "error_count": sum(1 for result in results if result.get("status") == "ERROR"),
+                        "elapsed_seconds": elapsed,
+                        "phase_durations": self.logger.summarize_phase_durations(),
+                        "logged_duration_total_seconds": self.logger.total_logged_duration(),
                         "total_tokens": total_tokens,
-                        "workflow_log": log_path,
-                        "run_summary_log": run_summary_path,
+                        "token_stats": token_stats,
+                        "review_outputs_log": review_outputs_path,
                     }
                 )
                 self._print_completion_summary(
                     elapsed,
                     token_stats,
                     annotated_docx_path,
-                    log_path,
-                    run_summary_path,
+                    review_outputs_path,
                 )
 
                 await self._emit_progress(progress_callback, "completed", "Review completed")
@@ -210,9 +203,7 @@ class ContractReviewWorkflow:
                     "issue_count": sum(len(result.get("issues", [])) for result in results),
                     "total_tokens": total_tokens,
                     "retrieval_mode": "llamaindex",
-                    "workflow_log": log_path,
-                    "results_log": results_path,
-                    "run_summary_log": run_summary_path,
+                    "review_outputs_log": review_outputs_path,
                 }
 
         finally:
@@ -415,13 +406,13 @@ class ContractReviewWorkflow:
             "total": planner_tokens + retrieval_tokens + execute_tokens + summarizer_tokens,
         }
 
-    def _save_last_results(self, results: list[dict]) -> str | None:
+    def _save_review_outputs(self, results: list[dict]) -> str | None:
         """Persist the raw criterion review results for debugging."""
         if not ENABLE_WORKFLOW_LOGS:
             return None
-        if not self.workflow_log_dir:
+        if not self.review_outputs_path:
             return None
-        return save_results_json(results, self.workflow_log_dir)
+        return save_review_outputs_json(results, self.review_outputs_path)
 
     async def _phase_generate_annotated_docx(
         self,
@@ -466,53 +457,12 @@ class ContractReviewWorkflow:
         print(f"  DOCX: {docx_path}")
         return docx_path
 
-    def _save_run_summary(
-        self,
-        results: list[dict],
-        token_stats: dict[str, int],
-        annotated_docx_path: str,
-        elapsed_seconds: float,
-        results_path: str,
-        workflow_log: str,
-    ) -> str | None:
-        """Persist a compact run summary for debugging and audit."""
-        if not ENABLE_WORKFLOW_LOGS:
-            return None
-        phase_durations = self.logger.summarize_phase_durations()
-        logged_duration_total = self.logger.total_logged_duration()
-        summary = {
-            "annotated_docx_path": annotated_docx_path,
-            "results_path": results_path,
-            "workflow_log": workflow_log,
-            "criteria_count": len(results),
-            "issue_count": sum(len(result.get("issues", [])) for result in results),
-            "error_count": sum(1 for result in results if result.get("status") == "ERROR"),
-            "elapsed_seconds": elapsed_seconds,
-            "phase_durations": phase_durations,
-            "logged_duration_total_seconds": logged_duration_total,
-            "duration_gap_seconds": round(elapsed_seconds - logged_duration_total, 2),
-            "token_stats": token_stats,
-            "criteria_status": [
-                {
-                    "criterion_id": result.get("criterion_id"),
-                    "status": result.get("status"),
-                    "issue_count": len(result.get("issues", [])),
-                    "tokens": result.get("tokens", 0),
-                }
-                for result in results
-            ],
-        }
-        if not self.workflow_log_dir:
-            return None
-        return save_run_summary_json(summary, self.workflow_log_dir)
-
     def _print_completion_summary(
         self,
         elapsed_seconds: float,
         token_stats: dict[str, int],
         annotated_docx_path: str,
-        log_path: str,
-        run_summary_path: str,
+        review_outputs_path: str | None,
     ) -> None:
         """Print the compact end-of-run summary used by local/CLI execution."""
         mins, secs = divmod(int(elapsed_seconds), 60)
@@ -527,7 +477,6 @@ class ContractReviewWorkflow:
             f"Summarizer: {token_stats['summarizer']:,})"
         )
         print(f"Annotated DOCX: {annotated_docx_path}")
-        print(f"Run summary: {run_summary_path}")
-        print(f"Log: {log_path}")
+        print(f"Review outputs: {review_outputs_path}")
         print(f"{'=' * 60}")
 

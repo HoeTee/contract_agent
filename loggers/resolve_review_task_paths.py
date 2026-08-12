@@ -113,16 +113,16 @@ class ResolvedReviewTaskPaths:
         return self.logs_dir / self.date_str / self.task_name
 
     @property
-    def workflow_log_dir(self) -> Path:
-        return self.task_log_dir / "workflow"
+    def review_outputs_path(self) -> Path:
+        return self.task_log_dir / "review_outputs.json"
 
     @property
     def conversation_log_dir(self) -> Path:
         return self.task_log_dir / "conversations"
 
     @property
-    def mcp_log_dir(self) -> Path:
-        return self.task_log_dir / "mcp"
+    def mcp_log_path(self) -> Path:
+        return self.task_log_dir / "mcp.log"
 
     @property
     def api_events_path(self) -> Path:
@@ -138,7 +138,7 @@ class ResolvedReviewTaskPaths:
 
     def ensure_user_dirs(self) -> None:
         if self.tenant_id:
-            for path in (self.input_dir, self.output_dir, self.workflow_log_dir, self.conversation_log_dir, self.mcp_log_dir):
+            for path in (self.input_dir, self.output_dir, self.task_log_dir, self.conversation_log_dir):
                 path.mkdir(parents=True, exist_ok=True)
             ensure_default_criteria_file(self.criteria_path)
             return
@@ -155,7 +155,7 @@ class ResolvedReviewTaskPaths:
 
     def ensure_task_dirs(self) -> None:
         self.ensure_user_dirs()
-        for path in (self.workflow_log_dir, self.conversation_log_dir, self.mcp_log_dir):
+        for path in (self.task_log_dir, self.conversation_log_dir):
             path.mkdir(parents=True, exist_ok=True)
 
 

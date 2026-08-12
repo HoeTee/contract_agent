@@ -168,19 +168,10 @@ class WorkflowLogger:
         return str(filepath)
 
 
-def save_results_json(results: list[dict], log_dir: str | Path) -> str | None:
+def save_review_outputs_json(results: list[dict], path: str | Path) -> str | None:
     if not ENABLE_WORKFLOW_LOGS:
         return None
-    path = Path(log_dir) / "results.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
-    return str(path)
-
-
-def save_run_summary_json(summary: dict, log_dir: str | Path) -> str | None:
-    if not ENABLE_WORKFLOW_LOGS:
-        return None
-    path = Path(log_dir) / "run_summary.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
-    return str(path)
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+    return str(target)

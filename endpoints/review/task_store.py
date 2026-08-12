@@ -85,16 +85,8 @@ def logs_dir(client_dir: str, task_id: str) -> Path:
     return task_dir(client_dir, task_id) / "logs"
 
 
-def workflow_log_dir(client_dir: str, task_id: str) -> Path:
-    return logs_dir(client_dir, task_id) / "workflow"
-
-
 def conversation_log_dir(client_dir: str, task_id: str) -> Path:
     return logs_dir(client_dir, task_id) / "conversations"
-
-
-def mcp_log_dir(client_dir: str, task_id: str) -> Path:
-    return logs_dir(client_dir, task_id) / "mcp"
 
 
 def api_events_path(client_dir: str, task_id: str) -> Path:
@@ -103,6 +95,14 @@ def api_events_path(client_dir: str, task_id: str) -> Path:
 
 def trace_path(client_dir: str, task_id: str) -> Path:
     return logs_dir(client_dir, task_id) / "trace.json"
+
+
+def review_outputs_path(client_dir: str, task_id: str) -> Path:
+    return logs_dir(client_dir, task_id) / "review_outputs.json"
+
+
+def mcp_log_path(client_dir: str, task_id: str) -> Path:
+    return logs_dir(client_dir, task_id) / "mcp.log"
 
 
 def runtime_input_dir(client_dir: str, task_id: str) -> Path:
@@ -260,10 +260,10 @@ def task_trace_path(client_dir: str, task_id: str) -> Path | None:
     return trace_path(client_dir, task_id)
 
 
-def task_workflow_log_dir(client_dir: str, task_id: str) -> Path | None:
+def task_review_outputs_path(client_dir: str, task_id: str) -> Path | None:
     if not should_write_task_file("logs"):
         return None
-    return workflow_log_dir(client_dir, task_id)
+    return review_outputs_path(client_dir, task_id)
 
 
 def task_conversation_log_dir(client_dir: str, task_id: str) -> Path | None:
@@ -275,13 +275,7 @@ def task_conversation_log_dir(client_dir: str, task_id: str) -> Path | None:
 def task_mcp_log_file(client_dir: str, task_id: str) -> Path | None:
     if not should_write_task_file("logs"):
         return None
-    return mcp_log_dir(client_dir, task_id) / "client.log"
-
-
-def task_mcp_log_dir(client_dir: str, task_id: str) -> Path | None:
-    if not should_write_task_file("logs"):
-        return None
-    return mcp_log_dir(client_dir, task_id)
+    return mcp_log_path(client_dir, task_id)
 
 
 def write_task_log_event(client_dir: str, task_id: str, event: str, **fields: Any) -> Path | None:
@@ -301,9 +295,8 @@ def ensure_task_dirs(client_dir: str, task_id: str) -> None:
 
     if should_write_task_file("logs"):
         for path in (
-            workflow_log_dir(client_dir, task_id),
+            logs_dir(client_dir, task_id),
             conversation_log_dir(client_dir, task_id),
-            mcp_log_dir(client_dir, task_id),
         ):
             path.mkdir(parents=True, exist_ok=True)
 
@@ -393,9 +386,9 @@ def create_task(
 ) -> dict[str, Any]:
     task_api_log = task_api_events_path(client_dir, task_id)
     task_trace_log = task_trace_path(client_dir, task_id)
-    task_workflow_log = task_workflow_log_dir(client_dir, task_id)
+    task_review_outputs_log = task_review_outputs_path(client_dir, task_id)
     task_conversation_log = task_conversation_log_dir(client_dir, task_id)
-    task_mcp_log = task_mcp_log_dir(client_dir, task_id)
+    task_mcp_log = task_mcp_log_file(client_dir, task_id)
     task = {
         "client_id": client_id,
         "client_dir": validate_client_dir(client_dir),
@@ -438,9 +431,9 @@ def create_task(
             "api_events_path": str(task_api_log) if task_api_log else None,
             "events_log_path": str(task_api_log) if task_api_log else None,
             "trace_path": str(task_trace_log) if task_trace_log else None,
+            "review_outputs_path": str(task_review_outputs_log) if task_review_outputs_log else None,
             "conversation_log_dir": str(task_conversation_log) if task_conversation_log else None,
-            "mcp_log_dir": str(task_mcp_log) if task_mcp_log else None,
-            "workflow_log_dir": str(task_workflow_log) if task_workflow_log else None,
+            "mcp_log_path": str(task_mcp_log) if task_mcp_log else None,
         },
     }
     return write_task(task)

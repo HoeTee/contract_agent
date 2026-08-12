@@ -24,18 +24,18 @@ data/<username>/logs/<YYYY-MM-DD>/<task_id>/
 data/api/<task_id>/logs/
 ```
 
-该目录只在 `config.yaml` 中 `api.write_logs: true` 时写入；关闭时 API 任务不会创建 `events.log`、`trace.json`、workflow、conversation 和 MCP 日志，`task.json.logs.*` 为 `null`。
+该目录只在 `config.yaml` 中 `api.write_logs: true` 时写入；关闭时 API 任务不会创建 `events.log`、`trace.json`、`review_outputs.json`、`mcp.log`、conversation 日志，`task.json.logs.*` 为 `null`。
 
 `<任务目录>` 由 `endpoints/review/task_store.py` 生成，格式为 `YYYYMMDD-HHMMSS-xxxx`。直接 API 的完整接口和错误响应说明见 `docs/API_REVIEW_ENDPOINT.md`。
 
-任务目录按日志来源拆分：
+任务日志目录结构：
 
 ```text
-workflow/
-conversations/
-mcp/
 events.log
 trace.json
+review_outputs.json
+mcp.log
+conversations/
 ```
 
 ## 路径解析
@@ -59,11 +59,11 @@ stored_contract_path
 final_report_path
 criteria_path
 task_log_dir
-workflow_log_dir
 conversation_log_dir
-mcp_log_dir
 api_events_path
 trace_path
+review_outputs_path
+mcp_log_path
 ```
 
 ## 日志读取与合同名关联
@@ -95,7 +95,7 @@ data/<username>/records/review_history.json
 data/<username>/logs/<YYYY-MM-DD>/<task_id>/
 ```
 
-4. 打开日志详情时读取该目录下的 `events.log`、`trace.json`、`workflow/`、`conversations/`、`mcp/`。
+4. 打开日志详情时读取该目录下的 `events.log`、`trace.json`、`review_outputs.json`、`mcp.log`、`conversations/`。
 
 旧日志目录仍可能是：
 
@@ -105,7 +105,7 @@ data/<username>/logs/<YYYY-MM-DD>/<task_id>_<contract_stem>/
 
 因此日志读取应兼容两种目录：优先使用历史记录中的 `task_id` 匹配短目录；短目录不存在时，再匹配以 `<task_id>_` 开头的旧目录。
 
-## Workflow 日志
+## Review Outputs
 
 模块：
 
@@ -116,16 +116,16 @@ loggers/workflow_logger.py
 文件：
 
 ```text
-workflow/workflow_YYYYMMDD_HHMMSS.md
-workflow/results.json
-workflow/run_summary.json
+review_outputs.json
 ```
 
 记录内容：
 
 ```text
-workflow 阶段流转、阶段输入输出摘要、耗时、token 统计、最终审查结果和任务摘要。
+完整审查结构化输出，包括每条 criterion 的 status、issues、anchors、quoted_text、comment_text、reasoning 和 tokens。该文件是业务结果快照，不是执行轨迹。
 ```
+
+workflow 阶段流转、耗时、token 统计和任务总览写入 `trace.json` 的 `workflow.run.outputs`，不再生成 `workflow/` 目录、`workflow_*.md` 或 `run_summary.json`。
 
 ## Agent 对话日志
 
@@ -161,7 +161,7 @@ loggers/mcp_logger.py
 文件：
 
 ```text
-mcp/client.log
+mcp.log
 ```
 
 记录内容：
@@ -191,7 +191,7 @@ trace.json
 单次审查任务的树状执行轨迹。每个 run 都包含 id、parent_id、name、type、status、start_time、end_time、duration_seconds、inputs、outputs、metadata 和 error。
 ```
 
-`name` 由埋点位置决定，例如 `workflow.run`、`phase.execute`、`criterion.C1`、`llm.SubAgent_C1`、`mcp.llamaindex_search`。`inputs` 和 `outputs` 由 `trace_helpers.py` 做摘要化生成，避免把完整合同、完整检索结果和密钥写入 trace。
+`name` 由埋点位置决定，例如 `workflow.run`、`phase.execute`、`criterion.C1`、`llm.SubAgent_C1`、`mcp.llamaindex_search`。`inputs` 和 `outputs` 由 `trace_helpers.py` 做摘要化生成，避免把完整合同、完整检索结果和密钥写入 trace。任务总览字段放在 `workflow.run.outputs`，完整审查结构放在 `review_outputs.json`。
 
 ## API 事件日志
 
@@ -258,10 +258,10 @@ URL 下载或结果上传失败事件会记录上游 HTTP 状态码；连接失�
 
 ## 日志开关
 
-`.env` 中的配置控制是否写入 workflow、conversations 和 mcp 文件日志：
+`.env` 中的配置控制是否写入任务日志：
 
 ```env
 ENABLE_WORKFLOW_LOGS=True
 ```
 
-如果设置为 `False`，任务目录仍可能被创建，但 `events.log`、`trace.json`、`workflow/`、`conversations/`、`mcp/` 下不会写入任务日志。
+如果设置为 `False`，任务目录仍可能被创建，但 `events.log`、`trace.json`、`review_outputs.json`、`mcp.log`、`conversations/` 下不会写入任务日志。
