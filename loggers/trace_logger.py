@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import sys
+import threading
 import time
 import uuid
 from contextvars import ContextVar
@@ -41,6 +43,8 @@ class TraceLogger:
         self.metadata = metadata or {}
         self.runs: list[dict[str, Any]] = []
         self._counter = 0
+        self._write_lock = threading.Lock()
+        self.last_write_error: str | None = None
 
     def span(
         self,
@@ -69,16 +73,24 @@ class TraceLogger:
     def _write(self) -> None:
         if self.path is None:
             return
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        payload = {
-            "trace_id": self.trace_id,
-            "created_at": self.runs[0]["start_time"] if self.runs else _now_iso(),
-            "metadata": self.metadata,
-            "runs": self.runs,
-        }
-        temp_path = self.path.with_suffix(".json.tmp")
-        temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        temp_path.replace(self.path)
+        try:
+            with self._write_lock:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                metadata = dict(self.metadata)
+                if self.last_write_error:
+                    metadata["trace_write_warning"] = self.last_write_error
+                payload = {
+                    "trace_id": self.trace_id,
+                    "created_at": self.runs[0]["start_time"] if self.runs else _now_iso(),
+                    "metadata": metadata,
+                    "runs": self.runs,
+                }
+                temp_path = self.path.with_name(f"{self.path.stem}.{uuid.uuid4().hex}.tmp")
+                temp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+                temp_path.replace(self.path)
+        except OSError as exc:
+            self.last_write_error = f"{exc.__class__.__name__}: {exc}"
+            print(f"[TraceLogger] warning: failed to write trace file: {self.last_write_error}", file=sys.stderr)
 
 
 class TraceSpan:
