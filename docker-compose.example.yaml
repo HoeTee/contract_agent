@@ -1,4 +1,9 @@
-﻿services:
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: lexora-redis
+    restart: unless-stopped
+
   deep-research-agent:
     image: southernbanker/lexora:latest
     container_name: lexora
@@ -6,6 +11,9 @@
 
     env_file:
       - .env
+
+    depends_on:
+      - redis
 
     command: ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
 
@@ -30,3 +38,28 @@
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  review-worker:
+    image: southernbanker/lexora:latest
+    container_name: lexora-worker
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    command: ["celery", "-A", "task_queue.celery_app:celery_app", "worker", "--loglevel=info"]
+
+    depends_on:
+      - redis
+
+    cpus: "4"
+    mem_limit: 8g
+    mem_reservation: 4g
+
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./config.yaml:/app/config.yaml:ro
+      - ./agents/prompts/cn_prompts.py:/app/agents/prompts/cn_prompts.py:ro
+      - ./criteria.docx:/app/resources/criteria/criteria.docx
+      - ./profiles:/app/profiles
+      - ./data:/app/data

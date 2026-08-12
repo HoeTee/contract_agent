@@ -102,3 +102,24 @@ http://127.0.0.1:5000/health
 ```
 
 容器内部健康检查访问的是 `http://127.0.0.1:8000/health`，这是容器内端口，不是宿主机端口。
+
+## Queue worker
+
+如果 `queue.enabled=true`，部署时必须在 API 服务之外同时启动 Redis 和 Celery worker。Redis 不会随 `uvicorn` 自动启动；worker 也不是 API 进程的一部分。
+
+容器内部配置应使用 Redis service 名称，不要使用 `localhost`：
+
+```yaml
+queue:
+  enabled: true
+  broker_url: "redis://redis:6379/0"
+  result_backend: "redis://redis:6379/1"
+```
+
+运行时至少包含：
+
+```text
+redis
+api
+review-worker
+```

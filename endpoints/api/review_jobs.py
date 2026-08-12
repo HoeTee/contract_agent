@@ -18,6 +18,7 @@ from config import (
     API_URL_DOWNLOAD_MAX_BYTES,
     API_URL_DOWNLOAD_TIMEOUT_SECONDS,
     DEFAULT_CRITERIA_PATH,
+    QUEUE_ENABLED,
     infer_rerank_provider,
 )
 from endpoints.api.client_mapping import resolve_api_client
@@ -30,6 +31,8 @@ from endpoints.review.result_upload import ResultUploadError, upload_result_file
 from endpoints.review.task_store import (
     create_task,
     ensure_task_dirs,
+    mark_failed,
+    mark_queued,
     new_task_id,
     output_dir,
     read_task,
@@ -602,7 +605,44 @@ async def submit_review_job(request: Request):
         client_id=client.client_id,
         source_ip=client.source_ip,
     )
-    asyncio.create_task(run_async_review_job(client.client_dir, task_id))
+    if QUEUE_ENABLED:
+        try:
+            from task_queue.review_queue import enqueue_review_job
+
+            queue_task_id = enqueue_review_job(client.client_dir, task_id)
+        except Exception as exc:
+            write_task_log_event(
+                client.client_dir,
+                task_id,
+                "review_queue_submit_failed",
+                error=repr(exc),
+            )
+            mark_failed(
+                client.client_dir,
+                task_id,
+                code="QUEUE_SUBMIT_FAILED",
+                message="Review job queue submission failed.",
+                error={
+                    "code": "QUEUE_SUBMIT_FAILED",
+                    "message": "Review job queue submission failed.",
+                    "detail": repr(exc),
+                },
+            )
+            return _submit_error_response(
+                task_id=task_id,
+                status_code=503,
+                code="QUEUE_SUBMIT_FAILED",
+                message="Review job queue submission failed.",
+            )
+        task = mark_queued(client.client_dir, task_id)
+        write_task_log_event(
+            client.client_dir,
+            task_id,
+            "review_queued",
+            queue_task_id=queue_task_id,
+        )
+    else:
+        asyncio.create_task(run_async_review_job(client.client_dir, task_id))
     return pretty_json_response(present_submit_response(task), status_code=202)
 
 

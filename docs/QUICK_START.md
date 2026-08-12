@@ -46,9 +46,23 @@ python scripts/manage_users.py reset-password --username admin --password Admin1
 
 ## 5. 启动 Web 服务
 
+如果 `config.yaml` 中 `queue.enabled=true`，先启动 Redis。Redis 是独立服务，不会随 `uvicorn` 自动启动。
+
+```powershell
+redis-server
+```
+
 ```powershell
 uvicorn app:app --host 0.0.0.0 --port 5000
 ```
+
+另开一个终端启动审查 worker：
+
+```powershell
+celery -A task_queue.celery_app:celery_app worker --loglevel=info --pool=solo
+```
+
+Windows 本地建议使用 `--pool=solo`。如果 `queue.enabled=false`，可以不启动 Redis 和 Celery worker，API 会回退到进程内后台任务。
 
 本机浏览器访问：
 

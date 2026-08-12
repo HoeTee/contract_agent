@@ -7,6 +7,7 @@
 - `app.py`：FastAPI 服务入口，注册 `/api`、`/web`、`/oa` 路由和静态文件。
 - `main.py`：本地 CLI 审查入口。
 - `config.py`：集中读取系统配置、路径和环境变量。API client 身份不在这里配置。
+- `task_queue/`：普通 `/api` 审查任务队列层。API 提交任务后投递 `client_dir/task_id`，Celery worker 调用审查执行入口。
 
 ## HTTP 路由
 

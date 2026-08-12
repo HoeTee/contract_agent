@@ -34,6 +34,11 @@ workflow:
   subagent_allowed_tools:
     - "llamaindex_search"
 
+queue:
+  enabled: true
+  broker_url: "redis://localhost:6379/0"
+  result_backend: "redis://localhost:6379/1"
+
 retrieval:
   chunk_size: 512
   chunk_overlap: 100
