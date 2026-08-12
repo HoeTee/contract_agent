@@ -8,13 +8,6 @@ llm:
   temperature: 0.0
   top_p: 0.01
   seed: 42
-  global_semaphore_enabled: false
-  max_global_concurrent_requests: 10
-  global_semaphore_redis_url: "redis://localhost:6379/2"
-  global_semaphore_key: "contract_agent:llm:semaphore"
-  global_semaphore_wait_timeout_seconds: 600
-  global_semaphore_lease_seconds: 600
-  global_semaphore_poll_interval_seconds: 0.2
 
 embedding:
   base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
@@ -45,6 +38,32 @@ workflow:
 queue:
   enabled: true
   broker_url: "redis://localhost:6379/0"
+
+model_semaphore:
+  llm:
+    enabled: false
+    max_concurrent_requests: 10
+    redis_url: "redis://localhost:6379/2"
+    key: "contract_agent:model:llm:semaphore"
+    wait_timeout_seconds: 600
+    lease_seconds: 600
+    poll_interval_seconds: 0.2
+  embedding:
+    enabled: false
+    max_concurrent_requests: 5
+    redis_url: "redis://localhost:6379/2"
+    key: "contract_agent:model:embedding:semaphore"
+    wait_timeout_seconds: 600
+    lease_seconds: 600
+    poll_interval_seconds: 0.2
+  reranker:
+    enabled: false
+    max_concurrent_requests: 5
+    redis_url: "redis://localhost:6379/2"
+    key: "contract_agent:model:reranker:semaphore"
+    wait_timeout_seconds: 600
+    lease_seconds: 600
+    poll_interval_seconds: 0.2
 
 retrieval:
   chunk_size: 512

@@ -217,40 +217,90 @@ MAX_TOOL_CALLS = _as_int(cfg("llm", "max_tool_calls"), "llm.max_tool_calls")
 TEMPERATURE = _as_float(cfg("llm", "temperature"), "llm.temperature")
 TOP_P = _as_float(cfg("llm", "top_p"), "llm.top_p")
 SEED = _as_int(cfg("llm", "seed"), "llm.seed")
-LLM_GLOBAL_SEMAPHORE_ENABLED = bool(
-    _parse_bool(
-        cfg_optional("llm", "global_semaphore_enabled", False),
-        "llm.global_semaphore_enabled",
-    )
-)
-LLM_GLOBAL_SEMAPHORE_REDIS_URL = _as_str(
-    cfg_optional(
-        "llm",
-        "global_semaphore_redis_url",
-        cfg_optional("queue", "broker_url", "redis://localhost:6379/0"),
-    ),
-    "llm.global_semaphore_redis_url",
-)
-LLM_GLOBAL_SEMAPHORE_KEY = _as_str(
-    cfg_optional("llm", "global_semaphore_key", "contract_agent:llm:semaphore"),
-    "llm.global_semaphore_key",
-)
-LLM_GLOBAL_SEMAPHORE_MAX_REQUESTS = _as_int(
-    cfg_optional("llm", "max_global_concurrent_requests", 10),
-    "llm.max_global_concurrent_requests",
-)
-LLM_GLOBAL_SEMAPHORE_WAIT_TIMEOUT_SECONDS = _as_float(
-    cfg_optional("llm", "global_semaphore_wait_timeout_seconds", 600),
-    "llm.global_semaphore_wait_timeout_seconds",
-)
-LLM_GLOBAL_SEMAPHORE_LEASE_SECONDS = _as_float(
-    cfg_optional("llm", "global_semaphore_lease_seconds", 600),
-    "llm.global_semaphore_lease_seconds",
-)
-LLM_GLOBAL_SEMAPHORE_POLL_INTERVAL_SECONDS = _as_float(
-    cfg_optional("llm", "global_semaphore_poll_interval_seconds", 0.2),
-    "llm.global_semaphore_poll_interval_seconds",
-)
+
+
+def _model_semaphore_section(model_type: str) -> dict[str, Any]:
+    section_data = CONFIG.get("model_semaphore")
+    if isinstance(section_data, dict) and isinstance(section_data.get(model_type), dict):
+        return section_data[model_type]
+    return {}
+
+
+def _model_semaphore_value(model_type: str, key: str, default: Any) -> Any:
+    section_data = _model_semaphore_section(model_type)
+    if key in section_data:
+        return section_data[key]
+    if model_type == "llm":
+        legacy_key_map = {
+            "enabled": "global_semaphore_enabled",
+            "max_concurrent_requests": "max_global_concurrent_requests",
+            "redis_url": "global_semaphore_redis_url",
+            "key": "global_semaphore_key",
+            "wait_timeout_seconds": "global_semaphore_wait_timeout_seconds",
+            "lease_seconds": "global_semaphore_lease_seconds",
+            "poll_interval_seconds": "global_semaphore_poll_interval_seconds",
+        }
+        legacy_key = legacy_key_map[key]
+        return cfg_optional("llm", legacy_key, default)
+    return default
+
+
+def _model_semaphore_config(model_type: str, *, default_max: int) -> dict[str, Any]:
+    field_prefix = f"model_semaphore.{model_type}"
+    return {
+        "enabled": bool(
+            _parse_bool(
+                _model_semaphore_value(model_type, "enabled", False),
+                f"{field_prefix}.enabled",
+            )
+        ),
+        "max_concurrent_requests": _as_int(
+            _model_semaphore_value(model_type, "max_concurrent_requests", default_max),
+            f"{field_prefix}.max_concurrent_requests",
+        ),
+        "redis_url": _as_str(
+            _model_semaphore_value(
+                model_type,
+                "redis_url",
+                cfg_optional("queue", "broker_url", "redis://localhost:6379/0"),
+            ),
+            f"{field_prefix}.redis_url",
+        ),
+        "key": _as_str(
+            _model_semaphore_value(
+                model_type,
+                "key",
+                f"contract_agent:model:{model_type}:semaphore",
+            ),
+            f"{field_prefix}.key",
+        ),
+        "wait_timeout_seconds": _as_float(
+            _model_semaphore_value(model_type, "wait_timeout_seconds", 600),
+            f"{field_prefix}.wait_timeout_seconds",
+        ),
+        "lease_seconds": _as_float(
+            _model_semaphore_value(model_type, "lease_seconds", 600),
+            f"{field_prefix}.lease_seconds",
+        ),
+        "poll_interval_seconds": _as_float(
+            _model_semaphore_value(model_type, "poll_interval_seconds", 0.2),
+            f"{field_prefix}.poll_interval_seconds",
+        ),
+    }
+
+
+MODEL_SEMAPHORE_CONFIGS = {
+    "llm": _model_semaphore_config("llm", default_max=10),
+    "embedding": _model_semaphore_config("embedding", default_max=5),
+    "reranker": _model_semaphore_config("reranker", default_max=5),
+}
+LLM_GLOBAL_SEMAPHORE_ENABLED = MODEL_SEMAPHORE_CONFIGS["llm"]["enabled"]
+LLM_GLOBAL_SEMAPHORE_REDIS_URL = MODEL_SEMAPHORE_CONFIGS["llm"]["redis_url"]
+LLM_GLOBAL_SEMAPHORE_KEY = MODEL_SEMAPHORE_CONFIGS["llm"]["key"]
+LLM_GLOBAL_SEMAPHORE_MAX_REQUESTS = MODEL_SEMAPHORE_CONFIGS["llm"]["max_concurrent_requests"]
+LLM_GLOBAL_SEMAPHORE_WAIT_TIMEOUT_SECONDS = MODEL_SEMAPHORE_CONFIGS["llm"]["wait_timeout_seconds"]
+LLM_GLOBAL_SEMAPHORE_LEASE_SECONDS = MODEL_SEMAPHORE_CONFIGS["llm"]["lease_seconds"]
+LLM_GLOBAL_SEMAPHORE_POLL_INTERVAL_SECONDS = MODEL_SEMAPHORE_CONFIGS["llm"]["poll_interval_seconds"]
 
 EMBED_BASE_URL = _as_str(cfg("embedding", "base_url"), "embedding.base_url")
 EMBED_NAME = (

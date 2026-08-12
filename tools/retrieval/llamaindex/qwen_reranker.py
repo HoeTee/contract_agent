@@ -9,6 +9,7 @@ from urllib.error import HTTPError, URLError
 
 from llama_index.core.postprocessor.types import BaseNodePostprocessor
 from llama_index.core.schema import MetadataMode, NodeWithScore, QueryBundle
+from endpoints.runtime.llm_semaphore import model_semaphore_sync
 from loggers.model_event_context import append_model_event, safe_endpoint
 
 
@@ -119,8 +120,17 @@ class QwenRerankPostprocessor(BaseNodePostprocessor):
             if self.api_key:
                 request.add_header("Authorization", f"Bearer {self.api_key}")
             try:
-                with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                    return json.loads(response.read().decode("utf-8"))
+                with model_semaphore_sync("reranker", "Reranker", self.model) as lease:
+                    if lease.enabled:
+                        append_model_event(
+                            "model_semaphore_acquired",
+                            component="reranker",
+                            semaphore_key=lease.key,
+                            wait_seconds=lease.wait_seconds,
+                            max_concurrent_requests=lease.max_concurrent_requests,
+                        )
+                    with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                        return json.loads(response.read().decode("utf-8"))
             except HTTPError as exc:
                 last_error = exc
                 try:

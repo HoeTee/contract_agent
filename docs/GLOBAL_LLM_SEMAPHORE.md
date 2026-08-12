@@ -1,6 +1,6 @@
-# 全局 LLM 并发控制
+# 全局模型并发控制
 
-本文说明 Redis 全局 LLM semaphore 的设计。该机制用于控制所有容器、所有 worker、所有 agent 的 LLM HTTP 请求总并发。
+本文说明 Redis 全局模型 semaphore 的设计。该机制用于控制所有容器、所有 worker、所有模型 HTTP 请求总并发。
 
 ## 解决的问题
 
@@ -12,40 +12,43 @@ worker 容器数 * 每个 worker 的 --concurrency * 单任务内部 criterion �
 
 这些配置只能粗略控制任务推进宽度，不能严格保证同一时刻发往模型网关的 HTTP 请求数。多个 worker 容器之间也不会共享 Python 进程内的 `asyncio.Semaphore`。
 
-全局 LLM semaphore 的目标是：
+全局模型 semaphore 的目标是：
 
 ```text
-任意时刻，全项目最多 N 个 LLM HTTP 请求正在执行。
+任意时刻，全项目最多 N 个指定类型的模型 HTTP 请求正在执行。
 ```
 
 ## 控制范围
 
-当前埋点在统一 LLM 调用入口：
+当前埋点分为三类：
 
 ```text
-agents/base_agent.py
-  Agent.execute()
-    self.client.chat.completions.create(...)
+LLM:
+  agents/base_agent.py
+    Agent.execute()
+      self.client.chat.completions.create(...)
+
+Embedding:
+  tools/retrieval/llamaindex/limited_embedding.py
+    SemaphoreOpenAILikeEmbedding
+
+Reranker:
+  tools/retrieval/llamaindex/qwen_reranker.py
+    QwenRerankPostprocessor._request_json_with_retries()
 ```
 
-因此以下 agent 调用都会受控：
+因此以下调用都会受控：
 
 ```text
 Planner
 SubAgent
 Reflector
 Summarizer
-```
-
-不在当前控制范围内：
-
-```text
 embedding
 reranker
-MCP 工具内部的非 LLM 操作
 ```
 
-如果后续需要严格控制 embedding 或 reranker，需要在它们各自的统一 HTTP 调用入口增加独立 semaphore。
+MCP 工具内部的非模型操作不在控制范围内。
 
 ## Redis 令牌含义
 
@@ -63,38 +66,55 @@ Redis 中维护一个有过期时间的令牌集合。一次 LLM 请求开始前
 ## 配置
 
 ```yaml
-llm:
-  global_semaphore_enabled: true
-  max_global_concurrent_requests: 10
-  global_semaphore_redis_url: "redis://redis:6379/2"
-  global_semaphore_key: "contract_agent:llm:semaphore"
-  global_semaphore_wait_timeout_seconds: 600
-  global_semaphore_lease_seconds: 600
-  global_semaphore_poll_interval_seconds: 0.2
+model_semaphore:
+  llm:
+    enabled: true
+    max_concurrent_requests: 10
+    redis_url: "redis://redis:6379/2"
+    key: "contract_agent:model:llm:semaphore"
+    wait_timeout_seconds: 600
+    lease_seconds: 600
+    poll_interval_seconds: 0.2
+  embedding:
+    enabled: true
+    max_concurrent_requests: 5
+    redis_url: "redis://redis:6379/2"
+    key: "contract_agent:model:embedding:semaphore"
+    wait_timeout_seconds: 600
+    lease_seconds: 600
+    poll_interval_seconds: 0.2
+  reranker:
+    enabled: true
+    max_concurrent_requests: 5
+    redis_url: "redis://redis:6379/2"
+    key: "contract_agent:model:reranker:semaphore"
+    wait_timeout_seconds: 600
+    lease_seconds: 600
+    poll_interval_seconds: 0.2
 ```
 
 字段含义：
 
 ```text
-global_semaphore_enabled
+enabled
   是否启用全局 LLM 并发控制。
 
-max_global_concurrent_requests
-  全项目同时执行中的 LLM HTTP 请求上限。
+max_concurrent_requests
+  全项目同时执行中的该类型模型 HTTP 请求上限。
 
-global_semaphore_redis_url
+redis_url
   semaphore 使用的 Redis 地址。Docker Compose 内应使用 redis 服务名。
 
-global_semaphore_key
+key
   Redis key 名称。
 
-global_semaphore_wait_timeout_seconds
+wait_timeout_seconds
   等待令牌的最长时间。
 
-global_semaphore_lease_seconds
+lease_seconds
   令牌租约时间。用于防止进程崩溃后令牌永久占用。
 
-global_semaphore_poll_interval_seconds
+poll_interval_seconds
   令牌满时的重试等待间隔。
 ```
 
@@ -103,7 +123,7 @@ global_semaphore_poll_interval_seconds
 该配置不会替代 Celery 或 workflow 并发配置。
 
 ```text
-全局 LLM semaphore
+全局模型 semaphore
   控制模型 HTTP 请求硬上限。
 
 Celery worker 数量 / --concurrency
@@ -119,7 +139,9 @@ workflow.max_orchestrator_concurrency
 至少 3 个 worker 容器
 每个 worker --concurrency=1
 workflow.max_orchestrator_concurrency=3
-llm.max_global_concurrent_requests=10
+model_semaphore.llm.max_concurrent_requests=10
+model_semaphore.embedding.max_concurrent_requests=5
+model_semaphore.reranker.max_concurrent_requests=5
 ```
 
 这样即使任务推进较宽，也会在模型调用入口被全局限流，避免瞬间打爆模型网关。
@@ -135,3 +157,5 @@ llm_global_semaphore_max_requests
 ```
 
 这些字段用于判断模型调用是在直接执行，还是在等待全局令牌。
+
+embedding 和 reranker 当前通过 `events.log` 记录 `model_semaphore_acquired` 事件。

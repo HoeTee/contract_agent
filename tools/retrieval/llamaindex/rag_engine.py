@@ -17,9 +17,9 @@ from llama_index.core import (
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.schema import TextNode
-from llama_index.embeddings.openai_like import OpenAILikeEmbedding
 from llama_index.llms.openai_like import OpenAILike
 
+from tools.retrieval.llamaindex.limited_embedding import SemaphoreOpenAILikeEmbedding
 from tools.retrieval.llamaindex.qwen_reranker import QwenRerankPostprocessor
 from transformers import AutoTokenizer
 from pathlib import Path
@@ -77,7 +77,7 @@ class LlamaIndexRAG:
             max_retries=MODEL_CALL_MAX_RETRIES,
             additional_kwargs=llm_additional_kwargs,
         )
-        Settings.embed_model = OpenAILikeEmbedding(
+        Settings.embed_model = SemaphoreOpenAILikeEmbedding(
             model_name=embed_name,
             api_key=embed_api_key,
             api_base=embed_base_url,
