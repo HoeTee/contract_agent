@@ -45,6 +45,63 @@ Worker process
 
 worker 忙于审查时，API 进程仍然可以处理 `/status`。这就是本阶段引入 Celery 的主要价值。Celery 的并发控制只是附带能力；真正解决的是 HTTP 状态查询和重型审查任务不再抢同一个 API 进程。
 
+## Celery 概念边界
+
+Celery 不是单独一个“队列进程”。本项目里需要区分三个概念：
+
+```text
+Task
+  任务类型，定义一类任务如何执行。
+  代码位置：task_queue/review_tasks.py
+  当前任务名：review.run_job
+
+Broker
+  队列消息存储，本项目使用 Redis。
+  代码配置：queue.broker_url
+  当前消息内容：client_dir + task_id
+
+Worker
+  独立执行进程，连接 broker，消费 task 并执行对应 Python 函数。
+  启动方式：celery -A task_queue.celery_app:celery_app worker ...
+```
+
+`@celery_app.task(name="review.run_job")` 定义的是任务类型，不是 worker：
+
+```python
+@celery_app.task(name="review.run_job")
+def run_review_job_task(client_dir: str, task_id: str) -> dict[str, str]:
+    ...
+```
+
+API 调用 `.delay(...)` 时，只是向 Redis broker 写入一条待执行消息：
+
+```python
+run_review_job_task.delay(client_dir, task_id)
+```
+
+真正执行这条消息的是 worker 进程。Docker Compose 中的 `review-worker` service 才是 worker 的部署形态：
+
+```yaml
+review-worker:
+  command: ["celery", "-A", "task_queue.celery_app:celery_app", "worker", "--loglevel=info", "--concurrency=3"]
+```
+
+如果只启动 Redis 而不启动 worker，任务会留在队列里，不会执行。如果只启动 worker 而没有 Redis，worker 无法连接 broker，也无法取任务。
+
+worker 并发由启动命令控制：
+
+```text
+--concurrency=3
+```
+
+表示一个 worker 容器内部最多同时执行 3 个 `review.run_job`。如果部署多个 worker 容器，总合同任务并发约等于：
+
+```text
+worker 容器数量 * 每个 worker 的 --concurrency
+```
+
+这个并发只控制“整份合同审查任务”的并发，不控制单份合同内部 subagent/criterion 并发。单份合同内部并发仍由 `workflow.max_orchestrator_concurrency` 控制。
+
 `POST /api/review/jobs` 仍然负责保存输入文件、创建 `task.json` 并返回 `task_id`。当 `queue.enabled=true` 时，API 不再直接执行审查 workflow，而是把 `client_dir` 和 `task_id` 投递到 Celery 队列。
 
 `POST /api/review/jobs/status` 仍然只读取 `data/api/<task_id>/task.json`。它不等待模型调用、MCP、DOCX 生成或日志写入。

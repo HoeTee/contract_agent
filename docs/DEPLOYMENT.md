@@ -109,6 +109,8 @@ http://127.0.0.1:5000/health
 
 这里的关键边界是进程隔离：API 容器负责 HTTP 请求和状态读取，worker 容器负责 workflow、MCP、LLM 调用、DOCX 生成和日志写入。`/status` 不应和审查执行任务运行在同一个 API 进程中。
 
+Celery task、Redis broker 和 worker 进程的区别见 `docs/QUEUE_WORKER.md`。
+
 容器内部配置应使用 Redis service 名称，不要使用 `localhost`：
 
 ```yaml
