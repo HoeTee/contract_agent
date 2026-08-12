@@ -217,6 +217,40 @@ MAX_TOOL_CALLS = _as_int(cfg("llm", "max_tool_calls"), "llm.max_tool_calls")
 TEMPERATURE = _as_float(cfg("llm", "temperature"), "llm.temperature")
 TOP_P = _as_float(cfg("llm", "top_p"), "llm.top_p")
 SEED = _as_int(cfg("llm", "seed"), "llm.seed")
+LLM_GLOBAL_SEMAPHORE_ENABLED = bool(
+    _parse_bool(
+        cfg_optional("llm", "global_semaphore_enabled", False),
+        "llm.global_semaphore_enabled",
+    )
+)
+LLM_GLOBAL_SEMAPHORE_REDIS_URL = _as_str(
+    cfg_optional(
+        "llm",
+        "global_semaphore_redis_url",
+        cfg_optional("queue", "broker_url", "redis://localhost:6379/0"),
+    ),
+    "llm.global_semaphore_redis_url",
+)
+LLM_GLOBAL_SEMAPHORE_KEY = _as_str(
+    cfg_optional("llm", "global_semaphore_key", "contract_agent:llm:semaphore"),
+    "llm.global_semaphore_key",
+)
+LLM_GLOBAL_SEMAPHORE_MAX_REQUESTS = _as_int(
+    cfg_optional("llm", "max_global_concurrent_requests", 10),
+    "llm.max_global_concurrent_requests",
+)
+LLM_GLOBAL_SEMAPHORE_WAIT_TIMEOUT_SECONDS = _as_float(
+    cfg_optional("llm", "global_semaphore_wait_timeout_seconds", 600),
+    "llm.global_semaphore_wait_timeout_seconds",
+)
+LLM_GLOBAL_SEMAPHORE_LEASE_SECONDS = _as_float(
+    cfg_optional("llm", "global_semaphore_lease_seconds", 600),
+    "llm.global_semaphore_lease_seconds",
+)
+LLM_GLOBAL_SEMAPHORE_POLL_INTERVAL_SECONDS = _as_float(
+    cfg_optional("llm", "global_semaphore_poll_interval_seconds", 0.2),
+    "llm.global_semaphore_poll_interval_seconds",
+)
 
 EMBED_BASE_URL = _as_str(cfg("embedding", "base_url"), "embedding.base_url")
 EMBED_NAME = (

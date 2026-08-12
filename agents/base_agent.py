@@ -22,6 +22,7 @@ from config import (
     TOP_P,
 )
 from endpoints.runtime.errors import ModelCallError
+from endpoints.runtime.llm_semaphore import LLMGlobalSemaphoreTimeout, llm_global_semaphore
 import json
 
 MODEL_API_ERRORS = (
@@ -256,8 +257,26 @@ class Agent:
                     },
                 ) as span:
                     try:
-                        completion = await self.client.chat.completions.create(**request_kwargs)
+                        async with llm_global_semaphore(
+                            agent_name=self.name,
+                            model=self.settings.model,
+                        ) as lease:
+                            if lease.enabled:
+                                span.set_metadata(
+                                    {
+                                        "llm_global_semaphore_key": lease.key,
+                                        "llm_global_semaphore_wait_seconds": lease.wait_seconds,
+                                        "llm_global_semaphore_max_requests": lease.max_concurrent_requests,
+                                    }
+                                )
+                            completion = await self.client.chat.completions.create(**request_kwargs)
                     except MODEL_API_ERRORS:
+                        conversation_path = log_conversation(self.name, self.messages)
+                        span.set_metadata(
+                            {"conversation_path": str(conversation_path) if conversation_path else None}
+                        )
+                        raise
+                    except LLMGlobalSemaphoreTimeout:
                         conversation_path = log_conversation(self.name, self.messages)
                         span.set_metadata(
                             {"conversation_path": str(conversation_path) if conversation_path else None}
@@ -269,6 +288,12 @@ class Agent:
                     "agent",
                     f"{self.name}: {exc}",
                     http_status=getattr(exc, "status_code", None),
+                ) from exc
+            except LLMGlobalSemaphoreTimeout as exc:
+                raise ModelCallError(
+                    "agent",
+                    f"{self.name}: {exc}",
+                    http_status=None,
                 ) from exc
 
             response_message = completion.choices[0].message
