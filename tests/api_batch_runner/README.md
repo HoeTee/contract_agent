@@ -43,6 +43,8 @@ python batch_review_cases.py
 | `CONCURRENCY` | 跑批客户端同时处理的文件数量。 |
 | `POLL_INTERVAL_SECONDS` | 每隔多少秒查询一次任务状态。 |
 | `TASK_TIMEOUT_SECONDS` | 单个文件最多等待多少秒；超时只影响脚本等待，不会取消服务端任务。 |
+| `HTTP_TIMEOUT_SECONDS` | 单次 HTTP 请求最多等待多少秒；适用于提交、状态查询和结果下载。 |
+| `HTTP_CONNECT_TIMEOUT_SECONDS` | 单次 HTTP 连接建立最多等待多少秒。 |
 | `CASES_DIR` | 输入 DOCX 目录。 |
 | `OUTPUT_DIR` | 输出 DOCX 目录。 |
 | `LOG_DIR` | 每次跑批的日志根目录。 |

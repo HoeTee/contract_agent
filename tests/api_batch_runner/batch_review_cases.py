@@ -32,6 +32,8 @@ class Settings:
     concurrency: int
     poll_interval_seconds: float
     task_timeout_seconds: float
+    http_timeout_seconds: float
+    http_connect_timeout_seconds: float
     cases_dir: Path
     output_dir: Path
     log_dir: Path
@@ -86,6 +88,8 @@ def load_settings() -> Settings:
         concurrency=env_int("CONCURRENCY", default=3, minimum=1),
         poll_interval_seconds=env_int("POLL_INTERVAL_SECONDS", default=5, minimum=1),
         task_timeout_seconds=env_int("TASK_TIMEOUT_SECONDS", default=1800, minimum=1),
+        http_timeout_seconds=env_int("HTTP_TIMEOUT_SECONDS", default=300, minimum=1),
+        http_connect_timeout_seconds=env_int("HTTP_CONNECT_TIMEOUT_SECONDS", default=10, minimum=1),
         cases_dir=(root / os.getenv("CASES_DIR", "cases")).resolve(),
         output_dir=(root / os.getenv("OUTPUT_DIR", "outputs")).resolve(),
         log_dir=(root / os.getenv("LOG_DIR", "logs")).resolve(),
@@ -321,7 +325,10 @@ async def run_batch() -> int:
     run_dir.mkdir(parents=True, exist_ok=True)
 
     limits = httpx.Limits(max_connections=max(settings.concurrency * 2, 10))
-    timeout = httpx.Timeout(60.0, connect=10.0)
+    timeout = httpx.Timeout(
+        settings.http_timeout_seconds,
+        connect=settings.http_connect_timeout_seconds,
+    )
     semaphore = asyncio.Semaphore(settings.concurrency)
 
     async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
