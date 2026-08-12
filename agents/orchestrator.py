@@ -18,6 +18,8 @@ from agents.reflector import ReflectorAgent
 from agents.prompts.cn_prompts import SUB_AGENT_BASE_PROMPT
 from agents.schemas import SubAgentOutput
 from endpoints.runtime.errors import ModelCallError, classify_model_call_error
+from loggers.trace_helpers import criterion_inputs, criterion_outputs
+from loggers.trace_logger import get_current_trace
 
 
 SUB_AGENT_EXPECTED_JSON = """
@@ -352,8 +354,15 @@ class OrchestratorAgent:
         async def execute_with_limit(criterion: dict) -> dict:
             # async with semaphore:
             await semaphore.acquire()
-            try: 
-                return await self.execute_single_criterion(criterion)
+            try:
+                async with get_current_trace().span(
+                    f"criterion.{criterion.get('id')}",
+                    run_type="criterion",
+                    inputs=criterion_inputs(criterion),
+                ) as span:
+                    result = await self.execute_single_criterion(criterion)
+                    span.set_outputs(criterion_outputs(result))
+                    return result
             finally: 
                 semaphore.release()
 

@@ -151,7 +151,7 @@
         <mxCell id="tool_logs" value="日志工具&lt;br&gt;api_event_logger / agent_logger / workflow_logger / mcp_logger" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#22C55E;" vertex="1" parent="agent_group">
           <mxGeometry x="290" y="710" width="215" height="68" as="geometry" />
         </mxCell>
-        <mxCell id="conversation_logs" value="conversations/agent_steps.jsonl&lt;br&gt;model HTTP 事件写入 api_events.jsonl" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#F0FDF4;strokeColor=#16A34A;" vertex="1" parent="agent_group">
+        <mxCell id="conversation_logs" value="conversations/agent_steps.jsonl&lt;br&gt;model HTTP 事件写入 events.log" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#F0FDF4;strokeColor=#16A34A;" vertex="1" parent="agent_group">
           <mxGeometry x="145" y="815" width="250" height="70" as="geometry" />
         </mxCell>
 

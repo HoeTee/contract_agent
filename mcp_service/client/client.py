@@ -8,6 +8,8 @@ from contextlib import AsyncExitStack
 from typing import Any, Dict, List, Optional
 
 from loggers.mcp_logger import create_mcp_logger
+from loggers.trace_helpers import mcp_inputs, mcp_outputs
+from loggers.trace_logger import get_current_trace
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.client.sse import sse_client
@@ -140,19 +142,27 @@ class MinimalMCPClient:
         # Functions in an MCP server that are exposed as tools cannot use variable arguments like *args or **kwargs. 
         # This restriction is because the protocol requires a complete and predictable parameter schema to be generated 
         # for the Language Model (LLM) client, which is not possible with variable argument lists.
-        result = await self.session.call_tool(name, args) 
-        # Extract .text from TextContent objects
-        if hasattr(result, 'content') and isinstance(result.content, list):
-            texts = []
-            for item in result.content:
-                if hasattr(item, 'text'):
-                    texts.append(item.text)
-                elif isinstance(item, dict) and 'text' in item:
-                    texts.append(item['text'])
-                else:
-                    texts.append(str(item))
-            return "\n".join(texts)
-        return str(result)
+        async with get_current_trace().span(
+            f"mcp.{name}",
+            run_type="mcp_tool",
+            inputs=mcp_inputs(name, args),
+        ) as span:
+            result = await self.session.call_tool(name, args)
+            # Extract .text from TextContent objects
+            if hasattr(result, 'content') and isinstance(result.content, list):
+                texts = []
+                for item in result.content:
+                    if hasattr(item, 'text'):
+                        texts.append(item.text)
+                    elif isinstance(item, dict) and 'text' in item:
+                        texts.append(item['text'])
+                    else:
+                        texts.append(str(item))
+                text_result = "\n".join(texts)
+            else:
+                text_result = str(result)
+            span.set_outputs(mcp_outputs(text_result))
+            return text_result
 
     async def get_available_tools(self) -> List[Dict[str, Any]]:
         """Return cached tools list in OpenAI format."""

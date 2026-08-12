@@ -126,7 +126,11 @@ class ResolvedReviewTaskPaths:
 
     @property
     def api_events_path(self) -> Path:
-        return self.task_log_dir / "api_events.jsonl"
+        return self.task_log_dir / "events.log"
+
+    @property
+    def trace_path(self) -> Path:
+        return self.task_log_dir / "trace.json"
 
     @property
     def task_json_path(self) -> Path:

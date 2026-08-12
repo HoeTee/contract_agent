@@ -81,7 +81,7 @@ def list_user_log_tasks(tenant_id: str, username: str) -> list[dict]:
     for task_json in root.glob("*/task.json"):
         task_dir = task_json.parent
         logs_dir = task_dir / "logs"
-        api_events = logs_dir / "api_events.jsonl"
+        api_events = logs_dir / "events.log"
         try:
             import json
 

@@ -322,7 +322,7 @@ async def admin_view_api_events(request: Request, target_username: str, date: st
         raise HTTPException(status_code=404, detail="未找到用户。")
 
     logs_root = (Path(DATA_DIR) / "web" / tenant_id).resolve()
-    path = (logs_root / safe_upload_filename(task_name) / "logs" / "api_events.jsonl").resolve()
+    path = (logs_root / safe_upload_filename(task_name) / "logs" / "events.log").resolve()
     if logs_root not in path.parents:
         raise HTTPException(status_code=400, detail="日志路径不合法。")
     if not path.exists():

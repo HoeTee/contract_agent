@@ -62,14 +62,14 @@ def _serialize_messages(messages: list) -> list:
     return serializable
 
 
-def log_conversation(agent_name: str, messages: list) -> None:
+def log_conversation(agent_name: str, messages: list) -> Path | None:
     if not ENABLE_WORKFLOW_LOGS:
-        return
+        return None
 
     log_dir = _CONVERSATION_LOG_DIR.get()
     if log_dir is None:
         print("Conversation log directory is not set; skipping agent conversation log.")
-        return
+        return None
 
     log_dir.mkdir(parents=True, exist_ok=True)
     serializable = _serialize_messages(messages)
@@ -81,8 +81,10 @@ def log_conversation(agent_name: str, messages: list) -> None:
             json.dumps(serializable, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+        return filepath
     except Exception as exc:
         print(f"Error writing conversation log: {exc}")
+        return None
 
 
 def log_agent_step(agent_name: str, step: dict) -> None:

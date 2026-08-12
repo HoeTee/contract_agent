@@ -20,6 +20,7 @@ from config import (
     MCP_SERVER_PATH,
 )
 from loggers.workflow_logger import WorkflowLogger, save_results_json, save_run_summary_json
+from loggers.trace_logger import TraceLogger, reset_current_trace, set_current_trace
 from agents.base_agent import Settings
 from agents.planner import PlannerAgent
 from agents.orchestrator import OrchestratorAgent
@@ -44,11 +45,13 @@ class ContractReviewWorkflow:
         conversation_log_dir: str | None = None,
         mcp_log_file: str | None = None,
         api_events_path: str | None = None,
+        trace_path: str | None = None,
         settings: Settings | None = None,
         mcp_env: dict[str, str] | None = None,
     ):
         self.client = MinimalMCPClient(server_script_path, log_file=mcp_log_file, env=mcp_env)
         self.logger = WorkflowLogger(log_dir=workflow_log_dir)
+        self.trace = TraceLogger(trace_path, metadata={"component": "workflow"})
         self.workflow_log_dir = workflow_log_dir
         self.conversation_log_dir = conversation_log_dir
         self.api_events_path = api_events_path
@@ -76,108 +79,92 @@ class ContractReviewWorkflow:
         print("Contract Review Workflow Started")
         print("=" * 60)
         print("This is an over-simplified workflow without web search or institutional RAG, with retrieval mode being llamaindex.")
+        trace_token = set_current_trace(self.trace)
         # Initialize MCP client
         mcp_cleaned = False
         start = time.time()
-        await self.client.connect()
-        self.logger.log(
-            phase="MCP",
-            sender="Workflow",
-            receiver="MCP",
-            action="mcp_connect",
-            duration=round(time.time() - start, 2),
-        )
-
         try:
-            # Phase 1: Ingest files
-            await self._emit_progress(progress_callback, "ingesting", "Parsing contract and criteria files")
-            criteria_md, contract_md = await self._phase_ingest(contract_path, criteria_path)
+            async with self.trace.span(
+                "workflow.run",
+                run_type="workflow",
+                inputs={
+                    "contract_path": contract_path,
+                    "criteria_path": criteria_path,
+                    "output_path": output_path,
+                    "output_dir": output_dir,
+                },
+            ) as workflow_span:
+                async with self.trace.span("mcp.connect", run_type="mcp"):
+                    await self.client.connect()
+                self.logger.log(
+                    phase="MCP",
+                    sender="Workflow",
+                    receiver="MCP",
+                    action="mcp_connect",
+                    duration=round(time.time() - start, 2),
+                )
 
-            # Phase 2: Build index
-            await self._emit_progress(progress_callback, "building_index", "Building temporary LlamaIndex contract index")
-            await self._phase_build_llamaindex(contract_path)
+                # Phase 1: Ingest files
+                await self._emit_progress(progress_callback, "ingesting", "Parsing contract and criteria files")
+                async with self.trace.span("phase.ingest", run_type="phase"):
+                    criteria_md, contract_md = await self._phase_ingest(contract_path, criteria_path)
 
-            # Phase 3: Plan tasks
-            await self._emit_progress(progress_callback, "planning", "Extracting review criteria")
-            criteria_list = await self._phase_plan(criteria_md)
+                # Phase 2: Build index
+                await self._emit_progress(progress_callback, "building_index", "Building temporary LlamaIndex contract index")
+                async with self.trace.span("phase.build_index", run_type="phase"):
+                    await self._phase_build_llamaindex(contract_path)
 
-            # Phase 4: Execute + Reflect
-            print(f"\n  Search mode: llamaindex")
-            await self._emit_progress(
-                progress_callback,
-                "reviewing",
-                f"Reviewing {len(criteria_list)} criteria with the agent workflow",
-            )
+                # Phase 3: Plan tasks
+                await self._emit_progress(progress_callback, "planning", "Extracting review criteria")
+                async with self.trace.span("phase.plan", run_type="phase", inputs={"criteria_chars": len(criteria_md)}) as span:
+                    criteria_list = await self._phase_plan(criteria_md)
+                    span.set_outputs({"criteria_count": len(criteria_list)})
 
-            results = await self._phase_execute(criteria_list)
+                # Phase 4: Execute + Reflect
+                print(f"\n  Search mode: llamaindex")
+                await self._emit_progress(
+                    progress_callback,
+                    "reviewing",
+                    f"Reviewing {len(criteria_list)} criteria with the agent workflow",
+                )
 
-            results_path = self._save_last_results(results)
+                async with self.trace.span("phase.execute", run_type="phase", inputs={"criteria_count": len(criteria_list)}) as span:
+                    results = await self._phase_execute(criteria_list)
+                    span.set_outputs(
+                        {
+                            "result_count": len(results),
+                            "error_count": sum(1 for result in results if result.get("status") == "ERROR"),
+                        }
+                    )
 
-            # Phase 5: Summarize
-            await self._emit_progress(progress_callback, "summarizing", "Creating summary comment")
-            summary_sections = await self._phase_summarize(results)
+                results_path = self._save_last_results(results)
 
-            token_stats = self._collect_token_stats(results)
-            total_tokens = token_stats["total"]
-            elapsed = round(time.time() - workflow_start, 1)
+                # Phase 5: Summarize
+                await self._emit_progress(progress_callback, "summarizing", "Creating summary comment")
+                async with self.trace.span("phase.summarize", run_type="phase", inputs={"result_count": len(results)}) as span:
+                    summary_sections = await self._phase_summarize(results)
+                    span.set_outputs({"summary_section_count": len(summary_sections)})
 
-            # Phase 6: Generate annotated DOCX only
-            await self._emit_progress(progress_callback, "generating_docx", "Generating annotated DOCX")
-            annotated_docx_path = await self._phase_generate_annotated_docx(
-                contract_path=contract_path,
-                results=results,
-                summary_sections=summary_sections,
-                output_dir=output_dir,
-                output_path=output_path,
-            )
+                token_stats = self._collect_token_stats(results)
+                total_tokens = token_stats["total"]
+                elapsed = round(time.time() - workflow_start, 1)
 
-            start = time.time()
-            await self.client.cleanup()
-            mcp_cleaned = True
-            self.logger.log(
-                phase="MCP",
-                sender="Workflow",
-                receiver="MCP",
-                action="mcp_cleanup",
-                duration=round(time.time() - start, 2),
-            )
+                # Phase 6: Generate annotated DOCX only
+                await self._emit_progress(progress_callback, "generating_docx", "Generating annotated DOCX")
+                async with self.trace.span("phase.generate_docx", run_type="phase") as span:
+                    annotated_docx_path = await self._phase_generate_annotated_docx(
+                        contract_path=contract_path,
+                        results=results,
+                        summary_sections=summary_sections,
+                        output_dir=output_dir,
+                        output_path=output_path,
+                    )
+                    span.set_outputs({"annotated_docx_path": annotated_docx_path})
 
-            # Save workflow log
-            log_path = self.logger.save()
-            elapsed = round(time.time() - workflow_start, 1)
-            run_summary_path = self._save_run_summary(
-                results=results,
-                token_stats=token_stats,
-                annotated_docx_path=annotated_docx_path,
-                elapsed_seconds=elapsed,
-                results_path=results_path,
-                workflow_log=log_path,
-            )
-            self._print_completion_summary(
-                elapsed,
-                token_stats,
-                annotated_docx_path,
-                log_path,
-                run_summary_path,
-            )
-
-            await self._emit_progress(progress_callback, "completed", "Review completed")
-
-            return {
-                "report_docx": annotated_docx_path,
-                "criteria_count": len(results),
-                "issue_count": sum(len(result.get("issues", [])) for result in results),
-                "total_tokens": total_tokens,
-                "retrieval_mode": "llamaindex",
-                "workflow_log": log_path,
-                "results_log": results_path,
-                "run_summary_log": run_summary_path,
-            }
-
-        finally:
-            if not mcp_cleaned:
                 start = time.time()
-                await self.client.cleanup()
+                async with self.trace.span("mcp.cleanup", run_type="mcp"):
+                    await self.client.cleanup()
+                mcp_cleaned = True
                 self.logger.log(
                     phase="MCP",
                     sender="Workflow",
@@ -185,6 +172,64 @@ class ContractReviewWorkflow:
                     action="mcp_cleanup",
                     duration=round(time.time() - start, 2),
                 )
+
+                # Save workflow log
+                log_path = self.logger.save()
+                elapsed = round(time.time() - workflow_start, 1)
+                run_summary_path = self._save_run_summary(
+                    results=results,
+                    token_stats=token_stats,
+                    annotated_docx_path=annotated_docx_path,
+                    elapsed_seconds=elapsed,
+                    results_path=results_path,
+                    workflow_log=log_path,
+                )
+                workflow_span.set_outputs(
+                    {
+                        "report_docx": annotated_docx_path,
+                        "criteria_count": len(results),
+                        "issue_count": sum(len(result.get("issues", [])) for result in results),
+                        "total_tokens": total_tokens,
+                        "workflow_log": log_path,
+                        "run_summary_log": run_summary_path,
+                    }
+                )
+                self._print_completion_summary(
+                    elapsed,
+                    token_stats,
+                    annotated_docx_path,
+                    log_path,
+                    run_summary_path,
+                )
+
+                await self._emit_progress(progress_callback, "completed", "Review completed")
+
+                return {
+                    "report_docx": annotated_docx_path,
+                    "criteria_count": len(results),
+                    "issue_count": sum(len(result.get("issues", [])) for result in results),
+                    "total_tokens": total_tokens,
+                    "retrieval_mode": "llamaindex",
+                    "workflow_log": log_path,
+                    "results_log": results_path,
+                    "run_summary_log": run_summary_path,
+                }
+
+        finally:
+            try:
+                if not mcp_cleaned:
+                    start = time.time()
+                    async with self.trace.span("mcp.cleanup", run_type="mcp"):
+                        await self.client.cleanup()
+                    self.logger.log(
+                        phase="MCP",
+                        sender="Workflow",
+                        receiver="MCP",
+                        action="mcp_cleanup",
+                        duration=round(time.time() - start, 2),
+                    )
+            finally:
+                reset_current_trace(trace_token)
 
     # ==================== Phases ====================
 

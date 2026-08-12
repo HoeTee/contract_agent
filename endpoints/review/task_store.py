@@ -98,7 +98,11 @@ def mcp_log_dir(client_dir: str, task_id: str) -> Path:
 
 
 def api_events_path(client_dir: str, task_id: str) -> Path:
-    return logs_dir(client_dir, task_id) / "api_events.jsonl"
+    return logs_dir(client_dir, task_id) / "events.log"
+
+
+def trace_path(client_dir: str, task_id: str) -> Path:
+    return logs_dir(client_dir, task_id) / "trace.json"
 
 
 def runtime_input_dir(client_dir: str, task_id: str) -> Path:
@@ -250,6 +254,12 @@ def task_api_events_path(client_dir: str, task_id: str) -> Path | None:
     return api_events_path(client_dir, task_id)
 
 
+def task_trace_path(client_dir: str, task_id: str) -> Path | None:
+    if not should_write_task_file("logs"):
+        return None
+    return trace_path(client_dir, task_id)
+
+
 def task_workflow_log_dir(client_dir: str, task_id: str) -> Path | None:
     if not should_write_task_file("logs"):
         return None
@@ -382,6 +392,7 @@ def create_task(
     model_config_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     task_api_log = task_api_events_path(client_dir, task_id)
+    task_trace_log = task_trace_path(client_dir, task_id)
     task_workflow_log = task_workflow_log_dir(client_dir, task_id)
     task_conversation_log = task_conversation_log_dir(client_dir, task_id)
     task_mcp_log = task_mcp_log_dir(client_dir, task_id)
@@ -425,6 +436,8 @@ def create_task(
         },
         "logs": {
             "api_events_path": str(task_api_log) if task_api_log else None,
+            "events_log_path": str(task_api_log) if task_api_log else None,
+            "trace_path": str(task_trace_log) if task_trace_log else None,
             "conversation_log_dir": str(task_conversation_log) if task_conversation_log else None,
             "mcp_log_dir": str(task_mcp_log) if task_mcp_log else None,
             "workflow_log_dir": str(task_workflow_log) if task_workflow_log else None,

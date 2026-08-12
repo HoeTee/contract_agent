@@ -9,7 +9,7 @@
 - 浏览器粘贴 URL 可以下载文件。
 - 部署宿主机执行 `curl -o` 可以下载文件。
 - `/api/review/jobs` 使用 `file_url` 下载失败。
-- `api_events.jsonl` 记录 `contract_url_download_failed`。
+- `events.log` 记录 `contract_url_download_failed`。
 - 容器内请求返回 `404`、`403`、`502`，或 DNS 解析失败。
 
 ## 先看错误层级

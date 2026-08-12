@@ -5,6 +5,8 @@ management, token tracking, and conversation logging.
 from pydantic import BaseModel
 from openai import AsyncOpenAI, RateLimitError, APITimeoutError, APIConnectionError, InternalServerError, APIStatusError
 from loggers.agent_logger import log_agent_step, log_conversation
+from loggers.trace_helpers import llm_inputs, llm_outputs
+from loggers.trace_logger import get_current_trace
 from config import (
     LLM_API_KEY,
     LLM_BASE_URL,
@@ -237,7 +239,31 @@ class Agent:
                         "enable_thinking": self.settings.enable_thinking
                     }
 
-                completion = await self.client.chat.completions.create(**request_kwargs)
+                async with get_current_trace().span(
+                    f"llm.{self.name}",
+                    run_type="llm",
+                    inputs=llm_inputs(
+                        agent_name=self.name,
+                        model=self.settings.model,
+                        messages=self.messages,
+                        tools=self.tools,
+                        step=current_step,
+                    ),
+                    metadata={
+                        "temperature": self.settings.temperature,
+                        "top_p": self.settings.top_p,
+                        "seed": self.settings.seed,
+                    },
+                ) as span:
+                    try:
+                        completion = await self.client.chat.completions.create(**request_kwargs)
+                    except MODEL_API_ERRORS:
+                        conversation_path = log_conversation(self.name, self.messages)
+                        span.set_metadata(
+                            {"conversation_path": str(conversation_path) if conversation_path else None}
+                        )
+                        raise
+                    span.set_outputs(llm_outputs(completion))
             except MODEL_API_ERRORS as exc:
                 raise ModelCallError(
                     "agent",

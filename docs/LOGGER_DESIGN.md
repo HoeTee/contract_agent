@@ -24,7 +24,7 @@ data/<username>/logs/<YYYY-MM-DD>/<task_id>/
 data/api/<task_id>/logs/
 ```
 
-该目录只在 `config.yaml` 中 `api.write_logs: true` 时写入；关闭时 API 任务不会创建 `api_events.jsonl`、workflow、conversation 和 MCP 日志，`task.json.logs.*` 为 `null`。
+该目录只在 `config.yaml` 中 `api.write_logs: true` 时写入；关闭时 API 任务不会创建 `events.log`、`trace.json`、workflow、conversation 和 MCP 日志，`task.json.logs.*` 为 `null`。
 
 `<任务目录>` 由 `endpoints/review/task_store.py` 生成，格式为 `YYYYMMDD-HHMMSS-xxxx`。直接 API 的完整接口和错误响应说明见 `docs/API_REVIEW_ENDPOINT.md`。
 
@@ -34,7 +34,8 @@ data/api/<task_id>/logs/
 workflow/
 conversations/
 mcp/
-api_events.jsonl
+events.log
+trace.json
 ```
 
 ## 路径解析
@@ -62,6 +63,7 @@ workflow_log_dir
 conversation_log_dir
 mcp_log_dir
 api_events_path
+trace_path
 ```
 
 ## 日志读取与合同名关联
@@ -93,7 +95,7 @@ data/<username>/records/review_history.json
 data/<username>/logs/<YYYY-MM-DD>/<task_id>/
 ```
 
-4. 打开日志详情时读取该目录下的 `api_events.jsonl`、`workflow/`、`conversations/`、`mcp/`。
+4. 打开日志详情时读取该目录下的 `events.log`、`trace.json`、`workflow/`、`conversations/`、`mcp/`。
 
 旧日志目录仍可能是：
 
@@ -168,6 +170,29 @@ mcp/client.log
 MCP client 的连接、断开、工具列表和异常信息。
 ```
 
+## Trace 日志
+
+模块：
+
+```text
+loggers/trace_logger.py
+loggers/trace_helpers.py
+```
+
+文件：
+
+```text
+trace.json
+```
+
+记录内容：
+
+```text
+单次审查任务的树状执行轨迹。每个 run 都包含 id、parent_id、name、type、status、start_time、end_time、duration_seconds、inputs、outputs、metadata 和 error。
+```
+
+`name` 由埋点位置决定，例如 `workflow.run`、`phase.execute`、`criterion.C1`、`llm.SubAgent_C1`、`mcp.llamaindex_search`。`inputs` 和 `outputs` 由 `trace_helpers.py` 做摘要化生成，避免把完整合同、完整检索结果和密钥写入 trace。
+
 ## API 事件日志
 
 模块：
@@ -179,14 +204,14 @@ loggers/api_event_logger.py
 文件：
 
 ```text
-api_events.jsonl
+events.log
 ```
 
-`jsonl` 表示每一行都是一个独立 JSON 对象。这里用于追加记录 API 层事件，例如上传文件、DOCX 校验通过、审查开始、审查完成和失败原因。
+该文件由 Python `logging` 写入，格式与 MCP logger 保持一致。这里用于追加记录 API 层事件，例如上传文件、DOCX 校验通过、审查开始、审查完成和失败原因。
 
 ### API Event 枚举
 
-当前 `api_events.jsonl` 会记录以下事件：
+当前 `events.log` 会记录以下事件：
 
 ```text
 upload_received              收到上传请求和原始文件名
@@ -211,25 +236,22 @@ review_failed                审查任务失败，记录最终失败原因
 
 文件保存类事件会记录本地路径和文件大小：
 
-```json
-{"event": "contract_saved", "file_path": "...", "size_bytes": 12345}
-{"event": "criteria_uploaded", "file_path": "...", "original_filename": "...", "size_bytes": 12345}
-{"event": "contract_url_downloaded", "file_path": "...", "size_bytes": 12345}
-{"event": "criteria_url_downloaded", "file_path": "...", "size_bytes": 12345}
-{"event": "result_url_uploaded", "file_path": "...", "size_bytes": 12345, "http_status": 200, "url": "https://example.com/result.docx"}
+```text
+2026-08-12 10:00:00,000 - APIEvents... - INFO - contract_saved task_id=... file_path="..." size_bytes=12345
+2026-08-12 10:00:01,000 - APIEvents... - INFO - result_url_uploaded task_id=... file_path="..." size_bytes=12345 http_status=200 url=https://example.com/result.docx
 ```
 
 URL 下载或结果上传失败事件会记录上游 HTTP 状态码；连接失败、超时或没有 HTTP response 时 `http_status` 为 `null`。日志中的 `source_url` 不包含 query string，避免记录 OSS 签名参数：
 
-```json
-{"event": "contract_url_download_failed", "source_url": "https://example.com/a.docx", "http_status": 403, "error": "..."}
-{"event": "result_url_upload_failed", "file_path": "...", "http_status": 502, "error": "..."}
+```text
+2026-08-12 10:00:00,000 - APIEvents... - ERROR - contract_url_download_failed task_id=... source_url=https://example.com/a.docx http_status=403 error="..."
+2026-08-12 10:00:01,000 - APIEvents... - ERROR - result_url_upload_failed task_id=... file_path="..." http_status=502 error="..."
 ```
 
 模型调用失败事件会记录组件和 HTTP 状态码；连接错误或超时时 `http_status` 为 `null`：
 
-```json
-{"event": "agent_model_call_failed", "component": "agent", "http_status": 429, "error": "..."}
+```text
+2026-08-12 10:00:00,000 - APIEvents... - ERROR - agent_model_call_failed task_id=... component=agent http_status=429 error="..."
 ```
 
 模型类失败事件会先记录具体组件事件，再记录 `review_failed`。前端 `/work` 页面会显示模型类失败的具体错误文案；OA 同步 API `/oa/review` 会返回 JSON 错误信息；非模型类异常仍显示或返回通用失败提示并要求查看任务日志。
@@ -242,4 +264,4 @@ URL 下载或结果上传失败事件会记录上游 HTTP 状态码；连接失�
 ENABLE_WORKFLOW_LOGS=True
 ```
 
-如果设置为 `False`，任务目录仍可能被创建，但 `workflow/`、`conversations/`、`mcp/` 下不会写入文件日志；`api_events.jsonl` 仍用于记录 API 层事件。
+如果设置为 `False`，任务目录仍可能被创建，但 `events.log`、`trace.json`、`workflow/`、`conversations/`、`mcp/` 下不会写入任务日志。

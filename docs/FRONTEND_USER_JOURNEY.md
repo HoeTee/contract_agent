@@ -65,7 +65,7 @@ data/web/<tenant_id>/<task_id>/
 Web 审查任务通过共享 task-store 日志工具写入事件日志。日志位置：
 
 ```text
-data/web/<tenant_id>/<task_id>/logs/api_events.jsonl
+data/web/<tenant_id>/<task_id>/logs/events.log
 ```
 
 模型调用错误使用与 API 任务一致的事件码和 component。

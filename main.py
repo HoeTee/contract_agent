@@ -73,6 +73,7 @@ async def run_cli(contract: str, criteria: str | None = None, output: str | None
         workflow_log_dir = temp_root / "logs" / "workflow"
         conversation_log_dir = temp_root / "logs" / "conversations"
         mcp_log_dir = temp_root / "logs" / "mcp"
+        trace_path = temp_root / "logs" / "trace.json"
         for path in (workflow_log_dir, conversation_log_dir, mcp_log_dir):
             path.mkdir(parents=True, exist_ok=True)
 
@@ -84,6 +85,7 @@ async def run_cli(contract: str, criteria: str | None = None, output: str | None
                 workflow_log_dir=str(workflow_log_dir),
                 conversation_log_dir=str(conversation_log_dir),
                 mcp_log_file=str(mcp_log_dir / "client.log"),
+                trace_path=str(trace_path),
             )
             result = await workflow.run(
                 contract_path=str(contract_path),

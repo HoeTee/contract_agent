@@ -23,6 +23,7 @@ from endpoints.review.task_store import (
     task_api_events_path,
     task_conversation_log_dir,
     task_mcp_log_file,
+    task_trace_path,
     task_workflow_log_dir,
     write_task_log_event,
 )
@@ -91,6 +92,7 @@ async def run_async_review_job(client_dir: str, task_id: str) -> None:
             api_events_path=(
                 str(task_api_events_path(client_dir, task_id)) if task_api_events_path(client_dir, task_id) else None
             ),
+            trace_path=str(task_trace_path(client_dir, task_id)) if task_trace_path(client_dir, task_id) else None,
             settings=agent_settings,
             mcp_env=mcp_env,
         )
