@@ -21,6 +21,30 @@ Shared storage
   data/api/<task_id>/
 ```
 
+## 进程隔离
+
+这个队列层的核心目的不是单纯限制并发，而是把 API 进程和审查执行进程分开。
+
+旧结构中，`/api/review/jobs` 会在 uvicorn 所在的 API 进程内用 `asyncio.create_task(...)` 启动审查任务。此时 `/status` 请求和 workflow、MCP、LLM 调用、DOCX 生成、日志写入都共享同一个 Python 进程、同一个事件循环、同一组线程池和同一份进程资源。即使 `/status` 逻辑只是读取 `task.json`，它也需要等待 API 进程获得调度机会。
+
+队列结构中：
+
+```text
+API process
+  /api/review/jobs
+  /api/review/jobs/status
+  /api/review/jobs/result
+
+Worker process
+  workflow.run()
+  MCP
+  LLM calls
+  DOCX generation
+  task logs
+```
+
+worker 忙于审查时，API 进程仍然可以处理 `/status`。这就是本阶段引入 Celery 的主要价值。Celery 的并发控制只是附带能力；真正解决的是 HTTP 状态查询和重型审查任务不再抢同一个 API 进程。
+
 `POST /api/review/jobs` 仍然负责保存输入文件、创建 `task.json` 并返回 `task_id`。当 `queue.enabled=true` 时，API 不再直接执行审查 workflow，而是把 `client_dir` 和 `task_id` 投递到 Celery 队列。
 
 `POST /api/review/jobs/status` 仍然只读取 `data/api/<task_id>/task.json`。它不等待模型调用、MCP、DOCX 生成或日志写入。

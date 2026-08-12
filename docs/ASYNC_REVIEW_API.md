@@ -57,7 +57,7 @@ POST /api/review/jobs/result
   -> 仅 succeeded 后可输出结果 DOCX 文件流或 URL
 ```
 
-当 `queue.enabled=true` 时，提交接口只创建任务并投递到队列，审查 workflow 由独立 Celery worker 执行。状态查询仍然只读取 `task.json`，外部 API 路径、鉴权方式和请求体不变。
+当 `queue.enabled=true` 时，提交接口只创建任务并投递到队列，审查 workflow 由独立 Celery worker 进程执行。状态查询仍然只读取 `task.json`，外部 API 路径、鉴权方式和请求体不变。这个设计的关键是进程隔离：`/status` 所在的 API 进程不再直接承载 workflow、MCP、LLM 调用和 DOCX 生成。
 
 `GET /api/review/jobs/{task_id}` 和 `POST /api/review/jobs/{task_id}/result` 保留为兼容接口。`POST /api/review/jobs/{task_id}/cancel` 仍使用 path 中的 `task_id`，只能取消 `pending` 或 `queued` 任务。`running` 表示任务已经进入 `workflow.run()`，该 API 不支持中止。
 
