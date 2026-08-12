@@ -279,10 +279,6 @@ QUEUE_BROKER_URL = _as_str(
     cfg_optional("queue", "broker_url", "redis://localhost:6379/0"),
     "queue.broker_url",
 )
-QUEUE_RESULT_BACKEND = _as_str(
-    cfg_optional("queue", "result_backend", "redis://localhost:6379/1"),
-    "queue.result_backend",
-)
 
 CHUNK_SIZE = _as_int(cfg("retrieval", "chunk_size"), "retrieval.chunk_size")
 CHUNK_OVERLAP = _as_int(cfg("retrieval", "chunk_overlap"), "retrieval.chunk_overlap")

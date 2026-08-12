@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from celery import Celery
 
-from config import QUEUE_BROKER_URL, QUEUE_RESULT_BACKEND
+from config import QUEUE_BROKER_URL
 
 
 celery_app = Celery(
     "contract_agent",
     broker=QUEUE_BROKER_URL,
-    backend=QUEUE_RESULT_BACKEND,
     include=["task_queue.review_tasks"],
 )
 
@@ -20,4 +19,3 @@ celery_app.conf.update(
     enable_utc=False,
     task_track_started=True,
 )
-

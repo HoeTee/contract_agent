@@ -113,7 +113,6 @@ http://127.0.0.1:5000/health
 queue:
   enabled: true
   broker_url: "redis://redis:6379/0"
-  result_backend: "redis://redis:6379/1"
 ```
 
 运行时至少包含：

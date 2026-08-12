@@ -31,13 +31,11 @@ Shared storage
 queue:
   enabled: true
   broker_url: "redis://localhost:6379/0"
-  result_backend: "redis://localhost:6379/1"
 ```
 
 - `enabled=true`：`/api/review/jobs` 提交后投递到 Celery。
 - `enabled=false`：回退到旧行为，在 API 进程内 `asyncio.create_task(...)` 执行审查。
 - `broker_url`：Celery broker 地址，API 投递任务、worker 消费任务都使用它。
-- `result_backend`：Celery task 结果后端。业务状态仍以 `data/api/<task_id>/task.json` 为准。
 
 Redis 是独立服务，不会随 `uvicorn` 自动启动。本机默认地址是 `redis://localhost:6379/...`。Docker Compose 内部应使用 service 名称，例如 `redis://redis:6379/0`。
 
