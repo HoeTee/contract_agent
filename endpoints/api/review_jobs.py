@@ -11,13 +11,14 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from config import (
-    API_REQUIRE_REQUEST_MODEL_KEYS,
+    API_REQUIRE_REQUEST_MODEL_CONFIG,
     API_KEEP_OUTPUT,
     API_RESULT_OUTPUT_DEFAULT,
     API_RESULT_UPLOAD_ENABLED,
     API_URL_DOWNLOAD_MAX_BYTES,
     API_URL_DOWNLOAD_TIMEOUT_SECONDS,
     DEFAULT_CRITERIA_PATH,
+    infer_rerank_provider,
 )
 from endpoints.api.client_mapping import resolve_api_client
 from endpoints.review.job_worker import run_async_review_job
@@ -33,7 +34,7 @@ from endpoints.review.task_store import (
     output_dir,
     read_task,
     request_cancel,
-    save_task_model_keys,
+    save_task_model_config,
     save_task_input_url,
     save_task_input_upload,
     write_task_log_event,
@@ -44,7 +45,14 @@ from endpoints.runtime.json_response import pretty_json_response
 
 
 api_jobs_router = APIRouter()
-MODEL_KEY_FIELDS = ("llm_api_key", "embedding_api_key", "reranker_api_key")
+MODEL_CONFIG_FIELDS = (
+    "llm_api_key",
+    "llm_model_name",
+    "embedding_api_key",
+    "embedding_model_name",
+    "reranker_api_key",
+    "reranker_model_name",
+)
 
 
 def _is_upload_file(value: object) -> bool:
@@ -69,23 +77,32 @@ def _download_http_status(exc: Exception) -> int | None:
     return None
 
 
-def _extract_request_model_keys(data: dict | object) -> tuple[dict[str, str] | None, list[str]]:
-    if not API_REQUIRE_REQUEST_MODEL_KEYS:
-        return None, []
+def _extract_request_model_config(
+    data: dict | object,
+) -> tuple[dict[str, str] | None, list[str], str | None]:
+    if not API_REQUIRE_REQUEST_MODEL_CONFIG:
+        return None, [], None
 
-    model_keys: dict[str, str] = {}
+    model_config: dict[str, str] = {}
     missing: list[str] = []
-    for field in MODEL_KEY_FIELDS:
+    for field in MODEL_CONFIG_FIELDS:
         value = data.get(field) if hasattr(data, "get") else None
         if not isinstance(value, str) or not value.strip():
             missing.append(field)
         else:
-            model_keys[field] = value.strip()
-    return model_keys, missing
+            model_config[field] = value.strip()
+    if missing:
+        return None, missing, None
+
+    try:
+        model_config["reranker_provider"] = infer_rerank_provider(model_config["reranker_model_name"])
+    except RuntimeError as exc:
+        return None, [], str(exc)
+    return model_config, [], None
 
 
-def _model_keys_meta(model_keys: dict[str, str] | None) -> dict[str, object]:
-    if not model_keys:
+def _model_config_meta(model_config: dict[str, str] | None) -> dict[str, object]:
+    if not model_config:
         return {
             "source": "env",
             "llm": False,
@@ -94,9 +111,13 @@ def _model_keys_meta(model_keys: dict[str, str] | None) -> dict[str, object]:
         }
     return {
         "source": "request",
-        "llm": bool(model_keys.get("llm_api_key")),
-        "embedding": bool(model_keys.get("embedding_api_key")),
-        "reranker": bool(model_keys.get("reranker_api_key")),
+        "llm": bool(model_config.get("llm_api_key")),
+        "embedding": bool(model_config.get("embedding_api_key")),
+        "reranker": bool(model_config.get("reranker_api_key")),
+        "llm_model_name": model_config.get("llm_model_name"),
+        "embedding_model_name": model_config.get("embedding_model_name"),
+        "reranker_model_name": model_config.get("reranker_model_name"),
+        "reranker_provider": model_config.get("reranker_provider"),
     }
 
 
@@ -276,17 +297,24 @@ async def submit_review_job(request: Request):
     criteria_source = "default"
     criteria_filename = None
     selected_criteria_path = Path(DEFAULT_CRITERIA_PATH)
-    request_model_keys = None
+    request_model_config = None
 
     if content_type.startswith("multipart/form-data"):
         form = await request.form()
-        request_model_keys, missing_model_keys = _extract_request_model_keys(form)
-        if missing_model_keys:
+        request_model_config, missing_model_config, invalid_model_config = _extract_request_model_config(form)
+        if missing_model_config:
             return _submit_error_response(
                 task_id=task_id,
                 status_code=400,
-                code="MODEL_KEYS_REQUIRED",
-                message=f"Missing request model key fields: {', '.join(missing_model_keys)}.",
+                code="MODEL_CONFIG_REQUIRED",
+                message=f"Missing request model config fields: {', '.join(missing_model_config)}.",
+            )
+        if invalid_model_config:
+            return _submit_error_response(
+                task_id=task_id,
+                status_code=400,
+                code="MODEL_CONFIG_INVALID",
+                message=invalid_model_config,
             )
         if "file_url" in form or "criteria_file_url" in form:
             return _submit_error_response(
@@ -379,13 +407,20 @@ async def submit_review_job(request: Request):
                 message="JSON body must be an object.",
             )
 
-        request_model_keys, missing_model_keys = _extract_request_model_keys(payload)
-        if missing_model_keys:
+        request_model_config, missing_model_config, invalid_model_config = _extract_request_model_config(payload)
+        if missing_model_config:
             return _submit_error_response(
                 task_id=task_id,
                 status_code=400,
-                code="MODEL_KEYS_REQUIRED",
-                message=f"Missing request model key fields: {', '.join(missing_model_keys)}.",
+                code="MODEL_CONFIG_REQUIRED",
+                message=f"Missing request model config fields: {', '.join(missing_model_config)}.",
+            )
+        if invalid_model_config:
+            return _submit_error_response(
+                task_id=task_id,
+                status_code=400,
+                code="MODEL_CONFIG_INVALID",
+                message=invalid_model_config,
             )
 
         file_url = payload.get("file_url")
@@ -543,17 +578,21 @@ async def submit_review_job(request: Request):
         criteria_path=selected_criteria_path,
         result_filename=result_filename,
         result_path=result_path,
-        model_keys_meta=_model_keys_meta(request_model_keys),
+        model_config_meta=_model_config_meta(request_model_config),
     )
-    if request_model_keys:
-        save_task_model_keys(client.client_dir, task_id, request_model_keys)
+    if request_model_config:
+        save_task_model_config(client.client_dir, task_id, request_model_config)
         write_task_log_event(
             client.client_dir,
             task_id,
-            "request_model_keys_received",
+            "request_model_config_received",
             llm=True,
             embedding=True,
             reranker=True,
+            llm_model_name=request_model_config["llm_model_name"],
+            embedding_model_name=request_model_config["embedding_model_name"],
+            reranker_model_name=request_model_config["reranker_model_name"],
+            reranker_provider=request_model_config["reranker_provider"],
         )
     write_task_log_event(
         client.client_dir,

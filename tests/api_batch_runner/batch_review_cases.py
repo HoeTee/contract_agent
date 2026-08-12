@@ -37,8 +37,11 @@ class Settings:
     log_dir: Path
     overwrite: bool
     llm_api_key: str
+    llm_model_name: str
     embedding_api_key: str
+    embedding_model_name: str
     reranker_api_key: str
+    reranker_model_name: str
 
 
 def parse_bool(value: str | None, *, default: bool = False) -> bool:
@@ -88,8 +91,11 @@ def load_settings() -> Settings:
         log_dir=(root / os.getenv("LOG_DIR", "logs")).resolve(),
         overwrite=parse_bool(os.getenv("OVERWRITE"), default=False),
         llm_api_key=optional_env("LLM_API_KEY"),
+        llm_model_name=optional_env("LLM_MODEL_NAME"),
         embedding_api_key=optional_env("EMBEDDING_API_KEY"),
+        embedding_model_name=optional_env("EMBEDDING_MODEL_NAME"),
         reranker_api_key=optional_env("RERANKER_API_KEY"),
+        reranker_model_name=optional_env("RERANKER_MODEL_NAME"),
     )
 
 
@@ -112,11 +118,14 @@ def output_name(input_path: Path) -> str:
     return f"【已AI审查】{stem}.docx"
 
 
-def request_model_key_fields(settings: Settings) -> dict[str, str]:
+def request_model_config_fields(settings: Settings) -> dict[str, str]:
     fields = {
         "llm_api_key": settings.llm_api_key,
+        "llm_model_name": settings.llm_model_name,
         "embedding_api_key": settings.embedding_api_key,
+        "embedding_model_name": settings.embedding_model_name,
         "reranker_api_key": settings.reranker_api_key,
+        "reranker_model_name": settings.reranker_model_name,
     }
     return {key: value for key, value in fields.items() if value}
 
@@ -139,7 +148,7 @@ async def submit_job(client: httpx.AsyncClient, settings: Settings, input_path: 
         response = await client.post(
             f"{settings.base_url}/api/review/jobs",
             headers={"Authorization": settings.api_key},
-            data=request_model_key_fields(settings),
+            data=request_model_config_fields(settings),
             files=files,
         )
     data = parse_json_response(response)

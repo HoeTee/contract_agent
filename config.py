@@ -126,6 +126,33 @@ def _as_str_tuple(value: Any, field_name: str, *, allow_empty: bool = False) -> 
     return result
 
 
+def _as_provider_model_names(value: Any, field_name: str) -> dict[str, tuple[str, ...]]:
+    if not isinstance(value, dict):
+        raise RuntimeError(f"{field_name} must be a mapping of provider to model name list.")
+    result: dict[str, tuple[str, ...]] = {}
+    seen: dict[str, str] = {}
+    for provider, model_names in value.items():
+        provider_name = _as_str(provider, f"{field_name} provider").lower()
+        if provider_name not in {"higress_qwen", "bge", "dashscope_qwen"}:
+            raise RuntimeError(
+                f"{field_name} provider must be one of 'higress_qwen', 'bge', or 'dashscope_qwen', "
+                f"got {provider_name!r}."
+            )
+        names = _as_str_tuple(model_names, f"{field_name}.{provider_name}")
+        for model_name in names:
+            normalized = model_name.lower()
+            if normalized in seen:
+                raise RuntimeError(
+                    f"{field_name} model name {model_name!r} is mapped to both "
+                    f"{seen[normalized]!r} and {provider_name!r}."
+                )
+            seen[normalized] = provider_name
+        result[provider_name] = names
+    if not result:
+        raise RuntimeError(f"{field_name} must contain at least one provider mapping.")
+    return result
+
+
 def _as_size_bytes(value: Any, field_name: str) -> int:
     if isinstance(value, int):
         if value <= 0:
@@ -157,6 +184,14 @@ def _project_path(value: Any, field_name: str) -> str:
     return str(path)
 
 
+def infer_rerank_provider(model_name: str) -> str:
+    normalized = _as_str(model_name, "reranker model name").lower()
+    for provider, model_names in RERANK_PROVIDER_MODEL_NAMES.items():
+        if normalized in {item.lower() for item in model_names}:
+            return provider
+    raise RuntimeError(f"Unsupported reranker model name: {model_name!r}.")
+
+
 MCP_SERVER_PATH = str(PROJECT_ROOT_PATH / "mcp_service" / "server" / "server.py")
 MCP_SERVER_URL = "http://localhost:8000/mcp"
 DOCS_DIR = str(PROJECT_ROOT_PATH / "docs")
@@ -164,17 +199,17 @@ DEFAULT_CRITERIA_PATH = str(PROJECT_ROOT_PATH / "resources" / "criteria" / "crit
 REPORTS_DIR = str(PROJECT_ROOT_PATH / "reports")
 LOGS_DIR = str(PROJECT_ROOT_PATH / "logs" / "workflow")
 
-API_REQUIRE_REQUEST_MODEL_KEYS = _parse_bool(
-    cfg_optional("api", "require_request_model_keys", False),
-    "api.require_request_model_keys",
+API_REQUIRE_REQUEST_MODEL_CONFIG = _parse_bool(
+    cfg_optional("api", "require_request_model_config", False),
+    "api.require_request_model_config",
 )
 
-LLM_API_KEY = env_optional("LLM_API_KEY") if API_REQUIRE_REQUEST_MODEL_KEYS else env_required("LLM_API_KEY")
-EMBED_API_KEY = env_optional("EMBED_API_KEY") if API_REQUIRE_REQUEST_MODEL_KEYS else env_required("EMBED_API_KEY")
+LLM_API_KEY = env_optional("LLM_API_KEY") if API_REQUIRE_REQUEST_MODEL_CONFIG else env_required("LLM_API_KEY")
+EMBED_API_KEY = env_optional("EMBED_API_KEY") if API_REQUIRE_REQUEST_MODEL_CONFIG else env_required("EMBED_API_KEY")
 SESSION_SECRET_KEY = env_required("SESSION_SECRET_KEY")
 
 LLM_BASE_URL = _as_str(cfg("llm", "base_url"), "llm.base_url")
-LLM_NAME = _as_str(cfg("llm", "name"), "llm.name")
+LLM_NAME = env_optional("LLM_MODEL_NAME") if API_REQUIRE_REQUEST_MODEL_CONFIG and env_optional("LLM_MODEL_NAME") else _as_str(cfg("llm", "name"), "llm.name")
 LLM_ENABLE_THINKING = _parse_bool(cfg("llm", "enable_thinking"), "llm.enable_thinking")
 MAX_CONTEXT_TOKENS = _as_int(cfg("llm", "max_context_tokens"), "llm.max_context_tokens")
 MAX_RESULT_TOKENS = _as_int(cfg("llm", "max_result_tokens"), "llm.max_result_tokens")
@@ -184,27 +219,34 @@ TOP_P = _as_float(cfg("llm", "top_p"), "llm.top_p")
 SEED = _as_int(cfg("llm", "seed"), "llm.seed")
 
 EMBED_BASE_URL = _as_str(cfg("embedding", "base_url"), "embedding.base_url")
-EMBED_NAME = _as_str(cfg("embedding", "name"), "embedding.name")
+EMBED_NAME = (
+    env_optional("EMBEDDING_MODEL_NAME")
+    if API_REQUIRE_REQUEST_MODEL_CONFIG and env_optional("EMBEDDING_MODEL_NAME")
+    else _as_str(cfg("embedding", "name"), "embedding.name")
+)
 
 RERANK_BASE_URL = _as_str(cfg("rerank", "base_url"), "rerank.base_url")
-RERANK_NAME = _as_str(cfg("rerank", "name"), "rerank.name")
-RERANK_PROVIDER = _as_str(
-    cfg("rerank", "provider"),
-    "rerank.provider",
-).lower()
-if RERANK_PROVIDER not in {"higress_qwen", "bge", "dashscope_qwen"}:
-    raise RuntimeError(
-        "rerank.provider must be one of 'higress_qwen', 'bge', or 'dashscope_qwen', "
-        f"got {RERANK_PROVIDER!r}."
-    )
+RERANK_NAME = (
+    env_optional("RERANKER_MODEL_NAME")
+    if API_REQUIRE_REQUEST_MODEL_CONFIG and env_optional("RERANKER_MODEL_NAME")
+    else _as_str(cfg("rerank", "name"), "rerank.name")
+)
+RERANK_PROVIDER_MODEL_NAMES = _as_provider_model_names(
+    cfg("rerank", "provider_model_names"),
+    "rerank.provider_model_names",
+)
+RERANK_PROVIDER = infer_rerank_provider(RERANK_NAME)
 RERANK_INSTRUCT = _as_str(cfg("rerank", "instruct"), "rerank.instruct")
 RERANK_API_KEY = env_optional("RERANK_API_KEY")
 if (
     RERANK_PROVIDER in {"higress_qwen", "dashscope_qwen"}
     and not RERANK_API_KEY
-    and not API_REQUIRE_REQUEST_MODEL_KEYS
+    and not API_REQUIRE_REQUEST_MODEL_CONFIG
 ):
-    raise RuntimeError(f"Missing required .env field: RERANK_API_KEY for rerank.provider={RERANK_PROVIDER!r}")
+    raise RuntimeError(
+        f"Missing required .env field: RERANK_API_KEY for reranker provider {RERANK_PROVIDER!r} "
+        "inferred from rerank.provider_model_names."
+    )
 
 MAX_REFLECTION_ROUNDS = _as_int(
     cfg("workflow", "max_reflection_rounds"),

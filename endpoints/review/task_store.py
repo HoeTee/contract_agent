@@ -105,8 +105,8 @@ def runtime_input_dir(client_dir: str, task_id: str) -> Path:
     return task_dir(client_dir, task_id) / "runtime_input"
 
 
-def model_keys_path(client_dir: str, task_id: str) -> Path:
-    return runtime_input_dir(client_dir, task_id) / "model_keys.json"
+def model_config_path(client_dir: str, task_id: str) -> Path:
+    return runtime_input_dir(client_dir, task_id) / "model_config.json"
 
 
 def should_write_task_file(kind: str) -> bool:
@@ -224,17 +224,17 @@ def cleanup_runtime_input(client_dir: str, task_id: str) -> None:
     shutil.rmtree(runtime_dir)
 
 
-def save_task_model_keys(client_dir: str, task_id: str, model_keys: dict[str, str]) -> Path:
-    path = model_keys_path(client_dir, task_id)
+def save_task_model_config(client_dir: str, task_id: str, model_config: dict[str, str]) -> Path:
+    path = model_config_path(client_dir, task_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     temp_path = path.with_suffix(".json.tmp")
-    temp_path.write_text(json.dumps(model_keys, ensure_ascii=False, indent=2), encoding="utf-8")
+    temp_path.write_text(json.dumps(model_config, ensure_ascii=False, indent=2), encoding="utf-8")
     temp_path.replace(path)
     return path
 
 
-def read_task_model_keys(client_dir: str, task_id: str) -> dict[str, str] | None:
-    path = model_keys_path(client_dir, task_id)
+def read_task_model_config(client_dir: str, task_id: str) -> dict[str, str] | None:
+    path = model_config_path(client_dir, task_id)
     if not path.exists():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -379,7 +379,7 @@ def create_task(
     criteria_path: Path,
     result_filename: str,
     result_path: Path,
-    model_keys_meta: dict[str, Any] | None = None,
+    model_config_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     task_api_log = task_api_events_path(client_dir, task_id)
     task_workflow_log = task_workflow_log_dir(client_dir, task_id)
@@ -417,7 +417,7 @@ def create_task(
             "heartbeat_at": None,
             "interrupted_at": None,
         },
-        "model_keys": model_keys_meta or {
+        "model_config": model_config_meta or {
             "source": "env",
             "llm": False,
             "embedding": False,

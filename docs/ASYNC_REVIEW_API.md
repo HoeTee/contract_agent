@@ -82,15 +82,18 @@ Authorization: <api_key>
 | `multipart/form-data` | 上传二进制 DOCX 文件 | `file` | `criteria_file` |
 | `application/json` | 通过 URL 下载 DOCX | `file_url` | `criteria_file_url` |
 
-如果 `config.yaml` 中 `api.require_request_model_keys: true`，服务不会采用 `.env` 中的 `LLM_API_KEY`、`EMBED_API_KEY`、`RERANK_API_KEY`，提交任务时必须在请求体中同时传入：
+如果 `config.yaml` 中 `api.require_request_model_config: true`，服务不会采用根目录 `.env` 和 `config.yaml` 中的模型配置，提交任务时必须在请求体中同时传入模型密钥和模型名称：
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `llm_api_key` | 字符串 | 是 | 本次任务使用的 LLM 密钥。 |
+| `llm_model_name` | 字符串 | 是 | 本次任务使用的 LLM 模型名称。 |
 | `embedding_api_key` | 字符串 | 是 | 本次任务使用的 Embedding 密钥。 |
+| `embedding_model_name` | 字符串 | 是 | 本次任务使用的 Embedding 模型名称。 |
 | `reranker_api_key` | 字符串 | 是 | 本次任务使用的 Reranker 密钥。 |
+| `reranker_model_name` | 字符串 | 是 | 本次任务使用的 Reranker 模型名称。 |
 
-如果 `api.require_request_model_keys: false`，服务采用 `.env` 中的模型密钥，请求体中的上述字段不会被使用。
+如果 `api.require_request_model_config: false`，服务采用根目录 `.env` 中的模型密钥和 `config.yaml` 中的模型名称，请求体中的上述字段不会被使用。Reranker 请求体风格不由客户传入，服务会根据 `reranker_model_name` 在 `config.yaml` 的 `rerank.provider_model_names` 中查找对应 provider。
 
 **本地文件上传**
 
@@ -115,8 +118,11 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
   -F "file=@C:/Users/lenovo/Desktop/contract.docx" `
   -F "criteria_file=@C:/Users/lenovo/Desktop/criteria.docx" `
   -F "llm_api_key=<llm_api_key>" `
+  -F "llm_model_name=<llm_model_name>" `
   -F "embedding_api_key=<embedding_api_key>" `
-  -F "reranker_api_key=<reranker_api_key>"
+  -F "embedding_model_name=<embedding_model_name>" `
+  -F "reranker_api_key=<reranker_api_key>" `
+  -F "reranker_model_name=<reranker_model_name>"
 ```
 
 **URL 输入**
@@ -140,7 +146,7 @@ PowerShell 示例：
 curl.exe -X POST "http://localhost:5000/api/review/jobs" `
   -H "Authorization: platform-key-for-client-a" `
   -H "Content-Type: application/json" `
-  -d '{ "file_url": "https://example.com/contract.docx", "criteria_file_url": "https://example.com/criteria.docx", "llm_api_key": "<llm_api_key>", "embedding_api_key": "<embedding_api_key>", "reranker_api_key": "<reranker_api_key>" }'
+  -d '{ "file_url": "https://example.com/contract.docx", "criteria_file_url": "https://example.com/criteria.docx", "llm_api_key": "<llm_api_key>", "llm_model_name": "<llm_model_name>", "embedding_api_key": "<embedding_api_key>", "embedding_model_name": "<embedding_model_name>", "reranker_api_key": "<reranker_api_key>", "reranker_model_name": "<reranker_model_name>" }'
 ```
 
 `application/json` 只支持 URL 输入：`file_url` 必填，`criteria_file_url` 可选。URL 文件会先下载到任务 `input/` 目录，再执行与本地上传一致的 DOCX 校验。保存文件名优先使用下载响应 `Content-Disposition` 中的 `filename*` / `filename`，没有时使用最终 URL path、原始 URL path，仍取不到时使用默认 fallback。
@@ -192,6 +198,7 @@ HTTP `202`：
 | --- | --- | --- |
 | `202` | 任务已接收。 | 任务 ID、初始状态和消息。 |
 | `400` | 已生成 `task_id` 后，合同或审查标准不是有效 DOCX，URL 输入字段无效，或审查标准内容不符合要求。 | `{ "task_id": "...", "status": "failed", "message": "...", "error": {...} }` |
+| `400` | `api.require_request_model_config=true` 时缺少请求级模型配置字段，或 `reranker_model_name` 不在 `rerank.provider_model_names` 映射中。 | `{ "task_id": "...", "status": "failed", "message": "...", "error": {...} }` |
 | `415` | 已生成 `task_id` 后，请求 `Content-Type` 不受支持。 | `{ "task_id": "...", "status": "failed", "message": "Unsupported Content-Type.", "error": {...} }` |
 | `502` | 已生成 `task_id` 后，合同 URL 或审查标准 URL 下载失败。 | `{ "task_id": "...", "status": "failed", "message": "...", "error": {...} }` |
 | `400` | 未传 `Authorization`，或平台 key 没有本地客户映射。 | `{ "detail": "Authorization header is required." }` 或 `{ "detail": "API key has no local client mapping." }` |

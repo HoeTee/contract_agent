@@ -19,7 +19,7 @@ from endpoints.review.task_store import (
     mark_worker_heartbeat,
     mark_worker_started,
     read_task,
-    read_task_model_keys,
+    read_task_model_config,
     task_api_events_path,
     task_conversation_log_dir,
     task_mcp_log_file,
@@ -62,15 +62,21 @@ async def run_async_review_job(client_dir: str, task_id: str) -> None:
             mark_cancelled(client_dir, task_id)
             return
 
-        model_keys = read_task_model_keys(client_dir, task_id)
+        model_config = read_task_model_config(client_dir, task_id)
         agent_settings = None
         mcp_env = None
-        if model_keys:
-            agent_settings = Settings(api_key=model_keys["llm_api_key"])
+        if model_config:
+            agent_settings = Settings(
+                api_key=model_config["llm_api_key"],
+                model=model_config["llm_model_name"],
+            )
             mcp_env = {
-                "LLM_API_KEY": model_keys["llm_api_key"],
-                "EMBED_API_KEY": model_keys["embedding_api_key"],
-                "RERANK_API_KEY": model_keys["reranker_api_key"],
+                "LLM_API_KEY": model_config["llm_api_key"],
+                "LLM_MODEL_NAME": model_config["llm_model_name"],
+                "EMBED_API_KEY": model_config["embedding_api_key"],
+                "EMBEDDING_MODEL_NAME": model_config["embedding_model_name"],
+                "RERANK_API_KEY": model_config["reranker_api_key"],
+                "RERANKER_MODEL_NAME": model_config["reranker_model_name"],
             }
 
         workflow = ContractReviewWorkflow(

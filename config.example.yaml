@@ -14,11 +14,16 @@ embedding:
   name: "text-embedding-v4"
 
 rerank:
-  # provider can be: higress_qwen, bge, dashscope_qwen
   base_url: "http://higress.llmgateway.dev.qa.zrub.com/v1/rerank"
   name: "Qwen3-Reranker-8B"
-  provider: "higress_qwen"
   instruct: "Given a contract review query, retrieve relevant institutional policy passages."
+  provider_model_names:
+    higress_qwen:
+      - "Qwen3-Reranker-8B"
+    bge:
+      - "bge-reranker-v2-m3"
+    dashscope_qwen:
+      - "gte-rerank-v2"
 
 workflow:
   max_reflection_rounds: 5
@@ -36,7 +41,7 @@ retrieval:
   rerank_top_n: 5
 
 api:
-  require_request_model_keys: false
+  require_request_model_config: false
   keep_input: true
   keep_output: true
   write_logs: true

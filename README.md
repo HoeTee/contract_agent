@@ -42,8 +42,11 @@ API 集成从这些接口开始：
 
 ```env
 LLM_API_KEY=...
+LLM_MODEL_NAME=
 EMBED_API_KEY=...
+EMBEDDING_MODEL_NAME=
 RERANK_API_KEY=...
+RERANKER_MODEL_NAME=
 SESSION_SECRET_KEY=replace-with-a-long-random-secret
 ```
 
@@ -53,7 +56,7 @@ SESSION_SECRET_KEY=replace-with-a-long-random-secret
 
 - `llm`：审查模型地址和生成限制。
 - `embedding`：向量模型地址。
-- `rerank`：reranker 厂商、地址、模型名和可选 instruction。
+- `rerank`：reranker 地址、模型名、provider 模型名映射和可选 instruction。
 - `workflow`：并发、重试、超时和 subagent 工具白名单。
 - `api`：异步 API 文件留存、结果 URL 上传、元数据字段、回调和 URL 下载限制。
 - `logging`：工作流日志开关。
