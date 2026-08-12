@@ -8,6 +8,7 @@ import re
 import time
 
 from config import (
+    CRITERION_RETRY_MAX_ATTEMPTS,
     MAX_REFLECTION_ROUNDS,
     MAX_ORCHESTRATOR_CONCURRENCY,
     SUBAGENT_ALLOWED_TOOLS,
@@ -18,7 +19,8 @@ from agents.reflector import ReflectorAgent
 from agents.prompts.cn_prompts import SUB_AGENT_BASE_PROMPT
 from agents.schemas import SubAgentOutput
 from endpoints.runtime.errors import ModelCallError, classify_model_call_error
-from loggers.trace_helpers import criterion_inputs, criterion_outputs
+from endpoints.review.review_state import ReviewStateStore
+from loggers.trace_helpers import criterion_inputs, criterion_outputs, error_info
 from loggers.trace_logger import get_current_trace
 
 
@@ -57,11 +59,13 @@ class OrchestratorAgent:
         logger=None,
         settings=None,
         api_events_path: str | None = None,
+        state_store: ReviewStateStore | None = None,
     ):
         self.mcp_client = mcp_client
         self.logger = logger
         self.settings = settings
         self.api_events_path = api_events_path
+        self.state_store = state_store
         self.tools = None
         self._warned_missing_subagent_tools = False
         self.retrieval_tokens = 0  # Track MCP tool internal LLM tokens
@@ -343,6 +347,54 @@ class OrchestratorAgent:
             "error_message": None,
         }
 
+    async def _execute_criterion_with_recovery(
+        self,
+        criterion: dict,
+        *,
+        max_attempts: int,
+    ) -> dict:
+        cid = str(criterion["id"])
+        if self.state_store is not None:
+            existing_output = self.state_store.load_criterion_output(cid)
+            if existing_output is not None:
+                existing_output["recovered_from_state"] = True
+                print(f"[Orchestrator] {cid}: reused criterion output from state.")
+                return existing_output
+
+        last_error: BaseException | None = None
+        for attempt in range(1, max_attempts + 1):
+            if self.state_store is not None:
+                self.state_store.save_criterion_input(
+                    criterion,
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                )
+            try:
+                result = await self.execute_single_criterion(criterion)
+                if self.state_store is not None:
+                    self.state_store.save_criterion_output(result, attempt=attempt)
+                return result
+            except Exception as exc:
+                last_error = exc
+                if self.state_store is not None:
+                    self.state_store.save_criterion_error(
+                        criterion,
+                        exc,
+                        attempt=attempt,
+                        max_attempts=max_attempts,
+                    )
+                if attempt < max_attempts:
+                    print(
+                        f"[Orchestrator] {cid}: attempt {attempt}/{max_attempts} failed, retrying: {exc}"
+                    )
+                    continue
+                print(f"[Orchestrator] {cid}: failed after {max_attempts} attempt(s): {exc}")
+                raise
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError(f"Criterion {cid} did not produce a result.")
+
     async def execute_criteria(
             self,
             criteria_list: list[dict]
@@ -350,19 +402,30 @@ class OrchestratorAgent:
         """Execute criteria with concurrency control and auto-retry for failures."""
         # execute_tasks = [self.execute_single_criterion(criterion) for criterion in criteria_list]
         semaphore = asyncio.Semaphore(MAX_ORCHESTRATOR_CONCURRENCY)
+        max_attempts = max(1, int(CRITERION_RETRY_MAX_ATTEMPTS))
 
         async def execute_with_limit(criterion: dict) -> dict:
             # async with semaphore:
             await semaphore.acquire()
+            span = None
             try:
                 async with get_current_trace().span(
                     f"criterion.{criterion.get('id')}",
                     run_type="criterion",
                     inputs=criterion_inputs(criterion),
                 ) as span:
-                    result = await self.execute_single_criterion(criterion)
+                    result = await self._execute_criterion_with_recovery(
+                        criterion,
+                        max_attempts=max_attempts,
+                    )
+                    if result.get("recovered_from_state"):
+                        span.set_metadata({"recovered_from_state": True})
                     span.set_outputs(criterion_outputs(result))
                     return result
+            except Exception as exc:
+                if span is not None:
+                    span.set_error(error_info(exc))
+                raise
             finally: 
                 semaphore.release()
 
@@ -392,5 +455,16 @@ class OrchestratorAgent:
 
         total_tokens = sum(r.get("tokens", 0) for r in final_results)
         print(f"  Completed: {len(final_results)} reviews, Total tokens: {total_tokens:,}")
+
+        failed_results = [result for result in final_results if result.get("status") == "ERROR"]
+        if failed_results:
+            failed_summary = "; ".join(
+                f"{result.get('criterion_id')}: {result.get('error_message')}"
+                for result in failed_results
+            )
+            raise RuntimeError(
+                "Criterion execution failed after recovery attempts: "
+                f"{failed_summary}"
+            )
 
         return final_results

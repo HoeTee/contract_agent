@@ -102,6 +102,8 @@ worker 容器数量 * 每个 worker 的 --concurrency
 
 这个并发只控制“整份合同审查任务”的并发，不控制单份合同内部 subagent/criterion 并发。单份合同内部并发仍由 `workflow.max_orchestrator_concurrency` 控制。
 
+第二阶段的 criterion 级恢复、SubAgent/Reflector 执行边界、以及为什么业务输入输出不写入 Redis broker，见 `docs/CRITERION_RECOVERY.md`。
+
 `POST /api/review/jobs` 仍然负责保存输入文件、创建 `task.json` 并返回 `task_id`。当 `queue.enabled=true` 时，API 不再直接执行审查 workflow，而是把 `client_dir` 和 `task_id` 投递到 Celery 队列。
 
 `POST /api/review/jobs/status` 仍然只读取 `data/api/<task_id>/task.json`。它不等待模型调用、MCP、DOCX 生成或日志写入。

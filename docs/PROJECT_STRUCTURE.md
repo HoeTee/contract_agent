@@ -64,6 +64,7 @@ data/api/<task_id>/
   input/
   output/
   logs/
+  state/
 ```
 
 Web 数据目录：

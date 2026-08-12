@@ -268,6 +268,10 @@ MODEL_CALL_MAX_RETRIES = _as_int(
     cfg("workflow", "model_call_max_retries"),
     "workflow.model_call_max_retries",
 )
+CRITERION_RETRY_MAX_ATTEMPTS = _as_int(
+    cfg_optional("workflow", "criterion_retry_max_attempts", 2),
+    "workflow.criterion_retry_max_attempts",
+)
 SUBAGENT_ALLOWED_TOOLS = _as_str_tuple(
     cfg_optional("workflow", "subagent_allowed_tools", ["llamaindex_search"]),
     "workflow.subagent_allowed_tools",

@@ -85,6 +85,30 @@ def logs_dir(client_dir: str, task_id: str) -> Path:
     return task_dir(client_dir, task_id) / "logs"
 
 
+def state_dir(client_dir: str, task_id: str) -> Path:
+    return task_dir(client_dir, task_id) / "state"
+
+
+def criteria_state_dir(client_dir: str, task_id: str) -> Path:
+    return state_dir(client_dir, task_id) / "criteria"
+
+
+def plan_state_path(client_dir: str, task_id: str) -> Path:
+    return state_dir(client_dir, task_id) / "plan.json"
+
+
+def criterion_input_state_path(client_dir: str, task_id: str, criterion_id: str) -> Path:
+    return criteria_state_dir(client_dir, task_id) / f"{criterion_id}.input.json"
+
+
+def criterion_output_state_path(client_dir: str, task_id: str, criterion_id: str) -> Path:
+    return criteria_state_dir(client_dir, task_id) / f"{criterion_id}.output.json"
+
+
+def criterion_error_state_path(client_dir: str, task_id: str, criterion_id: str) -> Path:
+    return criteria_state_dir(client_dir, task_id) / f"{criterion_id}.error.json"
+
+
 def conversation_log_dir(client_dir: str, task_id: str) -> Path:
     return logs_dir(client_dir, task_id) / "conversations"
 
@@ -426,6 +450,11 @@ def create_task(
             "llm": False,
             "embedding": False,
             "reranker": False,
+        },
+        "state": {
+            "state_dir": str(state_dir(client_dir, task_id)),
+            "plan_path": str(plan_state_path(client_dir, task_id)),
+            "criteria_dir": str(criteria_state_dir(client_dir, task_id)),
         },
         "logs": {
             "api_events_path": str(task_api_log) if task_api_log else None,

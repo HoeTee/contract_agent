@@ -30,6 +30,7 @@ from endpoints.review.task_store import (
 from endpoints.runtime.errors import ModelCallError
 from endpoints.runtime.review_runtime import review_semaphore
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
+from endpoints.review.review_state import ReviewStateStore
 from workflow.workflow import ContractReviewWorkflow
 
 
@@ -95,6 +96,7 @@ async def run_async_review_job(client_dir: str, task_id: str) -> None:
             ),
             settings=agent_settings,
             mcp_env=mcp_env,
+            state_store=ReviewStateStore(client_dir, task_id),
         )
 
         token = set_conversation_log_dir(task_conversation_log_dir(client_dir, task_id))

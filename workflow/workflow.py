@@ -27,6 +27,7 @@ from agents.orchestrator import OrchestratorAgent
 from agents.summarizer import SummarizerAgent
 from mcp_service.client.client import MinimalMCPClient
 from endpoints.runtime.errors import classify_model_call_error
+from endpoints.review.review_state import ReviewStateStore
 
 
 class ContractReviewWorkflow:
@@ -46,6 +47,7 @@ class ContractReviewWorkflow:
         api_events_path: str | None = None,
         trace_path: str | None = None,
         review_outputs_path: str | None = None,
+        state_store: ReviewStateStore | None = None,
         settings: Settings | None = None,
         mcp_env: dict[str, str] | None = None,
     ):
@@ -55,6 +57,7 @@ class ContractReviewWorkflow:
         self.conversation_log_dir = conversation_log_dir
         self.api_events_path = api_events_path
         self.review_outputs_path = review_outputs_path
+        self.state_store = state_store
         self.settings = settings or Settings()
 
     async def run(
@@ -118,6 +121,7 @@ class ContractReviewWorkflow:
                 await self._emit_progress(progress_callback, "planning", "Extracting review criteria")
                 async with self.trace.span("phase.plan", run_type="phase", inputs={"criteria_chars": len(criteria_md)}) as span:
                     criteria_list = await self._phase_plan(criteria_md)
+                    self._save_plan_state(criteria_list)
                     span.set_outputs({"criteria_count": len(criteria_list)})
 
                 # Phase 4: Execute + Reflect
@@ -186,6 +190,7 @@ class ContractReviewWorkflow:
                         "total_tokens": total_tokens,
                         "token_stats": token_stats,
                         "review_outputs_log": review_outputs_path,
+                        "state_dir": str(self.state_store.root_dir) if self.state_store else None,
                     }
                 )
                 self._print_completion_summary(
@@ -204,6 +209,7 @@ class ContractReviewWorkflow:
                     "total_tokens": total_tokens,
                     "retrieval_mode": "llamaindex",
                     "review_outputs_log": review_outputs_path,
+                    "state_dir": str(self.state_store.root_dir) if self.state_store else None,
                 }
 
         finally:
@@ -321,6 +327,23 @@ class ContractReviewWorkflow:
         print("\n[Phase 3] Planning tasks...")
         start = time.time()
 
+        cached_plan = self._load_plan_state()
+        if cached_plan is not None:
+            criteria_list = cached_plan
+            self._planner_tokens = 0
+            self.logger.log(
+                phase="Planning", sender="Workflow", receiver="Planner",
+                action="reuse_plan_state",
+                input_summary=f"{len(criteria_md)} chars criteria",
+                output_summary=f"{len(criteria_list)} criteria reused",
+                tokens=0,
+                duration=round(time.time() - start, 2)
+            )
+            print(f"  Criteria: {len(criteria_list)} tasks reused from state")
+            for c in criteria_list:
+                print(f"    {c['id']}: {c['criterion']}")
+            return criteria_list
+
         planner = PlannerAgent(settings=self.settings)
         plan_result = await planner.design_tasks(criteria_md)
 
@@ -353,6 +376,7 @@ class ContractReviewWorkflow:
             logger=self.logger,
             settings=self.settings,
             api_events_path=self.api_events_path,
+            state_store=self.state_store,
         )
         results = await orchestrator.execute_criteria(criteria_list)
         self._retrieval_tokens = getattr(orchestrator, 'retrieval_tokens', 0)
@@ -413,6 +437,25 @@ class ContractReviewWorkflow:
         if not self.review_outputs_path:
             return None
         return save_review_outputs_json(results, self.review_outputs_path)
+
+    def _save_plan_state(self, criteria_list: list[dict]) -> str | None:
+        """Persist planned criteria so a retry can reuse the planned execution surface."""
+        if self.state_store is None:
+            return None
+        self.state_store.ensure_dirs()
+        return str(self.state_store.save_plan(criteria_list))
+
+    def _load_plan_state(self) -> list[dict] | None:
+        """Load planned criteria from recovery state when the same task is rerun."""
+        if self.state_store is None:
+            return None
+        plan = self.state_store.load_plan()
+        if not plan:
+            return None
+        criteria = plan.get("criteria")
+        if not isinstance(criteria, list):
+            return None
+        return [item for item in criteria if isinstance(item, dict)]
 
     async def _phase_generate_annotated_docx(
         self,
