@@ -64,7 +64,6 @@ class OrchestratorAgent:
         self.api_events_path = api_events_path
         self.tools = None
         self._warned_missing_subagent_tools = False
-        self.reflector = ReflectorAgent(settings=self.settings)
         self.retrieval_tokens = 0  # Track MCP tool internal LLM tokens
 
     async def _get_tools(self) -> list[dict]:
@@ -286,8 +285,9 @@ class OrchestratorAgent:
                 "error_message": None,
             }
 
-        # Step 3: Reflection loop
-        reflector = self.reflector
+        # Step 3: Reflection loop. Each criterion needs its own reflector state;
+        # sharing one ReflectorAgent across concurrent criteria mixes messages.
+        reflector = ReflectorAgent(settings=self.settings)
         for round_num in range(MAX_REFLECTION_ROUNDS):
             missing_text_review_notes = await self._build_missing_text_review_notes(parsed_opinion)
             reflector_input = self._build_reflector_input(
