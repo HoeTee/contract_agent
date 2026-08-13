@@ -119,7 +119,7 @@ data/api/<task_id>/
 - `scripts/manage_api_clients.py`：读写 `api_clients.json`，登记平台 key 指纹映射。
 - `endpoints/api/client_mapping.py`：根据平台 `Authorization` key 映射 `/api` 客户目录。
 - `endpoints/api/review_jobs.py`：异步任务 API 路由。
-- `task_queue/`：普通 `/api` 审查任务队列层，负责 Celery app、task 和投递 helper。
+- `queue/`：普通 `/api` 审查任务队列层，负责 Celery app、task 和投递 helper。
 - `endpoints/review/result_upload.py`：结果 URL 输出使用的附件上传 helper，沿用 `httpx.AsyncClient` multipart 上传。
 - `endpoints/review/task_store.py`：按 client 分区的 task 存储。
 - `endpoints/review/job_worker.py`：异步审查 worker。

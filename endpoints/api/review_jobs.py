@@ -608,7 +608,7 @@ async def submit_review_job(request: Request):
     if QUEUE_ENABLED:
         task = mark_queued(client.client_dir, task_id)
         try:
-            from task_queue.review_queue import enqueue_review_job
+            from queue.review_queue import enqueue_review_job
 
             queue_task_id = enqueue_review_job(client.client_dir, task_id)
         except Exception as exc:

@@ -52,7 +52,7 @@ Celery 不是单独一个“队列进程”。本项目里需要区分三个概�
 ```text
 Task
   任务类型，定义一类任务如何执行。
-  代码位置：task_queue/review_tasks.py
+  代码位置：queue/review_tasks.py
   当前任务名：review.run_job
 
 Broker
@@ -62,7 +62,7 @@ Broker
 
 Worker
   独立执行进程，连接 broker，消费 task 并执行对应 Python 函数。
-  启动方式：celery -A task_queue.celery_app:celery_app worker ...
+  启动方式：celery -A queue.celery_app:celery_app worker ...
 ```
 
 `@celery_app.task(name="review.run_job")` 定义的是任务类型，不是 worker：
@@ -83,7 +83,7 @@ run_review_job_task.delay(client_dir, task_id)
 
 ```yaml
 review-worker:
-  command: ["celery", "-A", "task_queue.celery_app:celery_app", "worker", "--loglevel=info", "--concurrency=3"]
+  command: ["celery", "-A", "queue.celery_app:celery_app", "worker", "--loglevel=info", "--concurrency=3"]
 ```
 
 如果只启动 Redis 而不启动 worker，任务会留在队列里，不会执行。如果只启动 worker 而没有 Redis，worker 无法连接 broker，也无法取任务。
@@ -129,7 +129,7 @@ Redis 是独立服务，不会随 `uvicorn` 自动启动。本机默认地址是
 ```powershell
 redis-server
 uvicorn app:app --host 0.0.0.0 --port 5000
-celery -A task_queue.celery_app:celery_app worker --loglevel=info --pool=solo
+celery -A queue.celery_app:celery_app worker --loglevel=info --pool=solo
 ```
 
 Windows 本地建议使用 `--pool=solo`。Linux 容器部署可以按资源情况选择 Celery 默认 prefork 或显式设置 worker 并发。
@@ -137,9 +137,9 @@ Windows 本地建议使用 `--pool=solo`。Linux 容器部署可以按资源情�
 ## 代码位置
 
 ```text
-task_queue/celery_app.py       Celery app 配置
-task_queue/review_tasks.py     Celery task，调用审查执行入口
-task_queue/review_queue.py     API 层投递 helper
+queue/celery_app.py       Celery app 配置
+queue/review_tasks.py     Celery task，调用审查执行入口
+queue/review_queue.py     API 层投递 helper
 endpoints/api/review_jobs.py   提交任务后投递队列
 endpoints/review/job_worker.py 审查执行入口
 ```

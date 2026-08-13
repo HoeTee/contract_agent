@@ -47,7 +47,7 @@ services:
     env_file:
       - .env
 
-    command: ["celery", "-A", "task_queue.celery_app:celery_app", "worker", "--loglevel=info", "--concurrency=3"]
+    command: ["celery", "-A", "queue.celery_app:celery_app", "worker", "--loglevel=info", "--concurrency=3"]
 
     depends_on:
       - redis
