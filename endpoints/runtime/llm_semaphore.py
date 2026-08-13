@@ -58,7 +58,7 @@ class RedisModelSemaphore:
         self.model_type = model_type
         self.config = config
         self._sync_redis = None
-        self._async_redis = None
+        self._async_redis_by_loop: dict[asyncio.AbstractEventLoop, object] = {}
 
     def _sync_client(self):
         if self._sync_redis is None:
@@ -70,13 +70,16 @@ class RedisModelSemaphore:
         return self._sync_redis
 
     async def _async_client(self):
-        if self._async_redis is None:
+        loop = asyncio.get_running_loop()
+        client = self._async_redis_by_loop.get(loop)
+        if client is None:
             try:
                 from redis import asyncio as redis_asyncio
             except ImportError as exc:
                 raise RuntimeError("redis package is required when model semaphore is enabled.") from exc
-            self._async_redis = redis_asyncio.from_url(self.config.redis_url, decode_responses=True)
-        return self._async_redis
+            client = redis_asyncio.from_url(self.config.redis_url, decode_responses=True)
+            self._async_redis_by_loop[loop] = client
+        return client
 
     def acquire_sync(self, *, caller_name: str, model: str) -> ModelSemaphoreLease:
         start = time.monotonic()
