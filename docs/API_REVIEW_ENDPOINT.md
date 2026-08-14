@@ -23,6 +23,7 @@ POST /api/review/jobs/{task_id}/cancel
 - 不 callback。
 - 数据按 `client_id` 分区。
 - `queue.enabled=true` 时，提交接口投递 Celery 队列，审查由独立 worker 执行；外部 API 不变。
+- 创建任务前必须先校验请求头和请求体。请求协议错误、JSON 格式错误、提交接口缺少 `file_url`、把状态查询 body 错发到提交接口等 pre-task error 不生成 `task_id`，也不创建任务目录。
 
 OA 集成不属于 `/api`。OA 后续应放在 `/oa`，使用独立鉴权和 callback 流程。
 
@@ -64,12 +65,15 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
 
 Status, result output, and cancel use the same `Authorization` header. Body, form, query string, and `X-API-Key` are not used for API key mapping.
 
+文件上传使用 `-F` 发送 multipart 字段；JSON 请求使用 `-H "Content-Type: application/json"` 和 `-d`。不要把 `Content-Type` 写成 `-F "Content-Type: application/json"`。
+
 状态查询推荐写法：
 
-```json
-{
-  "task_id": "20260712-144123-dccf"
-}
+```powershell
+curl.exe -X POST "http://localhost:5000/api/review/jobs/status" `
+  -H "Authorization: <platform_api_key>" `
+  -H "Content-Type: application/json" `
+  -d '{ "task_id": "20260712-144123-dccf" }'
 ```
 
 结果输出推荐写法：
@@ -100,6 +104,8 @@ data/api/<task_id>/
   output/
   logs/
 ```
+
+只有合法提交进入任务生命周期后，才会创建上述目录并写入 `task.json`。`/api/review/jobs` 收到错误请求体时，不应留下空任务目录；如果响应中返回了 `task_id`，磁盘上也应存在对应的 `task.json` 状态记录。
 
 `client_id` 是业务身份；`client_dir` 为兼容既有 client 配置继续记录在 `task.json` 中，但不再参与目录分区。`task.json` 会记录两者：
 

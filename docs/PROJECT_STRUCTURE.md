@@ -7,7 +7,7 @@
 - `app.py`：FastAPI 服务入口，注册 `/api`、`/web`、`/oa` 路由和静态文件。
 - `main.py`：本地 CLI 审查入口。
 - `config.py`：集中读取系统配置、路径和环境变量。API client 身份不在这里配置。
-- `queue/`：普通 `/api` 审查任务队列层。API 提交任务后投递 `client_dir/task_id`，Celery worker 调用审查执行入口。
+- `queue/`：普通 `/api` 审查任务队列层。API 完成请求校验并创建合法任务后投递 `client_dir/task_id`，Celery worker 调用审查执行入口。
 
 ## HTTP 路由
 
@@ -79,6 +79,8 @@ data/web/<tenant_id>/<task_id>/
 
 `client_id` 是业务身份。`client_dir` 为兼容既有 client 配置继续记录在 `task.json` 中，但普通 `/api` 不再按 `client_dir` 分目录。
 
+普通 `/api` 的 `data/api/<task_id>/` 只对应已经进入任务生命周期的合法提交。请求协议错误、JSON 格式错误或提交字段缺失不应创建任务目录；如果接口响应返回了 `task_id`，该目录下应存在对应 `task.json` 状态记录。
+
 ## API 边界
 
 普通 `/api`：
@@ -86,6 +88,7 @@ data/web/<tenant_id>/<task_id>/
 - 只做异步任务。
 - 平台 key 映射到 `client_id/client_dir`。
 - 按 `task_id` 直接存储，读取时校验 `client_dir` 归属。
+- 提交任务先校验请求头和请求体，再生成 `task_id` 和任务目录。
 - 不接收 `metafields`。
 - 不依赖 callback。
 

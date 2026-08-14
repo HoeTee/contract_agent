@@ -88,6 +88,7 @@ API 和 Web 任务数据保持隔离：
 - API client 映射：`profiles/api_clients.json`
 
 任务目录中保存 `task.json`、输入文件、输出文件，以及开启日志后的任务级日志。
+任务目录只在合法提交进入任务生命周期后创建；请求头、Content-Type 或请求体错误不应生成 `task_id` 或空任务目录。
 
 ## API
 

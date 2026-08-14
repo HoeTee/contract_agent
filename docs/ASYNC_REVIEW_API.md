@@ -65,8 +65,8 @@ Celery task、Redis broker 和 worker 进程的区别见 `docs/QUEUE_WORKER.md`�
 
 | 状态 | 含义 |
 | --- | --- |
-| `pending` | 任务已写入存储，后台任务尚未检查并发限制。 |
-| `queued` | 并发已满，任务正在等待执行槽位。 |
+| `pending` | 任务已被系统接受并写入存储，worker 尚未进入执行资源判断。 |
+| `queued` | worker 已接手该任务，但并发已满，任务正在等待执行槽位。 |
 | `running` | 已获得执行槽位，审查工作流正在运行。 |
 | `succeeded` | 审查输出已生成，可导出。 |
 | `failed` | 工作流失败，状态查询响应中包含 `error`。 |
@@ -85,6 +85,10 @@ Authorization: <api_key>
 | --- | --- | --- | --- |
 | `multipart/form-data` | 上传二进制 DOCX 文件 | `file` | `criteria_file` |
 | `application/json` | 通过 URL 下载 DOCX | `file_url` | `criteria_file_url` |
+
+提交接口必须先完成请求头和请求体校验，再进入任务生命周期。`Content-Type` 不受支持、JSON 语法错误、JSON body 不是对象、缺少 `file_url`、把状态查询 body 错发到提交接口等请求协议或请求体错误，直接返回 HTTP 错误，不生成 `task_id`，也不创建 `data/api/<task_id>/` 目录。
+
+只有请求已经被识别为合法的任务提交后，服务才会生成 `task_id`、创建任务目录、保存输入文件、写入 `task.json` 并投递执行。此后发生的文件保存、URL 下载、DOCX 校验、审查标准校验或 worker 执行失败，才属于 task-level error，可以返回带 `task_id` 的失败任务结构。
 
 如果 `config.yaml` 中 `api.require_request_model_config: true`，服务不会采用根目录 `.env` 和 `config.yaml` 中的模型配置，提交任务时必须在请求体中同时传入模型密钥和模型名称：
 
@@ -169,7 +173,18 @@ HTTP `202`：
 
 **提交期错误响应**
 
-如果请求已通过 API client 解析并生成 `task_id`，但文件输入、URL 下载或 DOCX 校验失败，接口返回标准失败结构：
+如果请求尚未进入任务生命周期，接口返回普通 HTTP 错误结构，不返回 `task_id`。例如把状态查询请求体发到提交接口：
+
+```powershell
+curl.exe -X POST "http://localhost:5000/api/review/jobs" `
+  -H "Authorization: platform-key-for-client-a" `
+  -H "Content-Type: application/json" `
+  -d '{ "task_id": "20260714-143119-5ece" }'
+```
+
+该请求不是合法的 URL 提交任务请求，应返回 `400`，且不创建任务目录。
+
+如果请求已通过请求头和请求体校验并生成 `task_id`，但文件保存、URL 下载、DOCX 校验或审查标准内容校验失败，接口返回标准失败结构：
 
 ```json
 {
@@ -201,9 +216,10 @@ HTTP `202`：
 | HTTP 状态码 | 返回场景 | 响应 |
 | --- | --- | --- |
 | `202` | 任务已接收。 | 任务 ID、初始状态和消息。 |
-| `400` | 已生成 `task_id` 后，合同或审查标准不是有效 DOCX，URL 输入字段无效，或审查标准内容不符合要求。 | `{ "task_id": "...", "status": "failed", "message": "...", "error": {...} }` |
-| `400` | `api.require_request_model_config=true` 时缺少请求级模型配置字段，或 `reranker_model_name` 不在 `rerank.provider_model_names` 映射中。 | `{ "task_id": "...", "status": "failed", "message": "...", "error": {...} }` |
-| `415` | 已生成 `task_id` 后，请求 `Content-Type` 不受支持。 | `{ "task_id": "...", "status": "failed", "message": "Unsupported Content-Type.", "error": {...} }` |
+| `400` | JSON body 不是合法 JSON object、提交接口缺少 `file_url`、或把状态查询 body 错发到提交接口。 | `{ "detail": "..." }` 或不含 `task_id` 的错误结构。 |
+| `400` | `api.require_request_model_config=true` 时缺少请求级模型配置字段，或 `reranker_model_name` 不在 `rerank.provider_model_names` 映射中。 | 不进入任务生命周期，不返回 `task_id`。 |
+| `400` | 已生成 `task_id` 后，合同或审查标准不是有效 DOCX，或审查标准内容不符合要求。 | `{ "task_id": "...", "status": "failed", "message": "...", "error": {...} }` |
+| `415` | 请求 `Content-Type` 不受支持。 | 不进入任务生命周期，不返回 `task_id`。 |
 | `502` | 已生成 `task_id` 后，合同 URL 或审查标准 URL 下载失败。 | `{ "task_id": "...", "status": "failed", "message": "...", "error": {...} }` |
 | `400` | 未传 `Authorization`，或平台 key 没有本地客户映射。 | `{ "detail": "Authorization header is required." }` 或 `{ "detail": "API key has no local client mapping." }` |
 | `403` | 该客户映射已禁用。 | `{ "detail": "API client mapping is disabled." }` |

@@ -28,6 +28,8 @@ data/api/<task_id>/logs/
 
 `<任务目录>` 由 `endpoints/review/task_store.py` 生成，格式为 `YYYYMMDD-HHMMSS-xxxx`。直接 API 的完整接口和错误响应说明见 `docs/API_REVIEW_ENDPOINT.md`。
 
+API 任务目录只在合法提交进入任务生命周期后创建。请求头、Content-Type、JSON 语法或提交字段错误属于 pre-task error，不应创建 `data/api/<task_id>/`，也不应写入空的 `events.log` 或 `task.json`。如果错误响应返回 `task_id`，必须能通过该 `task_id` 读到对应 failed task 和排障日志。
+
 任务日志目录结构：
 
 ```text
