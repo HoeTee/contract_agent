@@ -149,6 +149,24 @@ def _submit_error_response(
     )
 
 
+def _pre_task_error_response(
+    *,
+    status_code: int,
+    code: str,
+    message: str,
+):
+    return pretty_json_response(
+        {
+            "message": message,
+            "error": {
+                "code": code,
+                "message": message,
+            },
+        },
+        status_code=status_code,
+    )
+
+
 def _validation_error_response(*, task_id: str, exc: HTTPException):
     return _submit_error_response(
         task_id=task_id,
@@ -291,8 +309,6 @@ async def _export_review_job_result(
 @api_jobs_router.post("/api/review/jobs", status_code=202)
 async def submit_review_job(request: Request):
     client = await resolve_api_client(request)
-    task_id = new_task_id()
-    ensure_task_dirs(client.client_dir, task_id)
 
     content_type = request.headers.get("content-type", "").lower()
 
@@ -305,30 +321,26 @@ async def submit_review_job(request: Request):
         form = await request.form()
         request_model_config, missing_model_config, invalid_model_config = _extract_request_model_config(form)
         if missing_model_config:
-            return _submit_error_response(
-                task_id=task_id,
+            return _pre_task_error_response(
                 status_code=400,
                 code="MODEL_CONFIG_REQUIRED",
                 message=f"Missing request model config fields: {', '.join(missing_model_config)}.",
             )
         if invalid_model_config:
-            return _submit_error_response(
-                task_id=task_id,
+            return _pre_task_error_response(
                 status_code=400,
                 code="MODEL_CONFIG_INVALID",
                 message=invalid_model_config,
             )
         if "file_url" in form or "criteria_file_url" in form:
-            return _submit_error_response(
-                task_id=task_id,
+            return _pre_task_error_response(
                 status_code=400,
                 code="INVALID_CONTENT_TYPE_FIELDS",
                 message="URL fields require application/json.",
             )
         file = form.get("file")
         if not _is_upload_file(file) or not getattr(file, "filename", ""):
-            return _submit_error_response(
-                task_id=task_id,
+            return _pre_task_error_response(
                 status_code=400,
                 code="FILE_REQUIRED",
                 message="file is required.",
@@ -336,12 +348,24 @@ async def submit_review_job(request: Request):
 
         filename = safe_upload_filename(file.filename)
         if not filename.lower().endswith(".docx"):
-            return _submit_error_response(
-                task_id=task_id,
+            return _pre_task_error_response(
                 status_code=400,
                 code="CONTRACT_FILE_NOT_DOCX",
                 message="Contract file must be DOCX.",
             )
+
+        criteria_file = form.get("criteria_file")
+        if _is_upload_file(criteria_file) and getattr(criteria_file, "filename", ""):
+            criteria_filename = safe_upload_filename(criteria_file.filename)
+            if not criteria_filename.lower().endswith(".docx"):
+                return _pre_task_error_response(
+                    status_code=400,
+                    code="CRITERIA_FILE_NOT_DOCX",
+                    message="Review criteria file must be DOCX.",
+                )
+
+        task_id = new_task_id()
+        ensure_task_dirs(client.client_dir, task_id)
 
         contract_path = save_task_input_upload(
             client.client_dir,
@@ -361,16 +385,7 @@ async def submit_review_job(request: Request):
         except HTTPException as exc:
             return _validation_error_response(task_id=task_id, exc=exc)
 
-        criteria_file = form.get("criteria_file")
         if _is_upload_file(criteria_file) and getattr(criteria_file, "filename", ""):
-            criteria_filename = safe_upload_filename(criteria_file.filename)
-            if not criteria_filename.lower().endswith(".docx"):
-                return _submit_error_response(
-                    task_id=task_id,
-                    status_code=400,
-                    code="CRITERIA_FILE_NOT_DOCX",
-                    message="Review criteria file must be DOCX.",
-                )
             selected_criteria_path = save_task_input_upload(
                 client.client_dir,
                 task_id=task_id,
@@ -395,15 +410,13 @@ async def submit_review_job(request: Request):
         try:
             payload = await request.json()
         except JSONDecodeError:
-            return _submit_error_response(
-                task_id=task_id,
+            return _pre_task_error_response(
                 status_code=400,
                 code="INVALID_JSON_BODY",
                 message="JSON body must be valid.",
             )
         if not isinstance(payload, dict):
-            return _submit_error_response(
-                task_id=task_id,
+            return _pre_task_error_response(
                 status_code=400,
                 code="INVALID_JSON_BODY",
                 message="JSON body must be an object.",
@@ -411,15 +424,13 @@ async def submit_review_job(request: Request):
 
         request_model_config, missing_model_config, invalid_model_config = _extract_request_model_config(payload)
         if missing_model_config:
-            return _submit_error_response(
-                task_id=task_id,
+            return _pre_task_error_response(
                 status_code=400,
                 code="MODEL_CONFIG_REQUIRED",
                 message=f"Missing request model config fields: {', '.join(missing_model_config)}.",
             )
         if invalid_model_config:
-            return _submit_error_response(
-                task_id=task_id,
+            return _pre_task_error_response(
                 status_code=400,
                 code="MODEL_CONFIG_INVALID",
                 message=invalid_model_config,
@@ -427,13 +438,26 @@ async def submit_review_job(request: Request):
 
         file_url = payload.get("file_url")
         if not isinstance(file_url, str) or not file_url.strip():
-            return _submit_error_response(
-                task_id=task_id,
+            return _pre_task_error_response(
                 status_code=400,
                 code="FILE_URL_REQUIRED",
                 message="file_url is required.",
             )
         file_url = file_url.strip()
+
+        criteria_file_url = payload.get("criteria_file_url")
+        if criteria_file_url is not None:
+            if not isinstance(criteria_file_url, str) or not criteria_file_url.strip():
+                return _pre_task_error_response(
+                    status_code=400,
+                    code="CRITERIA_FILE_URL_INVALID",
+                    message="criteria_file_url must be a non-empty string.",
+                )
+            criteria_file_url = criteria_file_url.strip()
+
+        task_id = new_task_id()
+        ensure_task_dirs(client.client_dir, task_id)
+
         filename = _filename_from_url(file_url, "contract_from_url.docx")
         try:
             contract_path = save_task_input_url(
@@ -491,16 +515,7 @@ async def submit_review_job(request: Request):
         except HTTPException as exc:
             return _validation_error_response(task_id=task_id, exc=exc)
 
-        criteria_file_url = payload.get("criteria_file_url")
         if criteria_file_url is not None:
-            if not isinstance(criteria_file_url, str) or not criteria_file_url.strip():
-                return _submit_error_response(
-                    task_id=task_id,
-                    status_code=400,
-                    code="CRITERIA_FILE_URL_INVALID",
-                    message="criteria_file_url must be a non-empty string.",
-                )
-            criteria_file_url = criteria_file_url.strip()
             criteria_filename = _filename_from_url(criteria_file_url, "criteria_from_url.docx")
             try:
                 selected_criteria_path = save_task_input_url(
@@ -560,8 +575,7 @@ async def submit_review_job(request: Request):
                 return _validation_error_response(task_id=task_id, exc=exc)
             criteria_source = "uploaded"
     else:
-        return _submit_error_response(
-            task_id=task_id,
+        return _pre_task_error_response(
             status_code=415,
             code="UNSUPPORTED_CONTENT_TYPE",
             message="Unsupported Content-Type.",
