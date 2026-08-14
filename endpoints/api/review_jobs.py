@@ -32,7 +32,6 @@ from endpoints.review.task_store import (
     create_task,
     ensure_task_dirs,
     mark_failed,
-    mark_queued,
     new_task_id,
     output_dir,
     read_task,
@@ -606,7 +605,6 @@ async def submit_review_job(request: Request):
         source_ip=client.source_ip,
     )
     if QUEUE_ENABLED:
-        task = mark_queued(client.client_dir, task_id)
         try:
             from queue.review_queue import enqueue_review_job
 
