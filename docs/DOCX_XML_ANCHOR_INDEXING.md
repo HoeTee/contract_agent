@@ -402,3 +402,9 @@ markdown 仍用于：
 - LlamaIndex metadata 不会作为结构化对象传给 SubAgent，只会被格式化进检索上下文文本。
 - 如果 SubAgent 编造 `xml_anchor_id`，或者 `quoted_text` 不在对应 anchor 范围内，批注定位会失败或跳过该 issue。
 - 如果同一个 `quoted_text` 在同一个 anchor 范围内出现多次，当前使用首次出现位置。
+
+## 14. 后续结构化索引设计
+
+当前文档说明的是现有 DOCX XML anchor 到 LlamaIndex `TextNode` 的链路。新的 DOCX 结构树、正文三级标题、附件内部切分、页码字段、summary tree 和检索触发策略见：
+
+- [DOCX_STRUCTURE_RETRIEVAL_DESIGN.md](DOCX_STRUCTURE_RETRIEVAL_DESIGN.md)
