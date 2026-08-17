@@ -1,0 +1,5111 @@
+{
+  "file": "C:\\Users\\lenovo\\Downloads\\模板合同\\【已审查】（087号）ZRUB软件开发类采购合同-新一代智能文本客服机器人系统采购(2).docx",
+  "attachment_parents": [
+    {
+      "title": "第二十条  附件",
+      "anchor": "p_0201",
+      "effective_outline": 1,
+      "attachments": [
+        {
+          "node_id": "p_0230",
+          "type": "attachment_section",
+          "title": "附件1",
+          "body": "",
+          "start_anchor": "p_0230",
+          "end_anchor": "p_0277",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0231",
+              "type": "local_doc_title",
+              "title": "新一代智能文本客服机器人系统项目需求",
+              "body": "",
+              "start_anchor": "p_0231",
+              "end_anchor": "p_0231",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0232",
+              "type": "cn_comma",
+              "title": "一、采购清单",
+              "body": "",
+              "start_anchor": "p_0232",
+              "end_anchor": "p_0232",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0233",
+              "type": "list_item",
+              "title": "1.采购新一代智能文本客服机器人系统一套及定制化改造服务，软件功能包括但不限于具备较强的自然语言理解、意图识别等智能问答基础能力、多轮对话能力、富文本能力、智能标注和训练能力，支持智能问答、知识管理、智能运营、素材管理、场景管理、报表分析、系统管理、渠道对接、语音管理、语义聚类、版本管理、知识图谱和智能抽取；支持对接和适配甲方基础大模型，要求关键运营指标达到甲方要求，支持原系统智能知识库的所有知识全量、平滑、有效迁移至新系统，支持原系统所有服务渠道端前端功能等全量迁移或复刻至新系统。软件不限制部署套数。",
+              "body": "",
+              "start_anchor": "p_0233",
+              "end_anchor": "p_0233",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0234",
+              "type": "list_item",
+              "title": "2.免费维保服务期限1年，自系统全面上线投产稳定运行3个月后并经采购单位验收通过次日开始起计算；有偿维保服务期限3年，从免费维保服务验收完成次日起计算。",
+              "body": "",
+              "start_anchor": "p_0234",
+              "end_anchor": "p_0234",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0235",
+              "type": "list_item",
+              "title": "3.服务应用于浙江农村商业联合银行股份有限公司及其关联公司、辖内农商银行以及辖内农商银行发起的村镇银行。",
+              "body": "",
+              "start_anchor": "p_0235",
+              "end_anchor": "p_0235",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0236",
+              "type": "cn_comma",
+              "title": "二、基本要求",
+              "body": "",
+              "start_anchor": "p_0236",
+              "end_anchor": "p_0236",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0237",
+              "type": "outline_title",
+              "title": "（一）项目要求",
+              "body": "",
+              "start_anchor": "p_0237",
+              "end_anchor": "p_0237",
+              "confidence": "medium",
+              "reasons": [
+                "effective_outline"
+              ]
+            },
+            {
+              "node_id": "p_0239",
+              "type": "list_item",
+              "title": "1.1 提供产品的全量源代码，包括产品源代码和后续基于我行业务需求所完成的所有定制化开发部分的源代码。",
+              "body": "",
+              "start_anchor": "p_0239",
+              "end_anchor": "p_0239",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0240",
+              "type": "list_item",
+              "title": "1.2 提供的产品应在甲方指定的场所部署运行。",
+              "body": "",
+              "start_anchor": "p_0240",
+              "end_anchor": "p_0240",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0241",
+              "type": "list_item",
+              "title": "1.3 提供的产品不存在任何形式的授权限制（包括但不限于以下授权形式：",
+              "body": "时间期限限制、部署套数限制、部署服务器数量限制、部署探针限制、部署服务器CPU核数限制等）。",
+              "start_anchor": "p_0241",
+              "end_anchor": "p_0241",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0242",
+              "type": "list_item",
+              "title": "1.4提供的软件产品须符合我行IT架构规范、业务连续性、性能等规范要求。",
+              "body": "系统部署、运行须支持我行运行监控等规范，须符合我行技术要求和规范等。",
+              "start_anchor": "p_0242",
+              "end_anchor": "p_0242",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0243",
+              "type": "list_item",
+              "title": "1.5软件产品要求包括但不限于软件须适配、兼容我行选型的芯片架构、服务器及操作系统等软硬件。软件及服务百分百自主可控，不涉及使用国外商业软件、非商业的专有软件、共享软件等非自主可控工具软件（不包含开源软件），如使用第三方提供软硬件产品及服务，乙方须保证在项目中可永久使用的授权许可，保证第三方提供的软硬件产品及服务符合我行技术路线的要求。",
+              "body": "",
+              "start_anchor": "p_0243",
+              "end_anchor": "p_0243",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0244",
+              "type": "list_item",
+              "title": "1.6为保证相关开发工作能够得到独立、客观、公正的实施，乙方承诺自当前以及自合同签订起的三年内不得为浙江农村商业联合银行股份有限公司辖内农商银行以及辖内农商银行发起的村镇银行提供相同或相似软件的开发服务等，除非采购单位书面同意。",
+              "body": "",
+              "start_anchor": "p_0244",
+              "end_anchor": "p_0244",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0246",
+              "type": "list_item",
+              "title": "2.1提供的软件产品须包含附件2《新一代智能文本客服机器人系统业务需求》所列全部功能，提供完整系统的解决方案，并负责项目的实施和项目实施质量控制，负责完成知识全量迁移。",
+              "body": "",
+              "start_anchor": "p_0246",
+              "end_anchor": "p_0246",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0247",
+              "type": "list_item",
+              "title": "2.2项目维保服务按照附件6《新一代智能文本客服机器人系统维保服务工作任务说明书》执行并验收，维保服务期内应保证1名满足项目开发人员要求的技术人员按需远程或现场支持。针对关键重大问题或特殊业务时点，应承诺调动全部资源给予支持，委派专家到现场解决问题，迅速排除系统故障。",
+              "body": "",
+              "start_anchor": "p_0247",
+              "end_anchor": "p_0247",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0248",
+              "type": "list_item",
+              "title": "3.项目相关人员要求",
+              "body": "",
+              "start_anchor": "p_0248",
+              "end_anchor": "p_0248",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0249",
+              "type": "list_item",
+              "title": "3.1乙方须组织项目现场实施团队，项目现场实施团队由1名项目经理、1名产品经理、1名技术专家、1名运营专家、1名测试人员、若干项目开发人员（含项目骨干）组成，按要求给出项目成员的项目角色及简历。项目实施时项目经理、产品经理、技术专家、运营专家、技术骨干必须提供符合甲方要求的项目履历证明以及在项目中担任的角色证明，项目经理、产品经理、技术专家、运营专家、技术骨干必须通过甲方确认，如果不通过须在7个工作日内提供替换人员。",
+              "body": "",
+              "start_anchor": "p_0249",
+              "end_anchor": "p_0249",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0250",
+              "type": "list_item",
+              "title": "3.2项目经理具有8年以上工作经验，主持过2个以上客服文本机器人系统项目的实施，要求具有很强的项目管理能力和丰富的系统建设经验；产品经理具有从事5年及以上产品经理工作经验，必须参与设计过2个以上客服文本机器人系统项目的定制化改造方案，具备开展智能服务训练、AI训练的丰富经验，配合招标方完成业务功能需求梳理、编写，根据招标方业务运营需要定期进行交互实效分析，提供知识运营、AI模型优化等的良好经验和有效建议；技术专家具备项管领域10年以上工作经验，以技术经理角色主导过2个以上客服文本机器人系统项目，精通开发平台，具有丰富的应用架构、技术架构、数据架构设计经验，对项目实施过程中技术路线的整体把控，确保项目顺利按照我行要求高质量完成；运营专家具备5年以上相关工作经验，参与过2个以上客服文本机器人系统项目的运营工作，配合招标方完成知识点整理、迁移、运营等工作。项目开发人员（含项目骨干）必须参加过1个以上客服文本机器人系统项目的建设，具备3年以上系统开发、测试经验，具有较强的开发、测试和解决问题的能力（附合同等证明材料）。测试人员需具备3年以上系统测试经验，必须参加过1个以上客服文本机器人系统项目的全功能测试，配合招标方完成测试案例编写。",
+              "body": "",
+              "start_anchor": "p_0250",
+              "end_anchor": "p_0250",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0253",
+              "type": "list_item",
+              "title": "4.项目质量控制要求",
+              "body": "",
+              "start_anchor": "p_0253",
+              "end_anchor": "p_0253",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0254",
+              "type": "list_item",
+              "title": "4.1工具开发实施工作职责以乙方为主，甲方提供必要的配合，并监督乙方实施质量及审核交付物，具体实施方案必须经双方认可。",
+              "body": "",
+              "start_anchor": "p_0254",
+              "end_anchor": "p_0254",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0255",
+              "type": "list_item",
+              "title": "4.2工具开发实施队伍以乙方一方的技术力量为主，负责整个项目的设计、实施、进度和质量控制，对整个项目的完成进度和质量负责。",
+              "body": "",
+              "start_anchor": "p_0255",
+              "end_anchor": "p_0255",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0257",
+              "type": "list_item",
+              "title": "6.实施内容及时间要求",
+              "body": "",
+              "start_anchor": "p_0257",
+              "end_anchor": "p_0257",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0267",
+              "type": "list_item",
+              "title": "7.按照附件3《新一代智能文本客服机器人系统技术需求》中要求进行实施技术转移工作。",
+              "body": "",
+              "start_anchor": "p_0267",
+              "end_anchor": "p_0267",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0268",
+              "type": "list_item",
+              "title": "8.软件产品的安全要求包括但不限于符合我行信息安全、合规安全、数据安全、日志审计安全等规范，详见附件4《新一代智能文本客服机器人系统安全需求》。",
+              "body": "",
+              "start_anchor": "p_0268",
+              "end_anchor": "p_0268",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0269",
+              "type": "list_item",
+              "title": "9.软件产品最终上线版本必须符合附件3《新一代智能文本客服机器人系统技术需求》中要求的所有技术要求，除非实施过程中经甲方同意方可修改。",
+              "body": "",
+              "start_anchor": "p_0269",
+              "end_anchor": "p_0269",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0270",
+              "type": "outline_title",
+              "title": "▲（二）商务要求",
+              "body": "",
+              "start_anchor": "p_0270",
+              "end_anchor": "p_0270",
+              "confidence": "medium",
+              "reasons": [
+                "effective_outline"
+              ]
+            },
+            {
+              "node_id": "p_0271",
+              "type": "list_item",
+              "title": "1.最终价格以人民币为结算单位，并需填写大写金额和小写金额，大小写金额不一致的以大写金额为准，但大写有明显单位、文字错误的除外。",
+              "body": "",
+              "start_anchor": "p_0271",
+              "end_anchor": "p_0271",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0272",
+              "type": "list_item",
+              "title": "2.付款方式：",
+              "body": "",
+              "start_anchor": "p_0272",
+              "end_anchor": "p_0272",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0278",
+          "type": "attachment_section",
+          "title": "附件2",
+          "body": "",
+          "start_anchor": "p_0278",
+          "end_anchor": "p_0730",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0279",
+              "type": "local_doc_title",
+              "title": "新一代智能文本客服机器人系统业务需求",
+              "body": "",
+              "start_anchor": "p_0279",
+              "end_anchor": "p_0279",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0280",
+              "type": "cn_comma",
+              "title": "一、需求概述",
+              "body": "",
+              "start_anchor": "p_0280",
+              "end_anchor": "p_0280",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0282",
+              "type": "paren_cn",
+              "title": "（一）主要功能",
+              "body": "",
+              "start_anchor": "p_0282",
+              "end_anchor": "p_0282",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0283",
+              "type": "plain_label",
+              "title": "主要功能要求包括但不限于以下：",
+              "body": "",
+              "start_anchor": "p_0283",
+              "end_anchor": "p_0283",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0284",
+              "type": "list_item",
+              "title": "1.具备较强的自然语言理解、意图识别等智能问答基础能力，语义理解模型优秀，支持较好处理口语化、模糊表达、语义歧义、句法复杂、错别字、同义词等客户问情况，支持有效识别客户意图并为客户提供清晰易懂的问题解决方案，基于客户问提供智能化、自动化的知识问答；语义理解、多轮对话、知识管理、智能运营等能力较原智能文本机器人客服系统（以下简称“原系统”）显著提升。",
+              "body": "",
+              "start_anchor": "p_0284",
+              "end_anchor": "p_0284",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0285",
+              "type": "list_item",
+              "title": "2.具有较强的定制化（二次开发）开发能力，包括但不限于支持针对我行特有的业务流程、业务术语、风险规则进行意图、实体、对话流和模型等的定制化开发。",
+              "body": "",
+              "start_anchor": "p_0285",
+              "end_anchor": "p_0285",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0286",
+              "type": "list_item",
+              "title": "3.支持对原系统智能知识库“T-3”日（知识迁移日为T日）的所有知识全量、平滑、有效迁移，同时支持已有服务渠道端问答跳转链接配置（其中服务渠道端至少包括丰收互联、企业互联APP端、企业互联PC端、个人网银、“浙江农信”微信公众号、“浙江农信信用卡”微信公众号、浙江农信官网门户等，以及根据我行业务发展需要，未来拓展支持微信小程序、客户经理企业微信工作台等我行其他对客服务渠道，下同）；支持开发数据清洗与格式转换工具，确保历史数据能快速、准确导入新系统。",
+              "body": "",
+              "start_anchor": "p_0286",
+              "end_anchor": "p_0286",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0287",
+              "type": "list_item",
+              "title": "4.支持原系统所有服务渠道端前端功能等全量迁移或复刻，迁移后功能不少于原系统，功能体验不低于原系统。",
+              "body": "",
+              "start_anchor": "p_0287",
+              "end_anchor": "p_0287",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0288",
+              "type": "list_item",
+              "title": "5.支持业务场景设定、意图推荐、上下文关联、问答泛化等功能。",
+              "body": "",
+              "start_anchor": "p_0288",
+              "end_anchor": "p_0288",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0289",
+              "type": "list_item",
+              "title": "6.具备较强的多轮对话能力（原则上支持≥6轮对话历史跟踪），支持自动识别话题跳转，支持进行复杂的信息收集、确认、澄清等交互，支持通过多轮交互、流程引导、意图分类确认等进一步明确客户意图有效完成业务问答或引导客户进行交易办理，较好解决客户复杂意图理解困难、意图拒识、多轮复杂交互理解不佳等问题；支持根据客户实际交互和对话状态动态调整意图识别的优先级，持续提高机器人问答识别率和解决率；支持服务断点续接。",
+              "body": "",
+              "start_anchor": "p_0289",
+              "end_anchor": "p_0289",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0290",
+              "type": "list_item",
+              "title": "7.具备较强的对话管理能力，支持灵活化、可视化、图形化配置对话流，支持嵌套条件分支以及变量传递、跳转，逻辑嵌套层数符合我行对客服务要求；支持调用我行其他系统API实现实时数据调取等。",
+              "body": "",
+              "start_anchor": "p_0290",
+              "end_anchor": "p_0290",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0291",
+              "type": "list_item",
+              "title": "8.具备较强的相似问生成功能，支持通过输⼊当前已有知识的问题描述，快速生成同类问题描述的相似描述，降低运营端人力投⼊，提升智能服务实效。",
+              "body": "",
+              "start_anchor": "p_0291",
+              "end_anchor": "p_0291",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0292",
+              "type": "list_item",
+              "title": "9.支持搭建智能服务和会话标注机制，支持多人协同标注，支持通过智能训练、人工标注等方式，及时发现问题并进行优化，提高智能服务准确度，提升智能服务能力；支持与大模型对接进行数据训练和标注。",
+              "body": "",
+              "start_anchor": "p_0292",
+              "end_anchor": "p_0292",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0293",
+              "type": "list_item",
+              "title": "10.支持对接和适配我行基础大模型，支持智能学习并优化知识库和意图模型，强化知识抽取能力和标注能力，增强搜索能力，持续提高问答准确率和智能服务能力，减少人工维护成本。",
+              "body": "",
+              "start_anchor": "p_0293",
+              "end_anchor": "p_0293",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0294",
+              "type": "list_item",
+              "title": "11.投标单位具有银行业领域高质量语言模型、银行业风险话术/合规规则的相关实施经验，并支持在我行搭建。",
+              "body": "",
+              "start_anchor": "p_0294",
+              "end_anchor": "p_0294",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0295",
+              "type": "list_item",
+              "title": "12.具备较强的知识管理能力，包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0295",
+              "end_anchor": "p_0295",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0305",
+              "type": "list_item",
+              "title": "13.具备较强的知识检索能力，支持全文、语义检索、关键词、混合检索等多种检索模式，支持用户对阈值、检索条数等检索参数进行配置。",
+              "body": "",
+              "start_anchor": "p_0305",
+              "end_anchor": "p_0305",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0306",
+              "type": "list_item",
+              "title": "14.具备较强的数据采集、分析和报表管理能力，包括但不限于支持对机器人会话信息、平台用户/客户行为数据、知识访问量和调用量的采集、智能分析；支持全量对话数据分析；支持按服务渠道、服务时间、用户ID等多类维度进行查询；支持交互数据、机器人性能（包括但不限于意图识别率、问题解决率、转人工率、客户满意度）、用户行为、知识触发和运营等分析报表和可视化展示，支持智能文本服务运营精细化管理。",
+              "body": "",
+              "start_anchor": "p_0306",
+              "end_anchor": "p_0306",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0307",
+              "type": "list_item",
+              "title": "15.具有数据备份策略，数据备份频率和周期达到我行要求；",
+              "body": "支持数据源接入方式包括但不限于批量导入、本地上传、API推送或拉取、数据湖、应用回流、对接我行现有知识库等。",
+              "start_anchor": "p_0307",
+              "end_anchor": "p_0307",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0308",
+              "type": "list_item",
+              "title": "16.支持无缝转人工功能，当智能文本机器人无法解决客户问题时，支持平滑、带已交互上下文或客户标签信息转接给人工客服。",
+              "body": "",
+              "start_anchor": "p_0308",
+              "end_anchor": "p_0308",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0309",
+              "type": "list_item",
+              "title": "17.投标单位项目团队成员中，要求配置具备丰富项目经验的运营人员（如智能服务训练师、AI训练师，其中“项目经验”指银行业经验不少于3年），根据我行运营需要定期驻场进行交互实效分析，提供知识运营、AI模型优化、意图标注规范、对话流调试技巧等的良好经验和有效建议，协助定期优化和调整机器人的话术设置和逻辑；要求投标单位方案中说明后续知识维护优化机制、知识工程整体优化工作方案等。",
+              "body": "",
+              "start_anchor": "p_0309",
+              "end_anchor": "p_0309",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0310",
+              "type": "list_item",
+              "title": "18.特别说明：",
+              "body": "若投标单位在我行其他业务场景已部署机器人系统，智能文本机器人系统用户管理、机构配置、知识库、意图/实体/对话/场景/流程等均独立配置，包括但不限于知识、数据、权限、运营、后台监控等与其他机器人相互隔离、互不影响，且数据、知识库不被其他机器人调用（除我行另行提交书面业务需求外）。",
+              "start_anchor": "p_0310",
+              "end_anchor": "p_0310",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0311",
+              "type": "list_item",
+              "title": "19.新一代智能文本客服机器人系统的总体业务功能需求不限于上述所列。",
+              "body": "",
+              "start_anchor": "p_0311",
+              "end_anchor": "p_0311",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0312",
+              "type": "paren_cn",
+              "title": "（二）关键运营指标要求",
+              "body": "",
+              "start_anchor": "p_0312",
+              "end_anchor": "p_0312",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0313",
+              "type": "list_item",
+              "title": "1.服务可用率。",
+              "body": "（1）提供7x24小时不间断智能文本服务，非我行或运营商网络通讯故障等不可抗力情况下，服务可用率达100%。（2）具备较强的并发能力，支持至少大于100并发，且系统运行顺畅无卡顿。",
+              "start_anchor": "p_0313",
+              "end_anchor": "p_0313",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0314",
+              "type": "list_item",
+              "title": "2.智能服务许可不限用户数/客户数，不限会话量，不限功能模块，无时间期限。",
+              "body": "",
+              "start_anchor": "p_0314",
+              "end_anchor": "p_0314",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0315",
+              "type": "list_item",
+              "title": "3.意图识别覆盖度。",
+              "body": "要求覆盖我行定义的100%核心、关键业务意图。",
+              "start_anchor": "p_0315",
+              "end_anchor": "p_0315",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0316",
+              "type": "list_item",
+              "title": "4.意图识别准确率。",
+              "body": "在我行自有的覆盖核心业务场景的测试集上，要求意图识别准确率>93%。",
+              "start_anchor": "p_0316",
+              "end_anchor": "p_0316",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0317",
+              "type": "list_item",
+              "title": "5.问题解决率。",
+              "body": "在我行自有的覆盖核心业务场景的测试集上，机器人问题解决率>95%。",
+              "start_anchor": "p_0317",
+              "end_anchor": "p_0317",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0318",
+              "type": "list_item",
+              "title": "6.上下文关联准确率。",
+              "body": "多轮对话中正确关联关键上下文信息的比例>93%。",
+              "start_anchor": "p_0318",
+              "end_anchor": "p_0318",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0319",
+              "type": "list_item",
+              "title": "7.负面/高危情绪分析准确率。",
+              "body": "情感分析准确率较好，尤其对负面情绪（不满、愤怒、恐慌、舆情、投诉）的分析识别准确率要求>90%，漏报率需极低。",
+              "start_anchor": "p_0319",
+              "end_anchor": "p_0319",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0320",
+              "type": "list_item",
+              "title": "8.风险话语识别率。",
+              "body": "要求对我行预设的或银行业通用的高风险模式（舆情、投诉等）识别率达到>90%。",
+              "start_anchor": "p_0320",
+              "end_anchor": "p_0320",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0321",
+              "type": "list_item",
+              "title": "9.服务响应时间。",
+              "body": "常规意图，从客户发送消息到机器人返回首个有效响应（含AI处理时间），平均<500毫秒（0.5秒）；复杂意图或多轮对话，从客户发送消息到机器人返回首个有效响应（含AI处理时间），平均<1.5秒。",
+              "start_anchor": "p_0321",
+              "end_anchor": "p_0321",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0322",
+              "type": "list_item",
+              "title": "10.其他机器人服务质效指标，均不低于银行同业平均水平。",
+              "body": "",
+              "start_anchor": "p_0322",
+              "end_anchor": "p_0322",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0323",
+              "type": "paren_cn",
+              "title": "（三）其他要求",
+              "body": "",
+              "start_anchor": "p_0323",
+              "end_anchor": "p_0323",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0324",
+              "type": "list_item",
+              "title": "1.支持与我行现有系统、渠道进行对接集成。",
+              "body": "要求支持对接我行主要业务系统，包括但不限于我行客服中心各类系统（包括但不限于工单系统、智能语音质检系统、座席知识库系统、统一知识平台、座席系统、全省集中短信平台等），我行柜面核心系统、网络核心系统、新一代大数据平台、基础大模型、客户标签系统、客户消息管理中心、零售客户运营管理体系、零售客户关系管理系统、客户经理企业微信工作台等智能服务所需的关联系统。",
+              "start_anchor": "p_0324",
+              "end_anchor": "p_0324",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0325",
+              "type": "list_item",
+              "title": "2.支持工单生成。",
+              "body": "支持客户在登录状态下，通过丰收互联、企业互联APP端/PC端、微信银行端自动发起我行预设的结构化工单；支持对接我行工单系统，机器人根据对话内容生成结构化工单。",
+              "start_anchor": "p_0325",
+              "end_anchor": "p_0325",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0326",
+              "type": "list_item",
+              "title": "3.支持完成知识库迁移和在投标单位系统上进行初始构建，投标单位根据我行提供的知识库内容提供整理（清洗）、结构化处理、初次录入等服务。",
+              "body": "",
+              "start_anchor": "p_0326",
+              "end_anchor": "p_0326",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0327",
+              "type": "list_item",
+              "title": "4.支持完成我行核心业务场景（含多轮交互、动态场景等）在投标单位系统上进行交互、对话流设计、配置与测试。",
+              "body": "",
+              "start_anchor": "p_0327",
+              "end_anchor": "p_0327",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0328",
+              "type": "list_item",
+              "title": "5.除中文外，支持有效识别以英语表述的银行业专业术语或我行维护的特定英文专业术语，支持跨语言问法（中英文混杂）且被有效识别。",
+              "body": "",
+              "start_anchor": "p_0328",
+              "end_anchor": "p_0328",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0329",
+              "type": "list_item",
+              "title": "6.支持富文本、多模态交互，支持语音对接，支持图片输入输出；",
+              "body": "支持复杂业务以多元展示+图文指引+视频素材+表单链接等灵活组合推送至客户。",
+              "start_anchor": "p_0329",
+              "end_anchor": "p_0329",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0330",
+              "type": "list_item",
+              "title": "7.支持标准化的智能文本服务，提供与行内系统的标准化对接模块，支持行内关联系统调用。",
+              "body": "",
+              "start_anchor": "p_0330",
+              "end_anchor": "p_0330",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0331",
+              "type": "list_item",
+              "title": "8.支持合规管理和风险管理。",
+              "body": "支持对未识别问题进行合规性检测，自动过滤敏感词汇或违规表述。",
+              "start_anchor": "p_0331",
+              "end_anchor": "p_0331",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0332",
+              "type": "list_item",
+              "title": "9.支持服务渠道端的知识回复内容多颜色显示，风险提示、关键内容支持红字、蓝字等非黑色字体显示，或增加底色以便突出显示；支持部分字体加粗显示。",
+              "body": "",
+              "start_anchor": "p_0332",
+              "end_anchor": "p_0332",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0333",
+              "type": "list_item",
+              "title": "10.支持智能服务过程中进行适当适宜的智能化营销与推荐，或根据我行预设的流程或场景进行进行服务推荐或营销引导。",
+              "body": "",
+              "start_anchor": "p_0333",
+              "end_anchor": "p_0333",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0334",
+              "type": "cn_comma",
+              "title": "二、主要业务功能需求",
+              "body": "",
+              "start_anchor": "p_0334",
+              "end_anchor": "p_0334",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0335",
+              "type": "paren_cn",
+              "title": "（一）前端问答功能",
+              "body": "",
+              "start_anchor": "p_0335",
+              "end_anchor": "p_0335",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0336",
+              "type": "list_item",
+              "title": "1.基本问答功能",
+              "body": "",
+              "start_anchor": "p_0336",
+              "end_anchor": "p_0336",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0338",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0338",
+              "end_anchor": "p_0338",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0345",
+              "type": "list_item",
+              "title": "2.多轮对话功能",
+              "body": "",
+              "start_anchor": "p_0345",
+              "end_anchor": "p_0345",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0347",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0347",
+              "end_anchor": "p_0347",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0357",
+              "type": "list_item",
+              "title": "3.动态场景功能",
+              "body": "",
+              "start_anchor": "p_0357",
+              "end_anchor": "p_0357",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0359",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0359",
+              "end_anchor": "p_0359",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0362",
+              "type": "list_item",
+              "title": "4.模糊问引导功能",
+              "body": "",
+              "start_anchor": "p_0362",
+              "end_anchor": "p_0362",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0364",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0364",
+              "end_anchor": "p_0364",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0367",
+              "type": "list_item",
+              "title": "5.相关问推荐功能",
+              "body": "",
+              "start_anchor": "p_0367",
+              "end_anchor": "p_0367",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0369",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0369",
+              "end_anchor": "p_0369",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0373",
+              "type": "list_item",
+              "title": "6.“未问先答”功能和关联推荐功能",
+              "body": "",
+              "start_anchor": "p_0373",
+              "end_anchor": "p_0373",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0375",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0375",
+              "end_anchor": "p_0375",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0380",
+              "type": "list_item",
+              "title": "7.知识图谱功能",
+              "body": "",
+              "start_anchor": "p_0380",
+              "end_anchor": "p_0380",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0382",
+              "type": "list_item",
+              "title": "8.语义推理功能",
+              "body": "",
+              "start_anchor": "p_0382",
+              "end_anchor": "p_0382",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0384",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0384",
+              "end_anchor": "p_0384",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0390",
+              "type": "list_item",
+              "title": "9.有序问法功能",
+              "body": "",
+              "start_anchor": "p_0390",
+              "end_anchor": "p_0390",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0393",
+              "type": "list_item",
+              "title": "10.差异化回复功能",
+              "body": "",
+              "start_anchor": "p_0393",
+              "end_anchor": "p_0393",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0395",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0395",
+              "end_anchor": "p_0395",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0399",
+              "type": "list_item",
+              "title": "11.多媒体/多形式交互功能",
+              "body": "",
+              "start_anchor": "p_0399",
+              "end_anchor": "p_0399",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0402",
+              "type": "plain_label",
+              "title": "（2）支持多形式交互。",
+              "body": "",
+              "start_anchor": "p_0402",
+              "end_anchor": "p_0402",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0403",
+              "type": "list_item",
+              "title": "12.敏感词汇识别功能",
+              "body": "",
+              "start_anchor": "p_0403",
+              "end_anchor": "p_0403",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0405",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0405",
+              "end_anchor": "p_0405",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0409",
+              "type": "list_item",
+              "title": "13.拼音纠错识别功能",
+              "body": "",
+              "start_anchor": "p_0409",
+              "end_anchor": "p_0409",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0411",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0411",
+              "end_anchor": "p_0411",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0415",
+              "type": "list_item",
+              "title": "14.繁体字识别功能",
+              "body": "",
+              "start_anchor": "p_0415",
+              "end_anchor": "p_0415",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0417",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0417",
+              "end_anchor": "p_0417",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0421",
+              "type": "list_item",
+              "title": "15.非业务咨询识别回复功能",
+              "body": "",
+              "start_anchor": "p_0421",
+              "end_anchor": "p_0421",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0423",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0423",
+              "end_anchor": "p_0423",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0426",
+              "type": "list_item",
+              "title": "16.转接人工服务功能",
+              "body": "",
+              "start_anchor": "p_0426",
+              "end_anchor": "p_0426",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0427",
+              "type": "plain_label",
+              "title": "支持机器人无缝转接人工服务。",
+              "body": "当在机器人无法解决问题或客户提出转接人工要求时，能平滑转接给人工客服，并支持带入智能服务中已交互的上下文。",
+              "start_anchor": "p_0427",
+              "end_anchor": "p_0427",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0428",
+              "type": "paren_cn",
+              "title": "（二）知识管理功能",
+              "body": "",
+              "start_anchor": "p_0428",
+              "end_anchor": "p_0428",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0429",
+              "type": "list_item",
+              "title": "1.整体功能",
+              "body": "",
+              "start_anchor": "p_0429",
+              "end_anchor": "p_0429",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0430",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0430",
+              "end_anchor": "p_0430",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0447",
+              "type": "list_item",
+              "title": "2.知识分类管理",
+              "body": "",
+              "start_anchor": "p_0447",
+              "end_anchor": "p_0447",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0449",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0449",
+              "end_anchor": "p_0449",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0453",
+              "type": "list_item",
+              "title": "3.知识维护管理",
+              "body": "",
+              "start_anchor": "p_0453",
+              "end_anchor": "p_0453",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0455",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0455",
+              "end_anchor": "p_0455",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0459",
+              "type": "plain_label",
+              "title": "（4）批量禁用。",
+              "body": "",
+              "start_anchor": "p_0459",
+              "end_anchor": "p_0459",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0460",
+              "type": "plain_label",
+              "title": "（5）批量启用。",
+              "body": "",
+              "start_anchor": "p_0460",
+              "end_anchor": "p_0460",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0462",
+              "type": "list_item",
+              "title": "4.知识发布管理",
+              "body": "",
+              "start_anchor": "p_0462",
+              "end_anchor": "p_0462",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0464",
+              "type": "list_item",
+              "title": "5.知识审核管理",
+              "body": "",
+              "start_anchor": "p_0464",
+              "end_anchor": "p_0464",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0465",
+              "type": "plain_label",
+              "title": "支持对知识质量进行审核检查。",
+              "body": "",
+              "start_anchor": "p_0465",
+              "end_anchor": "p_0465",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0466",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0466",
+              "end_anchor": "p_0466",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0467",
+              "type": "plain_label",
+              "title": "（1）支持在数据入库前进行审核；",
+              "body": "",
+              "start_anchor": "p_0467",
+              "end_anchor": "p_0467",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0474",
+              "type": "list_item",
+              "title": "6.知识更新管理",
+              "body": "",
+              "start_anchor": "p_0474",
+              "end_anchor": "p_0474",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0476",
+              "type": "list_item",
+              "title": "7.知识搜索和定位",
+              "body": "",
+              "start_anchor": "p_0476",
+              "end_anchor": "p_0476",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0478",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0478",
+              "end_anchor": "p_0478",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0482",
+              "type": "list_item",
+              "title": "8.知识本体/实体管理",
+              "body": "",
+              "start_anchor": "p_0482",
+              "end_anchor": "p_0482",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0484",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0484",
+              "end_anchor": "p_0484",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0487",
+              "type": "list_item",
+              "title": "9.知识词类管理",
+              "body": "",
+              "start_anchor": "p_0487",
+              "end_anchor": "p_0487",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0489",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0489",
+              "end_anchor": "p_0489",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0494",
+              "type": "list_item",
+              "title": "10.知识维度管理",
+              "body": "",
+              "start_anchor": "p_0494",
+              "end_anchor": "p_0494",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0496",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0496",
+              "end_anchor": "p_0496",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0501",
+              "type": "list_item",
+              "title": "11.多媒体知识管理",
+              "body": "",
+              "start_anchor": "p_0501",
+              "end_anchor": "p_0501",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0503",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0503",
+              "end_anchor": "p_0503",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0507",
+              "type": "list_item",
+              "title": "12.知识管理概览",
+              "body": "",
+              "start_anchor": "p_0507",
+              "end_anchor": "p_0507",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0509",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0509",
+              "end_anchor": "p_0509",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0517",
+              "type": "paren_cn",
+              "title": "（三）智能运营功能",
+              "body": "",
+              "start_anchor": "p_0517",
+              "end_anchor": "p_0517",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0518",
+              "type": "list_item",
+              "title": "1.智能问法学习",
+              "body": "",
+              "start_anchor": "p_0518",
+              "end_anchor": "p_0518",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0521",
+              "type": "plain_label",
+              "title": "未识别问法智能分析要求支持如下功能：",
+              "body": "",
+              "start_anchor": "p_0521",
+              "end_anchor": "p_0521",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0524",
+              "type": "plain_label",
+              "title": "（3）支持术语标准化。",
+              "body": "即支持部分问法在金融本体库进行有效映射。如“urcb”对应“杭州联合银行”、“T+0”对应为“实时到账”；",
+              "start_anchor": "p_0524",
+              "end_anchor": "p_0524",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0529",
+              "type": "plain_label",
+              "title": "（8）问法支持按渠道适配优化。",
+              "body": "",
+              "start_anchor": "p_0529",
+              "end_anchor": "p_0529",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0531",
+              "type": "plain_label",
+              "title": "模块基础分类（支持调整）：",
+              "body": "",
+              "start_anchor": "p_0531",
+              "end_anchor": "p_0531",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0536",
+              "type": "list_item",
+              "title": "2.智能交互配置策略",
+              "body": "",
+              "start_anchor": "p_0536",
+              "end_anchor": "p_0536",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0538",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0538",
+              "end_anchor": "p_0538",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0544",
+              "type": "list_item",
+              "title": "3.知识问答引导策略",
+              "body": "",
+              "start_anchor": "p_0544",
+              "end_anchor": "p_0544",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0546",
+              "type": "list_item",
+              "title": "4.知识问答推荐策略",
+              "body": "",
+              "start_anchor": "p_0546",
+              "end_anchor": "p_0546",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0548",
+              "type": "list_item",
+              "title": "5.转人工配置策略",
+              "body": "",
+              "start_anchor": "p_0548",
+              "end_anchor": "p_0548",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0550",
+              "type": "list_item",
+              "title": "6.运营数据与报表",
+              "body": "",
+              "start_anchor": "p_0550",
+              "end_anchor": "p_0550",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0553",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0553",
+              "end_anchor": "p_0553",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0560",
+              "type": "paren_cn",
+              "title": "（四）素材管理功能",
+              "body": "",
+              "start_anchor": "p_0560",
+              "end_anchor": "p_0560",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0562",
+              "type": "list_item",
+              "title": "1.跳转链接管理",
+              "body": "",
+              "start_anchor": "p_0562",
+              "end_anchor": "p_0562",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0564",
+              "type": "list_item",
+              "title": "2.图文管理",
+              "body": "",
+              "start_anchor": "p_0564",
+              "end_anchor": "p_0564",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0566",
+              "type": "list_item",
+              "title": "3.图片管理",
+              "body": "",
+              "start_anchor": "p_0566",
+              "end_anchor": "p_0566",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0568",
+              "type": "list_item",
+              "title": "4.语音管理",
+              "body": "",
+              "start_anchor": "p_0568",
+              "end_anchor": "p_0568",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0570",
+              "type": "list_item",
+              "title": "5.视频管理",
+              "body": "",
+              "start_anchor": "p_0570",
+              "end_anchor": "p_0570",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0572",
+              "type": "list_item",
+              "title": "6.文字菜单管理",
+              "body": "",
+              "start_anchor": "p_0572",
+              "end_anchor": "p_0572",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0574",
+              "type": "paren_cn",
+              "title": "（五）场景管理功能",
+              "body": "",
+              "start_anchor": "p_0574",
+              "end_anchor": "p_0574",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0575",
+              "type": "list_item",
+              "title": "1.知识图谱",
+              "body": "",
+              "start_anchor": "p_0575",
+              "end_anchor": "p_0575",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0577",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0577",
+              "end_anchor": "p_0577",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0579",
+              "type": "plain_label",
+              "title": "（2）知识图谱内容管理：",
+              "body": "支持对表结构、表内容进行新增、删除、导出、导入、搜索。",
+              "start_anchor": "p_0579",
+              "end_anchor": "p_0579",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0580",
+              "type": "list_item",
+              "title": "2.业务场景",
+              "body": "",
+              "start_anchor": "p_0580",
+              "end_anchor": "p_0580",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0582",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0582",
+              "end_anchor": "p_0582",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0589",
+              "type": "paren_cn",
+              "title": "（六）报表分析功能",
+              "body": "",
+              "start_anchor": "p_0589",
+              "end_anchor": "p_0589",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0590",
+              "type": "plain_label",
+              "title": "整体要求：",
+              "body": "以下所有日志数据均支持点击“导出”或“批量导出”，且导出结果文档格式至少支持excel形式。",
+              "start_anchor": "p_0590",
+              "end_anchor": "p_0590",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0591",
+              "type": "list_item",
+              "title": "1.问答日志",
+              "body": "",
+              "start_anchor": "p_0591",
+              "end_anchor": "p_0591",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0593",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0593",
+              "end_anchor": "p_0593",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0597",
+              "type": "list_item",
+              "title": "2.会话日志",
+              "body": "",
+              "start_anchor": "p_0597",
+              "end_anchor": "p_0597",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0599",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0599",
+              "end_anchor": "p_0599",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0603",
+              "type": "list_item",
+              "title": "3.操作日志",
+              "body": "",
+              "start_anchor": "p_0603",
+              "end_anchor": "p_0603",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0605",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0605",
+              "end_anchor": "p_0605",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0609",
+              "type": "list_item",
+              "title": "4.服务日志",
+              "body": "",
+              "start_anchor": "p_0609",
+              "end_anchor": "p_0609",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0611",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0611",
+              "end_anchor": "p_0611",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0613",
+              "type": "list_item",
+              "title": "5.评价日志",
+              "body": "",
+              "start_anchor": "p_0613",
+              "end_anchor": "p_0613",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0615",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0615",
+              "end_anchor": "p_0615",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0619",
+              "type": "list_item",
+              "title": "6.场景日志",
+              "body": "",
+              "start_anchor": "p_0619",
+              "end_anchor": "p_0619",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0621",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0621",
+              "end_anchor": "p_0621",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0624",
+              "type": "list_item",
+              "title": "7.访问数据统计",
+              "body": "",
+              "start_anchor": "p_0624",
+              "end_anchor": "p_0624",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0626",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0626",
+              "end_anchor": "p_0626",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0630",
+              "type": "list_item",
+              "title": "8.服务日志统计",
+              "body": "",
+              "start_anchor": "p_0630",
+              "end_anchor": "p_0630",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0631",
+              "type": "plain_label",
+              "title": "支持按时间统计查看触发智能机器人各项服务的数据。",
+              "body": "",
+              "start_anchor": "p_0631",
+              "end_anchor": "p_0631",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0632",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0632",
+              "end_anchor": "p_0632",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0635",
+              "type": "list_item",
+              "title": "9.知识点触发统计",
+              "body": "",
+              "start_anchor": "p_0635",
+              "end_anchor": "p_0635",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0637",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0637",
+              "end_anchor": "p_0637",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0650",
+              "type": "list_item",
+              "title": "10.知识点排名统计",
+              "body": "",
+              "start_anchor": "p_0650",
+              "end_anchor": "p_0650",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0652",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0652",
+              "end_anchor": "p_0652",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0657",
+              "type": "list_item",
+              "title": "11.流程日志统计",
+              "body": "",
+              "start_anchor": "p_0657",
+              "end_anchor": "p_0657",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0659",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0659",
+              "end_anchor": "p_0659",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0665",
+              "type": "list_item",
+              "title": "12.机器人成效概览",
+              "body": "",
+              "start_anchor": "p_0665",
+              "end_anchor": "p_0665",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0667",
+              "type": "plain_label",
+              "title": "要求展示包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0667",
+              "end_anchor": "p_0667",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0677",
+              "type": "paren_cn",
+              "title": "（七）系统管理功能",
+              "body": "",
+              "start_anchor": "p_0677",
+              "end_anchor": "p_0677",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0678",
+              "type": "list_item",
+              "title": "1.系统监控",
+              "body": "",
+              "start_anchor": "p_0678",
+              "end_anchor": "p_0678",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0680",
+              "type": "list_item",
+              "title": "2.权限管理",
+              "body": "",
+              "start_anchor": "p_0680",
+              "end_anchor": "p_0680",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0682",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0682",
+              "end_anchor": "p_0682",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0687",
+              "type": "list_item",
+              "title": "3.配置管理",
+              "body": "",
+              "start_anchor": "p_0687",
+              "end_anchor": "p_0687",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0689",
+              "type": "plain_label",
+              "title": "要求支持的功能包括但不限于：",
+              "body": "",
+              "start_anchor": "p_0689",
+              "end_anchor": "p_0689",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0692",
+              "type": "plain_label",
+              "title": "（3）服务参数：",
+              "body": "支持配置运行服务的参数信息，支持自定义配置回复术语和内置服务的执行参数。",
+              "start_anchor": "p_0692",
+              "end_anchor": "p_0692",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0696",
+              "type": "paren_cn",
+              "title": "（八）渠道和平台对接功能",
+              "body": "",
+              "start_anchor": "p_0696",
+              "end_anchor": "p_0696",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0697",
+              "type": "list_item",
+              "title": "1.支持原系统已对接的渠道和平台新增对接集成",
+              "body": "",
+              "start_anchor": "p_0697",
+              "end_anchor": "p_0697",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0699",
+              "type": "list_item",
+              "title": "2.移动端需支持的前端功能",
+              "body": "",
+              "start_anchor": "p_0699",
+              "end_anchor": "p_0699",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0710",
+              "type": "plain_label",
+              "title": "（10）智能服务评价功能。",
+              "body": "支持客户进行服务评价，如客户选择“无帮助”，追问客户选择原因，系统对该评价进行记录并统计。",
+              "start_anchor": "p_0710",
+              "end_anchor": "p_0710",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0715",
+              "type": "plain_label",
+              "title": "（15）支持渠道端适老化（大字版）建设要求。",
+              "body": "",
+              "start_anchor": "p_0715",
+              "end_anchor": "p_0715",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0718",
+              "type": "list_item",
+              "title": "3.PC端需支持的前端功能",
+              "body": "",
+              "start_anchor": "p_0718",
+              "end_anchor": "p_0718",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0723",
+              "type": "plain_label",
+              "title": "（4）支持适老化字体变更功能。",
+              "body": "",
+              "start_anchor": "p_0723",
+              "end_anchor": "p_0723",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0726",
+              "type": "plain_label",
+              "title": "（7）智能服务评价功能。",
+              "body": "支持客户进行服务评价，如客户选择“无帮助”，追问客户选择原因，系统对该评价进行记录并统计。",
+              "start_anchor": "p_0726",
+              "end_anchor": "p_0726",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0731",
+          "type": "attachment_section",
+          "title": "附件3",
+          "body": "",
+          "start_anchor": "p_0731",
+          "end_anchor": "p_0821",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0732",
+              "type": "local_doc_title",
+              "title": "新一代智能文本客服机器人系统技术需求",
+              "body": "",
+              "start_anchor": "p_0732",
+              "end_anchor": "p_0732",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0733",
+              "type": "cn_comma",
+              "title": "一、项目介绍",
+              "body": "",
+              "start_anchor": "p_0733",
+              "end_anchor": "p_0733",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0735",
+              "type": "cn_comma",
+              "title": "二、系统建设原则",
+              "body": "",
+              "start_anchor": "p_0735",
+              "end_anchor": "p_0735",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0739",
+              "type": "plain_label",
+              "title": "标准性：",
+              "body": "相关平台应是开放的且符合主流技术标准的平台，并使网络的硬件环境、通信环境、软件环境、操作平台之间相互依赖小。",
+              "start_anchor": "p_0739",
+              "end_anchor": "p_0739",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0749",
+              "type": "cn_comma",
+              "title": "三、总体技术要求",
+              "body": "",
+              "start_anchor": "p_0749",
+              "end_anchor": "p_0749",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0750",
+              "type": "list_item",
+              "title": "1.投标单位须按照招标单位的技术要求和规范，系统设计实现需符合招标单位对平台的规范要求。",
+              "body": "",
+              "start_anchor": "p_0750",
+              "end_anchor": "p_0750",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0751",
+              "type": "list_item",
+              "title": "2.系统平台架构合理，应用前后端分离，能够适应招标人整体架构要求，采用模块化或组件化设计，功能明确，符合“高内聚低耦合”、“面向修改关闭，面向扩展开放”等系统设计原则，组件或模块之间应关系清晰，组件或模块具有较强的独立性和容错能力，可以实现单独热升级或热发布。",
+              "body": "",
+              "start_anchor": "p_0751",
+              "end_anchor": "p_0751",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0752",
+              "type": "list_item",
+              "title": "3.必须具备良好的二次开发能力，具有较强的功能扩展能力和接口扩展能力，以适应未来5-10年各种业务的发展。",
+              "body": "",
+              "start_anchor": "p_0752",
+              "end_anchor": "p_0752",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0753",
+              "type": "list_item",
+              "title": "4.系统要求支持招标人现有系统，兼容主流服务器和数据库系统。",
+              "body": "",
+              "start_anchor": "p_0753",
+              "end_anchor": "p_0753",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0754",
+              "type": "list_item",
+              "title": "5.系统同时支持手动升级、自动升级，版本升级必须支持可回溯，当升级失败或升级后出现问题，能够及时恢复到前一版本。",
+              "body": "",
+              "start_anchor": "p_0754",
+              "end_anchor": "p_0754",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0755",
+              "type": "list_item",
+              "title": "6.系统可同时支持多种数据格式，并且能够根据需要灵活的进行扩展，以支持新的数据格式，能按照招标人指定的接口规范与相关原有系统（或新建系统）进行连接。",
+              "body": "",
+              "start_anchor": "p_0755",
+              "end_anchor": "p_0755",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0756",
+              "type": "list_item",
+              "title": "7.系统同时支持灵活的升级方案，支持一键升级制度包。",
+              "body": "",
+              "start_anchor": "p_0756",
+              "end_anchor": "p_0756",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0757",
+              "type": "cn_comma",
+              "title": "四、系统技术要求",
+              "body": "",
+              "start_anchor": "p_0757",
+              "end_anchor": "p_0757",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0758",
+              "type": "list_item",
+              "title": "1.投标单位须按照招标单位的技术要求和规范，系统设计实现需符合招标单位对系统的规范要求。包括但不限于：（1）使用符合我行技术规范的数据库，包括TDSQL、TBase、TDC、DWS、MRS等。使用符合我行技术规范的中间件，操作系统须支持RedFlag、Kylin V10或统信，兼容海光X86或鲲鹏ARM芯片，具体可参考新一代智能文本客服机器人系统可采用配置清单表。（2）随着行内新一代大数据平台架构升级，投标单位应按照新一代大数据平台架构及规范进行对接。（3）系统设计实现需符合招标单位对平台的规范要求。",
+              "body": "",
+              "start_anchor": "p_0758",
+              "end_anchor": "p_0758",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0002",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0002",
+              "end_anchor": "tbl_0002",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0760",
+              "type": "list_item",
+              "title": "2.系统平台架构合理，能够适应招标人整体架构要求，采用模块化或组件化设计，功能明确，符合“高内聚低耦合”、“面向修改关闭，面向扩展开放”等系统设计原则，组件或模块之间应关系清晰，组件或模块具有较强的独立性和容错能力，可以实现单独热升级或热发布。",
+              "body": "",
+              "start_anchor": "p_0760",
+              "end_anchor": "p_0760",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0761",
+              "type": "list_item",
+              "title": "3.系统提供功能完善、架构合理的交易“集成开发工具”，通过该工具可以简单、快速的完成模块设计。必须具备良好的二次开发能力，具有较强的功能扩展能力和接口扩展能力，以适应未来5-10年各种业务的发展。",
+              "body": "",
+              "start_anchor": "p_0761",
+              "end_anchor": "p_0761",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0762",
+              "type": "list_item",
+              "title": "4.系统要求支持招标人现有系统兼容主流服务器和数据库系统，并提供便捷的硬件扩展功能。",
+              "body": "",
+              "start_anchor": "p_0762",
+              "end_anchor": "p_0762",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0763",
+              "type": "list_item",
+              "title": "5.系统需预留多系统对接扩展能力，同时为适应不同平台通讯报文标准的差异，需提供如HTTP、Web service、XML、socket等多样化通用通讯格式，满足多系统多标准系统对接工作，能按照招标人指定的接口规范与相关原有系统（或新建系统）进行连接。",
+              "body": "",
+              "start_anchor": "p_0763",
+              "end_anchor": "p_0763",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0764",
+              "type": "list_item",
+              "title": "6.系统同时支持手动升级、自动升级，版本升级必须支持可回溯，当升级失败或升级后出现问题，能够及时恢复到前一版本。",
+              "body": "",
+              "start_anchor": "p_0764",
+              "end_anchor": "p_0764",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0765",
+              "type": "list_item",
+              "title": "7.本项目中应用开发的内容，其知识产权归我行所有。",
+              "body": "",
+              "start_anchor": "p_0765",
+              "end_anchor": "p_0765",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0766",
+              "type": "list_item",
+              "title": "8.新一代智能文本客服机器人系统的总体技术要求不限于上述所列。",
+              "body": "",
+              "start_anchor": "p_0766",
+              "end_anchor": "p_0766",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0767",
+              "type": "cn_comma",
+              "title": "五、性能容量要求",
+              "body": "",
+              "start_anchor": "p_0767",
+              "end_anchor": "p_0767",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0768",
+              "type": "list_item",
+              "title": "1.系统性能应满足下列要求：",
+              "body": "",
+              "start_anchor": "p_0768",
+              "end_anchor": "p_0768",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0769",
+              "type": "list_item",
+              "title": "2.系统并发能力不小于100笔/秒。",
+              "body": "",
+              "start_anchor": "p_0769",
+              "end_anchor": "p_0769",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0770",
+              "type": "list_item",
+              "title": "3.系统具备横向扩展能力，资源越多可达到的性能越高。",
+              "body": "",
+              "start_anchor": "p_0770",
+              "end_anchor": "p_0770",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0771",
+              "type": "list_item",
+              "title": "4.稳定性：",
+              "body": "系统在资源不变的情况下，对于请求量增加和大数据的计算，具备稳定性，计算速度变慢但是任务可以正常运行计算。",
+              "start_anchor": "p_0771",
+              "end_anchor": "p_0771",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0772",
+              "type": "list_item",
+              "title": "5.系统可维护性：",
+              "body": "系统应具有良好的可维护性。",
+              "start_anchor": "p_0772",
+              "end_anchor": "p_0772",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0773",
+              "type": "list_item",
+              "title": "6.系统应该具备数据协调性，对于数据倾斜的场景，可以做到数据的均匀。",
+              "body": "",
+              "start_anchor": "p_0773",
+              "end_anchor": "p_0773",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0774",
+              "type": "cn_comma",
+              "title": "六、项目质量控制要求",
+              "body": "",
+              "start_anchor": "p_0774",
+              "end_anchor": "p_0774",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0776",
+              "type": "cn_comma",
+              "title": "七、软硬件平台要求",
+              "body": "",
+              "start_anchor": "p_0776",
+              "end_anchor": "p_0776",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0777",
+              "type": "list_item",
+              "title": "1.投标人必须推荐保证系统正常运行所必须的软硬件平台方案（简称推荐方案）。",
+              "body": "推荐方案主要内容包括设备清单、性能指标、第三方软件（如操作系统、数据库、中间件等）的详细清单及版本要求，保证应用系统投产运行不缺少任何必需的配件或软件。",
+              "start_anchor": "p_0777",
+              "end_anchor": "p_0777",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0778",
+              "type": "list_item",
+              "title": "2.推荐应用系统的开发环境、测试环境、生产环境部署方案，详细列明开发环境、测试环境、生产环境所需的软、硬件配置清单。",
+              "body": "",
+              "start_anchor": "p_0778",
+              "end_anchor": "p_0778",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0779",
+              "type": "list_item",
+              "title": "3.推荐方案的软硬件平台应具备横向和纵向的扩充能力，生产环境的软硬件解决方案必须满足招标人性能容量要求，以满足招标人未来5-10年各类业务发展的要求。",
+              "body": "",
+              "start_anchor": "p_0779",
+              "end_anchor": "p_0779",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0780",
+              "type": "list_item",
+              "title": "4.推荐的软硬件平台不列入投标报价。",
+              "body": "",
+              "start_anchor": "p_0780",
+              "end_anchor": "p_0780",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0781",
+              "type": "cn_comma",
+              "title": "八、具体非功能性需求",
+              "body": "",
+              "start_anchor": "p_0781",
+              "end_anchor": "p_0781",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0782",
+              "type": "paren_cn",
+              "title": "（一）系统性能要求",
+              "body": "",
+              "start_anchor": "p_0782",
+              "end_anchor": "p_0782",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0784",
+              "type": "paren_cn",
+              "title": "（二）可靠性要求",
+              "body": "",
+              "start_anchor": "p_0784",
+              "end_anchor": "p_0784",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0786",
+              "type": "paren_cn",
+              "title": "（三）可用性需求",
+              "body": "",
+              "start_anchor": "p_0786",
+              "end_anchor": "p_0786",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0003",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0003",
+              "end_anchor": "tbl_0003",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0787",
+              "type": "cn_comma",
+              "title": "九、实施内容及时间要求",
+              "body": "",
+              "start_anchor": "p_0787",
+              "end_anchor": "p_0787",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0788",
+              "type": "paren_cn",
+              "title": "（一）实施内容",
+              "body": "",
+              "start_anchor": "p_0788",
+              "end_anchor": "p_0788",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0790",
+              "type": "list_item",
+              "title": "1.投标人需要结合招标人业务架构规划，协助本项目相关需求制定，并基于招标人业务资产，完成应用架构对业务资产的承接以及定制化改造实施工作。",
+              "body": "",
+              "start_anchor": "p_0790",
+              "end_anchor": "p_0790",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0791",
+              "type": "list_item",
+              "title": "2.投标人负责建设满足招标人技术需求的新一代智能文本客服机器人系统，提供完整系统解决方案和建议，并负责组织项目实施和项目质量控制。",
+              "body": "",
+              "start_anchor": "p_0791",
+              "end_anchor": "p_0791",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0792",
+              "type": "list_item",
+              "title": "3.投标人负责为招标人提供新一代智能文本客服机器人系统相关的培训，使受训人员满足新一代智能文本客服机器人系统维护、使用等工作的需要。",
+              "body": "",
+              "start_anchor": "p_0792",
+              "end_anchor": "p_0792",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0793",
+              "type": "list_item",
+              "title": "4.投标人负责为招标人提供新一代智能文本客服机器人系统相关运营工作，知识点维护、运营、迁移，场景维护等。",
+              "body": "",
+              "start_anchor": "p_0793",
+              "end_anchor": "p_0793",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0794",
+              "type": "list_item",
+              "title": "5.项目各阶段，投标人负责提交合格完整的项目交付文档及源代码；",
+              "body": "交付全面完整的系统源程序代码及所有说明文档，包括由投标人提供的产品的完整源程序代码和为招标人进行客户化开发工作的完整源程序代码。",
+              "start_anchor": "p_0794",
+              "end_anchor": "p_0794",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0795",
+              "type": "paren_cn",
+              "title": "（二）实施进度计划",
+              "body": "",
+              "start_anchor": "p_0795",
+              "end_anchor": "p_0795",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0797",
+              "type": "cn_comma",
+              "title": "十、项目实施团队要求",
+              "body": "",
+              "start_anchor": "p_0797",
+              "end_anchor": "p_0797",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0798",
+              "type": "list_item",
+              "title": "1.中标单位须组织项目现场实施团队，项目现场实施团队由1名项目经理、1名产品经理、1名技术专家、1名运营专家、1名测试人员、若干项目开发人员（含项目骨干）组成。项目实施时项目经理、产品经理、技术专家、运营专家、技术骨干必须提供符合招标单位要求的项目履历证明以及在项目中担任的角色证明，项目经理、产品经理、技术专家、运营专家、技术骨干必须通过招标单位确认，如果不通过须在7个工作日内提供替换人员。",
+              "body": "",
+              "start_anchor": "p_0798",
+              "end_anchor": "p_0798",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0799",
+              "type": "list_item",
+              "title": "2.项目经理具有8年以上工作经验，主持过2个以上客服文本机器人系统项目的实施，要求具有很强的项目管理能力和丰富的系统建设经验。产品经理具有从事5年及以上产品经理工作经验，必须参与设计过2个以上客服文本机器人系统项目的定制化改造方案，具备开展智能服务训练、AI训练的丰富经验，配合招标方完成业务功能需求梳理、编写，根据招标方业务运营需要定期进行交互实效分析，提供知识运营、AI模型优化等的良好经验和有效建议。技术专家具备项管领域10年以上工作经验，以技术经理角色主导过2个以上客服文本机器人系统项目，精通开发平台，具有丰富的应用架构、技术架构、数据架构设计经验，对项目实施过程中技术路线的整体把控，确保项目顺利按照我行要求高质量完成。运营专家具备5年以上相关工作经验，参与过2个以上客服文本机器人系统项目的运营工作，配合招标方完成知识点整理、迁移、运营等工作。项目开发人员（含项目骨干）必须参加过1个以上客服文本机器人系统项目的建设，具备3年以上系统开发、测试经验，具有较强的开发、测试和解决问题的能力（附合同等证明材料）。测试人员需具备3年以上系统测试经验，必须参加过1个以上客服文本机器人系统项目的全功能测试，配合招标方完成测试案例编写。",
+              "body": "",
+              "start_anchor": "p_0799",
+              "end_anchor": "p_0799",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0800",
+              "type": "list_item",
+              "title": "3.在项目实施过程中，采购单位对中标单位所指派服务工程师的服务不满意（包括技术能力、服务态度等），有权提出撤换该工程师的要求，中标单位应无条件并在招标方指定期限内予以执行。",
+              "body": "",
+              "start_anchor": "p_0800",
+              "end_anchor": "p_0800",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0801",
+              "type": "list_item",
+              "title": "4.为保障项目核心团队稳定，所有成员在征得招标人电子文件同意后才能更换；",
+              "body": "在经招标人同意而变更项目核心人员，提供不低于原核心人员技术能力及资质的本地人员，并提前1个月提供候选人，原有核心人员和替换人员工作交接不少于1个月的并行时间；投标人承诺，未经招标人同意而变更项目核心团队人员的，须承担相应违约责任；每变更1名项目经理须支付项目合同总价款的10%作为违约金，每变更1名项目成员须支付项目合同总价款的5%作为违约金。",
+              "start_anchor": "p_0801",
+              "end_anchor": "p_0801",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0802",
+              "type": "cn_comma",
+              "title": "十一、维保服务",
+              "body": "",
+              "start_anchor": "p_0802",
+              "end_anchor": "p_0802",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0803",
+              "type": "paren_cn",
+              "title": "（一）免费维保服务",
+              "body": "",
+              "start_anchor": "p_0803",
+              "end_anchor": "p_0803",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0804",
+              "type": "plain_label",
+              "title": "满足维保服务工作任务说明书中的服务要求。",
+              "body": "系统的免费维保服务期为一年，免费维保服务期从项目整体实施完成且经过全部系统验收后双方代表签字之日起计算。免费维保服务期内应保证1名满足项目开发人员要求的技术人员按需远程或现场支持。针对关键重大问题或特殊业务时点，应承诺调动全部资源给予支持，委派专家到现场解决问题，迅速排除系统故障。",
+              "start_anchor": "p_0804",
+              "end_anchor": "p_0804",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0805",
+              "type": "paren_cn",
+              "title": "（二）有偿维保服务",
+              "body": "",
+              "start_anchor": "p_0805",
+              "end_anchor": "p_0805",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0806",
+              "type": "plain_label",
+              "title": "满足维保服务工作任务说明书中的服务要求。",
+              "body": "系统的有偿维保服务期为三年，有偿维保服务期从免费维保服务期结束且经过全部验收后双方代表签字之日起计算。有偿维保服务期内应保证1名满足项目开发人员要求的技术人员按需远程或现场支持。针对关键重大问题或特殊业务时点，应承诺调动全部资源给予支持，委派专家到现场解决问题，迅速排除系统故障。",
+              "start_anchor": "p_0806",
+              "end_anchor": "p_0806",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0807",
+              "type": "cn_comma",
+              "title": "十二、知识转移与项目培训",
+              "body": "",
+              "start_anchor": "p_0807",
+              "end_anchor": "p_0807",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0808",
+              "type": "paren_cn",
+              "title": "（一）知识转移",
+              "body": "",
+              "start_anchor": "p_0808",
+              "end_anchor": "p_0808",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0809",
+              "type": "plain_label",
+              "title": "知识转移目标：",
+              "body": "",
+              "start_anchor": "p_0809",
+              "end_anchor": "p_0809",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0811",
+              "type": "plain_label",
+              "title": "知识转移策略：",
+              "body": "",
+              "start_anchor": "p_0811",
+              "end_anchor": "p_0811",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0813",
+              "type": "plain_label",
+              "title": "知识转移的方法：",
+              "body": "",
+              "start_anchor": "p_0813",
+              "end_anchor": "p_0813",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0004",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0004",
+              "end_anchor": "tbl_0004",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0814",
+              "type": "paren_cn",
+              "title": "（二）项目培训",
+              "body": "",
+              "start_anchor": "p_0814",
+              "end_anchor": "p_0814",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0815",
+              "type": "plain_label",
+              "title": "培训目标：",
+              "body": "",
+              "start_anchor": "p_0815",
+              "end_anchor": "p_0815",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0817",
+              "type": "plain_label",
+              "title": "培训总体要求：",
+              "body": "",
+              "start_anchor": "p_0817",
+              "end_anchor": "p_0817",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0818",
+              "type": "plain_label",
+              "title": "中标单位负责提供培训教材。",
+              "body": "",
+              "start_anchor": "p_0818",
+              "end_anchor": "p_0818",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0822",
+          "type": "attachment_section",
+          "title": "附件4",
+          "body": "",
+          "start_anchor": "p_0822",
+          "end_anchor": "p_0894",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0823",
+              "type": "local_doc_title",
+              "title": "新一代智能文本客服机器人系统安全需求",
+              "body": "",
+              "start_anchor": "p_0823",
+              "end_anchor": "p_0823",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0824",
+              "type": "cn_comma",
+              "title": "一、信息安全要求",
+              "body": "",
+              "start_anchor": "p_0824",
+              "end_anchor": "p_0824",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0826",
+              "type": "plain_label",
+              "title": "产品需屏蔽非业务所需接口；",
+              "body": "",
+              "start_anchor": "p_0826",
+              "end_anchor": "p_0826",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0829",
+              "type": "plain_label",
+              "title": "模型生成内容安全性：",
+              "body": "具有模型检测和引导模型生成积极正向内容的机制，具备识别和过滤不当内容的能力，保证输出内容的正面性和适宜性；模型在回答用户问题时，必须遵守相关的法律法规和及银行业监管要求。",
+              "start_anchor": "p_0829",
+              "end_anchor": "p_0829",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0830",
+              "type": "plain_label",
+              "title": "模型生成内容准确性：",
+              "body": "具备提高生成内容准确性的技术手段。",
+              "start_anchor": "p_0830",
+              "end_anchor": "p_0830",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0831",
+              "type": "plain_label",
+              "title": "模型生成内容可靠性：",
+              "body": "具有提高生成内容格式框架合理性和有效内容含量的技术措施。",
+              "start_anchor": "p_0831",
+              "end_anchor": "p_0831",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0835",
+              "type": "cn_comma",
+              "title": "二、合规安全要求",
+              "body": "",
+              "start_anchor": "p_0835",
+              "end_anchor": "p_0835",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0839",
+              "type": "cn_comma",
+              "title": "三、数据安全",
+              "body": "",
+              "start_anchor": "p_0839",
+              "end_anchor": "p_0839",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0840",
+              "type": "list_item",
+              "title": "1.数据录入安全",
+              "body": "",
+              "start_anchor": "p_0840",
+              "end_anchor": "p_0840",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0843",
+              "type": "list_item",
+              "title": "2.数据传输安全",
+              "body": "",
+              "start_anchor": "p_0843",
+              "end_anchor": "p_0843",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0848",
+              "type": "list_item",
+              "title": "3.数据存储安全",
+              "body": "",
+              "start_anchor": "p_0848",
+              "end_anchor": "p_0848",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0850",
+              "type": "list_item",
+              "title": "4.数据安全与隐私问题",
+              "body": "",
+              "start_anchor": "p_0850",
+              "end_anchor": "p_0850",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0854",
+              "type": "cn_comma",
+              "title": "四、日志、审计要求",
+              "body": "",
+              "start_anchor": "p_0854",
+              "end_anchor": "p_0854",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0872",
+              "type": "cn_comma",
+              "title": "五、用户安全管理",
+              "body": "",
+              "start_anchor": "p_0872",
+              "end_anchor": "p_0872",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0876",
+              "type": "cn_comma",
+              "title": "六、后台服务器/系统安全",
+              "body": "",
+              "start_anchor": "p_0876",
+              "end_anchor": "p_0876",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0877",
+              "type": "plain_label",
+              "title": "后台服务器需物理放置在招标单位中心；",
+              "body": "",
+              "start_anchor": "p_0877",
+              "end_anchor": "p_0877",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0878",
+              "type": "plain_label",
+              "title": "后台服务器可设定产品的可使用时间；",
+              "body": "",
+              "start_anchor": "p_0878",
+              "end_anchor": "p_0878",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0883",
+              "type": "plain_label",
+              "title": "后台服务器应通过技术手段禁止所有不必要的外部接口；",
+              "body": "禁止非业务所需的系统服务及端口；",
+              "start_anchor": "p_0883",
+              "end_anchor": "p_0883",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0886",
+              "type": "cn_comma",
+              "title": "七、安全评估要求",
+              "body": "",
+              "start_anchor": "p_0886",
+              "end_anchor": "p_0886",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0889",
+              "type": "cn_comma",
+              "title": "八、风险管理与应急响应",
+              "body": "",
+              "start_anchor": "p_0889",
+              "end_anchor": "p_0889",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0892",
+              "type": "cn_comma",
+              "title": "九、其他",
+              "body": "",
+              "start_anchor": "p_0892",
+              "end_anchor": "p_0892",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0893",
+              "type": "outline_title",
+              "title": "投标单位需在投标文件中对本部分所列安全要求是否可满足进行逐条答复，对于暂无法满足的进行情况说明，并提供替代方案。",
+              "body": "",
+              "start_anchor": "p_0893",
+              "end_anchor": "p_0893",
+              "confidence": "medium",
+              "reasons": [
+                "effective_outline"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0895",
+          "type": "attachment_section",
+          "title": "附件5",
+          "body": "",
+          "start_anchor": "p_0895",
+          "end_anchor": "p_1006",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0896",
+              "type": "local_doc_title",
+              "title": "新一代智能文本客服机器人系统项目工作说明书",
+              "body": "",
+              "start_anchor": "p_0896",
+              "end_anchor": "p_0896",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0897",
+              "type": "list_item",
+              "title": "1.前言",
+              "body": "",
+              "start_anchor": "p_0897",
+              "end_anchor": "p_0897",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0900",
+              "type": "plain_label",
+              "title": "其他说明：",
+              "body": "",
+              "start_anchor": "p_0900",
+              "end_anchor": "p_0900",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0903",
+              "type": "list_item",
+              "title": "2.项目实施工作描述（SOW）",
+              "body": "",
+              "start_anchor": "p_0903",
+              "end_anchor": "p_0903",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0904",
+              "type": "list_item",
+              "title": "2.1项目范围",
+              "body": "",
+              "start_anchor": "p_0904",
+              "end_anchor": "p_0904",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0906",
+              "type": "list_item",
+              "title": "2.2主要假定",
+              "body": "",
+              "start_anchor": "p_0906",
+              "end_anchor": "p_0906",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0907",
+              "type": "plain_label",
+              "title": "项目执行范围和计划的前提如下：",
+              "body": "",
+              "start_anchor": "p_0907",
+              "end_anchor": "p_0907",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0915",
+              "type": "list_item",
+              "title": "2.3责任",
+              "body": "",
+              "start_anchor": "p_0915",
+              "end_anchor": "p_0915",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0916",
+              "type": "list_item",
+              "title": "2.3.1项目管理及职责要求",
+              "body": "",
+              "start_anchor": "p_0916",
+              "end_anchor": "p_0916",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0917",
+              "type": "list_item",
+              "title": "1.项目实施工作职责以乙方为主，甲方提供必要的配合，并监督实施质量及审案必须经双方认核交付物，具体实施方可。",
+              "body": "",
+              "start_anchor": "p_0917",
+              "end_anchor": "p_0917",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0918",
+              "type": "list_item",
+              "title": "2.乙方负责整个项目的设计、实施、进度和质量控制，对整个项目的完成进度和质量负责；",
+              "body": "甲方将派出一定数量的技术人员配合项目建设，审核设计方案，明确细化业务需求，掌握全系统的各项技术，为将来的运行维护、功能扩充作技术准备，并监督项目的质量，确保项目按时完成。",
+              "start_anchor": "p_0918",
+              "end_anchor": "p_0918",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0919",
+              "type": "list_item",
+              "title": "3.乙方须根据本项目的特点提出一套具有针对性的项目管理方法，以指导和控制项目实施工作。",
+              "body": "包括：",
+              "start_anchor": "p_0919",
+              "end_anchor": "p_0919",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0925",
+              "type": "list_item",
+              "title": "2.3.2项目准备",
+              "body": "",
+              "start_anchor": "p_0925",
+              "end_anchor": "p_0925",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0928",
+              "type": "plain_label",
+              "title": "（3）制定详细项目计划；",
+              "body": "",
+              "start_anchor": "p_0928",
+              "end_anchor": "p_0928",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0930",
+              "type": "list_item",
+              "title": "2.3.3技术转移要求",
+              "body": "",
+              "start_anchor": "p_0930",
+              "end_anchor": "p_0930",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0931",
+              "type": "list_item",
+              "title": "1.乙方在项目实施过程中应充分重视技术转移工作，确保在项目合同实施工作结束时能够与甲方一起完成技术转移的工作任务，目标是使甲方技术人员能够获得独立进行开发、升级和维护的能力，技术转移内容要包含产品转移与技能转移两部分。乙方应通过培训、参与开发以及其甲方认为合适的方式实现技能转移，并提供具体的技能转移内容清单以及对应的具体措施。",
+              "body": "",
+              "start_anchor": "p_0931",
+              "end_anchor": "p_0931",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0932",
+              "type": "list_item",
+              "title": "2.甲方对产品转移的要求：",
+              "body": "",
+              "start_anchor": "p_0932",
+              "end_anchor": "p_0932",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0937",
+              "type": "list_item",
+              "title": "3.对技能转移内容包含但不限于以下：",
+              "body": "",
+              "start_anchor": "p_0937",
+              "end_anchor": "p_0937",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0943",
+              "type": "list_item",
+              "title": "2.3.4系统上线后支持阶段",
+              "body": "",
+              "start_anchor": "p_0943",
+              "end_anchor": "p_0943",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0944",
+              "type": "plain_label",
+              "title": "参照合同第七条执行。",
+              "body": "",
+              "start_anchor": "p_0944",
+              "end_anchor": "p_0944",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0945",
+              "type": "list_item",
+              "title": "2.3.4.1法律、法规和法令",
+              "body": "",
+              "start_anchor": "p_0945",
+              "end_anchor": "p_0945",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0947",
+              "type": "list_item",
+              "title": "2.3.4.2数据文件内容和安全",
+              "body": "",
+              "start_anchor": "p_0947",
+              "end_anchor": "p_0947",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0949",
+              "type": "list_item",
+              "title": "2.3.4.3设施",
+              "body": "",
+              "start_anchor": "p_0949",
+              "end_anchor": "p_0949",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0951",
+              "type": "list_item",
+              "title": "2.4估计时间表",
+              "body": "",
+              "start_anchor": "p_0951",
+              "end_anchor": "p_0951",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0005",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0005",
+              "end_anchor": "tbl_0005",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0954",
+              "type": "list_item",
+              "title": "3.项目管理",
+              "body": "",
+              "start_anchor": "p_0954",
+              "end_anchor": "p_0954",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0955",
+              "type": "list_item",
+              "title": "3.1项目组成员的职责",
+              "body": "",
+              "start_anchor": "p_0955",
+              "end_anchor": "p_0955",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0956",
+              "type": "list_item",
+              "title": "3.1.1项目管理办公室",
+              "body": "",
+              "start_anchor": "p_0956",
+              "end_anchor": "p_0956",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0959",
+              "type": "list_item",
+              "title": "3.1.2项目经理",
+              "body": "",
+              "start_anchor": "p_0959",
+              "end_anchor": "p_0959",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0962",
+              "type": "plain_label",
+              "title": "联系方式：",
+              "body": "17767109995电子邮箱：yst@zjrcu.com",
+              "start_anchor": "p_0962",
+              "end_anchor": "p_0962",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0963",
+              "type": "plain_label",
+              "title": "乙方项目经理：",
+              "body": "",
+              "start_anchor": "p_0963",
+              "end_anchor": "p_0963",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0964",
+              "type": "plain_label",
+              "title": "联系方式：",
+              "body": "电子邮箱：",
+              "start_anchor": "p_0964",
+              "end_anchor": "p_0964",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0967",
+              "type": "list_item",
+              "title": "3.1.3需求组",
+              "body": "",
+              "start_anchor": "p_0967",
+              "end_anchor": "p_0967",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0970",
+              "type": "list_item",
+              "title": "3.1.4开发组",
+              "body": "",
+              "start_anchor": "p_0970",
+              "end_anchor": "p_0970",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0973",
+              "type": "list_item",
+              "title": "3.1.5测试组",
+              "body": "",
+              "start_anchor": "p_0973",
+              "end_anchor": "p_0973",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0975",
+              "type": "list_item",
+              "title": "3.1.6质量管理组",
+              "body": "",
+              "start_anchor": "p_0975",
+              "end_anchor": "p_0975",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0977",
+              "type": "list_item",
+              "title": "3.1.7专家组",
+              "body": "",
+              "start_anchor": "p_0977",
+              "end_anchor": "p_0977",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0980",
+              "type": "list_item",
+              "title": "3.2质量管理",
+              "body": "",
+              "start_anchor": "p_0980",
+              "end_anchor": "p_0980",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0981",
+              "type": "plain_label",
+              "title": "项目质量控制的目的是确保以下几点：",
+              "body": "",
+              "start_anchor": "p_0981",
+              "end_anchor": "p_0981",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0984",
+              "type": "plain_label",
+              "title": "系统方案质量控制；",
+              "body": "",
+              "start_anchor": "p_0984",
+              "end_anchor": "p_0984",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0985",
+              "type": "plain_label",
+              "title": "业务质量控制；",
+              "body": "",
+              "start_anchor": "p_0985",
+              "end_anchor": "p_0985",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0986",
+              "type": "plain_label",
+              "title": "项目初始阶段质量控制；",
+              "body": "",
+              "start_anchor": "p_0986",
+              "end_anchor": "p_0986",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0987",
+              "type": "plain_label",
+              "title": "项目进行中质量控制；",
+              "body": "",
+              "start_anchor": "p_0987",
+              "end_anchor": "p_0987",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0988",
+              "type": "plain_label",
+              "title": "项目结束阶段质量控制。",
+              "body": "",
+              "start_anchor": "p_0988",
+              "end_anchor": "p_0988",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0994",
+              "type": "list_item",
+              "title": "3.3沟通管理",
+              "body": "",
+              "start_anchor": "p_0994",
+              "end_anchor": "p_0994",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0006",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0006",
+              "end_anchor": "tbl_0006",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0996",
+              "type": "list_item",
+              "title": "3.4风险管理",
+              "body": "",
+              "start_anchor": "p_0996",
+              "end_anchor": "p_0996",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0997",
+              "type": "plain_label",
+              "title": "项目的规划和执行过程风险管理的流程主要有以下这些：",
+              "body": "",
+              "start_anchor": "p_0997",
+              "end_anchor": "p_0997",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1002",
+              "type": "list_item",
+              "title": "3.5项目成员",
+              "body": "",
+              "start_anchor": "p_1002",
+              "end_anchor": "p_1002",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_1007",
+          "type": "attachment_section",
+          "title": "附件6",
+          "body": "",
+          "start_anchor": "p_1007",
+          "end_anchor": "p_1040",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_1008",
+              "type": "local_doc_title",
+              "title": "新一代智能文本客服机器人系统",
+              "body": "",
+              "start_anchor": "p_1008",
+              "end_anchor": "p_1008",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_1009",
+              "type": "local_doc_title",
+              "title": "维保服务工作任务说明书",
+              "body": "",
+              "start_anchor": "p_1009",
+              "end_anchor": "p_1009",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_1013",
+              "type": "list_item",
+              "title": "2.1 项目范围：",
+              "body": "",
+              "start_anchor": "p_1013",
+              "end_anchor": "p_1013",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1014",
+              "type": "plain_label",
+              "title": "本项目的实施范围如下。",
+              "body": "不在本“项目范围”中涉及到的内容，将不在本项目中进行实施。",
+              "start_anchor": "p_1014",
+              "end_anchor": "p_1014",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1019",
+              "type": "list_item",
+              "title": "2.2 项目工作期限：",
+              "body": "",
+              "start_anchor": "p_1019",
+              "end_anchor": "p_1019",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1020",
+              "type": "plain_label",
+              "title": "维保服务期限：",
+              "body": "",
+              "start_anchor": "p_1020",
+              "end_anchor": "p_1020",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1024",
+              "type": "list_item",
+              "title": "3.1 工程类文档：",
+              "body": "",
+              "start_anchor": "p_1024",
+              "end_anchor": "p_1024",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0007",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0007",
+              "end_anchor": "tbl_0007",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_1026",
+              "type": "list_item",
+              "title": "3.2 项目质量目标：",
+              "body": "",
+              "start_anchor": "p_1026",
+              "end_anchor": "p_1026",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1031",
+              "type": "list_item",
+              "title": "3.3完成及验收标准：",
+              "body": "",
+              "start_anchor": "p_1031",
+              "end_anchor": "p_1031",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1034",
+              "type": "list_item",
+              "title": "3.4 变更管理：",
+              "body": "",
+              "start_anchor": "p_1034",
+              "end_anchor": "p_1034",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1037",
+              "type": "list_item",
+              "title": "4.1 开发实施模式：",
+              "body": "",
+              "start_anchor": "p_1037",
+              "end_anchor": "p_1037",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1039",
+              "type": "list_item",
+              "title": "4.2工作与汇报方式：",
+              "body": "",
+              "start_anchor": "p_1039",
+              "end_anchor": "p_1039",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1040",
+              "type": "outline_title",
+              "title": "由现场项目经理按照采购单位要求向采购单位项目经理汇报，必要时候项目成员也可向采购单位单独汇报。",
+              "body": "",
+              "start_anchor": "p_1040",
+              "end_anchor": "p_1040",
+              "confidence": "medium",
+              "reasons": [
+                "effective_outline"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_1041",
+          "type": "attachment_section",
+          "title": "附件7",
+          "body": "",
+          "start_anchor": "p_1041",
+          "end_anchor": "p_1119",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_1042",
+              "type": "local_doc_title",
+              "title": "新一代智能文本客服机器人系统服务级别协议",
+              "body": "",
+              "start_anchor": "p_1042",
+              "end_anchor": "p_1042",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_1043",
+              "type": "cn_comma",
+              "title": "一、协议签署",
+              "body": "",
+              "start_anchor": "p_1043",
+              "end_anchor": "p_1043",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1046",
+              "type": "cn_comma",
+              "title": "二、服务期限",
+              "body": "",
+              "start_anchor": "p_1046",
+              "end_anchor": "p_1046",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1047",
+              "type": "plain_label",
+              "title": "本协议有效期限为合同签订生效之日起至维护期结束。",
+              "body": "",
+              "start_anchor": "p_1047",
+              "end_anchor": "p_1047",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1048",
+              "type": "cn_comma",
+              "title": "三、服务范围",
+              "body": "",
+              "start_anchor": "p_1048",
+              "end_anchor": "p_1048",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1049",
+              "type": "plain_label",
+              "title": "IT服务提供方提供对以下IT系统和设备的IT服务:",
+              "body": "",
+              "start_anchor": "p_1049",
+              "end_anchor": "p_1049",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1061",
+              "type": "cn_comma",
+              "title": "四、协议内容要求",
+              "body": "",
+              "start_anchor": "p_1061",
+              "end_anchor": "p_1061",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1062",
+              "type": "list_item",
+              "title": "4.1服务内容",
+              "body": "",
+              "start_anchor": "p_1062",
+              "end_anchor": "p_1062",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1063",
+              "type": "list_item",
+              "title": "1．业务和技术咨询服务：",
+              "body": "为甲方提供关联交易管理系统正常生产运行的相关技术支持服务，在项目实施过程中，提供不间断的驻场服务。",
+              "start_anchor": "p_1063",
+              "end_anchor": "p_1063",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1064",
+              "type": "list_item",
+              "title": "2．系统安装服务：",
+              "body": "应甲方要求，乙方为甲方提供系统安装服务。在甲方机房搬迁、或硬件故障、宕机无法重新启动、系统运行异常等情况需要重新安装时，制订安装方案，提供关联交易管理系统的现场安装、调试、维护服务。",
+              "start_anchor": "p_1064",
+              "end_anchor": "p_1064",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1065",
+              "type": "list_item",
+              "title": "3．现场故障分析与排除：",
+              "body": "乙方承诺应甲方要求提供不定次数的现场服务，在甲方现场为甲方提供关联交易管理系统正常生产运行过程中出现故障的分析、解答及排除的技术服务。提供故障的检测和分析，提出解决方案，最终排除系统的故障，保障系统的正常运行和业务处理。",
+              "start_anchor": "p_1065",
+              "end_anchor": "p_1065",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1066",
+              "type": "list_item",
+              "title": "4．系统定期例行检查和测试：",
+              "body": "依照甲方要求，乙方派合格工程师到甲方生产现场为甲方提供每季度1次的定期健康性检查，检查系统工作环境、运行状况及性能，提供甲方系统运行分析的书面报告，报告该系统运行的环境和系统参数的变化状况，甲方系统存在风险隐患时必需明确定位并提出解决方案。",
+              "start_anchor": "p_1066",
+              "end_anchor": "p_1066",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1067",
+              "type": "list_item",
+              "title": "5．系统软件升级服务：",
+              "body": "乙方发布新版软件或新增系统软件补丁后，应及时通知甲方；并视甲方需要，为甲方提供新版系统软件或补丁的安装支持服务。",
+              "start_anchor": "p_1067",
+              "end_anchor": "p_1067",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1068",
+              "type": "list_item",
+              "title": "6．培训服务：",
+              "body": "根据甲方具体需要，乙方为甲方技术人员做好关联交易管理系统的安装、部署、调试、日常维护等方面的免费培训以及业务分析方面的免费培训。",
+              "start_anchor": "p_1068",
+              "end_anchor": "p_1068",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1069",
+              "type": "list_item",
+              "title": "7．知识转移：",
+              "body": "提供和新一代智能文本客服机器人系统项目相关的设计文档，如该产品完整开发生命周期中使用或遵循的开发方法、设计文档、应用规范等，提供在项目实施过程中产生的所有相关文档，提供新一代智能文本客服机器人系统项目全部系统源代码和源代码的所有说明文档，其中提供的源码要按系统、分模块列明，提供业务连续性管理制度框架建议，协助业务连续性宣贯培训和切换演练培训，协助指导真实接管业务的业务连续性演练。",
+              "start_anchor": "p_1069",
+              "end_anchor": "p_1069",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1070",
+              "type": "list_item",
+              "title": "4.2服务方式",
+              "body": "",
+              "start_anchor": "p_1070",
+              "end_anchor": "p_1070",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1073",
+              "type": "plain_label",
+              "title": "邮件支持服务：",
+              "body": "7x24接受服务申请，乙方服务团队将在15分钟内给予回复；",
+              "start_anchor": "p_1073",
+              "end_anchor": "p_1073",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1074",
+              "type": "plain_label",
+              "title": "电话技术支持：",
+              "body": "7x24的技术支持服务，当联系电话变更时提前3个工作日进行通知；",
+              "start_anchor": "p_1074",
+              "end_anchor": "p_1074",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1079",
+              "type": "plain_label",
+              "title": "现场服务时间：",
+              "body": "在项目实施过程中，我方项目成员将根据行内工作要求，双方协商一致，提供一定时间的驻场服务。",
+              "start_anchor": "p_1079",
+              "end_anchor": "p_1079",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1080",
+              "type": "list_item",
+              "title": "4.3服务流程",
+              "body": "",
+              "start_anchor": "p_1080",
+              "end_anchor": "p_1080",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1081",
+              "type": "list_item",
+              "title": "1．当合同所列系统或软件出现故障时，乙方应在合同约定的服务时间内对甲方的问题作出响应。",
+              "body": "",
+              "start_anchor": "p_1081",
+              "end_anchor": "p_1081",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1082",
+              "type": "list_item",
+              "title": "2．乙方在接到甲方报修后，在电话响应时间内以电话方式联络甲方相关人员，了解情况并协助排除故障。",
+              "body": "",
+              "start_anchor": "p_1082",
+              "end_anchor": "p_1082",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1083",
+              "type": "list_item",
+              "title": "3．如通过电话不能解决问题，乙方应在现场响应时间内派出技术人员到现场检修。",
+              "body": "",
+              "start_anchor": "p_1083",
+              "end_anchor": "p_1083",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1084",
+              "type": "list_item",
+              "title": "4.4故障级别",
+              "body": "",
+              "start_anchor": "p_1084",
+              "end_anchor": "p_1084",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0008",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0008",
+              "end_anchor": "tbl_0008",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_1085",
+              "type": "list_item",
+              "title": "4.5服务项目及标准",
+              "body": "",
+              "start_anchor": "p_1085",
+              "end_anchor": "p_1085",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0009",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0009",
+              "end_anchor": "tbl_0009",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_1086",
+              "type": "list_item",
+              "title": "4.6服务报告",
+              "body": "",
+              "start_anchor": "p_1086",
+              "end_anchor": "p_1086",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1088",
+              "type": "list_item",
+              "title": "4.7服务变更控制",
+              "body": "",
+              "start_anchor": "p_1088",
+              "end_anchor": "p_1088",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1091",
+              "type": "list_item",
+              "title": "4.8服务中断处理方式",
+              "body": "",
+              "start_anchor": "p_1091",
+              "end_anchor": "p_1091",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1092",
+              "type": "list_item",
+              "title": "1.计划中断约定",
+              "body": "",
+              "start_anchor": "p_1092",
+              "end_anchor": "p_1092",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1094",
+              "type": "list_item",
+              "title": "2．服务中断解决办法",
+              "body": "",
+              "start_anchor": "p_1094",
+              "end_anchor": "p_1094",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_1120",
+          "type": "attachment_section",
+          "title": "附件8",
+          "body": "",
+          "start_anchor": "p_1120",
+          "end_anchor": "p_1146",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_1121",
+              "type": "local_doc_title",
+              "title": "浙江省农商银行系统",
+              "body": "",
+              "start_anchor": "p_1121",
+              "end_anchor": "p_1121",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_1122",
+              "type": "local_doc_title",
+              "title": "信息化建设保密协议",
+              "body": "",
+              "start_anchor": "p_1122",
+              "end_anchor": "p_1122",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_1125",
+              "type": "cn_comma",
+              "title": "一、本协议所指项目",
+              "body": "",
+              "start_anchor": "p_1125",
+              "end_anchor": "p_1125",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1129",
+              "type": "cn_comma",
+              "title": "三、乙方的保密义务　　１、主动采取保密措施对上述所列及之保密信息进行保护，防止不承担同等保密义务的任何第三者知悉及使用；　　２、不得刺探或者以其他不正当手段（包括利用计算机进行检索、浏览、复制等）获取与本职工作或本身业务无关的甲方关于该项目的保密信息；　　３、不得向不承担同等保密义务的任何第三人披露甲方关于该项目的保密信息；　　４、不允许（包括出借、赠与、出租、转让等行为）或协助不承担同等保密义务的任何第三人使用甲方关于该项目的保密信息；　　5、项目的保密信息所有权始终全部归属甲方，乙方不得利用自身对项目不同程度的了解申请对于该项目的保密信息所有权，在本协议生效前乙方已依法具有的合法权益除外；　　6、如发现甲方关于该项目的保密信息被泄露或者自己过失泄露秘密，应当采取有效措施防止泄密进一步扩大，并及时向甲方报告。",
+              "body": "",
+              "start_anchor": "p_1129",
+              "end_anchor": "p_1129",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1130",
+              "type": "list_item",
+              "title": "7、以下情形，乙方不构成违反保密义务：",
+              "body": "1）保密信息在披露之时或之后已成为公共信息或文献的一部分；2）乙方在保密信息披露之前已获得该等保密信息；3）乙方自合法披露信息的第三方处得到该等保密信息；4）乙方基于法律、法规、判决、裁定（包括按照传票、法院或政府处理程序）的要求而需披露保密信息。",
+              "start_anchor": "p_1130",
+              "end_anchor": "p_1130",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1131",
+              "type": "list_item",
+              "title": "8、如根据中国法律及法规的强制性规定或法院的指令，乙方必须披露保密信息，乙方可根据相关法律、法规的要求披露相关保密信息。但乙方应尽力给予甲方及时的通知，以便甲方能够具备合理的机会采取保护措施。",
+              "body": "",
+              "start_anchor": "p_1131",
+              "end_anchor": "p_1131",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1132",
+              "type": "cn_comma",
+              "title": "四、保密期限",
+              "body": "",
+              "start_anchor": "p_1132",
+              "end_anchor": "p_1132",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1134",
+              "type": "cn_comma",
+              "title": "五、违约责任",
+              "body": "",
+              "start_anchor": "p_1134",
+              "end_anchor": "p_1134",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1135",
+              "type": "list_item",
+              "title": "1、如果乙方未履行本协议所规定的保密义务，但尚未给甲方造成损失或严重后果的，乙方应就每一违约事件按照本合同总金额的0.5%向甲方支付违约金（每一违约事件的违约金不低于人民币5000元）；",
+              "body": "",
+              "start_anchor": "p_1135",
+              "end_anchor": "p_1135",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1136",
+              "type": "list_item",
+              "title": "2、如果因为乙方前款所称的违约行为造成甲方损失或严重后果的，乙方除按前款支付违约金外，应赔偿因违约行为而给甲方造成的损失，损失包括但不限于直接损失（诉讼费、律师费、公告费、保全费、差旅费等）、间接损失（商誉损失等）。如果甲方确认仅采取赔偿的补救措施是不够的，还可以追究乙方的法律责任。",
+              "body": "",
+              "start_anchor": "p_1136",
+              "end_anchor": "p_1136",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_1147",
+          "type": "attachment_section",
+          "title": "附件9",
+          "body": "",
+          "start_anchor": "p_1147",
+          "end_anchor": "p_1163",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_1150",
+              "type": "local_doc_title",
+              "title": "致浙江农村商业联合银行股份有限公司:",
+              "body": "",
+              "start_anchor": "p_1150",
+              "end_anchor": "p_1150",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_1152",
+              "type": "cn_comma",
+              "title": "一、在与贵方业务往来中承诺如下：",
+              "body": "",
+              "start_anchor": "p_1152",
+              "end_anchor": "p_1152",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1153",
+              "type": "paren_cn",
+              "title": "（一） 不以股权、金钱方式（包括现金， 银行卡， 有价证券， 购物卡、提货单、娱乐场所会员卡、打折卡、代币券证券等） 贿赂贵方项目人员和管理人员。",
+              "body": "",
+              "start_anchor": "p_1153",
+              "end_anchor": "p_1153",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1154",
+              "type": "paren_cn",
+              "title": "（二） 不以实物方式（包括家电、设备、健身器材、汽车、住房等实物）贿赂贵方项目人员和管理人员。",
+              "body": "",
+              "start_anchor": "p_1154",
+              "end_anchor": "p_1154",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1155",
+              "type": "paren_cn",
+              "title": "（三） 不以消费方式（包括娱乐消费、旅游、国内或国外考察等方式）贿赂贵方项目人员和管理人员。",
+              "body": "",
+              "start_anchor": "p_1155",
+              "end_anchor": "p_1155",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1156",
+              "type": "paren_cn",
+              "title": "（四） 不以其他任何方式（包括以朋友名义提供各种好处、活动抽奖、打牌中故意输钱、性贿赂等方式）贿赂贵方项目和管理人员。",
+              "body": "",
+              "start_anchor": "p_1156",
+              "end_anchor": "p_1156",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1157",
+              "type": "cn_comma",
+              "title": "二、如违反以上任一承诺，同意贵方解除合同并将我方列入供应商黑名单， 由此造成的损失由我方承担及赔偿，触犯法律承担相应的法律责任。",
+              "body": "",
+              "start_anchor": "p_1157",
+              "end_anchor": "p_1157",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1158",
+              "type": "cn_comma",
+              "title": "三、如贵方人员向我方索取好处或贿赂，我方将及时向贵方纪检监察部门或上级纪检监察机构投诉,投诉电话：0571-87260775；投诉邮箱：xfjb@zjrcu.com。",
+              "body": "",
+              "start_anchor": "p_1158",
+              "end_anchor": "p_1158",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_1161",
+              "type": "plain_label",
+              "title": "（加盖单位公章）：",
+              "body": "",
+              "start_anchor": "p_1161",
+              "end_anchor": "p_1161",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_1164",
+          "type": "attachment_section",
+          "title": "附件10",
+          "body": "",
+          "start_anchor": "p_1164",
+          "end_anchor": "p_1166",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_1165",
+              "type": "local_doc_title",
+              "title": "项目组成员一览表",
+              "body": "",
+              "start_anchor": "p_1165",
+              "end_anchor": "p_1165",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "tbl_0010",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0010",
+              "end_anchor": "tbl_0010",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_1167",
+          "type": "attachment_section",
+          "title": "附件11",
+          "body": "",
+          "start_anchor": "p_1167",
+          "end_anchor": "p_1168",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ]
+        },
+        {
+          "node_id": "p_1169",
+          "type": "attachment_section",
+          "title": "附件12",
+          "body": "",
+          "start_anchor": "p_1169",
+          "end_anchor": "p_1171",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1381 @@
+{
+  "file": "C:\\Users\\lenovo\\Downloads\\模板合同\\【已审查】【集采已审】（178号）2026年德清数据中心机房电气及暖通系统等基础设施维保服务采购合同0624-1.docx",
+  "attachment_parents": [
+    {
+      "title": "第十九条  附件",
+      "anchor": "p_0174",
+      "effective_outline": 1,
+      "attachments": [
+        {
+          "node_id": "p_0196",
+          "type": "attachment_section",
+          "title": "附件1",
+          "body": "",
+          "start_anchor": "p_0196",
+          "end_anchor": "p_0204",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0197",
+              "type": "local_doc_title",
+              "title": "合同内容清单",
+              "body": "",
+              "start_anchor": "p_0197",
+              "end_anchor": "p_0197",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "tbl_0001",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0001",
+              "end_anchor": "tbl_0001",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0199",
+              "type": "local_doc_title",
+              "title": "项目维保设备清单",
+              "body": "",
+              "start_anchor": "p_0199",
+              "end_anchor": "p_0199",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "tbl_0002",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0002",
+              "end_anchor": "tbl_0002",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0205",
+          "type": "attachment_section",
+          "title": "附件2",
+          "body": "",
+          "start_anchor": "p_0205",
+          "end_anchor": "p_0428",
+          "confidence": "medium",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0206",
+              "type": "local_doc_title",
+              "title": "2026年德清数据中心机房电气及暖通系统等基础设施维保服务采购项目工作任务说明书",
+              "body": "",
+              "start_anchor": "p_0206",
+              "end_anchor": "p_0206",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0207",
+              "type": "cn_comma",
+              "title": "一、项目背景描述",
+              "body": "",
+              "start_anchor": "p_0207",
+              "end_anchor": "p_0207",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0209",
+              "type": "cn_comma",
+              "title": "二、项目目标",
+              "body": "",
+              "start_anchor": "p_0209",
+              "end_anchor": "p_0209",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0211",
+              "type": "cn_comma",
+              "title": "三、项目服务内容",
+              "body": "",
+              "start_anchor": "p_0211",
+              "end_anchor": "p_0211",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0212",
+              "type": "paren_cn",
+              "title": "（一）服务内容",
+              "body": "",
+              "start_anchor": "p_0212",
+              "end_anchor": "p_0212",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0213",
+              "type": "list_item",
+              "title": "1.UPS及蓄电池系统",
+              "body": "",
+              "start_anchor": "p_0213",
+              "end_anchor": "p_0213",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0216",
+              "type": "plain_label",
+              "title": "1）电池检测：",
+              "body": "",
+              "start_anchor": "p_0216",
+              "end_anchor": "p_0216",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0241",
+              "type": "plain_label",
+              "title": "11）检查内部主要元器件。",
+              "body": "",
+              "start_anchor": "p_0241",
+              "end_anchor": "p_0241",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0245",
+              "type": "plain_label",
+              "title": "12）检查冷却风机。",
+              "body": "",
+              "start_anchor": "p_0245",
+              "end_anchor": "p_0245",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0248",
+              "type": "list_item",
+              "title": "2.配电系统（乙方提供）",
+              "body": "",
+              "start_anchor": "p_0248",
+              "end_anchor": "p_0248",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0254",
+              "type": "plain_label",
+              "title": "（6）对所有检测点进行紧固；",
+              "body": "",
+              "start_anchor": "p_0254",
+              "end_anchor": "p_0254",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0256",
+              "type": "list_item",
+              "title": "3.柴油发电机机组（乙方提供）",
+              "body": "",
+              "start_anchor": "p_0256",
+              "end_anchor": "p_0256",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0265",
+              "type": "list_item",
+              "title": "4.机房装饰装修（乙方提供）",
+              "body": "",
+              "start_anchor": "p_0265",
+              "end_anchor": "p_0265",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0273",
+              "type": "list_item",
+              "title": "5.防雷接地系统（乙方提供）",
+              "body": "",
+              "start_anchor": "p_0273",
+              "end_anchor": "p_0273",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0283",
+              "type": "plain_label",
+              "title": "1）对接地配套设备进行清洁；",
+              "body": "",
+              "start_anchor": "p_0283",
+              "end_anchor": "p_0283",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0284",
+              "type": "plain_label",
+              "title": "2）整理和固定线缆；",
+              "body": "",
+              "start_anchor": "p_0284",
+              "end_anchor": "p_0284",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0289",
+              "type": "list_item",
+              "title": "6.小母线系统（乙方提供）",
+              "body": "",
+              "start_anchor": "p_0289",
+              "end_anchor": "p_0289",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0294",
+              "type": "plain_label",
+              "title": "（5）配合检查母线的三相平衡。",
+              "body": "",
+              "start_anchor": "p_0294",
+              "end_anchor": "p_0294",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0295",
+              "type": "list_item",
+              "title": "7.防静电地板（乙方提供）",
+              "body": "",
+              "start_anchor": "p_0295",
+              "end_anchor": "p_0295",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0300",
+              "type": "list_item",
+              "title": "8.大母线系统（乙方提供）",
+              "body": "",
+              "start_anchor": "p_0300",
+              "end_anchor": "p_0300",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0304",
+              "type": "list_item",
+              "title": "9.消防系统、极早期报警系统（乙方提供）",
+              "body": "",
+              "start_anchor": "p_0304",
+              "end_anchor": "p_0304",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0314",
+              "type": "plain_label",
+              "title": "1）启动部分：",
+              "body": "",
+              "start_anchor": "p_0314",
+              "end_anchor": "p_0314",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0319",
+              "type": "plain_label",
+              "title": "2）储存部分：",
+              "body": "",
+              "start_anchor": "p_0319",
+              "end_anchor": "p_0319",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0330",
+              "type": "list_item",
+              "title": "10.冷冻水空调机组",
+              "body": "",
+              "start_anchor": "p_0330",
+              "end_anchor": "p_0330",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0369",
+              "type": "plain_label",
+              "title": "（4）不可预见的其他维修及应急维修。",
+              "body": "",
+              "start_anchor": "p_0369",
+              "end_anchor": "p_0369",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0370",
+              "type": "list_item",
+              "title": "11.风冷冷水机组设备（精密空调末端）",
+              "body": "",
+              "start_anchor": "p_0370",
+              "end_anchor": "p_0370",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0375",
+              "type": "plain_label",
+              "title": "3）加湿器：",
+              "body": "",
+              "start_anchor": "p_0375",
+              "end_anchor": "p_0375",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0380",
+              "type": "plain_label",
+              "title": "4）外部冷凝器和干冷器：",
+              "body": "",
+              "start_anchor": "p_0380",
+              "end_anchor": "p_0380",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0389",
+              "type": "plain_label",
+              "title": "8）电路：",
+              "body": "",
+              "start_anchor": "p_0389",
+              "end_anchor": "p_0389",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0394",
+              "type": "plain_label",
+              "title": "9）制冷系统：",
+              "body": "",
+              "start_anchor": "p_0394",
+              "end_anchor": "p_0394",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0400",
+              "type": "plain_label",
+              "title": "（2）特殊维护：",
+              "body": "",
+              "start_anchor": "p_0400",
+              "end_anchor": "p_0400",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0403",
+              "type": "plain_label",
+              "title": "当需加注冷冻油时加注冷冻油。",
+              "body": "",
+              "start_anchor": "p_0403",
+              "end_anchor": "p_0403",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0405",
+              "type": "plain_label",
+              "title": "当有氟量损失时应补充制冷剂。",
+              "body": "",
+              "start_anchor": "p_0405",
+              "end_anchor": "p_0405",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0408",
+              "type": "list_item",
+              "title": "12.暖通系统，包括暖通系统各类管道、阀门等。",
+              "body": "",
+              "start_anchor": "p_0408",
+              "end_anchor": "p_0408",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0409",
+              "type": "list_item",
+              "title": "13.配套的水泵组，包括水泵电机等。",
+              "body": "",
+              "start_anchor": "p_0409",
+              "end_anchor": "p_0409",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0410",
+              "type": "paren_cn",
+              "title": "（二）服务执行标准",
+              "body": "",
+              "start_anchor": "p_0410",
+              "end_anchor": "p_0410",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0411",
+              "type": "list_item",
+              "title": "1.乙方设立专门的服务经理（乙方人员），承诺7*24小时技术支持，接到故障电话后，30分钟内给予响应，2小时内到达现场处理，小故障在四小时内修复。",
+              "body": "",
+              "start_anchor": "p_0411",
+              "end_anchor": "p_0411",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0412",
+              "type": "list_item",
+              "title": "2.根据协议规定的条款，乙方按前条条款中所规定的范围，对设备进行定期维护和故障排除维修服务，以保证设备正常运行。",
+              "body": "",
+              "start_anchor": "p_0412",
+              "end_anchor": "p_0412",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0413",
+              "type": "list_item",
+              "title": "3.乙方每年对甲方进行定期检查以保证设备正常工作。",
+              "body": "巡检前，提前三天通知甲方做好准备并提供相应帮助。",
+              "start_anchor": "p_0413",
+              "end_anchor": "p_0413",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0414",
+              "type": "list_item",
+              "title": "4.当乙方收到甲方说明故障现象的通知（信件、电报、传真或电话）后，立即工程师到现场去排除故障。",
+              "body": "",
+              "start_anchor": "p_0414",
+              "end_anchor": "p_0414",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0415",
+              "type": "list_item",
+              "title": "5.乙方对甲方的有关人员进行不间断的、必要的培训。",
+              "body": "",
+              "start_anchor": "p_0415",
+              "end_anchor": "p_0415",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0416",
+              "type": "list_item",
+              "title": "6.乙方设有备件库，所提供的备件必须是经原设备生产厂家认证的及提供全新备件。",
+              "body": "",
+              "start_anchor": "p_0416",
+              "end_anchor": "p_0416",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0417",
+              "type": "list_item",
+              "title": "7.每年的维保费用不包括以下项目，应分别列出由甲方支付（乙方将提供服务并按优惠价格进行收费）：",
+              "body": "",
+              "start_anchor": "p_0417",
+              "end_anchor": "p_0417",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0418",
+              "type": "plain_label",
+              "title": "（1）安装场地的变动；",
+              "body": "",
+              "start_anchor": "p_0418",
+              "end_anchor": "p_0418",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0419",
+              "type": "plain_label",
+              "title": "（2）设备或其他附件的搬运；",
+              "body": "",
+              "start_anchor": "p_0419",
+              "end_anchor": "p_0419",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0420",
+              "type": "plain_label",
+              "title": "（3）不属于维修设备范围的；",
+              "body": "",
+              "start_anchor": "p_0420",
+              "end_anchor": "p_0420",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0423",
+              "type": "plain_label",
+              "title": "（6）设备的更新。",
+              "body": "",
+              "start_anchor": "p_0423",
+              "end_anchor": "p_0423",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0424",
+              "type": "paren_cn",
+              "title": "（三）项目质量目标",
+              "body": "",
+              "start_anchor": "p_0424",
+              "end_anchor": "p_0424",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0426",
+              "type": "paren_cn",
+              "title": "（四）完成及验收标准",
+              "body": "",
+              "start_anchor": "p_0426",
+              "end_anchor": "p_0426",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0427",
+              "type": "list_item",
+              "title": "1.浙江农商联合银行德清数据中心机房基础环境及电气系统运行可靠性大于99.9999%；",
+              "body": "",
+              "start_anchor": "p_0427",
+              "end_anchor": "p_0427",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0428",
+              "type": "list_item",
+              "title": "2.乙方须提交相关服务管理、巡检及各项建议文档。",
+              "body": "",
+              "start_anchor": "p_0428",
+              "end_anchor": "p_0428",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0429",
+          "type": "attachment_section",
+          "title": "附件3",
+          "body": "",
+          "start_anchor": "p_0429",
+          "end_anchor": "p_0465",
+          "confidence": "medium",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0430",
+              "type": "local_doc_title",
+              "title": "2026年德清数据中心机房电气及暖通系统等基础设施维保服务采购项目维保服务级别协议",
+              "body": "",
+              "start_anchor": "p_0430",
+              "end_anchor": "p_0430",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0431",
+              "type": "cn_comma",
+              "title": "一、协议签署",
+              "body": "",
+              "start_anchor": "p_0431",
+              "end_anchor": "p_0431",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0434",
+              "type": "cn_comma",
+              "title": "二、服务期限",
+              "body": "",
+              "start_anchor": "p_0434",
+              "end_anchor": "p_0434",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0435",
+              "type": "plain_label",
+              "title": "本协议有效期限为项目启动至项目终验止：",
+              "body": "期限最长为15个月（自合同签订日期开始计算），根据机房搬迁进度据实结算。",
+              "start_anchor": "p_0435",
+              "end_anchor": "p_0435",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0436",
+              "type": "cn_comma",
+              "title": "三、服务范围",
+              "body": "",
+              "start_anchor": "p_0436",
+              "end_anchor": "p_0436",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0437",
+              "type": "plain_label",
+              "title": "乙方提供对以下设备的维保服务：",
+              "body": "",
+              "start_anchor": "p_0437",
+              "end_anchor": "p_0437",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0439",
+              "type": "cn_comma",
+              "title": "四、服务内容及相关标准",
+              "body": "",
+              "start_anchor": "p_0439",
+              "end_anchor": "p_0439",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0440",
+              "type": "paren_cn",
+              "title": "（一）响应要求",
+              "body": "",
+              "start_anchor": "p_0440",
+              "end_anchor": "p_0440",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0441",
+              "type": "list_item",
+              "title": "1.乙方提供7×24小时维保服务。",
+              "body": "",
+              "start_anchor": "p_0441",
+              "end_anchor": "p_0441",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0442",
+              "type": "list_item",
+              "title": "2.如遇紧急情况，需要服务提供商提供备件到现场的，需要在2小时内将备用设备送至事故现场，并确保使用到紧急情况解除为止。",
+              "body": "",
+              "start_anchor": "p_0442",
+              "end_anchor": "p_0442",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0443",
+              "type": "paren_cn",
+              "title": "（二）人员和服务要求：",
+              "body": "",
+              "start_anchor": "p_0443",
+              "end_anchor": "p_0443",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0444",
+              "type": "list_item",
+              "title": "1.乙方提供专业服务团队，服务人员不少于3人（包括一位五年以上数据中心行业工作经验的项目经理、一名五年以上数据中心行业工作经验的电力工程师和一名五年以上数据中心行业工作经验的暖通工程师）。乙方提供月度的常规巡检，并出具巡检报告及设备使用及优化建议",
+              "body": "",
+              "start_anchor": "p_0444",
+              "end_anchor": "p_0444",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0445",
+              "type": "list_item",
+              "title": "2.在浙江农商联合银行发生与德清数据中心机房电气及暖通系统设备、设施相关的切换演练、设备调整时，乙方须提前派遣资深工程师（5年及以上相关工作经验）做重点项目支撑，具体时间根据可根据项目要求调整，要求在项目方案制定、设备上线、重要故障发生时，工程师必须到现场支持。",
+              "body": "",
+              "start_anchor": "p_0445",
+              "end_anchor": "p_0445",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0446",
+              "type": "list_item",
+              "title": "3.重大节假日；",
+              "body": "重要活动、会议、年度结算等重要事件节点，服务提供商须提供24小时保障工程师到现场。",
+              "start_anchor": "p_0446",
+              "end_anchor": "p_0446",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0447",
+              "type": "paren_cn",
+              "title": "（三）服务可靠性及事件等级",
+              "body": "",
+              "start_anchor": "p_0447",
+              "end_anchor": "p_0447",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0448",
+              "type": "list_item",
+              "title": "1.系统可靠性",
+              "body": "",
+              "start_anchor": "p_0448",
+              "end_anchor": "p_0448",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0003",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0003",
+              "end_anchor": "tbl_0003",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0450",
+              "type": "list_item",
+              "title": "2.事件优先级处理标准",
+              "body": "",
+              "start_anchor": "p_0450",
+              "end_anchor": "p_0450",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0004",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0004",
+              "end_anchor": "tbl_0004",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0452",
+              "type": "list_item",
+              "title": "3.日常巡检及联系方式",
+              "body": "",
+              "start_anchor": "p_0452",
+              "end_anchor": "p_0452",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0005",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0005",
+              "end_anchor": "tbl_0005",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0454",
+              "type": "list_item",
+              "title": "4.技术资料",
+              "body": "",
+              "start_anchor": "p_0454",
+              "end_anchor": "p_0454",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0456",
+              "type": "paren_cn",
+              "title": "（四）服务组织及联系方式",
+              "body": "",
+              "start_anchor": "p_0456",
+              "end_anchor": "p_0456",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0006",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0006",
+              "end_anchor": "tbl_0006",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0458",
+              "type": "paren_cn",
+              "title": "（五）服务报告",
+              "body": "",
+              "start_anchor": "p_0458",
+              "end_anchor": "p_0458",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0460",
+              "type": "paren_cn",
+              "title": "（六）服务变更控制",
+              "body": "",
+              "start_anchor": "p_0460",
+              "end_anchor": "p_0460",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0463",
+              "type": "paren_cn",
+              "title": "（七）服务中断解决办法",
+              "body": "",
+              "start_anchor": "p_0463",
+              "end_anchor": "p_0463",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0466",
+          "type": "attachment_section",
+          "title": "附件4",
+          "body": "",
+          "start_anchor": "p_0466",
+          "end_anchor": "p_0482",
+          "confidence": "medium",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0467",
+              "type": "local_doc_title",
+              "title": "浙江省农商银行系统",
+              "body": "",
+              "start_anchor": "p_0467",
+              "end_anchor": "p_0467",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0468",
+              "type": "local_doc_title",
+              "title": "信息化建设保密协议",
+              "body": "",
+              "start_anchor": "p_0468",
+              "end_anchor": "p_0468",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0471",
+              "type": "cn_comma",
+              "title": "一、本协议所指项目",
+              "body": "",
+              "start_anchor": "p_0471",
+              "end_anchor": "p_0471",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0475",
+              "type": "cn_comma",
+              "title": "三、乙方的保密义务　　１、主动采取保密措施对上述所列及之保密信息进行保护，防止不承担同等保密义务的任何第三者知悉及使用；　　２、不得刺探或者以其他不正当手段（包括利用计算机进行检索、浏览、复制等）获取与本职工作或本身业务无关的甲方关于该项目的保密信息；　　３、不得向不承担同等保密义务的任何第三人披露甲方关于该项目的保密信息；　　４、不允许（包括出借、赠与、出租、转让等行为）或协助不承担同等保密义务的任何第三人使用甲方关于该项目的保密信息；　　5、项目的保密信息所有权始终全部归属甲方，乙方不得利用自身对项目不同程度的了解申请对于该项目的保密信息所有权，在本协议生效前乙方已依法具有的合法权益除外；　　6、如发现甲方关于该项目的保密信息被泄露或者自己过失泄露秘密，应当采取有效措施防止泄密进一步扩大，并及时向甲方报告。",
+              "body": "",
+              "start_anchor": "p_0475",
+              "end_anchor": "p_0475",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0476",
+              "type": "list_item",
+              "title": "7、以下情形，乙方不构成违反保密义务：",
+              "body": "1）保密信息在披露之时或之后已成为公共信息或文献的一部分；2）乙方在保密信息披露之前已获得该等保密信息；3）乙方自合法披露信息的第三方处得到该等保密信息；4）乙方基于法律、法规、判决、裁定（包括按照传票、法院或政府处理程序）的要求而需披露保密信息。",
+              "start_anchor": "p_0476",
+              "end_anchor": "p_0476",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0477",
+              "type": "list_item",
+              "title": "8、如根据中国法律及法规的强制性规定或法院的指令，乙方必须披露保密信息，乙方可根据相关法律、法规的要求披露相关保密信息。但乙方应尽力给予甲方及时的通知，以便甲方能够具备合理的机会采取保护措施。",
+              "body": "",
+              "start_anchor": "p_0477",
+              "end_anchor": "p_0477",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0478",
+              "type": "cn_comma",
+              "title": "四、保密期限",
+              "body": "",
+              "start_anchor": "p_0478",
+              "end_anchor": "p_0478",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0480",
+              "type": "cn_comma",
+              "title": "五、违约责任",
+              "body": "",
+              "start_anchor": "p_0480",
+              "end_anchor": "p_0480",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0481",
+              "type": "list_item",
+              "title": "1、如果乙方未履行本协议所规定的保密义务，但尚未给甲方造成损失或严重后果的，乙方应就每一违约事件按照本合同总金额的0.5%向甲方支付违约金（每一违约事件的违约金不低于人民币5000元）；",
+              "body": "",
+              "start_anchor": "p_0481",
+              "end_anchor": "p_0481",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0482",
+              "type": "list_item",
+              "title": "2、如果因为乙方前款所称的违约行为造成甲方损失或严重后果的，乙方除按前款支付违约金外，应赔偿因违约行为而给甲方造成的损失，损失包括但不限于直接损失（诉讼费、律师费、公告费、保全费、差旅费等）、间接损失（商誉损失等）。如果甲方确认仅采取赔偿的补救措施是不够的，还可以追究乙方的法律责任。",
+              "body": "",
+              "start_anchor": "p_0482",
+              "end_anchor": "p_0482",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0483",
+          "type": "attachment_section",
+          "title": "附件5",
+          "body": "",
+          "start_anchor": "p_0483",
+          "end_anchor": "p_0501",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0486",
+              "type": "local_doc_title",
+              "title": "致浙江农村商业联合银行股份有限公司:",
+              "body": "",
+              "start_anchor": "p_0486",
+              "end_anchor": "p_0486",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0488",
+              "type": "cn_comma",
+              "title": "一、在与贵方业务往来中承诺如下：",
+              "body": "",
+              "start_anchor": "p_0488",
+              "end_anchor": "p_0488",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0489",
+              "type": "paren_cn",
+              "title": "（一） 不以股权、金钱方式（包括现金， 银行卡， 有价证券， 购物卡、提货单、娱乐场所会员卡、打折卡、代币券证券等） 贿赂贵方项目人员和管理人员。",
+              "body": "",
+              "start_anchor": "p_0489",
+              "end_anchor": "p_0489",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0490",
+              "type": "paren_cn",
+              "title": "（二） 不以实物方式（包括家电、设备、健身器材、汽车、住房等实物）贿赂贵方项目人员和管理人员。",
+              "body": "",
+              "start_anchor": "p_0490",
+              "end_anchor": "p_0490",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0491",
+              "type": "paren_cn",
+              "title": "（三） 不以消费方式（包括娱乐消费、旅游、国内或国外考察等方式）贿赂贵方项目人员和管理人员。",
+              "body": "",
+              "start_anchor": "p_0491",
+              "end_anchor": "p_0491",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0492",
+              "type": "paren_cn",
+              "title": "（四） 不以其他任何方式（包括以朋友名义提供各种好处、活动抽奖、打牌中故意输钱、性贿赂等方式）贿赂贵方项目和管理人员。",
+              "body": "",
+              "start_anchor": "p_0492",
+              "end_anchor": "p_0492",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0493",
+              "type": "cn_comma",
+              "title": "二、如违反以上任一承诺，同意贵方解除合同并将我方列入供应商黑名单， 由此造成的损失由我方承担及赔偿，触犯法律承担相应的法律责任。",
+              "body": "",
+              "start_anchor": "p_0493",
+              "end_anchor": "p_0493",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0494",
+              "type": "cn_comma",
+              "title": "三、如贵方人员向我方索取好处或贿赂，我方将及时向贵方纪检监察部门或上级纪检监察机构投诉,投诉电话：0571-87260775；投诉邮箱：xfjb@zjrcu.com。",
+              "body": "",
+              "start_anchor": "p_0494",
+              "end_anchor": "p_0494",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0497",
+              "type": "plain_label",
+              "title": "（加盖单位公章）：",
+              "body": "",
+              "start_anchor": "p_0497",
+              "end_anchor": "p_0497",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0502",
+          "type": "attachment_section",
+          "title": "附件6",
+          "body": "",
+          "start_anchor": "p_0502",
+          "end_anchor": "p_0522",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0503",
+              "type": "local_doc_title",
+              "title": "仓库备品备件准备清单",
+              "body": "",
+              "start_anchor": "p_0503",
+              "end_anchor": "p_0503",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "tbl_0007",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0007",
+              "end_anchor": "tbl_0007",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0523",
+          "type": "attachment_section",
+          "title": "附件7",
+          "body": "",
+          "start_anchor": "p_0523",
+          "end_anchor": "p_0526",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0524",
+              "type": "local_doc_title",
+              "title": "项目组成员一览表",
+              "body": "",
+              "start_anchor": "p_0524",
+              "end_anchor": "p_0524",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "tbl_0008",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0008",
+              "end_anchor": "tbl_0008",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

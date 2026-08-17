@@ -1,0 +1,4074 @@
+{
+  "file": "C:\\Users\\lenovo\\Downloads\\合同样例\\【已审查】（433号）ZRUBXC软件开发类采购合同-人行支付系统重构项目-20251110.docx",
+  "attachment_parents": [
+    {
+      "title": "第二十条  附件",
+      "anchor": "p_0212",
+      "effective_outline": 1,
+      "attachments": [
+        {
+          "node_id": "p_0246",
+          "type": "attachment_section",
+          "title": "附件1",
+          "body": "",
+          "start_anchor": "p_0246",
+          "end_anchor": "p_0309",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0248",
+              "type": "cn_comma",
+              "title": "一、总体目标",
+              "body": "",
+              "start_anchor": "p_0248",
+              "end_anchor": "p_0248",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0250",
+              "type": "cn_comma",
+              "title": "二、业务需求",
+              "body": "",
+              "start_anchor": "p_0250",
+              "end_anchor": "p_0250",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0252",
+              "type": "cn_comma",
+              "title": "三、技术需求",
+              "body": "",
+              "start_anchor": "p_0252",
+              "end_anchor": "p_0252",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0254",
+              "type": "cn_comma",
+              "title": "四、安全需求",
+              "body": "",
+              "start_anchor": "p_0254",
+              "end_anchor": "p_0254",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0256",
+              "type": "cn_comma",
+              "title": "五、实施内容及时间要求",
+              "body": "",
+              "start_anchor": "p_0256",
+              "end_anchor": "p_0256",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0257",
+              "type": "paren_cn",
+              "title": "（一）实施内容",
+              "body": "",
+              "start_anchor": "p_0257",
+              "end_anchor": "p_0257",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0259",
+              "type": "list_item",
+              "title": "1.乙方需要结合甲方业务架构规划，协助本项目相关需求制定，并基于甲方业务建模资产，完成应用架构对业务建模资产的承接以及定制化开发实施工作。",
+              "body": "",
+              "start_anchor": "p_0259",
+              "end_anchor": "p_0259",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0260",
+              "type": "list_item",
+              "title": "2.乙方负责建设满足甲方技术需求的人行支付系统，提供完整系统解决方案和建议，并负责组织项目实施和项目质量控制。",
+              "body": "",
+              "start_anchor": "p_0260",
+              "end_anchor": "p_0260",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0261",
+              "type": "list_item",
+              "title": "3.乙方负责为甲方提供人行支付系统相关的培训，使受训人员满足人行支付系统维护、使用等工作的需要。",
+              "body": "",
+              "start_anchor": "p_0261",
+              "end_anchor": "p_0261",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0262",
+              "type": "list_item",
+              "title": "4.项目各阶段，乙方负责提交合格完整的项目交付文档及源代码；",
+              "body": "交付全面完整的系统源程序代码及所有说明文档，包括由乙方提供的产品的完整源程序代码和为甲方进行客户化研发工作的完整源程序代码。",
+              "start_anchor": "p_0262",
+              "end_anchor": "p_0262",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0263",
+              "type": "paren_cn",
+              "title": "（二）实施进度计划",
+              "body": "",
+              "start_anchor": "p_0263",
+              "end_anchor": "p_0263",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0267",
+              "type": "cn_comma",
+              "title": "六、项目实施团队要求",
+              "body": "",
+              "start_anchor": "p_0267",
+              "end_anchor": "p_0267",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0268",
+              "type": "list_item",
+              "title": "1.乙方须组织项目现场实施团队，项目现场实施团队由项目经理、技术经理、业务专家、技术专家、若干项目成员组成。其中，项目经理至少1名，技术经理至少1名，业务专家至少1名，技术专家至少1名（原则上POC面试通过的专家必须包含在内）。所有人员驻场服务不少于4600人天，其中业务专家现场驻场不少于200人天，高级开发及以上人员不少于1800人天，中级开发人员不少于1800人天。请按附件6要求列出项目成员并标名在本项目中承担的角色，按附件6《项目组成员一览表》提供关键人员的简历。项目实施时项目经理、技术经理、业务专家、技术专家必须提供符合招标单位要求的项目履历证明以及在项目中担任的角色证明，项目经理、技术经理、技术专家、业务专家必须通过招标单位确认，如果不通过需要提供替换人员。",
+              "body": "",
+              "start_anchor": "p_0268",
+              "end_anchor": "p_0268",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0269",
+              "type": "list_item",
+              "title": "2.项目经理必须具有8年以上工作经验，主持过2个以上人行支付类项目的实施，要求具有很强的项目管理能力和丰富的系统建设经验。技术经理需具备人行支付领域8年以上工作经验，以技术经理角色（含技术总监、技术经理、架构师等主要技术负责岗位）主持过2个以上人行支付类项目的实施，对支付业务有浓厚的理解，具备卓越的沟通与协调能力，具备风险识别与管控能力。业务专家需具备人行支付领域10年以上工作经验，参与过2个（含）以上人行支付系统建设项目，对人行支付类系统承载的业务功能及业务流程具有丰富的经验和知识，熟悉相关业务领域的业务背景及业务规则。技术专家需具备人行支付领域10年以上工作经验，以技术专家、架构师等角色主导过2个（含）以上人行支付系统建设项目，熟悉支付系统业务及相关技术,精通开发平台，精通分布式微服务架构，具有丰富的应用架构、技术架构、数据架构设计经验，有独当一面的技术能力，直接对项目实施过程中的技术问题负责。",
+              "body": "",
+              "start_anchor": "p_0269",
+              "end_anchor": "p_0269",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0270",
+              "type": "list_item",
+              "title": "3.在项目实施过程中，甲方如对乙方所指派服务工程师的服务不满意（包括技术能力、服务态度等），有权提出撤换该工程师的要求，乙方应无条件予以执行。",
+              "body": "",
+              "start_anchor": "p_0270",
+              "end_anchor": "p_0270",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0271",
+              "type": "list_item",
+              "title": "4.为保障项目核心团队稳定，所有成员在征得甲方电子文件同意后才能更换；",
+              "body": "乙方承诺，未经甲方同意而变更项目核心团队人员的，需承担相应违约责任；每变更1名项目经理需支付项目合同总价款的3%作为违约金，每变更1名项目成员需支付项目合同总价款的1%作为违约金。",
+              "start_anchor": "p_0271",
+              "end_anchor": "p_0271",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0272",
+              "type": "plain_label",
+              "title": "团队开发人员要求：",
+              "body": "",
+              "start_anchor": "p_0272",
+              "end_anchor": "p_0272",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0273",
+              "type": "list_item",
+              "title": "5.项目经理、技术经理、技术专家：",
+              "body": "至少满足甲方对高二级技术员的要求，具体参照附件11。",
+              "start_anchor": "p_0273",
+              "end_anchor": "p_0273",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0278",
+              "type": "cn_comma",
+              "title": "七、项目管理及职责要求",
+              "body": "",
+              "start_anchor": "p_0278",
+              "end_anchor": "p_0278",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0279",
+              "type": "list_item",
+              "title": "1.项目实施工作职责以乙方为主，甲方提供必要的配合，并监督乙方实施质量及审核交付物，具体实施方案必须经双方认可。",
+              "body": "",
+              "start_anchor": "p_0279",
+              "end_anchor": "p_0279",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0280",
+              "type": "list_item",
+              "title": "2.项目实施队伍是以乙方一方的技术力量为主，负责整个项目的设计、实施、进度和质量控制，对整个项目的完成进度和质量负责；甲方将派出一定数量的业务与技术人员配合项目建设，审核设计方案，明确细化业务需求，掌握全系统的各项技术，为将来的运行维护、功能扩充作技术准备，并监督项目的质量，确保项目按时完成。",
+              "body": "",
+              "start_anchor": "p_0280",
+              "end_anchor": "p_0280",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0281",
+              "type": "cn_comma",
+              "title": "八、技术转移要求",
+              "body": "",
+              "start_anchor": "p_0281",
+              "end_anchor": "p_0281",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0283",
+              "type": "plain_label",
+              "title": "甲方对产品转移的要求：",
+              "body": "",
+              "start_anchor": "p_0283",
+              "end_anchor": "p_0283",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0287",
+              "type": "plain_label",
+              "title": "对技能转移要求包括：",
+              "body": "",
+              "start_anchor": "p_0287",
+              "end_anchor": "p_0287",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0293",
+              "type": "cn_comma",
+              "title": "九、售后服务要求",
+              "body": "",
+              "start_anchor": "p_0293",
+              "end_anchor": "p_0293",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0294",
+              "type": "paren_cn",
+              "title": "（一）1年免费维护服务",
+              "body": "",
+              "start_anchor": "p_0294",
+              "end_anchor": "p_0294",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0300",
+              "type": "paren_cn",
+              "title": "（二）3年人天服务",
+              "body": "",
+              "start_anchor": "p_0300",
+              "end_anchor": "p_0300",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0303",
+              "type": "cn_comma",
+              "title": "十、验收需求",
+              "body": "",
+              "start_anchor": "p_0303",
+              "end_anchor": "p_0303",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0310",
+          "type": "attachment_section",
+          "title": "附件2",
+          "body": "",
+          "start_anchor": "p_0310",
+          "end_anchor": "p_0426",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0312",
+              "type": "cn_comma",
+              "title": "一、人行支付系统基础功能需求",
+              "body": "",
+              "start_anchor": "p_0312",
+              "end_anchor": "p_0312",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0002",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0002",
+              "end_anchor": "tbl_0002",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0315",
+              "type": "paren_cn",
+              "title": "（一）大额支付功能",
+              "body": "",
+              "start_anchor": "p_0315",
+              "end_anchor": "p_0315",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0319",
+              "type": "list_item",
+              "title": "3. PVP结算业务：",
+              "body": "行内组织 PVP结算申请信息报文发送到人民银行，做好信息登记，并做好PVP结算应答处理结果。",
+              "start_anchor": "p_0319",
+              "end_anchor": "p_0319",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0320",
+              "type": "list_item",
+              "title": "4. 多边净额轧差业务：",
+              "body": "行内接收人行多边轧差净额结算借贷通知报文，做好资金清算信息登记。",
+              "start_anchor": "p_0320",
+              "end_anchor": "p_0320",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0321",
+              "type": "list_item",
+              "title": "5. 取现回执业务：",
+              "body": "接收人行发来的取现回执类报文，做好业务检查和信息登记等。",
+              "start_anchor": "p_0321",
+              "end_anchor": "p_0321",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0322",
+              "type": "list_item",
+              "title": "6. 清算回执：",
+              "body": "接收人行发来的清算回执报文，做好信息检查、登记等。",
+              "start_anchor": "p_0322",
+              "end_anchor": "p_0322",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0323",
+              "type": "list_item",
+              "title": "7.登记簿查询：",
+              "body": "做好各类大额支付业务的信息登记，支持各渠道交易信息及登记簿查询。",
+              "start_anchor": "p_0323",
+              "end_anchor": "p_0323",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0324",
+              "type": "paren_cn",
+              "title": "（二）小额支付功能",
+              "body": "",
+              "start_anchor": "p_0324",
+              "end_anchor": "p_0324",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0327",
+              "type": "list_item",
+              "title": "2. 实时贷记业务：",
+              "body": "支持包括代收付中心发起的实时业务、通存等往账和来账业务，做好行内账务处理、信息登记等操作。",
+              "start_anchor": "p_0327",
+              "end_anchor": "p_0327",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0328",
+              "type": "list_item",
+              "title": "3. 定期贷记业务：",
+              "body": "支持柜面等渠道发起的定期贷记往账和人行等外部",
+              "start_anchor": "p_0328",
+              "end_anchor": "p_0328",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0330",
+              "type": "list_item",
+              "title": "4. 普通借记业务：",
+              "body": "支持柜面等渠道发起的普通借记往账和人行等外部发来的普通借记来账场景，做好业务检查、账务处理、报文发送、信息登记等操作。",
+              "start_anchor": "p_0330",
+              "end_anchor": "p_0330",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0331",
+              "type": "list_item",
+              "title": "5. 实时借记业务：",
+              "body": "支持柜面等渠道发起的有实时性要求的借记支付业务（通兑）和人行等外部发来的实时借记业务，做好业务检查、账务处理、报文发送、信息登记等操作。",
+              "start_anchor": "p_0331",
+              "end_anchor": "p_0331",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0332",
+              "type": "list_item",
+              "title": "6. 定期借记业务：",
+              "body": "支持柜面等渠道发起的定期借记往账和人行等外部发来的定期借记来账场景，做好业务检查、账务处理、报文发送、信息登记等操作。",
+              "start_anchor": "p_0332",
+              "end_anchor": "p_0332",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0333",
+              "type": "list_item",
+              "title": "7. CIS通用回执业务：",
+              "body": "接收人行发来的票据截留业务信息后，通过本报文进行回执。",
+              "start_anchor": "p_0333",
+              "end_anchor": "p_0333",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0334",
+              "type": "list_item",
+              "title": "8. 批量代付业务：",
+              "body": "支持人行发来的支付扣款或收款指令，将指定金额和费用类型的款项给多个收款人的业务。本类业务的典型特点是一个付款人、多个收款人。行内做好业务检查、账务处理、报文发送、信息登记等操作",
+              "start_anchor": "p_0334",
+              "end_anchor": "p_0334",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0335",
+              "type": "list_item",
+              "title": "9. 批量代收业务：",
+              "body": "支持人行发来的支付扣款或收款指令，将收取指定金额和费用类型的款项给企业的业务。本类业务的典型特点是一个收款人、多个付款人。行内做好业务检查、账务处理、报文发送、信息登记等操作",
+              "start_anchor": "p_0335",
+              "end_anchor": "p_0335",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0336",
+              "type": "list_item",
+              "title": "10. 实时代付业务：",
+              "body": "支持人行发来的支付扣款或收款指令，将指定金额和费用类型的款项给收款人的业务。本类业务的典型特点是一个收款人、一个付款人、单笔实时。行内做好业务检查、账务处理、报文发送、信息登记等操作",
+              "start_anchor": "p_0336",
+              "end_anchor": "p_0336",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0337",
+              "type": "list_item",
+              "title": "11. 实时代收业务：",
+              "body": "支持人行发来的支付扣款或收款指令，将收取指定金额和费用类型的款项给收费单位的业务。本类业务的典型特点是一个收款人、一个付款人、单笔实时。行内做好业务检查、账务处理、报文发送、信息登记等操作",
+              "start_anchor": "p_0337",
+              "end_anchor": "p_0337",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0338",
+              "type": "list_item",
+              "title": "12. 批量客户签约协议管理：",
+              "body": "支持柜面等渠道对客签订、撤销、查询代收付合同协议，行内做好业务检查、报文发送、协议登记等操作。",
+              "start_anchor": "p_0338",
+              "end_anchor": "p_0338",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0339",
+              "type": "list_item",
+              "title": "13. 批量客户账户信息查询：",
+              "body": "支持柜面等渠道发起的查询他行客户的账户状态信息和人行发来的甲方账户信息查询回执，行内做好业务检查、账户信息查询、信息登记等操作。",
+              "start_anchor": "p_0339",
+              "end_anchor": "p_0339",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0340",
+              "type": "list_item",
+              "title": "14. 借记业务止付申请：",
+              "body": "支持行内发起或接收非实时借记业务未回执前的止付申请，止付整包或包中的部分借记业务。行内做好业务检查、交易信息处理、登记等操作。",
+              "start_anchor": "p_0340",
+              "end_anchor": "p_0340",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0341",
+              "type": "list_item",
+              "title": "15. 实时业务冲正：",
+              "body": "支持柜面等渠道发起对实时贷（借）记业务未回执时的冲正申请和接收人行的冲正申请。行内做好业务检查、业务冲正、信息登记等操作。",
+              "start_anchor": "p_0341",
+              "end_anchor": "p_0341",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0342",
+              "type": "list_item",
+              "title": "16. 客户支付协议管理：",
+              "body": "支持柜面等渠道客户发起授权支付协议(新增、变更或注销)和接收人行的支付协议管理，行内做好业务检查、报文发送、协议登记等操作。",
+              "start_anchor": "p_0342",
+              "end_anchor": "p_0342",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0343",
+              "type": "list_item",
+              "title": "17. 主动缴款业务：",
+              "body": "支持柜面等渠道将客户的查询请求信息组成主动缴款管理报文发送人行，并接收主动缴款账单通知报文。本报文支持查询类型为待缴查询、开单查询、实缴查询、一查一缴等。行内做好业务检查、信息登记等操作。",
+              "start_anchor": "p_0343",
+              "end_anchor": "p_0343",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0344",
+              "type": "list_item",
+              "title": "18. 实时缴款业务：",
+              "body": "支持柜面等渠道将客户的实时缴款委托发送人行，接收实时缴款业务回执报文，同时支持发起撤销申请。行内做好业务检查、账务处理、信息登记等操作。",
+              "start_anchor": "p_0344",
+              "end_anchor": "p_0344",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0345",
+              "type": "list_item",
+              "title": "19. 客户账户扣款管理：",
+              "body": "接收人行发来的客户账户的资金圈存、圈存撤销、圈存解除等指令，行内根据相应指令做好资金圈存、撤销、接触、信息登记等操作。",
+              "start_anchor": "p_0345",
+              "end_anchor": "p_0345",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0346",
+              "type": "list_item",
+              "title": "20. 客户账户动账通知：",
+              "body": "接收人行发来的客户账户动账通知，将款项一次性转入收款客户账户或从客户账户圈存的资金中一次性扣除。内做好业务检查、账务处理、信息登记等操作。",
+              "start_anchor": "p_0346",
+              "end_anchor": "p_0346",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0347",
+              "type": "list_item",
+              "title": "21. 登记簿查询：",
+              "body": "做好各类小额支付业务的信息登记，支持各渠道交易信息及登记簿查询。",
+              "start_anchor": "p_0347",
+              "end_anchor": "p_0347",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0348",
+              "type": "paren_cn",
+              "title": "（三）跨行网银支付功能",
+              "body": "",
+              "start_anchor": "p_0348",
+              "end_anchor": "p_0348",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0351",
+              "type": "list_item",
+              "title": "2. 网银借记业务：",
+              "body": "支持网银等渠道发起的借记往账和人行等外部发来的借记来账场景，做好业务检查、账务处理、报文发送、信息登记等操作。",
+              "start_anchor": "p_0351",
+              "end_anchor": "p_0351",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0352",
+              "type": "list_item",
+              "title": "3. 第三方贷记业务：",
+              "body": "接收人行发来的第三方贷记报文，支持处理作为付款行和收款行的账务处理和回执。做好业务检查、账务处理、报文发送、信息登记等操作。",
+              "start_anchor": "p_0352",
+              "end_anchor": "p_0352",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0353",
+              "type": "list_item",
+              "title": "4. 业务状态查询：",
+              "body": "支持网银等渠道发起业务状态查询和接收人行发来的业务状态查询，做好业务检查、报文发送、信息登记等操作。",
+              "start_anchor": "p_0353",
+              "end_anchor": "p_0353",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0354",
+              "type": "list_item",
+              "title": "5. 业务撤销申请：",
+              "body": "支持行内发起或接收尚未纳入轧差处理的支付业务撤销申请。行内做好业务检查、交易信息处理、登记等操作。",
+              "start_anchor": "p_0354",
+              "end_anchor": "p_0354",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0355",
+              "type": "list_item",
+              "title": "6. 账户余额查询：",
+              "body": "支持网银等渠道发起的查询他行客户账户余额和人行发来的甲方账户余额查询回执，行内做好业务检查、账户信息查询、信息登记等操作。",
+              "start_anchor": "p_0355",
+              "end_anchor": "p_0355",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0356",
+              "type": "list_item",
+              "title": "7. 账户交易明细查询：",
+              "body": "支持网银等渠道发起的查询他行客户账户交易明细和人行发来的甲方账户交易明细查询回执，行内做好业务检查、账户信息查询、信息登记等操作。",
+              "start_anchor": "p_0356",
+              "end_anchor": "p_0356",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0357",
+              "type": "list_item",
+              "title": "8. 授权支付协议管理：",
+              "body": "支持网银等渠道客户发起授权支付协议(新增、解约)和接收人行的支付协议管理，行内做好业务检查、报文发送、协议登记等操作。",
+              "start_anchor": "p_0357",
+              "end_anchor": "p_0357",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0358",
+              "type": "list_item",
+              "title": "9. 账户信息查询协议管理：",
+              "body": "支持网银等渠道发起的查询他行账户信息协议（(新增、解约)）和人行发来的甲方账户信息查询协议管理，行内做好业务检查、报文发送、协议登记等操作。",
+              "start_anchor": "p_0358",
+              "end_anchor": "p_0358",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0359",
+              "type": "list_item",
+              "title": "10. 贷记付款请求业务：",
+              "body": "接收人行发来的贷记付款请求报文，业务检查通过，根据网银贷记支付指令处理情况返回人行处理结果。行内做好业务检查、报文发送、协议登记等操作。",
+              "start_anchor": "p_0359",
+              "end_anchor": "p_0359",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0360",
+              "type": "list_item",
+              "title": "11. 手机号支付：",
+              "body": "支持行内手机银行等渠道发起的手机号支付的签约、变更、解约、查询、下载等处理，接收人行发来的的客户信息核查等操作。行内做好业务检查、协议登记、报文发送等操作",
+              "start_anchor": "p_0360",
+              "end_anchor": "p_0360",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0361",
+              "type": "list_item",
+              "title": "12. 登记簿查询：",
+              "body": "做好各类跨行网银支付业务的信息登记，支持各渠道交易信息及登记簿查询。",
+              "start_anchor": "p_0361",
+              "end_anchor": "p_0361",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0362",
+              "type": "paren_cn",
+              "title": "（四）公共管理类业务",
+              "body": "",
+              "start_anchor": "p_0362",
+              "end_anchor": "p_0362",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0365",
+              "type": "list_item",
+              "title": "2. 业务撤销：",
+              "body": "支持行内发起或接收尚未终态的支付业务撤销申请。行内做好业务检查、交易信息处理、登记等操作。",
+              "start_anchor": "p_0365",
+              "end_anchor": "p_0365",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0366",
+              "type": "list_item",
+              "title": "3. 通用（非）签名信息业务：",
+              "body": "支持柜面等渠道发起的业务通知、联络等事项的通用（非）签名信息业务和接收人行发来的通用（非）签名信息业务，行内做好信息登记、报文回执等操作。",
+              "start_anchor": "p_0366",
+              "end_anchor": "p_0366",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0367",
+              "type": "list_item",
+              "title": "4. 查询查复：",
+              "body": "支持柜面等渠道发起的业务查询和接收人行发来的业务查询，行内做好信息登记、业务检查、报文回执等操作。",
+              "start_anchor": "p_0367",
+              "end_anchor": "p_0367",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0368",
+              "type": "list_item",
+              "title": "5. 业务状态查询申请：",
+              "body": "支持柜面等渠道发起的业务状态查询申请。行内做好业务检查、信息登记等操作。",
+              "start_anchor": "p_0368",
+              "end_anchor": "p_0368",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0369",
+              "type": "list_item",
+              "title": "6. 业务退回申请：",
+              "body": "支持柜面等渠道发起或接收对支付业务进行退回申请。行内做好业务检查、账务处理、信息登记等操作。",
+              "start_anchor": "p_0369",
+              "end_anchor": "p_0369",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0370",
+              "type": "list_item",
+              "title": "7. 贷记业务入账状态查询申请：",
+              "body": "支持柜面等渠道发起或接收贷记业务入账状态查询申请。行内做好业务检查、报文回执、信息登记等操作。",
+              "start_anchor": "p_0370",
+              "end_anchor": "p_0370",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0371",
+              "type": "paren_cn",
+              "title": "（五）系统管理类业务",
+              "body": "",
+              "start_anchor": "p_0371",
+              "end_anchor": "p_0371",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0374",
+              "type": "paren_cn",
+              "title": "（六）清算账户管理类业务",
+              "body": "",
+              "start_anchor": "p_0374",
+              "end_anchor": "p_0374",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0377",
+              "type": "paren_cn",
+              "title": "（七）对账业务",
+              "body": "",
+              "start_anchor": "p_0377",
+              "end_anchor": "p_0377",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0380",
+              "type": "paren_cn",
+              "title": "（八）运营管理",
+              "body": "",
+              "start_anchor": "p_0380",
+              "end_anchor": "p_0380",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0382",
+              "type": "cn_comma",
+              "title": "二、定制化开发需求",
+              "body": "",
+              "start_anchor": "p_0382",
+              "end_anchor": "p_0382",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0384",
+              "type": "paren_cn",
+              "title": "（一）支付公共能力",
+              "body": "",
+              "start_anchor": "p_0384",
+              "end_anchor": "p_0384",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0392",
+              "type": "plain_label",
+              "title": "日终未清算统计；",
+              "body": "",
+              "start_anchor": "p_0392",
+              "end_anchor": "p_0392",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0393",
+              "type": "plain_label",
+              "title": "日终计费报文处理功能。",
+              "body": "",
+              "start_anchor": "p_0393",
+              "end_anchor": "p_0393",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0394",
+              "type": "plain_label",
+              "title": "网关服务：",
+              "body": "建立统一的支付网关，包含大额、小额、跨行网银、企业联网核查支付清算通道报文的加解密、加验签、协议转换、报文整合与分发、流量控制、前置探测等功能，并支持IBM MQ及CNCCQ双消息中间件。",
+              "start_anchor": "p_0394",
+              "end_anchor": "p_0394",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0395",
+              "type": "plain_label",
+              "title": "参数中心包含但不限于以下功能：",
+              "body": "",
+              "start_anchor": "p_0395",
+              "end_anchor": "p_0395",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0409",
+              "type": "paren_cn",
+              "title": "（二）支付产品建设",
+              "body": "",
+              "start_anchor": "p_0409",
+              "end_anchor": "p_0409",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0411",
+              "type": "paren_cn",
+              "title": "（三）防腐层功能",
+              "body": "",
+              "start_anchor": "p_0411",
+              "end_anchor": "p_0411",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0413",
+              "type": "cn_comma",
+              "title": "三、免费维保服务",
+              "body": "",
+              "start_anchor": "p_0413",
+              "end_anchor": "p_0413",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0414",
+              "type": "plain_label",
+              "title": "满足采购清单内所述的服务要求。",
+              "body": "系统的免费服务期为一年，免费服务期从项目整体实施完成且经过全部系统验收后双方代表签字之日起计算。免费服务期内应保证1名经甲方认可的技术人员定期派驻用户现场服务支持。针对关键重大问题或特殊业务时点，应承诺调动全部资源给予支持，委派专家到现场解决问题，迅速排除系统故障。",
+              "start_anchor": "p_0414",
+              "end_anchor": "p_0414",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0415",
+              "type": "cn_comma",
+              "title": "四、人天技术服务",
+              "body": "",
+              "start_anchor": "p_0415",
+              "end_anchor": "p_0415",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0416",
+              "type": "list_item",
+              "title": "1、人天技术服务内容：",
+              "body": "人行支付系统持续开发及维护，包含但不限于大额支付业务、小额支付业务、跨行网银业务以及招标人要求的其他事项。主要内容如下：",
+              "start_anchor": "p_0416",
+              "end_anchor": "p_0416",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0422",
+              "type": "list_item",
+              "title": "2、人天技术服务期限：",
+              "body": "系统产品及实施项目验收通过并经甲方书面通知后提供人天技术服务，期限为3年。",
+              "start_anchor": "p_0422",
+              "end_anchor": "p_0422",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0423",
+              "type": "list_item",
+              "title": "3、人天技术服务人员要求：",
+              "body": "供应商须针对本项目组建专门的项目团队，人天驻场服务期间驻场人员由行方优先从原实施团队中进行指定选择。各人员级别以合同里的人员清单为准。",
+              "start_anchor": "p_0423",
+              "end_anchor": "p_0423",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0424",
+              "type": "list_item",
+              "title": "4、人天技术工作量评估：",
+              "body": "5400人天（暂估），工作量以实际人天考核结果为准。",
+              "start_anchor": "p_0424",
+              "end_anchor": "p_0424",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0427",
+          "type": "attachment_section",
+          "title": "附件3",
+          "body": "",
+          "start_anchor": "p_0427",
+          "end_anchor": "p_0526",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0429",
+              "type": "cn_comma",
+              "title": "一、项目建设原则",
+              "body": "",
+              "start_anchor": "p_0429",
+              "end_anchor": "p_0429",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0430",
+              "type": "list_item",
+              "title": "1.先进性：",
+              "body": "平台采用符合信息技术发展趋势的先进技术，硬件设备应选择先",
+              "start_anchor": "p_0430",
+              "end_anchor": "p_0430",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0432",
+              "type": "list_item",
+              "title": "2.稳定性：",
+              "body": "平台应具有较高的可靠性和持续使用能力。",
+              "start_anchor": "p_0432",
+              "end_anchor": "p_0432",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0433",
+              "type": "list_item",
+              "title": "3.标准性：",
+              "body": "相关平台应是开放的且符合主流技术标准的平台，并使网络的件",
+              "start_anchor": "p_0433",
+              "end_anchor": "p_0433",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0435",
+              "type": "list_item",
+              "title": "4.应用可扩展性：",
+              "body": "平台设计遵循模块化、组件化、参数化设计原则，方便灵活，易于改造和扩展；并能通过预留的升级接口独立地、平滑地进行升级，功能扩展不会明显影响系统效率。",
+              "start_anchor": "p_0435",
+              "end_anchor": "p_0435",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0436",
+              "type": "list_item",
+              "title": "5.硬件可扩展性：",
+              "body": "系统资源利用率应成近似线性比例增长，可通过系统硬件",
+              "start_anchor": "p_0436",
+              "end_anchor": "p_0436",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0438",
+              "type": "list_item",
+              "title": "6.安全性：",
+              "body": "为确保数据安全，实现重大责任事故的可追溯性，系统应对所有",
+              "start_anchor": "p_0438",
+              "end_anchor": "p_0438",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0440",
+              "type": "list_item",
+              "title": "7.易用性：",
+              "body": "平台应具有友好的管理维护界面，操作简洁、高效。结构清晰，模块化、参数化程度高，可灵活设置，方便维护和管理。",
+              "start_anchor": "p_0440",
+              "end_anchor": "p_0440",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0441",
+              "type": "list_item",
+              "title": "8.故障恢复：",
+              "body": "必须具有相应的故障恢复机制，最大限度的减少故障带来的损",
+              "start_anchor": "p_0441",
+              "end_anchor": "p_0441",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0442",
+              "type": "plain_label",
+              "title": "失和危害。",
+              "body": "",
+              "start_anchor": "p_0442",
+              "end_anchor": "p_0442",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0443",
+              "type": "list_item",
+              "title": "9.高效性：",
+              "body": "平台结构合理、效率高、资源占用率低，避免过多的冗余。",
+              "start_anchor": "p_0443",
+              "end_anchor": "p_0443",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0444",
+              "type": "list_item",
+              "title": "10.低耦合性：",
+              "body": "系统具备高度独立性，通过标准接口规范、报文规范、文件格式规范同其它系统集成，尽量减少系统的变动带给其它系统的影响，平台故障不影响生产部署。",
+              "start_anchor": "p_0444",
+              "end_anchor": "p_0444",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0445",
+              "type": "list_item",
+              "title": "11.可维护性：",
+              "body": "相关平台的日常运行维护和管理，要求产品提供良好的可管理性和可维护性。代码必须具有良好的可读性。系统模块中，功能实现的关键语句必须增加注释，每个类和方法必须要有说明性注释，增加代码的可维护性。",
+              "start_anchor": "p_0445",
+              "end_anchor": "p_0445",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0446",
+              "type": "cn_comma",
+              "title": "二、基础能力需求",
+              "body": "",
+              "start_anchor": "p_0446",
+              "end_anchor": "p_0446",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0449",
+              "type": "paren_cn",
+              "title": "（一）应用架构要求",
+              "body": "",
+              "start_anchor": "p_0449",
+              "end_anchor": "p_0449",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0450",
+              "type": "list_item",
+              "title": "1.系统应使用乙方的开发平台进行开发，需要额外引入第三方jar包时，在获得甲方同意后再进行使用。    2.系统应满足分布式架构要求，指导架构在分布式能力、容灾能力、灰度能",
+              "body": "",
+              "start_anchor": "p_0450",
+              "end_anchor": "p_0450",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0455",
+              "type": "paren_cn",
+              "title": "（二）技术架构要求",
+              "body": "",
+              "start_anchor": "p_0455",
+              "end_anchor": "p_0455",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0456",
+              "type": "list_item",
+              "title": "1.支持基于甲方容器技术栈云上部署，支持TongWeb等国产Web容器。",
+              "body": "",
+              "start_anchor": "p_0456",
+              "end_anchor": "p_0456",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0457",
+              "type": "list_item",
+              "title": "2.支持甲方sofaRPC分布式微服务框架,支持Tair缓存、SofaMQ消息队列等中间件，支持TDSQL、TBASE等数据库。",
+              "body": "",
+              "start_anchor": "p_0457",
+              "end_anchor": "p_0457",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0458",
+              "type": "list_item",
+              "title": "3.支持OpenJDK 1.8及以上且稳定的版本。",
+              "body": "",
+              "start_anchor": "p_0458",
+              "end_anchor": "p_0458",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0459",
+              "type": "list_item",
+              "title": "4.支持国产ARM架构芯片的服务器，支持麒麟等服务器操作系统。",
+              "body": "",
+              "start_anchor": "p_0459",
+              "end_anchor": "p_0459",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0460",
+              "type": "paren_cn",
+              "title": "（三）数据规范要求",
+              "body": "",
+              "start_anchor": "p_0460",
+              "end_anchor": "p_0460",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0461",
+              "type": "list_item",
+              "title": "1.符合甲方数据标准和规范要求，包括但不限于数据采集规范、格式、报文字段命名、数据字典、库表的字段命名和字段内容等。",
+              "body": "",
+              "start_anchor": "p_0461",
+              "end_anchor": "p_0461",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0462",
+              "type": "list_item",
+              "title": "2.符合数据全生命周期管理规范、数据集成规范，库表数据按照数据规范要求入湖、清理等。",
+              "body": "",
+              "start_anchor": "p_0462",
+              "end_anchor": "p_0462",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0463",
+              "type": "paren_cn",
+              "title": "（四）运维能力要求",
+              "body": "",
+              "start_anchor": "p_0463",
+              "end_anchor": "p_0463",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0464",
+              "type": "list_item",
+              "title": "1.支持对接甲方运维一体化平台，实现系统监控告警、运行指标、统一日志、自动化发布、自动化巡检等能力。",
+              "body": "",
+              "start_anchor": "p_0464",
+              "end_anchor": "p_0464",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0465",
+              "type": "list_item",
+              "title": "2.运行监控：",
+              "body": "支持日志采集和规范要求，支持交易端到端的全链路跟踪。",
+              "start_anchor": "p_0465",
+              "end_anchor": "p_0465",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0466",
+              "type": "list_item",
+              "title": "3.发布更新：",
+              "body": "支持蓝绿发布、灰度发布等功能。",
+              "start_anchor": "p_0466",
+              "end_anchor": "p_0466",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0467",
+              "type": "list_item",
+              "title": "4.高可用能力：",
+              "body": "支持多中心部署，支持跨中心快速切换。",
+              "start_anchor": "p_0467",
+              "end_anchor": "p_0467",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0468",
+              "type": "paren_cn",
+              "title": "（五）安全规范要求",
+              "body": "",
+              "start_anchor": "p_0468",
+              "end_anchor": "p_0468",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0470",
+              "type": "paren_cn",
+              "title": "（六）服务治理要求",
+              "body": "",
+              "start_anchor": "p_0470",
+              "end_anchor": "p_0470",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0471",
+              "type": "list_item",
+              "title": "1.符合甲方《服务生命周期管理规范》，实现支付服务的设计、发布、保鲜、调优及下线等管理。",
+              "body": "",
+              "start_anchor": "p_0471",
+              "end_anchor": "p_0471",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0472",
+              "type": "list_item",
+              "title": "2.符合甲方《服务设计规范》，实现服务ID、服务复用、服务质量、服务组合等服务各要素的设计。",
+              "body": "",
+              "start_anchor": "p_0472",
+              "end_anchor": "p_0472",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0473",
+              "type": "list_item",
+              "title": "3.使用甲方API接口管理工具，实现线上化设计及管理。",
+              "body": "",
+              "start_anchor": "p_0473",
+              "end_anchor": "p_0473",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0474",
+              "type": "paren_cn",
+              "title": "（七）开发能力要求",
+              "body": "",
+              "start_anchor": "p_0474",
+              "end_anchor": "p_0474",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0475",
+              "type": "list_item",
+              "title": "1.开发平台要求",
+              "body": "",
+              "start_anchor": "p_0475",
+              "end_anchor": "p_0475",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0477",
+              "type": "list_item",
+              "title": "2.支持DevOps能力",
+              "body": "",
+              "start_anchor": "p_0477",
+              "end_anchor": "p_0477",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0479",
+              "type": "cn_comma",
+              "title": "三、非功能性需求",
+              "body": "",
+              "start_anchor": "p_0479",
+              "end_anchor": "p_0479",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0480",
+              "type": "paren_cn",
+              "title": "（一）系统性能要求",
+              "body": "",
+              "start_anchor": "p_0480",
+              "end_anchor": "p_0480",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0003",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0003",
+              "end_anchor": "tbl_0003",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0482",
+              "type": "paren_cn",
+              "title": "（二）并发及耗时等要求",
+              "body": "",
+              "start_anchor": "p_0482",
+              "end_anchor": "p_0482",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0483",
+              "type": "list_item",
+              "title": "1.系统满足混合交易TPS不低于1500笔/秒。",
+              "body": "",
+              "start_anchor": "p_0483",
+              "end_anchor": "p_0483",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0484",
+              "type": "list_item",
+              "title": "2.系统满足金融类联机交易TPS不低于2000笔/秒。",
+              "body": "",
+              "start_anchor": "p_0484",
+              "end_anchor": "p_0484",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0485",
+              "type": "list_item",
+              "title": "3.账务类联机交易平均响应时间<300ms。",
+              "body": "",
+              "start_anchor": "p_0485",
+              "end_anchor": "p_0485",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0486",
+              "type": "list_item",
+              "title": "4.简易查询类联机交易平均响应时间<150ms。",
+              "body": "",
+              "start_anchor": "p_0486",
+              "end_anchor": "p_0486",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0487",
+              "type": "list_item",
+              "title": "5.复杂查询类交易平均响应时间<3s。",
+              "body": "",
+              "start_anchor": "p_0487",
+              "end_anchor": "p_0487",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0488",
+              "type": "list_item",
+              "title": "6.普通日终处理耗时不超过60分钟。",
+              "body": "",
+              "start_anchor": "p_0488",
+              "end_anchor": "p_0488",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0489",
+              "type": "list_item",
+              "title": "7.交易高峰日终批处理总耗时不超过1.5小时。",
+              "body": "",
+              "start_anchor": "p_0489",
+              "end_anchor": "p_0489",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0490",
+              "type": "list_item",
+              "title": "8.对账处理千万数据量处理时效不超30分钟。",
+              "body": "",
+              "start_anchor": "p_0490",
+              "end_anchor": "p_0490",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0491",
+              "type": "paren_cn",
+              "title": "（三）可靠性要求",
+              "body": "",
+              "start_anchor": "p_0491",
+              "end_anchor": "p_0491",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0492",
+              "type": "list_item",
+              "title": "1.要求系统具备高可用性，零停机（包括应用升级、日终等，能支持灰度发布、热部署等能力）。",
+              "body": "",
+              "start_anchor": "p_0492",
+              "end_anchor": "p_0492",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0493",
+              "type": "list_item",
+              "title": "2.要求采用高可靠性的产品和技术，系统具有较强的容错能力和恢复能力。",
+              "body": "",
+              "start_anchor": "p_0493",
+              "end_anchor": "p_0493",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0494",
+              "type": "list_item",
+              "title": "3.系统具备应用异常后的应急恢复策略。",
+              "body": "",
+              "start_anchor": "p_0494",
+              "end_anchor": "p_0494",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0495",
+              "type": "paren_cn",
+              "title": "（四）可用性需求",
+              "body": "",
+              "start_anchor": "p_0495",
+              "end_anchor": "p_0495",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0004",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0004",
+              "end_anchor": "tbl_0004",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0496",
+              "type": "paren_cn",
+              "title": "（五）系统升级",
+              "body": "",
+              "start_anchor": "p_0496",
+              "end_anchor": "p_0496",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0498",
+              "type": "paren_cn",
+              "title": "（六）迁移要求",
+              "body": "",
+              "start_anchor": "p_0498",
+              "end_anchor": "p_0498",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0499",
+              "type": "list_item",
+              "title": "1.制定人行支付系统上线切换方案并实施落地，支持新老支付系统并行、快速回切等，确保系统平滑切换，保障支付系统业务连续性。",
+              "body": "",
+              "start_anchor": "p_0499",
+              "end_anchor": "p_0499",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0500",
+              "type": "list_item",
+              "title": "2.乙方负责系统数据迁移工作（含迁出、迁入、迁移中间表设计、新旧系统数据转换、技术检核等），配合甲方进行数据清理、数据补录和业务检核，包含但不限于原系统数据及重要规则分析、环境规划、相关方案制定、数据映射、方案详细设计、设计开发、内部专项测试、测试及演练支持、投产方案、正式投产等。",
+              "body": "",
+              "start_anchor": "p_0500",
+              "end_anchor": "p_0500",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0501",
+              "type": "list_item",
+              "title": "3.要求乙方在项目实施期间组建专业、独立的数据迁移团队，按项目整体进度组织、实施，按计划完成数据迁移工作。",
+              "body": "",
+              "start_anchor": "p_0501",
+              "end_anchor": "p_0501",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0502",
+              "type": "list_item",
+              "title": "4.数据迁移的效率必须满足系统迁移窗口的时间要求。",
+              "body": "",
+              "start_anchor": "p_0502",
+              "end_anchor": "p_0502",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0503",
+              "type": "list_item",
+              "title": "5.数据迁移过程中要确保迁移后原账号、卡号等对客重要、基础数据连续性。",
+              "body": "数据在迁移过程中不泄露，迁移后不改变。",
+              "start_anchor": "p_0503",
+              "end_anchor": "p_0503",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0504",
+              "type": "list_item",
+              "title": "6.提供必要的迁移核对辅助工具。",
+              "body": "",
+              "start_anchor": "p_0504",
+              "end_anchor": "p_0504",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0505",
+              "type": "list_item",
+              "title": "7.数据迁移必须实现新旧系统无缝对接，即迁即用。",
+              "body": "",
+              "start_anchor": "p_0505",
+              "end_anchor": "p_0505",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0506",
+              "type": "paren_cn",
+              "title": "（七）运维要求",
+              "body": "",
+              "start_anchor": "p_0506",
+              "end_anchor": "p_0506",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0508",
+              "type": "paren_cn",
+              "title": "（八）其它技术要求",
+              "body": "",
+              "start_anchor": "p_0508",
+              "end_anchor": "p_0508",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0509",
+              "type": "list_item",
+              "title": "1.单笔交易设计",
+              "body": "",
+              "start_anchor": "p_0509",
+              "end_anchor": "p_0509",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0511",
+              "type": "list_item",
+              "title": "2.批量交易设计",
+              "body": "",
+              "start_anchor": "p_0511",
+              "end_anchor": "p_0511",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0513",
+              "type": "list_item",
+              "title": "3.同步异步设计",
+              "body": "",
+              "start_anchor": "p_0513",
+              "end_anchor": "p_0513",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0515",
+              "type": "list_item",
+              "title": "4.事务一致性设计",
+              "body": "",
+              "start_anchor": "p_0515",
+              "end_anchor": "p_0515",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0517",
+              "type": "list_item",
+              "title": "5.定时任务设计",
+              "body": "",
+              "start_anchor": "p_0517",
+              "end_anchor": "p_0517",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0520",
+              "type": "list_item",
+              "title": "6.热点账户排队上核心功能",
+              "body": "",
+              "start_anchor": "p_0520",
+              "end_anchor": "p_0520",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0522",
+              "type": "list_item",
+              "title": "7.限流及熔断降级机制",
+              "body": "",
+              "start_anchor": "p_0522",
+              "end_anchor": "p_0522",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0524",
+              "type": "list_item",
+              "title": "8.两地三中心部署",
+              "body": "",
+              "start_anchor": "p_0524",
+              "end_anchor": "p_0524",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0527",
+          "type": "attachment_section",
+          "title": "附件4",
+          "body": "",
+          "start_anchor": "p_0527",
+          "end_anchor": "p_0555",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0528",
+              "type": "local_doc_title",
+              "title": "人行支付系统重构研发项目安全与国产化需求",
+              "body": "",
+              "start_anchor": "p_0528",
+              "end_anchor": "p_0528",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0531",
+              "type": "plain_label",
+              "title": "（2）产品需屏蔽非业务所需接口；",
+              "body": "",
+              "start_anchor": "p_0531",
+              "end_anchor": "p_0531",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0535",
+              "type": "list_item",
+              "title": "1.数据安全",
+              "body": "",
+              "start_anchor": "p_0535",
+              "end_anchor": "p_0535",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0541",
+              "type": "list_item",
+              "title": "2.系统安全",
+              "body": "",
+              "start_anchor": "p_0541",
+              "end_anchor": "p_0541",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0543",
+              "type": "list_item",
+              "title": "3.网络安全",
+              "body": "",
+              "start_anchor": "p_0543",
+              "end_anchor": "p_0543",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0545",
+              "type": "list_item",
+              "title": "4.应用安全",
+              "body": "",
+              "start_anchor": "p_0545",
+              "end_anchor": "p_0545",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0556",
+          "type": "attachment_section",
+          "title": "附件5",
+          "body": "",
+          "start_anchor": "p_0556",
+          "end_anchor": "p_0563",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0558",
+              "type": "list_item",
+              "title": "1.人员进场验收。",
+              "body": "在合同签订前中标人必须安排项目核心团队进场进行前期项目准备，合同签订后5个工作日内，中标人必须派遣合同内约定的项目人员进场，由甲方对进场人员进行身份及资质核查。核查通过后由甲方签署人员进场情况核实报告。",
+              "start_anchor": "p_0558",
+              "end_anchor": "p_0558",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0559",
+              "type": "list_item",
+              "title": "2.系统上线投产验收。",
+              "body": "技术服务工作提交件包括人行支付系统项目章程、项目计划、需求规格说明书、架构设计文档、概要设计文档、详细设计文档、功能说明书、接口文档、安装维护手册、定制化开发源代码、数据库清单、项目总结报告等，技术测试人员提交件包括：测试方案、测试分析文档、测试案例、自动化脚本、测试执行及测试总结报告等。人行支付系统投产分为两个阶段，一阶段为汇划产品、网上支付跨行清算系统相关功能及支付公共能力；二阶段为二代支付系统相关功能。各阶段完成系统生产部署，系统正常部署运行。系统上线投产稳定试运行3个月后，由甲方进行评审，评审通过后由甲方签署项目验收报告。中标人应当在开始验收前做好验收的必要准备并向甲方发出可以进行验收的书面通知，甲方应当在收到通知后1个月内开始验收；如果因甲方原因造成验收延后的，如甲方无书面通知，则中标人可视为产品验收通过；如果甲方在收到通知1个月内向中标人发出验收延后通知，则验收时间可以双方共同协商顺延。",
+              "start_anchor": "p_0559",
+              "end_anchor": "p_0559",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0560",
+              "type": "list_item",
+              "title": "3.免费维保期验收。",
+              "body": "免费维保期结束后，中标人提交生产问题解决清单（工单记录）、培训记录、维保人员完成任务清单（运维、重保等）、巡检报告、优化类功能需求编号（如有）、驻场人天报工记录（如有）、其他现场服务记录(《客户现场服务记录表》)等交付物，由甲、乙双方共同对免费维保期的系统运行状况进行验收，并由双方签署免费维保期验收报告。中标人应当在验收日前做好验收的必要准备并向甲方发出可以进行验收的书面通知，甲方应当在收到通知后2周内开始验收；如果因甲方原因造成验收延后的，如甲方无书面通知，则中标人可视为验收通过；否则验收时间可以协商顺延。",
+              "start_anchor": "p_0560",
+              "end_anchor": "p_0560",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0561",
+              "type": "list_item",
+              "title": "4.人天服务验收，以需求的测试报告直接作为验收报告。",
+              "body": "验收流程为每半年一次，分别为每年5月和11月，中标人须在上述期限内提交验收申请并通过甲方验收，否则甲方有权拒绝支付中标人相应的款项并要求中标人承担违约责任。若验收时发现由于中标人的错误或不符合合同约定或甲方要求导致验收失败的，中标人技术人员应及时纠正错误或问题，完成后，再次向甲方项目负责人提出验收申请，双方重复本款确定的验收过程，直至验收无误为止。由此给甲方项目开发造成的工作量损失，折算抵扣服务费用。如果超过开始验收之日2个月仍不能验收合格的，按本合同第十一条“中标人乙方违约责任”进行赔偿。",
+              "start_anchor": "p_0561",
+              "end_anchor": "p_0561",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0562",
+              "type": "list_item",
+              "title": "6.验收过程中，如与项目相关要求存在不符，中标人应当立即采取措施纠正不符之处，并与甲方协商约定新的验收时间进行验收。如果超过开始验收之日2个月，非因甲方原因仍不能通过验收的，甲方有权解除合同，中标人应当按照本合同的约定承担违约责任。",
+              "body": "",
+              "start_anchor": "p_0562",
+              "end_anchor": "p_0562",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0564",
+          "type": "attachment_section",
+          "title": "附件6",
+          "body": "",
+          "start_anchor": "p_0564",
+          "end_anchor": "p_0593",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0565",
+              "type": "local_doc_title",
+              "title": "项目组成员信息",
+              "body": "",
+              "start_anchor": "p_0565",
+              "end_anchor": "p_0565",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0566",
+              "type": "local_doc_title",
+              "title": "项目组成员一览表（关键人员）",
+              "body": "",
+              "start_anchor": "p_0566",
+              "end_anchor": "p_0566",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "tbl_0005",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0005",
+              "end_anchor": "tbl_0005",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0568",
+              "type": "plain_label",
+              "title": "投标人名称(加盖公章)：",
+              "body": "",
+              "start_anchor": "p_0568",
+              "end_anchor": "p_0568",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0569",
+              "type": "plain_label",
+              "title": "授权代表（签字或盖章）：",
+              "body": "",
+              "start_anchor": "p_0569",
+              "end_anchor": "p_0569",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0006",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0006",
+              "end_anchor": "tbl_0006",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0576",
+              "type": "plain_label",
+              "title": "投标人名称(加盖公章)：",
+              "body": "",
+              "start_anchor": "p_0576",
+              "end_anchor": "p_0576",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0577",
+              "type": "plain_label",
+              "title": "授权代表（签字或盖章）：",
+              "body": "",
+              "start_anchor": "p_0577",
+              "end_anchor": "p_0577",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0007",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0007",
+              "end_anchor": "tbl_0007",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0583",
+              "type": "plain_label",
+              "title": "投标人名称(加盖公章)：",
+              "body": "",
+              "start_anchor": "p_0583",
+              "end_anchor": "p_0583",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0584",
+              "type": "plain_label",
+              "title": "授权代表（签字或盖章）：",
+              "body": "",
+              "start_anchor": "p_0584",
+              "end_anchor": "p_0584",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0008",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0008",
+              "end_anchor": "tbl_0008",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0590",
+              "type": "plain_label",
+              "title": "投标人名称(加盖公章)：",
+              "body": "",
+              "start_anchor": "p_0590",
+              "end_anchor": "p_0590",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0591",
+              "type": "plain_label",
+              "title": "授权代表（签字或盖章）：",
+              "body": "",
+              "start_anchor": "p_0591",
+              "end_anchor": "p_0591",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0594",
+          "type": "attachment_section",
+          "title": "附件7",
+          "body": "",
+          "start_anchor": "p_0594",
+          "end_anchor": "p_0644",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0596",
+              "type": "plain_label",
+              "title": "乙方应能提供包含（但不限于）以下工作内容：",
+              "body": "",
+              "start_anchor": "p_0596",
+              "end_anchor": "p_0596",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0599",
+              "type": "list_item",
+              "title": "1、任务要求：",
+              "body": "",
+              "start_anchor": "p_0599",
+              "end_anchor": "p_0599",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0602",
+              "type": "list_item",
+              "title": "2、任务能力：",
+              "body": "",
+              "start_anchor": "p_0602",
+              "end_anchor": "p_0602",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0605",
+              "type": "list_item",
+              "title": "3、任务方式：",
+              "body": "",
+              "start_anchor": "p_0605",
+              "end_anchor": "p_0605",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0607",
+              "type": "plain_label",
+              "title": "1）系统服务：",
+              "body": "7×24小时",
+              "start_anchor": "p_0607",
+              "end_anchor": "p_0607",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0608",
+              "type": "plain_label",
+              "title": "2）人工服务：",
+              "body": "7×10小时",
+              "start_anchor": "p_0608",
+              "end_anchor": "p_0608",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0609",
+              "type": "list_item",
+              "title": "4、任务成果：",
+              "body": "",
+              "start_anchor": "p_0609",
+              "end_anchor": "p_0609",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0612",
+              "type": "plain_label",
+              "title": "任务要求：",
+              "body": "",
+              "start_anchor": "p_0612",
+              "end_anchor": "p_0612",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0614",
+              "type": "list_item",
+              "title": "2、任务能力：",
+              "body": "",
+              "start_anchor": "p_0614",
+              "end_anchor": "p_0614",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0617",
+              "type": "list_item",
+              "title": "3、任务方式：",
+              "body": "",
+              "start_anchor": "p_0617",
+              "end_anchor": "p_0617",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0619",
+              "type": "plain_label",
+              "title": "1）系统服务：",
+              "body": "7×24小时",
+              "start_anchor": "p_0619",
+              "end_anchor": "p_0619",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0620",
+              "type": "plain_label",
+              "title": "2）人工服务：",
+              "body": "7×10小时",
+              "start_anchor": "p_0620",
+              "end_anchor": "p_0620",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0621",
+              "type": "list_item",
+              "title": "4、任务成果：",
+              "body": "",
+              "start_anchor": "p_0621",
+              "end_anchor": "p_0621",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0624",
+              "type": "list_item",
+              "title": "1、任务要求：",
+              "body": "",
+              "start_anchor": "p_0624",
+              "end_anchor": "p_0624",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0629",
+              "type": "list_item",
+              "title": "2、任务能力：",
+              "body": "",
+              "start_anchor": "p_0629",
+              "end_anchor": "p_0629",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0632",
+              "type": "list_item",
+              "title": "3、任务方式：",
+              "body": "",
+              "start_anchor": "p_0632",
+              "end_anchor": "p_0632",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0634",
+              "type": "plain_label",
+              "title": "1）系统服务：",
+              "body": "7×24小时",
+              "start_anchor": "p_0634",
+              "end_anchor": "p_0634",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0635",
+              "type": "plain_label",
+              "title": "2）人工服务：",
+              "body": "7×10小时",
+              "start_anchor": "p_0635",
+              "end_anchor": "p_0635",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0636",
+              "type": "list_item",
+              "title": "4、任务成果：",
+              "body": "",
+              "start_anchor": "p_0636",
+              "end_anchor": "p_0636",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0639",
+              "type": "list_item",
+              "title": "1、经招标单位授权，提供重要日期值守、应急处理等其它服务。",
+              "body": "",
+              "start_anchor": "p_0639",
+              "end_anchor": "p_0639",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0640",
+              "type": "list_item",
+              "title": "2、合同执行过程中，公司人员需严格遵守浙江农商联合银行的生产系统的管理流程，在任何生产系统的操作前和浙江农商联合银行一起根据操作流程拟定操作计划和异常处理方案，依据操作计划操作以避免生产系统的事故。",
+              "body": "",
+              "start_anchor": "p_0640",
+              "end_anchor": "p_0640",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0645",
+          "type": "attachment_section",
+          "title": "附件8",
+          "body": "",
+          "start_anchor": "p_0645",
+          "end_anchor": "p_0694",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0648",
+              "type": "cn_comma",
+              "title": "一、服务期限",
+              "body": "",
+              "start_anchor": "p_0648",
+              "end_anchor": "p_0648",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0650",
+              "type": "cn_comma",
+              "title": "二、协议内容要求",
+              "body": "",
+              "start_anchor": "p_0650",
+              "end_anchor": "p_0650",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0651",
+              "type": "list_item",
+              "title": "1.服务内容、方式和要求",
+              "body": "",
+              "start_anchor": "p_0651",
+              "end_anchor": "p_0651",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0652",
+              "type": "list_item",
+              "title": "1.1为确保采购单位人行支付系统系统（以下简称维保系统）可靠、正常运行，采购单位同意投标单位承担采购单位维保系统的维护服务。投标单位保证严格遵守合同规定，以快捷的响应、熟练的技术向采购单位提供优质可靠的维护服务。服务内容包括系统预防性检查维护、故障及时处理恢复；协助采购单位进行系统升级、扩充，并提供相应的技术咨询等。",
+              "body": "",
+              "start_anchor": "p_0652",
+              "end_anchor": "p_0652",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0653",
+              "type": "list_item",
+              "title": "1.2为更好地为采购单位维保系统提供优质可靠的维护服务，投标单位拥有经验丰富、有独立处理技术问题能力、胜任本次合同所涉系统技术维护、支持、保障要求的工程师，作为履行本合同投标单位责任和义务的必备条件。",
+              "body": "",
+              "start_anchor": "p_0653",
+              "end_anchor": "p_0653",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0654",
+              "type": "list_item",
+              "title": "1.3投标单位须保障采购单位在中国使用其货物、服务及其任何部分不受到第三方关于侵犯专利、商标权或其他知识产权的指控。任何第三方如果提出侵权指控，投标单位必须承担第三方对采购单位提出侵权指控而引起的采购单位的一切损失。",
+              "body": "",
+              "start_anchor": "p_0654",
+              "end_anchor": "p_0654",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0655",
+              "type": "list_item",
+              "title": "1.4投标单位承担采购单位维保系统的维护服务分为故障维护服务和预防性检查维护服务。",
+              "body": "",
+              "start_anchor": "p_0655",
+              "end_anchor": "p_0655",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0656",
+              "type": "list_item",
+              "title": "1.5投标单位承担采购单位维保系统维护，服务方式为风险式维护服务。",
+              "body": "风险式维护服务是指投标单位在商定价格下承担采购单位维保系统的维护服务，合同有效期内所有服务均无需额外收费。如投标单位维护服务成本超过双方商定价格，超出部分也全部由投标单位承担。",
+              "start_anchor": "p_0656",
+              "end_anchor": "p_0656",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0657",
+              "type": "list_item",
+              "title": "1.6投标单位应提供完成本次合同规定服务内容所需的工程师团队成员工作简历、所获服务资质证书复印件；采购单位将对上述团队人员资质进行资格认定。在服务过程中一旦出现投标单位派遣人员不符合资质要求，采购单位有权要求投标单位及时更换相关人员；超过30自然日仍无法派出合格人员，采购单位有权终止合同。",
+              "body": "",
+              "start_anchor": "p_0657",
+              "end_anchor": "p_0657",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0658",
+              "type": "list_item",
+              "title": "1.7合同生效后，投标单位应立即派工程师与采购单位技术人员共同组成系统全面检查小组，对采购单位所维护的系统进行全面检查测试，并记录在案，双方确认。如有故障应立即排除。",
+              "body": "",
+              "start_anchor": "p_0658",
+              "end_anchor": "p_0658",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0659",
+              "type": "list_item",
+              "title": "1.8服务标准，如下：",
+              "body": "",
+              "start_anchor": "p_0659",
+              "end_anchor": "p_0659",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0660",
+              "type": "plain_label",
+              "title": "1）服务达标衡量标准：",
+              "body": "在承诺的时间内能够做出响应，并达到可用性承诺。",
+              "start_anchor": "p_0660",
+              "end_anchor": "p_0660",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0009",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0009",
+              "end_anchor": "tbl_0009",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0661",
+              "type": "list_item",
+              "title": "2.服务形式",
+              "body": "",
+              "start_anchor": "p_0661",
+              "end_anchor": "p_0661",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0662",
+              "type": "list_item",
+              "title": "2.1 日常运维服务规范",
+              "body": "",
+              "start_anchor": "p_0662",
+              "end_anchor": "p_0662",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "tbl_0010",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0010",
+              "end_anchor": "tbl_0010",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0663",
+              "type": "list_item",
+              "title": "2.2 服务形式与服务时间说明",
+              "body": "",
+              "start_anchor": "p_0663",
+              "end_anchor": "p_0663",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0687",
+              "type": "plain_label",
+              "title": "行预防性检查维护。",
+              "body": "",
+              "start_anchor": "p_0687",
+              "end_anchor": "p_0687",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0688",
+              "type": "list_item",
+              "title": "3.服务报告",
+              "body": "",
+              "start_anchor": "p_0688",
+              "end_anchor": "p_0688",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0690",
+              "type": "list_item",
+              "title": "4.服务变更控制",
+              "body": "",
+              "start_anchor": "p_0690",
+              "end_anchor": "p_0690",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0695",
+          "type": "attachment_section",
+          "title": "附件9",
+          "body": "",
+          "start_anchor": "p_0695",
+          "end_anchor": "p_0724",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0696",
+              "type": "local_doc_title",
+              "title": "浙江省农商银行系统",
+              "body": "",
+              "start_anchor": "p_0696",
+              "end_anchor": "p_0696",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0697",
+              "type": "local_doc_title",
+              "title": "信息化建设保密协议",
+              "body": "",
+              "start_anchor": "p_0697",
+              "end_anchor": "p_0697",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0700",
+              "type": "cn_comma",
+              "title": "一、本协议所指项目",
+              "body": "",
+              "start_anchor": "p_0700",
+              "end_anchor": "p_0700",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0704",
+              "type": "cn_comma",
+              "title": "三、乙方的保密义务　　１、主动采取保密措施对上述所列及之保密信息进行保护，防止不承担同等保密义务的任何第三者知悉及使用；　　２、不得刺探或者以其他不正当手段（包括利用计算机进行检索、浏览、复制等）获取与本职工作或本身业务无关的甲方关于该项目的保密信息；　　３、不得向不承担同等保密义务的任何第三人披露甲方关于该项目的保密信息；　　４、不允许（包括出借、赠与、出租、转让等行为）或协助不承担同等保密义务的任何第三人使用甲方关于该项目的保密信息；　　5、项目的保密信息所有权始终全部归属甲方，乙方不得利用自身对项目不同程度的了解申请对于该项目的保密信息所有权，在本协议生效前乙方已依法具有的合法权益除外；　　6、如发现甲方关于该项目的保密信息被泄露或者自己过失泄露秘密，应当采取有效措施防止泄密进一步扩大，并及时向甲方报告。",
+              "body": "",
+              "start_anchor": "p_0704",
+              "end_anchor": "p_0704",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0705",
+              "type": "list_item",
+              "title": "7、以下情形，乙方不构成违反保密义务：",
+              "body": "1）保密信息在披露之时或之后已成为公共信息或文献的一部分；2）乙方在保密信息披露之前已获得该等保密信息；3）乙方自合法披露信息的第三方处得到该等保密信息；4）乙方基于法律、法规、判决、裁定（包括按照传票、法院或政府处理程序）的要求而需披露保密信息。",
+              "start_anchor": "p_0705",
+              "end_anchor": "p_0705",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0706",
+              "type": "list_item",
+              "title": "8、如根据中国法律及法规的强制性规定或法院的指令，乙方必须披露保密信息，乙方可根据相关法律、法规的要求披露相关保密信息。但乙方应尽力给予甲方及时的通知，以便甲方能够具备合理的机会采取保护措施。",
+              "body": "",
+              "start_anchor": "p_0706",
+              "end_anchor": "p_0706",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0707",
+              "type": "cn_comma",
+              "title": "四、保密期限",
+              "body": "",
+              "start_anchor": "p_0707",
+              "end_anchor": "p_0707",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0709",
+              "type": "cn_comma",
+              "title": "五、违约责任",
+              "body": "",
+              "start_anchor": "p_0709",
+              "end_anchor": "p_0709",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0710",
+              "type": "list_item",
+              "title": "1、如果乙方未履行本协议所规定的保密义务，但尚未给甲方造成损失或严重后果的，乙方应就每一违约事件按照本合同总金额的0.5%向甲方支付违约金（每一违约事件的违约金不低于人民币5000元）；",
+              "body": "",
+              "start_anchor": "p_0710",
+              "end_anchor": "p_0710",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0711",
+              "type": "list_item",
+              "title": "2、如果因为乙方前款所称的违约行为造成甲方损失或严重后果的，乙方除按前款支付违约金外，应赔偿因违约行为而给甲方造成的损失，损失包括但不限于直接损失（诉讼费、律师费、公告费、保全费、差旅费等）、间接损失（商誉损失等）。如果甲方确认仅采取赔偿的补救措施是不够的，还可以追究乙方的法律责任。",
+              "body": "",
+              "start_anchor": "p_0711",
+              "end_anchor": "p_0711",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0725",
+          "type": "attachment_section",
+          "title": "附件10",
+          "body": "",
+          "start_anchor": "p_0725",
+          "end_anchor": "p_0741",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0728",
+              "type": "local_doc_title",
+              "title": "致浙江农村商业联合银行股份有限公司:",
+              "body": "",
+              "start_anchor": "p_0728",
+              "end_anchor": "p_0728",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0730",
+              "type": "cn_comma",
+              "title": "一、在与贵方业务往来中承诺如下：",
+              "body": "",
+              "start_anchor": "p_0730",
+              "end_anchor": "p_0730",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0731",
+              "type": "paren_cn",
+              "title": "（一） 不以股权、金钱方式（包括现金， 银行卡， 有价证券， 购物卡、提货单、娱乐场所会员卡、打折卡、代币券证券等） 贿赂贵方项目人员和管理人员。",
+              "body": "",
+              "start_anchor": "p_0731",
+              "end_anchor": "p_0731",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0732",
+              "type": "paren_cn",
+              "title": "（二） 不以实物方式（包括家电、设备、健身器材、汽车、住房等实物）贿赂贵方项目人员和管理人员。",
+              "body": "",
+              "start_anchor": "p_0732",
+              "end_anchor": "p_0732",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0733",
+              "type": "paren_cn",
+              "title": "（三） 不以消费方式（包括娱乐消费、旅游、国内或国外考察等方式）贿赂贵方项目人员和管理人员。",
+              "body": "",
+              "start_anchor": "p_0733",
+              "end_anchor": "p_0733",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0734",
+              "type": "paren_cn",
+              "title": "（四） 不以其他任何方式（包括以朋友名义提供各种好处、活动抽奖、打牌中故意输钱、性贿赂等方式）贿赂贵方项目和管理人员。",
+              "body": "",
+              "start_anchor": "p_0734",
+              "end_anchor": "p_0734",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0735",
+              "type": "cn_comma",
+              "title": "二、如违反以上任一承诺，同意贵方解除合同并将我方列入供应商黑名单， 由此造成的损失由我方承担及赔偿，触犯法律承担相应的法律责任。",
+              "body": "",
+              "start_anchor": "p_0735",
+              "end_anchor": "p_0735",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0736",
+              "type": "cn_comma",
+              "title": "三、如贵方人员向我方索取好处或贿赂，我方将及时向贵方纪检监察部门或上级纪检监察机构投诉,投诉电话：0571-87260775；投诉邮箱：xfjb@zjrcu.com。",
+              "body": "",
+              "start_anchor": "p_0736",
+              "end_anchor": "p_0736",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0739",
+              "type": "plain_label",
+              "title": "（加盖单位公章）：",
+              "body": "",
+              "start_anchor": "p_0739",
+              "end_anchor": "p_0739",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0742",
+          "type": "attachment_section",
+          "title": "附件11",
+          "body": "",
+          "start_anchor": "p_0742",
+          "end_anchor": "p_0788",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0743",
+              "type": "local_doc_title",
+              "title": "驻场外包开发人员服务费用标准",
+              "body": "",
+              "start_anchor": "p_0743",
+              "end_anchor": "p_0743",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "tbl_0011",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0011",
+              "end_anchor": "tbl_0011",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0744",
+              "type": "local_doc_title",
+              "title": "科技部门驻场外包考核细则",
+              "body": "",
+              "start_anchor": "p_0744",
+              "end_anchor": "p_0744",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "p_0745",
+              "type": "plain_label",
+              "title": "考核目的。",
+              "body": "通过综合评价和精细化考核，建立并持续改善与外包公司的良性合作机制，加强科技信息驻场外包管理，提升驻场外包服务水平和质量，强化驻场外包人员劳动纪律，保障科技信息和外包安全。",
+              "start_anchor": "p_0745",
+              "end_anchor": "p_0745",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0746",
+              "type": "plain_label",
+              "title": "考核对象。",
+              "body": "本细则的考核对象是：以“人天服务”方式向科技管理部、科技服务部（简称科技部门）提供驻场系统研发、测试等外包服务人员的公司，及其所属的驻场外包人员。",
+              "start_anchor": "p_0746",
+              "end_anchor": "p_0746",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0747",
+              "type": "plain_label",
+              "title": "考核职能分工。",
+              "body": "科技管理部安全管理室负责科技管理部驻场外包考核工作; 科技服务部项目管理室负责科技服务部驻场外包考核工作;科技其他部门负责提供相关驻场外包公司及人员开发、测试能力和考勤方面的考核意见。省农信联社业务部室提供相关驻场外包公司及人员需求理解、设计、实现等业务能力方面的考核意见。",
+              "start_anchor": "p_0747",
+              "end_anchor": "p_0747",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0748",
+              "type": "plain_label",
+              "title": "驻场外包人员考核内容。",
+              "body": "从以下5个维度考核驻场外包人员（详见附件2《驻场外包人员百分制考核表》，因运维部门、开发部门和测试部门驻场外包工作内容不同，使用不同考核表）：",
+              "start_anchor": "p_0748",
+              "end_anchor": "p_0748",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0749",
+              "type": "paren_cn",
+              "title": "（一）外包工作质量。",
+              "body": "主要衡量外包人员是否胜任该岗位级别，能否如期保质保量完成所分配的工作。考核项主要包括系统研发外包人员的编码效率、代码缺陷率、模块运行稳定性、投产故障数等。",
+              "start_anchor": "p_0749",
+              "end_anchor": "p_0749",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0750",
+              "type": "paren_cn",
+              "title": "（二）信息安全合规。",
+              "body": "主要衡量外包人员是否遵守科技管理部、科技服务部信息安全相关规定，如安装防病毒软件、终端数据防泄漏客户端、设置终端密码等，防范信息泄露。",
+              "start_anchor": "p_0750",
+              "end_anchor": "p_0750",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0751",
+              "type": "paren_cn",
+              "title": "（三）劳动纪律。",
+              "body": "主要衡量外包人员是否遵守劳动纪律，遵守卫生文明规范，包括迟到、早退、无故旷工等情况；以及外包人员是否按时、如实进行报工。",
+              "start_anchor": "p_0751",
+              "end_anchor": "p_0751",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0752",
+              "type": "paren_cn",
+              "title": "（四）沟通能力及团队精神。",
+              "body": "主要衡量外包人员是否积极与团队其他成员配合协作，共同完成项目组团队任务。",
+              "start_anchor": "p_0752",
+              "end_anchor": "p_0752",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0753",
+              "type": "paren_cn",
+              "title": "（五）其他重要安全事件。",
+              "body": "对于侵权、学历等背景资料造假、窃取泄露保密信息等重大安全事件，采用“一票否决制”，一旦发现立即遣返，并追究个人及其所在公司相关责任。",
+              "start_anchor": "p_0753",
+              "end_anchor": "p_0753",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0754",
+              "type": "plain_label",
+              "title": "驻场外包服务公司考核内容。",
+              "body": "从以下4个维度考核外包公司：",
+              "start_anchor": "p_0754",
+              "end_anchor": "p_0754",
+              "confidence": "medium",
+              "reasons": [
+                "inline_label_body_split",
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0755",
+              "type": "paren_cn",
+              "title": "（一）外包服务水平。",
+              "body": "主要衡量外包公司及其员工能否如期保质保量完成所分配工作，维度包括服务交付质量、服务交付准时性、服务响应与支持能力、服务沟通与报告质量等。以附件3《外包服务水平考核内容》的评分结果为依据，加权后计入考核结果。",
+              "start_anchor": "p_0755",
+              "end_anchor": "p_0755",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0756",
+              "type": "paren_cn",
+              "title": "（二）外包业务能力。",
+              "body": "主要衡量外包公司及其员工对省农信联社业务需求的沟通、理解、响应和实现能力，以及业务需求实现的效率和实际投产运行情况。将以省农信联社相关业务部室评价结果为依据，加权后计入考核结果。详见附件4《外包公司业务能力考核表》。",
+              "start_anchor": "p_0756",
+              "end_anchor": "p_0756",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0757",
+              "type": "paren_cn",
+              "title": "（三）外包人员合规情况。",
+              "body": "主要衡量外包人员是否遵守科技管理部、科技服务部信息安全相关规定，如安装防病毒软件及终端数据防泄漏客户端、设置终端密码等，防范信息泄露；衡量外包人员是否遵守科技管理部、科技服务部的劳动纪律，遵守卫生文明规范，包括迟到、早退、无故旷工等情况；以及外包人员是否按时、如实进行报工。最终取该外包公司所属驻场外包人员考核分数的平均值，加权后计入考核结果。",
+              "start_anchor": "p_0757",
+              "end_anchor": "p_0757",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0758",
+              "type": "paren_cn",
+              "title": "（四）其他扣分项。",
+              "body": "扣分项单独计算，发现以下几类情况，直接从考核得分中扣除相应分值。",
+              "start_anchor": "p_0758",
+              "end_anchor": "p_0758",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0759",
+              "type": "list_item",
+              "title": "1.外包公司C、D级员工人数占该外包公司所有驻场员工比例超过40%。",
+              "body": "",
+              "start_anchor": "p_0759",
+              "end_anchor": "p_0759",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0760",
+              "type": "list_item",
+              "title": "2.外包公司出现《人天技术服务合同》违约情况，如违反保密要求、违反知识产权要求等。",
+              "body": "",
+              "start_anchor": "p_0760",
+              "end_anchor": "p_0760",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0761",
+              "type": "list_item",
+              "title": "3.外包公司员工发生严重恶劣影响事件，如侵权、学历等背景资料造假、窃取泄露保密信息等重大安全事件。",
+              "body": "",
+              "start_anchor": "p_0761",
+              "end_anchor": "p_0761",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0762",
+              "type": "plain_label",
+              "title": "考核方式：",
+              "body": "",
+              "start_anchor": "p_0762",
+              "end_anchor": "p_0762",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0763",
+              "type": "paren_cn",
+              "title": "（一）百分制。",
+              "body": "按百分制量化考核外包公司及驻场外包人员，各领域分值详见各附件。",
+              "start_anchor": "p_0763",
+              "end_anchor": "p_0763",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0764",
+              "type": "paren_cn",
+              "title": "（二）考核周期。",
+              "body": "半年对外包公司及驻场外包人员进行一次考核（对应付款周期，分别为4月份、10月份）。驻场开发时间未满1个月的，暂不纳入考核。",
+              "start_anchor": "p_0764",
+              "end_anchor": "p_0764",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0765",
+              "type": "paren_cn",
+              "title": "（三）考核机制。",
+              "body": "科技管理部、科技服务部考核分别由安全管理室、项目管理室负责，科技管理部、科技服务部各相关部门根据考核表，填写汇总本部门负责的考核内容。",
+              "start_anchor": "p_0765",
+              "end_anchor": "p_0765",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0766",
+              "type": "paren_cn",
+              "title": "（四）人员分级。",
+              "body": "根据考核结果对外包人员进行分级。90分以上为A级，80-89分为B级，70-79分为C级，69分以下为D级。",
+              "start_anchor": "p_0766",
+              "end_anchor": "p_0766",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0767",
+              "type": "plain_label",
+              "title": "考核结果。",
+              "body": "",
+              "start_anchor": "p_0767",
+              "end_anchor": "p_0767",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0768",
+              "type": "paren_cn",
+              "title": "（一）考核结果将上报科技管理部、科技服务部管理层，并通报各驻场外包公司。",
+              "body": "",
+              "start_anchor": "p_0768",
+              "end_anchor": "p_0768",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0769",
+              "type": "paren_cn",
+              "title": "（二）考核C级人员，在本考核期降档计算费用，其项目经理所属部门经理应立即约谈外包人员本人及驻场项目经理。连续两次考核C级人员，将定级为D级。D级人员将遣返，并要求所在公司根据合同约定替换合格人员。外包人员级别标准详见附件5。",
+              "body": "",
+              "start_anchor": "p_0769",
+              "end_anchor": "p_0769",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0770",
+              "type": "paren_cn",
+              "title": "（三）考核分数低于70分的外包公司，其项目经理所属部门经理应立即约谈外包公司高层。",
+              "body": "连续两次考核分数低于70分，建议酌情更换外包公司。",
+              "start_anchor": "p_0770",
+              "end_anchor": "p_0770",
+              "confidence": "high",
+              "reasons": [
+                "inline_heading_body_split",
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0771",
+              "type": "paren_cn",
+              "title": "（四）考核结果也将纳入对外包人员所属科技管理部、科技服务部项目经理的综合考核因素中。",
+              "body": "",
+              "start_anchor": "p_0771",
+              "end_anchor": "p_0771",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0772",
+              "type": "paren_cn",
+              "title": "（五）考勤考核制度及罚则。",
+              "body": "",
+              "start_anchor": "p_0772",
+              "end_anchor": "p_0772",
+              "confidence": "high",
+              "reasons": [
+                "local_number_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0773",
+              "type": "list_item",
+              "title": "1、驻场外包人员1个月内累计迟到、早退3次（含）以上，扣除该人员当月的外包服务费；",
+              "body": "1个月内迟到、早退累计5次（含）以上，除扣除当月外包服务费外，还将予以辞退。",
+              "start_anchor": "p_0773",
+              "end_anchor": "p_0773",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0774",
+              "type": "list_item",
+              "title": "2、驻场外包人员不打考勤卡1次，扣除该人员当天外包服务费；",
+              "body": "1个月内累计不打卡3次（含）以上，除扣除该人员当月外包服务费外，还将予以辞退。",
+              "start_anchor": "p_0774",
+              "end_anchor": "p_0774",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0775",
+              "type": "list_item",
+              "title": "3、驻场外包人员假报工、代考勤1次，扣相关人员（包括假报工考勤人员和被报工考勤人员，下同）2天外包服务费，1个月内累计发生假报工、代打卡2次（含）以上，扣除相关人员当月外包服务费，并将予以辞退；",
+              "body": "",
+              "start_anchor": "p_0775",
+              "end_anchor": "p_0775",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0776",
+              "type": "list_item",
+              "title": "4、驻场外包人员无正当理由迟到或早退1-3个小时，按旷工半天处理，迟到或早退3个小时以上的，按旷工全天处理。中途无故缺岗1小时以上按旷工一天处理。",
+              "body": "",
+              "start_anchor": "p_0776",
+              "end_anchor": "p_0776",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0777",
+              "type": "list_item",
+              "title": "5、如无特殊情况，项目人员须事先办理请假审批手续，按照审批流程获得准假后方能离开工作岗位。未经准假擅自离开工作岗位、伪造请假事由或相关证明材料骗取准假、伪造请假单的，均作旷工处理。",
+              "body": "",
+              "start_anchor": "p_0777",
+              "end_anchor": "p_0777",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0778",
+              "type": "list_item",
+              "title": "6、驻场外包人员1个月内每人累计迟到20分钟以上，扣罚外包公司5000元；",
+              "body": "1个月内累计迟到、早退3次（含）以上，扣除该人员当月的外包服务费；1个月内迟到、早退累计5次（含）以上，除扣除当月外包服务费外，还将予以辞退。",
+              "start_anchor": "p_0778",
+              "end_anchor": "p_0778",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0779",
+              "type": "list_item",
+              "title": "7、驻场外包人员发生旷工时，扣除该人员相应的外包服务费；",
+              "body": "在1个月内累计旷工2天（含）以上，除扣除该人员当月外包服务费外，还将予以辞退。",
+              "start_anchor": "p_0779",
+              "end_anchor": "p_0779",
+              "confidence": "medium",
+              "reasons": [
+                "inline_heading_body_split",
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0780",
+              "type": "plain_label",
+              "title": "其他。",
+              "body": "",
+              "start_anchor": "p_0780",
+              "end_anchor": "p_0780",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0782",
+              "type": "plain_label",
+              "title": "附件：",
+              "body": "",
+              "start_anchor": "p_0782",
+              "end_anchor": "p_0782",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0783",
+              "type": "list_item",
+              "title": "10.1 人员考核评级评分标准",
+              "body": "",
+              "start_anchor": "p_0783",
+              "end_anchor": "p_0783",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0784",
+              "type": "list_item",
+              "title": "10.2 浙江农商联合银行公司人员考评表",
+              "body": "",
+              "start_anchor": "p_0784",
+              "end_anchor": "p_0784",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0785",
+              "type": "list_item",
+              "title": "10.3 IT供应商分类考核评分表（驻场人员外包服务）",
+              "body": "",
+              "start_anchor": "p_0785",
+              "end_anchor": "p_0785",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0786",
+              "type": "list_item",
+              "title": "10.4 外包公司业务能力考核表",
+              "body": "",
+              "start_anchor": "p_0786",
+              "end_anchor": "p_0786",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0787",
+              "type": "list_item",
+              "title": "10.5 外包人员级别标准",
+              "body": "",
+              "start_anchor": "p_0787",
+              "end_anchor": "p_0787",
+              "confidence": "medium",
+              "reasons": [
+                "numeric_sequence"
+              ]
+            }
+          ]
+        },
+        {
+          "node_id": "p_0789",
+          "type": "attachment_section",
+          "title": "附件12",
+          "body": "",
+          "start_anchor": "p_0789",
+          "end_anchor": "p_0825",
+          "confidence": "high",
+          "reasons": [
+            "attachment_number",
+            "inside_attachment_parent"
+          ],
+          "children": [
+            {
+              "node_id": "p_0790",
+              "type": "outline_title",
+              "title": "附件12.1",
+              "body": "",
+              "start_anchor": "p_0790",
+              "end_anchor": "p_0790",
+              "confidence": "medium",
+              "reasons": [
+                "effective_outline"
+              ]
+            },
+            {
+              "node_id": "p_0791",
+              "type": "local_doc_title",
+              "title": "人员考核评级评分标准",
+              "body": "",
+              "start_anchor": "p_0791",
+              "end_anchor": "p_0791",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "tbl_0012",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0012",
+              "end_anchor": "tbl_0012",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0798",
+              "type": "outline_title",
+              "title": "附件12.2",
+              "body": "",
+              "start_anchor": "p_0798",
+              "end_anchor": "p_0798",
+              "confidence": "medium",
+              "reasons": [
+                "effective_outline"
+              ]
+            },
+            {
+              "node_id": "tbl_0013",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0013",
+              "end_anchor": "tbl_0013",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "tbl_0014",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0014",
+              "end_anchor": "tbl_0014",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "tbl_0015",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0015",
+              "end_anchor": "tbl_0015",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "tbl_0016",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0016",
+              "end_anchor": "tbl_0016",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0805",
+              "type": "plain_label",
+              "title": "综合评定：",
+              "body": "",
+              "start_anchor": "p_0805",
+              "end_anchor": "p_0805",
+              "confidence": "medium",
+              "reasons": [
+                "plain_label_sequence"
+              ]
+            },
+            {
+              "node_id": "p_0808",
+              "type": "outline_title",
+              "title": "附件12.3",
+              "body": "",
+              "start_anchor": "p_0808",
+              "end_anchor": "p_0808",
+              "confidence": "medium",
+              "reasons": [
+                "effective_outline"
+              ]
+            },
+            {
+              "node_id": "tbl_0017",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0017",
+              "end_anchor": "tbl_0017",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0813",
+              "type": "outline_title",
+              "title": "附件12.4",
+              "body": "",
+              "start_anchor": "p_0813",
+              "end_anchor": "p_0813",
+              "confidence": "medium",
+              "reasons": [
+                "effective_outline"
+              ]
+            },
+            {
+              "node_id": "tbl_0018",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0018",
+              "end_anchor": "tbl_0018",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            },
+            {
+              "node_id": "p_0821",
+              "type": "outline_title",
+              "title": "附件12.5",
+              "body": "",
+              "start_anchor": "p_0821",
+              "end_anchor": "p_0821",
+              "confidence": "medium",
+              "reasons": [
+                "effective_outline"
+              ]
+            },
+            {
+              "node_id": "p_0822",
+              "type": "local_doc_title",
+              "title": "外包人员级别标准",
+              "body": "",
+              "start_anchor": "p_0822",
+              "end_anchor": "p_0822",
+              "confidence": "medium",
+              "reasons": [
+                "visual_title"
+              ]
+            },
+            {
+              "node_id": "tbl_0019",
+              "type": "table",
+              "title": "[TABLE]",
+              "body": "",
+              "start_anchor": "tbl_0019",
+              "end_anchor": "tbl_0019",
+              "confidence": "high",
+              "reasons": [
+                "body_child_table"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
