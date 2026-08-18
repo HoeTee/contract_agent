@@ -124,6 +124,40 @@ python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\d
 python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\docx_index --build-vector
 ```
 
+## 已构建索引后的单独检索
+
+以下命令都基于某个合同输出目录执行，不需要手动输入 `document_index.json` 或 `vector_index.json` 的完整文件名。合同输出目录就是 `--out` 下按 DOCX 文件名生成的那一级目录。
+
+只做结构树 LLM 检索：
+
+```powershell
+python scripts\docx_retrieval_cli\docx_index_cli.py ask --doc "outputs\docx_index\合同目录名" --query 支付方式
+```
+
+结构树 LLM 检索 + 向量补召回：
+
+```powershell
+python scripts\docx_retrieval_cli\docx_index_cli.py ask --doc "outputs\docx_index\合同目录名" --query 支付方式 --fallback-vector
+```
+
+如果还没有 `vector_index.json`，让命令自动补建：
+
+```powershell
+python scripts\docx_retrieval_cli\docx_index_cli.py ask --doc "outputs\docx_index\合同目录名" --query 支付方式 --fallback-vector --auto-vector
+```
+
+只做向量检索：
+
+```powershell
+python scripts\docx_retrieval_cli\docx_index_cli.py vector-search --doc "outputs\docx_index\合同目录名" --query 支付方式 --top-k 8
+```
+
+只做关键词检索，不调用模型：
+
+```powershell
+python scripts\docx_retrieval_cli\docx_index_cli.py search --index "outputs\docx_index\合同目录名\document_index.json" --keyword 支付方式
+```
+
 `.env` 支持的 embedding 变量名：
 
 ```text
