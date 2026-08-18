@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from threading import BoundedSemaphore
 from typing import Any
 
 from docx_retrieval.indexing import estimate_tokens
@@ -19,6 +20,7 @@ def rerank_matches(
     client: LLMClient,
     input_tokens: int,
     cache_dir: Path | None,
+    concurrency: int = 10,
 ) -> list[dict[str, Any]]:
     if not candidates:
         return []
@@ -30,7 +32,9 @@ def rerank_matches(
     key = cache_key(RERANK_PROMPT_VERSION, client.settings.model, query, text_hash(payload))
     cached = cache.get(key)
     if cached is None:
-        response = client.complete_model(_rerank_prompt(query, payload), RerankResponse)
+        limiter = BoundedSemaphore(max(1, concurrency))
+        with limiter:
+            response = client.complete_model(_rerank_prompt(query, payload), RerankResponse)
         cached = response.model_dump(mode="json")
         cache.set(key, cached)
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from threading import BoundedSemaphore
 from typing import Any
 
 from .client import EmbeddingClient
@@ -19,8 +20,11 @@ def vector_search(
     top_k: int | None = None,
     score_threshold: float | None = None,
     input_tokens: int | None = None,
+    concurrency: int = 10,
 ) -> list[dict[str, Any]]:
-    query_embedding = client.embed([query])[0]
+    limiter = BoundedSemaphore(max(1, concurrency))
+    with limiter:
+        query_embedding = client.embed([query])[0]
     nodes = {node.get("node_id"): node for node in document_index.get("nodes") or []}
     scored = []
     for item in vector_index.items:

@@ -55,6 +55,8 @@ def write_document_outputs(
     embedding_settings: EmbeddingSettings | None,
     timer: TimingCollector | None = None,
     use_cache: bool = True,
+    llm_concurrency: int = 10,
+    embedding_concurrency: int = 10,
 ) -> dict[str, Any]:
     start_time = time.perf_counter()
     cache_dir = root_out / ".cache" if use_cache else None
@@ -66,6 +68,7 @@ def write_document_outputs(
             llm_settings=llm_settings,
             cache_dir=cache_dir,
             timer=timer,
+            llm_concurrency=llm_concurrency,
         ).to_json_dict()
     doc_out = root_out / safe_name(docx)
     doc_out.mkdir(parents=True, exist_ok=True)
@@ -83,7 +86,7 @@ def write_document_outputs(
         with _stage(timer, "build.vector_build"):
             if embedding_settings is None:
                 embedding_settings = EmbeddingSettings.from_sources()
-            vector_index = build_vector_index(index, EmbeddingClient(embedding_settings))
+            vector_index = build_vector_index(index, EmbeddingClient(embedding_settings), concurrency=embedding_concurrency)
             vector_items = len(vector_index.items)
             save_vector_index(doc_out / "vector_index.json", vector_index)
 
@@ -93,7 +96,14 @@ def write_document_outputs(
             if query_mode == "llm":
                 if llm_settings is None:
                     llm_settings = LLMSettings.from_sources()
-                query_matches = llm_query(index, query, LLMClient(llm_settings), cache_dir, timer=timer)
+                query_matches = llm_query(
+                    index,
+                    query,
+                    LLMClient(llm_settings),
+                    cache_dir,
+                    timer=timer,
+                    concurrency=llm_concurrency,
+                )
             else:
                 query_matches = search_index(index, query)
             write_json(doc_out / "query_results.json", {"matches": query_matches})
@@ -133,6 +143,7 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--no-llm-summary", action="store_true", help="Disable LLM final node summaries.")
     build.add_argument("--no-cache", action="store_true", help="Disable LLM response cache for expand/summary/query stages.")
     build.add_argument("--quiet", action="store_true", help="Do not print stage timings to stderr.")
+    build.add_argument("--retrieval-config", type=Path, help="Optional docx_retrieval_cli config.yaml path.")
     _add_log_args(build)
     build.set_defaults(func=command_build)
 
@@ -202,6 +213,11 @@ def command_build(args: argparse.Namespace) -> int:
     use_llm_expand = not args.no_llm_expand
     use_llm_summary = not args.no_llm_summary
     use_vector = not args.no_vector
+    with timer.stage("build.load_retrieval_config"):
+        retrieval_config = RetrievalConfig.from_sources(config_path=args.retrieval_config)
+        timer.note("build.concurrency.llm", retrieval_config.concurrency.llm)
+        timer.note("build.concurrency.embedding", retrieval_config.concurrency.embedding)
+        timer.note("build.concurrency.reranker", retrieval_config.concurrency.reranker)
     with timer.stage("build.discover_inputs"):
         files = iter_docx_inputs(args.input, args.batch)
     if not files:
@@ -238,6 +254,8 @@ def command_build(args: argparse.Namespace) -> int:
             embedding_settings,
             timer,
             use_cache=not args.no_cache,
+            llm_concurrency=retrieval_config.concurrency.llm,
+            embedding_concurrency=retrieval_config.concurrency.embedding,
         )
         for path in files
     ]
@@ -263,6 +281,9 @@ def command_ask(args: argparse.Namespace) -> int:
             vector_enabled=False if args.no_vector else None,
             rerank_enabled=False if args.no_rerank else None,
         )
+        timer.note("ask.concurrency.llm", config.concurrency.llm)
+        timer.note("ask.concurrency.embedding", config.concurrency.embedding)
+        timer.note("ask.concurrency.reranker", config.concurrency.reranker)
     index_path = _index_path(args.doc)
     with timer.stage("ask.load_index"):
         data = load_index(index_path)
@@ -277,7 +298,15 @@ def command_ask(args: argparse.Namespace) -> int:
         llm_client = LLMClient(llm_settings)
     with timer.stage("ask.llm_structure_query"):
         structure_cache_dir = args.doc / ".cache" if not args.no_cache else None
-        structure_matches = llm_query(data, args.query, llm_client, structure_cache_dir, input_tokens=config.input_tokens, timer=timer)
+        structure_matches = llm_query(
+            data,
+            args.query,
+            llm_client,
+            structure_cache_dir,
+            input_tokens=config.input_tokens,
+            timer=timer,
+            concurrency=config.concurrency.llm,
+        )
     vector_matches = []
     if config.vector.enabled:
         vector_path = args.doc / "vector_index.json"
@@ -291,7 +320,15 @@ def command_ask(args: argparse.Namespace) -> int:
                     api_key=args.embedding_api_key,
                     config_path=args.config,
                 )
-                save_vector_index(vector_path, build_vector_index(data, EmbeddingClient(embedding_settings), source_index=index_path.name))
+                save_vector_index(
+                    vector_path,
+                    build_vector_index(
+                        data,
+                        EmbeddingClient(embedding_settings),
+                        source_index=index_path.name,
+                        concurrency=config.concurrency.embedding,
+                    ),
+                )
         with timer.stage("ask.load_vector_index"):
             vector_index = load_vector_index(vector_path)
         with timer.stage("ask.load_embedding_settings"):
@@ -313,6 +350,7 @@ def command_ask(args: argparse.Namespace) -> int:
                         embedding_client,
                         score_threshold=config.vector.score_threshold,
                         input_tokens=config.input_tokens,
+                        concurrency=config.concurrency.embedding,
                     )
                 )
     with timer.stage("ask.merge_matches"):
@@ -321,7 +359,15 @@ def command_ask(args: argparse.Namespace) -> int:
     if config.rerank.enabled:
         with timer.stage("ask.rerank"):
             rerank_cache_dir = args.doc / ".cache" if not args.no_cache else None
-            ranked_matches = rerank_matches(data, query_text, candidates, llm_client, config.input_tokens, rerank_cache_dir)
+            ranked_matches = rerank_matches(
+                data,
+                query_text,
+                candidates,
+                llm_client,
+                config.input_tokens,
+                rerank_cache_dir,
+                concurrency=config.concurrency.reranker,
+            )
     else:
         ranked_matches = candidates
     with timer.stage("ask.build_content_context"):
@@ -388,6 +434,7 @@ def command_vector_search(args: argparse.Namespace) -> int:
     timer = TimingCollector(enabled=not args.quiet, log_stream=logger.stream if logger else None)
     with timer.stage("vector_search.load_config"):
         config = RetrievalConfig.from_sources(config_path=args.retrieval_config, input_tokens=args.input_tokens)
+        timer.note("vector_search.concurrency.embedding", config.concurrency.embedding)
     with timer.stage("vector_search.load_index"):
         data = load_index(_index_path(args.doc))
     with timer.stage("vector_search.load_vector_index"):
@@ -411,6 +458,7 @@ def command_vector_search(args: argparse.Namespace) -> int:
                     embedding_client,
                     score_threshold=config.vector.score_threshold,
                     input_tokens=config.input_tokens,
+                    concurrency=config.concurrency.embedding,
                 )
             )
     total_elapsed = round(time.perf_counter() - start_time, 3)

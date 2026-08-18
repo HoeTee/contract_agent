@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from threading import BoundedSemaphore
 
 from docx_retrieval.llm import LLMClient
 from docx_retrieval.llm.cache import JsonlCache, cache_key, text_hash
@@ -14,15 +15,16 @@ SUMMARY_INPUT_TARGET_TOKENS = 6000
 SUMMARY_OUTPUT_MAX_TOKENS = 200
 
 
-def summarize_nodes(roots: list[DocumentNode], client: LLMClient, cache_dir: Path | None) -> None:
+def summarize_nodes(roots: list[DocumentNode], client: LLMClient, cache_dir: Path | None, concurrency: int = 10) -> None:
     cache = JsonlCache(cache_dir / "llm_summary.jsonl" if cache_dir else None)
+    limiter = BoundedSemaphore(max(1, concurrency))
     for node in roots:
-        _summarize_node(node, client, cache)
+        _summarize_node(node, client, cache, limiter)
 
 
-def _summarize_node(node: DocumentNode, client: LLMClient, cache: JsonlCache) -> str:
+def _summarize_node(node: DocumentNode, client: LLMClient, cache: JsonlCache, limiter: BoundedSemaphore) -> str:
     for child in node.children:
-        _summarize_node(child, client, cache)
+        _summarize_node(child, client, cache, limiter)
     if node.token_estimate < SUMMARY_TRIGGER_MIN_TOKENS and not node.children:
         return node.summary
 
@@ -35,7 +37,8 @@ def _summarize_node(node: DocumentNode, client: LLMClient, cache: JsonlCache) ->
     )
     cached = cache.get(key)
     if cached is None:
-        cached = _generate_summary(client, node, content)
+        with limiter:
+            cached = _generate_summary(client, node, content)
         cached["summary"] = cached["summary"].strip()
         cache.set(key, cached)
     if cached.get("summary"):

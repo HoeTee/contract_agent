@@ -25,6 +25,14 @@ class RerankConfig(BaseModel):
     enabled: bool = True
 
 
+class ConcurrencyConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    llm: int = Field(default=10, ge=1)
+    embedding: int = Field(default=10, ge=1)
+    reranker: int = Field(default=10, ge=1)
+
+
 class RetrievalConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -32,6 +40,7 @@ class RetrievalConfig(BaseModel):
     max_depth: int = Field(default=6, ge=1)
     vector: VectorRetrievalConfig = Field(default_factory=VectorRetrievalConfig)
     rerank: RerankConfig = Field(default_factory=RerankConfig)
+    concurrency: ConcurrencyConfig = Field(default_factory=ConcurrencyConfig)
 
     @classmethod
     def from_sources(
@@ -47,6 +56,7 @@ class RetrievalConfig(BaseModel):
         data: dict[str, Any] = dict(raw.get("retrieval") or {})
         vector = dict(data.get("vector") or {})
         rerank = dict(data.get("rerank") or {})
+        concurrency = dict(raw.get("concurrency") or {})
 
         if input_tokens is not None:
             data["input_tokens"] = input_tokens
@@ -61,4 +71,5 @@ class RetrievalConfig(BaseModel):
 
         data["vector"] = vector
         data["rerank"] = rerank
+        data["concurrency"] = concurrency
         return cls.model_validate(data)

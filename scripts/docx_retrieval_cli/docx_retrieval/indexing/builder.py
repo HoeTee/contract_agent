@@ -38,6 +38,7 @@ def build_document_index(
     llm_settings: LLMSettings | None = None,
     cache_dir: Path | None = None,
     timer: Any | None = None,
+    llm_concurrency: int = 10,
 ) -> DocumentIndex:
     with _stage(timer, "build.read_docx_items"):
         items = read_docx_items(docx_path)
@@ -105,12 +106,12 @@ def build_document_index(
             client = LLMClient(llm_settings)
         if llm_expand:
             with _stage(timer, "build.llm_expand"):
-                expand_large_leaves(roots, items, client, cache_dir)
+                expand_large_leaves(roots, items, client, cache_dir, concurrency=llm_concurrency)
             with _stage(timer, "build.split_long_leaves_after_llm_expand"):
                 split_long_leaves(roots, items)
         if llm_summary:
             with _stage(timer, "build.llm_summary"):
-                summarize_nodes(roots, client, cache_dir)
+                summarize_nodes(roots, client, cache_dir, concurrency=llm_concurrency)
 
     with _stage(timer, "build.finalize_index"):
         flat_nodes = flatten_nodes(roots)
@@ -134,6 +135,7 @@ def build_document_index(
                 "expand_batch_hard_tokens": EXPAND_BATCH_HARD_TOKENS,
                 "expand_batch_overlap_tokens": EXPAND_BATCH_OVERLAP_TOKENS,
                 "llm_model": llm_settings.model if llm_settings else None,
+                "llm_concurrency": llm_concurrency,
             },
             nodes=[node.storage_view() for node in flat_nodes],
             root_nodes=[node.node_id for node in roots],

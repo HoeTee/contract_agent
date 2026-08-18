@@ -3,15 +3,23 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from threading import BoundedSemaphore
 from typing import Any
 
 from .client import EmbeddingClient
 from .schema import VectorIndex, VectorItem, VectorMetadata
 
 
-def build_vector_index(index: dict[str, Any], client: EmbeddingClient, source_index: str = "document_index.json") -> VectorIndex:
+def build_vector_index(
+    index: dict[str, Any],
+    client: EmbeddingClient,
+    source_index: str = "document_index.json",
+    concurrency: int = 10,
+) -> VectorIndex:
     entries = _select_vector_entries(index)
-    embeddings = client.embed([entry["vector_text"] for entry in entries])
+    limiter = BoundedSemaphore(max(1, concurrency))
+    with limiter:
+        embeddings = client.embed([entry["vector_text"] for entry in entries])
     items = []
     for entry, embedding in zip(entries, embeddings):
         node = entry["node"]

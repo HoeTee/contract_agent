@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from contextlib import nullcontext
 from pathlib import Path
+from threading import BoundedSemaphore
 from typing import Any
 
 from docx_retrieval.indexing import estimate_tokens
@@ -21,8 +22,10 @@ def llm_query(
     cache_dir: Path | None,
     input_tokens: int = STRUCTURE_QUERY_BUDGET_TOKENS,
     timer: Any | None = None,
+    concurrency: int = 10,
 ) -> list[dict[str, Any]]:
     cache = JsonlCache(cache_dir / "llm_query.jsonl" if cache_dir else None)
+    limiter = BoundedSemaphore(max(1, concurrency))
     structure_parts = _split_structure(_compact_structure(index["structure_tree"]), input_tokens)
     if timer is not None:
         timer.note("ask.llm_structure_query.part_count", len(structure_parts))
@@ -35,7 +38,8 @@ def llm_query(
                 key = cache_key(QUERY_PROMPT_VERSION, client.settings.model, query, str(part_index), text_hash(payload))
                 cached = cache.get(key)
                 if cached is None:
-                    response = client.complete_model(_query_prompt(query, payload), QueryResponse)
+                    with limiter:
+                        response = client.complete_model(_query_prompt(query, payload), QueryResponse)
                     cached = response.model_dump(mode="json")
                     cache.set(key, cached)
             for item in cached.get("nodes") or []:

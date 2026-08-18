@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from threading import BoundedSemaphore
 from typing import Any
 
 from docx_retrieval.llm import LLMClient
@@ -34,15 +35,24 @@ def expand_large_leaves(
     items: list[BodyItem],
     client: LLMClient,
     cache_dir: Path | None,
+    concurrency: int = 10,
 ) -> None:
     cache = JsonlCache(cache_dir / "llm_expand.jsonl" if cache_dir else None)
+    limiter = BoundedSemaphore(max(1, concurrency))
     for node in roots:
-        _expand_node(node, items, client, cache, depth=0)
+        _expand_node(node, items, client, cache, limiter, depth=0)
 
 
-def _expand_node(node: DocumentNode, items: list[BodyItem], client: LLMClient, cache: JsonlCache, depth: int) -> None:
+def _expand_node(
+    node: DocumentNode,
+    items: list[BodyItem],
+    client: LLMClient,
+    cache: JsonlCache,
+    limiter: BoundedSemaphore,
+    depth: int,
+) -> None:
     for child in node.children:
-        _expand_node(child, items, client, cache, depth)
+        _expand_node(child, items, client, cache, limiter, depth)
     if node.children:
         return
     if depth >= MAX_EXPAND_DEPTH:
@@ -53,12 +63,12 @@ def _expand_node(node: DocumentNode, items: list[BodyItem], client: LLMClient, c
     if node.token_estimate <= NODE_SOFT_LIMIT_TOKENS:
         return
 
-    candidates = _collect_candidates(node, items, client, cache)
+    candidates = _collect_candidates(node, items, client, cache, limiter)
     children = _build_semantic_children(node, items, candidates)
     if children:
         node.children = children
         for child in node.children:
-            _expand_node(child, items, client, cache, depth + 1)
+            _expand_node(child, items, client, cache, limiter, depth + 1)
     else:
         _fallback_chunk(node, items)
 
@@ -69,7 +79,13 @@ def _fallback_chunk(node: DocumentNode, items: list[BodyItem]) -> None:
     split_long_leaf(node, items, node.source_start, node.source_end)
 
 
-def _collect_candidates(node: DocumentNode, items: list[BodyItem], client: LLMClient, cache: JsonlCache) -> list[ExpandCandidate]:
+def _collect_candidates(
+    node: DocumentNode,
+    items: list[BodyItem],
+    client: LLMClient,
+    cache: JsonlCache,
+    limiter: BoundedSemaphore,
+) -> list[ExpandCandidate]:
     if node.source_start is None or node.source_end is None:
         return []
     windows = _make_windows(items, node.source_start, node.source_end)
@@ -86,10 +102,11 @@ def _collect_candidates(node: DocumentNode, items: list[BodyItem], client: LLMCl
         )
         cached = cache.get(key)
         if cached is None:
-            response = client.complete_model(
-                expand_prompt(node.node_id, node.title, items[start].anchor, items[end - 1].anchor, payload),
-                ExpandResponse,
-            )
+            with limiter:
+                response = client.complete_model(
+                    expand_prompt(node.node_id, node.title, items[start].anchor, items[end - 1].anchor, payload),
+                    ExpandResponse,
+                )
             cached = response.model_dump(mode="json")
             cache.set(key, cached)
         raw_candidates.extend(cached.get("subsections") or [])

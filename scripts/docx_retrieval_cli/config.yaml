@@ -7,3 +7,8 @@ retrieval:
     auto_build: true
   rerank:
     enabled: true
+
+concurrency:
+  llm: 10
+  embedding: 10
+  reranker: 10
