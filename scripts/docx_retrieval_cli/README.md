@@ -24,7 +24,9 @@ pip install -r scripts\docx_retrieval_cli\requirements.txt
 当前真实使用的依赖：
 
 - `lxml`：解析 `document.xml`、`styles.xml`，并保留 XML path；
+- `openai`：在开启 `--llm-expand` 或 `--llm-summary` 时调用 OpenAI-compatible 模型；
 - `pydantic`：定义 `BodyItem`、`DocumentNode`、`DocumentIndex`、检索结果等 schema；
+- `PyYAML`：读取项目 `config.yaml` 中的 LLM 配置；
 - `tiktoken`：计算 node、结构树和切分阈值的 token 数。
 
 ## 目录结构
@@ -55,9 +57,16 @@ scripts/docx_retrieval_cli/
       hierarchy.py               # 正文章节树
       anchors.py                 # anchor_map
       attachments.py             # 附件树
+      llm_expand.py              # 大 node 语义拆分，LLM 只发现候选标题
+      llm_summary.py             # 最终 node 摘要生成
       splitter.py                # 超长叶子 node 切分
       summaries.py               # 当前截断式摘要
       token_budget.py            # tiktoken token 预算
+    llm/                         # LLM 调用、prompt、缓存
+      client.py                  # OpenAI-compatible client
+      prompts.py                 # expand / summary prompt
+      cache.py                   # jsonl cache
+      config.py                  # config.yaml/env/CLI 参数合并
     retrieval/                   # 检索视图
       keyword.py                 # 关键词检索
       structure.py               # 结构树视图
@@ -93,6 +102,60 @@ python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\d
 
 ```powershell
 python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\docx_index --query 支付方式 --query 发票
+```
+
+## 开启 LLM 语义拆分和摘要
+
+默认命令不会调用模型。需要显式打开：
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\docx_index --llm-expand --llm-summary
+```
+
+参数来源优先级：
+
+```text
+CLI 参数 > 指定 --config > 项目 config.yaml > 环境变量默认值
+```
+
+可以显式指定模型地址：
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" `
+  --out outputs\docx_index `
+  --llm-expand `
+  --llm-summary `
+  --model qwen3.6-35b-a3b `
+  --base-url http://192.168.0.75:1234/v1 `
+  --api-key EMPTY
+```
+
+`--llm-expand` 的流程：
+
+```text
+确定性结构树
+-> 找出超过 1000 tokens 的叶子 node
+-> 按 anchor window 分批输入 LLM
+-> LLM 返回真实存在的子标题 anchor/title/level_hint
+-> 程序校验 anchor 和原文
+-> 校验成功则生成 semantic_section
+-> 失败才 fallback 到 token chunk
+```
+
+`--llm-summary` 的流程：
+
+```text
+最终结构树
+-> 叶子 node 用原文摘要
+-> 父 node 用 children title + summary 摘要
+-> 写回 node.summary
+```
+
+LLM 结果会缓存到：
+
+```text
+<--out>/.cache/llm_expand.jsonl
+<--out>/.cache/llm_summary.jsonl
 ```
 
 ## 构建后展开指定 node
@@ -151,7 +214,8 @@ python scripts\docx_retrieval_cli\docx_index_cli.py titles --index outputs\index
 
 ## 当前边界
 
-- 当前 summary 仍是截断式摘要，不是 LLM 生成摘要；
+- 未开启 `--llm-summary` 时，summary 仍是截断式摘要；
+- 未开启 `--llm-expand` 时，大 node 仍只做 token chunk 兜底切分；
 - 当前关键词检索只是确定性字符串检索，不是向量检索；
 - 页码依赖 `w:lastRenderedPageBreak`，如果 DOCX 没有该标记，页码字段会为空；
 - 当前目录已经按独立试验包组织，但还没有接入主审查 workflow；

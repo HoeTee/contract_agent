@@ -1,0 +1,14 @@
+{
+  "documents": [
+    {
+      "source_file": "C:\\Users\\lenovo\\Downloads\\模板合同\\【已审查】（212号）浙江农商联合银行与铜陵市浩天再生资源科技股份有限公司2026年度淘汰电子设备处置项目--...docx",
+      "output_dir": "outputs\\docx_index\\【已审查】（212号）浙江农商联合银行与铜陵市浩天再生资源科技股份有限公司2026年度淘汰电子设备处置项目--",
+      "nodes": 65,
+      "anchors": 159,
+      "structure_tokens": 12497,
+      "document_structure_mode": "paged_structure",
+      "query_matches": null,
+      "node_content_written": false
+    }
+  ]
+}

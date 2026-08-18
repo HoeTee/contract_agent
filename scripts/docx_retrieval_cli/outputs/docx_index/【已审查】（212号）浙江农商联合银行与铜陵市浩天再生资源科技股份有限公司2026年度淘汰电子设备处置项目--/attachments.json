@@ -1,0 +1,141 @@
+{
+  "attachments": [
+    {
+      "node_id": "attachments/parent",
+      "node_type": "attachment_parent",
+      "title": "第十三条  附件",
+      "token_estimate": 2633,
+      "children": [
+        {
+          "node_id": "attachments/att_001",
+          "node_type": "attachment_section",
+          "title": "附件1",
+          "token_estimate": 256,
+          "children": [
+            {
+              "node_id": "attachments/att_001/table_001",
+              "node_type": "table",
+              "title": "[TABLE]",
+              "token_estimate": 237,
+              "children": []
+            }
+          ]
+        },
+        {
+          "node_id": "attachments/att_002",
+          "node_type": "attachment_section",
+          "title": "附件2",
+          "token_estimate": 1479,
+          "children": [
+            {
+              "node_id": "attachments/att_002/visual_title_001",
+              "node_type": "visual_title",
+              "title": "浙江省农商银行系统",
+              "token_estimate": 11,
+              "children": []
+            },
+            {
+              "node_id": "attachments/att_002/visual_title_002",
+              "node_type": "visual_title",
+              "title": "信息化建设保密协议",
+              "token_estimate": 117,
+              "children": []
+            },
+            {
+              "node_id": "attachments/att_002/heading_003",
+              "node_type": "heading",
+              "title": "一、本协议所指项目",
+              "token_estimate": 305,
+              "children": []
+            },
+            {
+              "node_id": "attachments/att_002/heading_004",
+              "node_type": "heading",
+              "title": "三、乙方的保密义务　　１、主动采取保密措施对上述所列及之保密信息进行保护，防止不承担同等保密义务的任何第三者知悉及使用；　　２、不得刺探或者以其他不正当手段（包括利用计算机进行检索、浏览、复制等）获取与本职工作或本身业务无关的甲方关于该项目的保密信息；　　３、不得向不承担同等保密义务的任何第三人披露甲方关于该项目的保密信息；　　４、不允许（包括出借、赠与、出租、转让等行为）或协助不承担同等保密义务的任何第三人使用甲方关于该项目的保密信息；　　5、项目的保密信息所有权始终全部归属甲方，乙方不得利用自身对项目不同程度的了解申请对于该项目的保密信息所有权，在本协议生效前乙方已依法具有的合法权益除外；　　6、如发现甲方关于该项目的保密信息被泄露或者自己过失泄露秘密，应当采取有效措施防止泄密进一步扩大，并及时向甲方报告。",
+              "token_estimate": 664,
+              "children": []
+            },
+            {
+              "node_id": "attachments/att_002/heading_005",
+              "node_type": "heading",
+              "title": "四、保密期限",
+              "token_estimate": 94,
+              "children": []
+            },
+            {
+              "node_id": "attachments/att_002/heading_006",
+              "node_type": "heading",
+              "title": "五、违约责任",
+              "token_estimate": 283,
+              "children": []
+            }
+          ]
+        },
+        {
+          "node_id": "attachments/att_003",
+          "node_type": "attachment_section",
+          "title": "附件3",
+          "token_estimate": 579,
+          "children": [
+            {
+              "node_id": "attachments/att_003/visual_title_001",
+              "node_type": "visual_title",
+              "title": "致浙江农村商业联合银行股份有限公司:",
+              "token_estimate": 80,
+              "children": []
+            },
+            {
+              "node_id": "attachments/att_003/heading_002",
+              "node_type": "heading",
+              "title": "一、在与贵方业务往来中承诺如下：",
+              "token_estimate": 20,
+              "children": []
+            },
+            {
+              "node_id": "attachments/att_003/heading_003",
+              "node_type": "heading",
+              "title": "（一） 不以股权、金钱方式（包括现金， 银行卡， 有价证券， 购物卡、提货单、娱乐场所会员卡、打折卡、代币券证券等） 贿赂贵方项目人员和管理人员。",
+              "token_estimate": 89,
+              "children": []
+            },
+            {
+              "node_id": "attachments/att_003/heading_004",
+              "node_type": "heading",
+              "title": "（二） 不以实物方式（包括家电、设备、健身器材、汽车、住房等实物）贿赂贵方项目人员和管理人员。",
+              "token_estimate": 51,
+              "children": []
+            },
+            {
+              "node_id": "attachments/att_003/heading_005",
+              "node_type": "heading",
+              "title": "（三） 不以消费方式（包括娱乐消费、旅游、国内或国外考察等方式）贿赂贵方项目人员和管理人员。",
+              "token_estimate": 50,
+              "children": []
+            },
+            {
+              "node_id": "attachments/att_003/heading_006",
+              "node_type": "heading",
+              "title": "（四） 不以其他任何方式（包括以朋友名义提供各种好处、活动抽奖、打牌中故意输钱、性贿赂等方式）贿赂贵方项目和管理人员。",
+              "token_estimate": 66,
+              "children": []
+            },
+            {
+              "node_id": "attachments/att_003/heading_007",
+              "node_type": "heading",
+              "title": "二、如违反以上任一承诺，同意贵方解除合同并将我方列入供应商黑名单， 由此造成的损失由我方承担及赔偿，触犯法律承担相应的法律责任。",
+              "token_estimate": 79,
+              "children": []
+            },
+            {
+              "node_id": "attachments/att_003/heading_008",
+              "node_type": "heading",
+              "title": "三、如贵方人员向我方索取好处或贿赂，我方将及时向贵方纪检监察部门或上级纪检监察机构投诉,投诉电话：0571-87260775；投诉邮箱：xfjb@zjrcu.com。",
+              "token_estimate": 127,
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

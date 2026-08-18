@@ -7,7 +7,13 @@ from .node_factory import make_node
 from .splitter import split_long_leaf
 
 
-def build_attachment_children(items: list[BodyItem], start: int, end: int, parent_id: str) -> list[DocumentNode]:
+def build_attachment_children(
+    items: list[BodyItem],
+    start: int,
+    end: int,
+    parent_id: str,
+    split_long_nodes: bool = True,
+) -> list[DocumentNode]:
     nodes: list[DocumentNode] = []
     candidate_positions = []
     for position, index in enumerate(range(start, end)):
@@ -39,12 +45,19 @@ def build_attachment_children(items: list[BodyItem], start: int, end: int, paren
             score,
             evidence,
         )
-        split_long_leaf(node, items, index, next_index)
+        if split_long_nodes:
+            split_long_leaf(node, items, index, next_index)
         nodes.append(node)
     return nodes
 
 
-def build_attachments(items: list[BodyItem], start: int, end: int, parent_id: str) -> list[DocumentNode]:
+def build_attachments(
+    items: list[BodyItem],
+    start: int,
+    end: int,
+    parent_id: str,
+    split_long_nodes: bool = True,
+) -> list[DocumentNode]:
     starts = attachment_starts(items, start, end)
     nodes = []
     for pos, attach_start in enumerate(starts):
@@ -64,6 +77,6 @@ def build_attachments(items: list[BodyItem], start: int, end: int, parent_id: st
             score,
             evidence,
         )
-        node.children = build_attachment_children(items, attach_start + 1, attach_end, node.node_id)
+        node.children = build_attachment_children(items, attach_start + 1, attach_end, node.node_id, split_long_nodes)
         nodes.append(node)
     return nodes

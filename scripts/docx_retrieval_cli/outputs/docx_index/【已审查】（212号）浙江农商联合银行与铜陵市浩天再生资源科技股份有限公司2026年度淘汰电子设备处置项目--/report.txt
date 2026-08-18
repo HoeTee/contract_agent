@@ -1,0 +1,31 @@
+source_file: C:\Users\lenovo\Downloads\模板合同\【已审查】（212号）浙江农商联合银行与铜陵市浩天再生资源科技股份有限公司2026年度淘汰电子设备处置项目--...docx
+output_dir: outputs\docx_index\【已审查】（212号）浙江农商联合银行与铜陵市浩天再生资源科技股份有限公司2026年度淘汰电子设备处置项目--
+schema_version: docx-index-v2
+nodes: 65
+anchors: 159
+structure_tokens: 12497
+document_structure_mode: paged_structure
+
+node_type_counts:
+  attachment_parent: 1
+  attachment_section: 3
+  attachments: 1
+  body: 1
+  frontmatter: 1
+  heading: 11
+  section: 42
+  table: 1
+  tail: 1
+  visual_title: 3
+
+largest_nodes:
+   3954  body  正文
+   2633  attachments/parent  第十三条  附件
+   1479  attachments/att_002  附件2
+    775  body/sec_008  第八条 合同的补充、变更与解除
+    664  attachments/att_002/heading_004  三、乙方的保密义务　　１、主动采取保密措施对上述所列及之保密信息进行保护，防止不承担同等保密义务的任何第三者知悉及使用；　　２、不得刺探或者以其他不正当手段（包
+    621  frontmatter  合同首部
+    579  attachments/att_003  附件3
+    502  body/sec_003  第三条  设备处置流程
+    502  body/sec_006  第六条 违约责任及处理
+    432  body/sec_004  第四条 保密条款

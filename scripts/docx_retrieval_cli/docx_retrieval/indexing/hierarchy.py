@@ -14,6 +14,7 @@ def build_hierarchy_for_range(
     parent_id: str,
     node_prefix: str,
     use_cn_comma_as_level1: bool = False,
+    split_long_nodes: bool = True,
 ) -> list[DocumentNode]:
     root_nodes: list[DocumentNode] = []
     stack: list[tuple[int, DocumentNode, int]] = []
@@ -46,7 +47,8 @@ def build_hierarchy_for_range(
             root_nodes.append(node)
         stack.append((level, node, index))
 
-    split_long_leaves(root_nodes, items)
+    if split_long_nodes:
+        split_long_leaves(root_nodes, items)
     return root_nodes
 
 

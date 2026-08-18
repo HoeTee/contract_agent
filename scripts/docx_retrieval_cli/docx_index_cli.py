@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from docx_retrieval import build_document_index, load_index, write_json
+from docx_retrieval.llm import LLMSettings
 from docx_retrieval.output import title_rows
 from docx_retrieval.retrieval import content_view, keyword_search, structure_summary
 
@@ -17,7 +18,21 @@ if hasattr(sys.stderr, "reconfigure"):
 
 
 def command_build(args: argparse.Namespace) -> int:
-    data = build_document_index(args.docx).to_json_dict()
+    llm_settings = None
+    if args.llm_expand or args.llm_summary:
+        llm_settings = LLMSettings.from_sources(
+            model=args.model,
+            base_url=args.base_url,
+            api_key=args.api_key,
+            config_path=args.config,
+        )
+    data = build_document_index(
+        args.docx,
+        llm_expand=args.llm_expand,
+        llm_summary=args.llm_summary,
+        llm_settings=llm_settings,
+        cache_dir=args.cache_dir,
+    ).to_json_dict()
     write_json(args.out, data)
     print(f"wrote: {args.out}")
     print(f"nodes={len(data['nodes'])} anchors={len(data['anchor_map'])}")
@@ -55,6 +70,13 @@ def build_parser() -> argparse.ArgumentParser:
     build = sub.add_parser("build", help="Build a persistent DocumentIndex JSON from a DOCX file.")
     build.add_argument("--docx", type=Path, required=True)
     build.add_argument("--out", type=Path, required=True)
+    build.add_argument("--llm-expand", action="store_true")
+    build.add_argument("--llm-summary", action="store_true")
+    build.add_argument("--model")
+    build.add_argument("--base-url")
+    build.add_argument("--api-key")
+    build.add_argument("--config", type=Path)
+    build.add_argument("--cache-dir", type=Path, default=Path("outputs/docx_index_cache"))
     build.set_defaults(func=command_build)
 
     structure = sub.add_parser("structure", help="Print the lightweight structure tree.")

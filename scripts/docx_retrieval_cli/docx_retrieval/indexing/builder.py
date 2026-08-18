@@ -4,13 +4,22 @@ from pathlib import Path
 
 from docx_retrieval.detection import find_attachment_parent, find_first_body_start, find_tail_start
 from docx_retrieval.detection.patterns import MAIN_SECTION_RE
+from docx_retrieval.llm import LLMClient, LLMSettings
 from docx_retrieval.parser import read_docx_items
 from docx_retrieval.schema import DocumentIndex, DocumentNode
 
 from .anchors import build_anchor_map
 from .attachments import build_attachments
 from .hierarchy import build_hierarchy_for_range, flatten_nodes
+from .llm_expand import (
+    EXPAND_BATCH_HARD_TOKENS,
+    EXPAND_BATCH_OVERLAP_TOKENS,
+    EXPAND_BATCH_TARGET_TOKENS,
+    expand_large_leaves,
+)
+from .llm_summary import summarize_nodes
 from .node_factory import make_node
+from .splitter import split_long_leaves
 from .token_budget import (
     NODE_HARD_LIMIT_TOKENS,
     NODE_SOFT_LIMIT_TOKENS,
@@ -20,7 +29,13 @@ from .token_budget import (
 )
 
 
-def build_document_index(docx_path: Path) -> DocumentIndex:
+def build_document_index(
+    docx_path: Path,
+    llm_expand: bool = False,
+    llm_summary: bool = False,
+    llm_settings: LLMSettings | None = None,
+    cache_dir: Path | None = None,
+) -> DocumentIndex:
     items = read_docx_items(docx_path)
     if not items:
         raise ValueError(f"No readable word/document.xml body found: {docx_path}")
@@ -32,11 +47,20 @@ def build_document_index(docx_path: Path) -> DocumentIndex:
     body_content_end = tail_start if tail_start is not None else body_end
 
     use_cn_as_l1 = not any(item.kind == "p" and MAIN_SECTION_RE.match(item.text) for item in items[body_start:body_content_end])
+    split_during_deterministic_build = not llm_expand
     roots: list[DocumentNode] = []
 
     frontmatter = make_node("frontmatter", "frontmatter", "合同首部", items, 0, max(body_start, 1), 0, None)
     body = make_node("body", "body", "正文", items, body_start, max(body_content_end, body_start + 1), 0, None)
-    body.children = build_hierarchy_for_range(items, body_start, body_content_end, "body", "body", use_cn_as_l1)
+    body.children = build_hierarchy_for_range(
+        items,
+        body_start,
+        body_content_end,
+        "body",
+        "body",
+        use_cn_as_l1,
+        split_long_nodes=split_during_deterministic_build,
+    )
     roots.extend([frontmatter, body])
 
     if tail_start is not None and tail_start < body_end:
@@ -56,9 +80,25 @@ def build_document_index(docx_path: Path) -> DocumentIndex:
             1,
             "attachments",
         )
-        attachment_parent_node.children = build_attachments(items, attachment_parent + 1, len(items), attachment_parent_node.node_id)
+        attachment_parent_node.children = build_attachments(
+            items,
+            attachment_parent + 1,
+            len(items),
+            attachment_parent_node.node_id,
+            split_long_nodes=split_during_deterministic_build,
+        )
         attachments.children.append(attachment_parent_node)
     roots.append(attachments)
+
+    if llm_expand or llm_summary:
+        if llm_settings is None:
+            llm_settings = LLMSettings.from_sources()
+        client = LLMClient(llm_settings)
+        if llm_expand:
+            expand_large_leaves(roots, items, client, cache_dir)
+            split_long_leaves(roots, items)
+        if llm_summary:
+            summarize_nodes(roots, client, cache_dir)
 
     flat_nodes = flatten_nodes(roots)
     return DocumentIndex(
@@ -75,6 +115,12 @@ def build_document_index(docx_path: Path) -> DocumentIndex:
             "node_hard_limit_tokens": NODE_HARD_LIMIT_TOKENS,
             "summary_tree_inline_budget_tokens": STRUCTURE_INLINE_BUDGET_TOKENS,
             "summary_tree_paged_budget_tokens": STRUCTURE_PAGED_BUDGET_TOKENS,
+            "llm_expand_enabled": llm_expand,
+            "llm_summary_enabled": llm_summary,
+            "expand_batch_target_tokens": EXPAND_BATCH_TARGET_TOKENS,
+            "expand_batch_hard_tokens": EXPAND_BATCH_HARD_TOKENS,
+            "expand_batch_overlap_tokens": EXPAND_BATCH_OVERLAP_TOKENS,
+            "llm_model": llm_settings.model if llm_settings else None,
         },
         nodes=[node.storage_view() for node in flat_nodes],
         root_nodes=[node.node_id for node in roots],
