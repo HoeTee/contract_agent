@@ -4,6 +4,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +53,7 @@ def write_document_outputs(
     build_vector: bool,
     embedding_settings: EmbeddingSettings | None,
 ) -> dict[str, Any]:
+    start_time = time.perf_counter()
     index = build_document_index(
         docx,
         llm_expand=llm_expand,
@@ -102,6 +104,7 @@ def write_document_outputs(
         "query_matches": len(query_matches) if query_matches is not None else None,
         "node_content_written": node_content is not None,
         "vector_items": vector_items,
+        "elapsed_seconds": round(time.perf_counter() - start_time, 3),
     }
 
 
@@ -167,6 +170,7 @@ def _add_embedding_args(parser: argparse.ArgumentParser) -> None:
 
 
 def command_build(args: argparse.Namespace) -> int:
+    start_time = time.perf_counter()
     files = iter_docx_inputs(args.input, args.batch)
     if not files:
         raise ValueError(f"no docx files found: {args.input}")
@@ -201,12 +205,14 @@ def command_build(args: argparse.Namespace) -> int:
         )
         for path in files
     ]
-    write_json(args.out / "summary.json", {"documents": summaries})
-    print(json.dumps({"documents": summaries}, ensure_ascii=False, indent=2))
+    total_elapsed = round(time.perf_counter() - start_time, 3)
+    write_json(args.out / "summary.json", {"documents": summaries, "total_elapsed_seconds": total_elapsed})
+    print(json.dumps({"documents": summaries, "total_elapsed_seconds": total_elapsed}, ensure_ascii=False, indent=2))
     return 0
 
 
 def command_ask(args: argparse.Namespace) -> int:
+    start_time = time.perf_counter()
     config = RetrievalConfig.from_sources(
         config_path=args.retrieval_config,
         input_tokens=args.input_tokens,
@@ -271,6 +277,7 @@ def command_ask(args: argparse.Namespace) -> int:
                 "vector_matches": vector_matches,
                 "pagination": context["pagination"],
                 "budget": context["budget"],
+                "elapsed_seconds": round(time.perf_counter() - start_time, 3),
             },
             ensure_ascii=False,
             indent=2,
@@ -280,17 +287,24 @@ def command_ask(args: argparse.Namespace) -> int:
 
 
 def command_content(args: argparse.Namespace) -> int:
-    print(json.dumps(content_view(load_index(_index_path(args.doc)), args.node), ensure_ascii=False, indent=2))
+    start_time = time.perf_counter()
+    result = content_view(load_index(_index_path(args.doc)), args.node)
+    result["elapsed_seconds"] = round(time.perf_counter() - start_time, 3)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
 
 def command_search(args: argparse.Namespace) -> int:
+    start_time = time.perf_counter()
     result = keyword_search(load_index(_index_path(args.doc)), args.keyword)
-    print(result.model_dump_json(indent=2))
+    payload = result.model_dump(mode="json")
+    payload["elapsed_seconds"] = round(time.perf_counter() - start_time, 3)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0
 
 
 def command_vector_search(args: argparse.Namespace) -> int:
+    start_time = time.perf_counter()
     config = RetrievalConfig.from_sources(config_path=args.retrieval_config, input_tokens=args.input_tokens)
     data = load_index(_index_path(args.doc))
     vector_index = load_vector_index(args.doc / "vector_index.json")
@@ -312,7 +326,7 @@ def command_vector_search(args: argparse.Namespace) -> int:
                 input_tokens=config.input_tokens,
             )
         )
-    print(json.dumps({"matches": matches}, ensure_ascii=False, indent=2))
+    print(json.dumps({"matches": matches, "elapsed_seconds": round(time.perf_counter() - start_time, 3)}, ensure_ascii=False, indent=2))
     return 0
 
 

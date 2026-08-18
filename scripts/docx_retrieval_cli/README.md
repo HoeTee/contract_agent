@@ -171,7 +171,8 @@ python scripts\docx_retrieval_cli\cli.py content --doc "outputs\docx_index\合�
   "structure_matches": [],
   "vector_matches": [],
   "pagination": {},
-  "budget": {}
+  "budget": {},
+  "elapsed_seconds": 1.234
 }
 ```
 
@@ -186,6 +187,13 @@ content_context[].end_anchor
 ```
 
 `pagination`、`budget`、`score`、`reason` 只用于程序控制、日志和调试，不进入审查正文 prompt。
+
+所有 CLI 命令都会输出耗时字段：
+
+```text
+elapsed_seconds       当前命令耗时，单位秒
+total_elapsed_seconds 批量 build 总耗时，单位秒
+```
 
 ## 输出文件
 
