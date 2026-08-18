@@ -14,10 +14,17 @@ class TimingRecord:
 
 
 class TimingCollector:
-    def __init__(self, enabled: bool = True, stream: TextIO | None = None, prefix: str = "[timing]") -> None:
+    def __init__(
+        self,
+        enabled: bool = True,
+        stream: TextIO | None = None,
+        prefix: str = "[timing]",
+        log_stream: TextIO | None = None,
+    ) -> None:
         self.enabled = enabled
         self.stream = stream or sys.stderr
         self.prefix = prefix
+        self.log_stream = log_stream
         self.records: list[TimingRecord] = []
 
     @contextmanager
@@ -30,6 +37,8 @@ class TimingCollector:
             self.records.append(TimingRecord(name=name, elapsed_seconds=elapsed))
             if self.enabled:
                 print(f"{self.prefix} {name}: {elapsed:.3f}s", file=self.stream, flush=True)
+            if self.log_stream:
+                print(f"{self.prefix} {name}: {elapsed:.3f}s", file=self.log_stream, flush=True)
 
     def as_dict(self) -> dict[str, float]:
         values: dict[str, float] = {}

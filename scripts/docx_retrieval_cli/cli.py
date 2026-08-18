@@ -22,7 +22,7 @@ from docx_retrieval.retrieval import (
     llm_query,
     rerank_matches,
 )
-from docx_retrieval.utils import TimingCollector
+from docx_retrieval.utils import RunLogger, TimingCollector
 from docx_retrieval.vector import EmbeddingClient, EmbeddingSettings, build_vector_index, load_vector_index, save_vector_index, vector_search
 
 
@@ -133,6 +133,7 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--llm-summary", action="store_true", help="Use LLM to generate final node summaries.")
     build.add_argument("--no-cache", action="store_true", help="Disable LLM response cache for expand/summary/query stages.")
     build.add_argument("--quiet", action="store_true", help="Do not print stage timings to stderr.")
+    _add_log_args(build)
     build.set_defaults(func=command_build)
 
     ask = sub.add_parser("ask", help="Retrieve review context from an existing document output directory.")
@@ -148,16 +149,19 @@ def build_parser() -> argparse.ArgumentParser:
     ask.add_argument("--retrieval-config", type=Path, help="Optional docx_retrieval_cli config.yaml path.")
     _add_llm_args(ask)
     _add_embedding_args(ask)
+    _add_log_args(ask)
     ask.set_defaults(func=command_ask)
 
     content = sub.add_parser("content", help="Expand one node's original text.")
     content.add_argument("--doc", type=Path, required=True)
     content.add_argument("--node", required=True)
+    _add_log_args(content)
     content.set_defaults(func=command_content)
 
     search = sub.add_parser("search", help="Keyword search without model calls.")
     search.add_argument("--doc", type=Path, required=True)
     search.add_argument("--keyword", action="append", required=True)
+    _add_log_args(search)
     search.set_defaults(func=command_search)
 
     vector = sub.add_parser("vector-search", help="Vector search against vector_index.json.")
@@ -168,6 +172,7 @@ def build_parser() -> argparse.ArgumentParser:
     vector.add_argument("--config", type=Path, help="Optional project config.yaml path for embedding settings.")
     vector.add_argument("--quiet", action="store_true", help="Do not print stage timings to stderr.")
     _add_embedding_args(vector)
+    _add_log_args(vector)
     vector.set_defaults(func=command_vector_search)
     return parser
 
@@ -185,9 +190,15 @@ def _add_embedding_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--embedding-api-key", help="Embedding API key. Defaults to .env EMBED_API_KEY.")
 
 
+def _add_log_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--log-dir", type=Path, default=Path("logs"), help="Local directory for CLI run logs.")
+    parser.add_argument("--no-log", action="store_true", help="Disable local file logging for this command.")
+
+
 def command_build(args: argparse.Namespace) -> int:
     start_time = time.perf_counter()
-    timer = TimingCollector(enabled=not args.quiet)
+    logger = _logger(args)
+    timer = TimingCollector(enabled=not args.quiet, log_stream=logger.stream if logger else None)
     with timer.stage("build.discover_inputs"):
         files = iter_docx_inputs(args.input, args.batch)
     if not files:
@@ -232,13 +243,16 @@ def command_build(args: argparse.Namespace) -> int:
         write_json(args.out / "summary.json", {"documents": summaries, "total_elapsed_seconds": total_elapsed})
     if not args.quiet:
         print(f"[timing] build.total: {total_elapsed:.3f}s", file=sys.stderr, flush=True)
-    print(json.dumps({"documents": summaries, "total_elapsed_seconds": total_elapsed}, ensure_ascii=False, indent=2))
+    payload = {"documents": summaries, "total_elapsed_seconds": total_elapsed}
+    _log_json(args, "result", payload)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0
 
 
 def command_ask(args: argparse.Namespace) -> int:
     start_time = time.perf_counter()
-    timer = TimingCollector(enabled=not args.quiet)
+    logger = _logger(args)
+    timer = TimingCollector(enabled=not args.quiet, log_stream=logger.stream if logger else None)
     with timer.stage("ask.load_config"):
         config = RetrievalConfig.from_sources(
             config_path=args.retrieval_config,
@@ -326,6 +340,16 @@ def command_ask(args: argparse.Namespace) -> int:
             "budget": context["budget"],
             "timings": timer.as_dict(),
         }
+    _log_json(
+        args,
+        "result_summary",
+        {
+            "elapsed_seconds": total_elapsed,
+            "node_count": len(payload["nodes"]),
+            "node_ids": [node.get("node_id") for node in payload["nodes"]],
+            "timings": timer.as_dict(),
+        },
+    )
     print(
         json.dumps(
             payload,
@@ -340,6 +364,7 @@ def command_content(args: argparse.Namespace) -> int:
     start_time = time.perf_counter()
     result = content_view(load_index(_index_path(args.doc)), args.node)
     result["elapsed_seconds"] = round(time.perf_counter() - start_time, 3)
+    _log_json(args, "result_summary", {"elapsed_seconds": result["elapsed_seconds"], "node_id": result.get("node_id")})
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
@@ -349,13 +374,15 @@ def command_search(args: argparse.Namespace) -> int:
     result = keyword_search(load_index(_index_path(args.doc)), args.keyword)
     payload = result.model_dump(mode="json")
     payload["elapsed_seconds"] = round(time.perf_counter() - start_time, 3)
+    _log_json(args, "result_summary", {"elapsed_seconds": payload["elapsed_seconds"], "match_count": len(payload.get("matches") or [])})
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0
 
 
 def command_vector_search(args: argparse.Namespace) -> int:
     start_time = time.perf_counter()
-    timer = TimingCollector(enabled=not args.quiet)
+    logger = _logger(args)
+    timer = TimingCollector(enabled=not args.quiet, log_stream=logger.stream if logger else None)
     with timer.stage("vector_search.load_config"):
         config = RetrievalConfig.from_sources(config_path=args.retrieval_config, input_tokens=args.input_tokens)
     with timer.stage("vector_search.load_index"):
@@ -386,7 +413,17 @@ def command_vector_search(args: argparse.Namespace) -> int:
     total_elapsed = round(time.perf_counter() - start_time, 3)
     if not args.quiet:
         print(f"[timing] vector_search.total: {total_elapsed:.3f}s", file=sys.stderr, flush=True)
-    print(json.dumps({"matches": matches, "elapsed_seconds": total_elapsed}, ensure_ascii=False, indent=2))
+    payload = {"matches": matches, "elapsed_seconds": total_elapsed}
+    _log_json(
+        args,
+        "result_summary",
+        {
+            "elapsed_seconds": total_elapsed,
+            "match_count": len(matches),
+            "timings": timer.as_dict(),
+        },
+    )
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -420,14 +457,32 @@ def _stage(timer: TimingCollector | None, name: str):
     return timer.stage(name)
 
 
+def _logger(args: argparse.Namespace) -> RunLogger | None:
+    return getattr(args, "_run_logger", None)
+
+
+def _log_json(args: argparse.Namespace, label: str, payload: Any) -> None:
+    logger = _logger(args)
+    if logger:
+        logger.write_json(label, payload)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    logger = RunLogger(args.command, args.log_dir, enabled=not args.no_log)
+    args._run_logger = logger
+    if logger.path:
+        print(f"[log] {logger.path}", file=sys.stderr, flush=True)
+    logger.log_args(args)
     try:
         return args.func(args)
     except Exception as exc:
+        logger.log_exception(exc)
         print(f"error: {exc}", file=sys.stderr)
         return 1
+    finally:
+        logger.close()
 
 
 if __name__ == "__main__":

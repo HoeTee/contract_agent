@@ -172,6 +172,18 @@ python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目
 python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --quiet
 ```
 
+指定日志目录：
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --log-dir logs
+```
+
+关闭本地日志：
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --no-log
+```
+
 关闭 LLM 结果缓存：
 
 ```powershell
@@ -249,6 +261,20 @@ total_elapsed_seconds 批量 build 总耗时，单位秒
 ```
 
 如果只需要机器读取 stdout JSON，使用 `--quiet` 关闭 stderr 阶段耗时。
+
+默认会在本地写入每次命令的日志文件：
+
+```text
+logs/build_20260818_213012_12345.log
+logs/ask_20260818_213045_12345.log
+logs/vector_search_20260818_213100_12345.log
+```
+
+日志包含命令参数、阶段耗时、结果摘要；如果命令异常，会写入 traceback。`api_key`、`embedding_api_key` 等密钥参数会被脱敏。日志不影响 stdout JSON；启动时只会在 stderr 显示日志路径：
+
+```text
+[log] logs\ask_20260818_213045_12345.log
+```
 
 ## 输出文件
 
