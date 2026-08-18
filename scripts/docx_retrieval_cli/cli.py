@@ -13,6 +13,7 @@ from docx_retrieval.indexing import document_mode
 from docx_retrieval.llm import LLMClient, LLMSettings
 from docx_retrieval.output import attachment_tree, structure_tokens, title_rows, token_rows, write_csv, write_json, write_report
 from docx_retrieval.retrieval import content_view, keyword_search, llm_query
+from docx_retrieval.vector import EmbeddingClient, EmbeddingSettings, build_vector_index, save_vector_index
 
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -40,6 +41,8 @@ def write_document_outputs(
     llm_expand: bool,
     llm_summary: bool,
     llm_settings: LLMSettings | None,
+    build_vector: bool,
+    embedding_settings: EmbeddingSettings | None,
 ) -> dict[str, Any]:
     index = build_document_index(
         docx,
@@ -57,6 +60,14 @@ def write_document_outputs(
     write_csv(doc_out / "node_tokens.csv", token_rows(index))
     write_json(doc_out / "attachments.json", {"attachments": attachment_tree(index)})
     write_report(doc_out / "report.txt", docx, index, doc_out)
+
+    vector_items = None
+    if build_vector:
+        if embedding_settings is None:
+            embedding_settings = EmbeddingSettings.from_sources()
+        vector_index = build_vector_index(index, EmbeddingClient(embedding_settings))
+        vector_items = len(vector_index.items)
+        save_vector_index(doc_out / "vector_index.json", vector_index)
 
     query_matches = None
     if query:
@@ -82,6 +93,7 @@ def write_document_outputs(
         "document_structure_mode": document_mode(structure_tokens(index)),
         "query_matches": len(query_matches) if query_matches is not None else None,
         "node_content_written": node_content is not None,
+        "vector_items": vector_items,
     }
 
 
@@ -100,9 +112,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--node-id", help="Optional node_id to expand after building.")
     parser.add_argument("--llm-expand", action="store_true", help="Use LLM to discover subsection headings in oversized leaf nodes.")
     parser.add_argument("--llm-summary", action="store_true", help="Use LLM to generate final node summaries.")
+    parser.add_argument("--build-vector", action="store_true", help="Build vector_index.json for fallback recall.")
     parser.add_argument("--model", help="OpenAI-compatible model name. Defaults to .env LLM_MODEL_NAME, then config.yaml llm.name.")
     parser.add_argument("--base-url", help="OpenAI-compatible base URL. Defaults to .env LLM_BASE, then config.yaml llm.base_url.")
     parser.add_argument("--api-key", help="API key. Defaults to .env LLM_API_KEY, then OPENAI_API_KEY/CHATGPT_API_KEY/LLM_API_KEY.")
+    parser.add_argument("--embedding-model", help="Embedding model name. Defaults to .env EMBEDDING_MODEL_NAME.")
+    parser.add_argument("--embedding-base-url", help="Embedding OpenAI-compatible base URL. Defaults to .env EMBEDDING_BASE.")
+    parser.add_argument("--embedding-api-key", help="Embedding API key. Defaults to .env EMBED_API_KEY.")
     parser.add_argument("--config", type=Path, help="Optional config.yaml path.")
     return parser
 
@@ -115,11 +131,19 @@ def main(argv: list[str] | None = None) -> int:
         if not files:
             raise ValueError(f"no docx files found: {args.input}")
         llm_settings = None
+        embedding_settings = None
         if args.llm_expand or args.llm_summary:
             llm_settings = LLMSettings.from_sources(
                 model=args.model,
                 base_url=args.base_url,
                 api_key=args.api_key,
+                config_path=args.config,
+            )
+        if args.build_vector:
+            embedding_settings = EmbeddingSettings.from_sources(
+                model=args.embedding_model,
+                base_url=args.embedding_base_url,
+                api_key=args.embedding_api_key,
                 config_path=args.config,
             )
         summaries = [
@@ -132,6 +156,8 @@ def main(argv: list[str] | None = None) -> int:
                 args.llm_expand,
                 args.llm_summary,
                 llm_settings,
+                args.build_vector,
+                embedding_settings,
             )
             for path in files
         ]

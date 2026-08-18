@@ -24,7 +24,7 @@ pip install -r scripts\docx_retrieval_cli\requirements.txt
 当前真实使用的依赖：
 
 - `lxml`：解析 `document.xml`、`styles.xml`，并保留 XML path；
-- `openai`：在开启 `--llm-expand` 或 `--llm-summary` 时调用 OpenAI-compatible 模型；
+- `openai`：调用 OpenAI-compatible LLM 和 embedding 模型；
 - `pydantic`：定义 `BodyItem`、`DocumentNode`、`DocumentIndex`、检索结果等 schema；
 - `PyYAML`：读取项目 `config.yaml` 中的 LLM 配置；
 - `tiktoken`：计算 node、结构树和切分阈值的 token 数。
@@ -71,6 +71,10 @@ scripts/docx_retrieval_cli/
       keyword.py                 # 关键词检索
       structure.py               # 结构树视图
       content.py                 # node 原文展开
+    vector/                      # 向量补召回
+      client.py                  # OpenAI-compatible embedding client
+      index.py                   # vector_index.json 构建和读写
+      search.py                  # 本地余弦相似度检索
     output/                      # 输出文件
       writers.py                 # JSON/CSV 写入
       reports.py                 # titles/tokens/attachments/report
@@ -110,6 +114,22 @@ python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\d
 
 ```powershell
 python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\docx_index --query 支付方式 --query-mode keyword
+```
+
+## 构建向量补召回索引
+
+向量索引是补召回文件，不替代 `document_index.json`，也不创建新 node。它只保存 embedding 和指向已有结构 node 的 metadata。
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\docx_index --build-vector
+```
+
+`.env` 支持的 embedding 变量名：
+
+```text
+EMBEDDING_MODEL_NAME
+EMBEDDING_BASE
+EMBED_API_KEY
 ```
 
 ## 开启 LLM 语义拆分和摘要
@@ -187,6 +207,7 @@ python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\d
 
 ```text
 document_index.json  完整 DocumentIndex，包含 node、anchor_map、structure_tree
+vector_index.json    可选向量补召回索引，保存 embedding 和 node_id metadata
 structure_tree.json  轻量结构树，给 Agent 判断相关章节时使用
 titles.json          标题类 node 列表，用于人工检查标题识别效果
 node_tokens.csv      node token 分布，用于发现超长章节和切分问题
@@ -235,6 +256,33 @@ python scripts\docx_retrieval_cli\docx_index_cli.py query --index outputs\index.
 python scripts\docx_retrieval_cli\docx_index_cli.py content --index outputs\index.json --node-id body/sec_002
 ```
 
+对已构建输出目录做一条命令检索：
+
+```powershell
+python scripts\docx_retrieval_cli\docx_index_cli.py ask --doc outputs\docx_index\合同目录名 --query 支付方式 --fallback-vector --auto-vector
+```
+
+`ask --doc` 会自动读取：
+
+```text
+outputs\docx_index\合同目录名\document_index.json
+outputs\docx_index\合同目录名\vector_index.json
+```
+
+其中 `--fallback-vector` 表示同时做向量补召回，`--auto-vector` 表示缺少 `vector_index.json` 时自动创建。
+
+单独构建向量索引：
+
+```powershell
+python scripts\docx_retrieval_cli\docx_index_cli.py build-vector --doc outputs\docx_index\合同目录名
+```
+
+单独向量检索：
+
+```powershell
+python scripts\docx_retrieval_cli\docx_index_cli.py vector-search --doc outputs\docx_index\合同目录名 --query 支付方式
+```
+
 查看标题类 node：
 
 ```powershell
@@ -246,7 +294,7 @@ python scripts\docx_retrieval_cli\docx_index_cli.py titles --index outputs\index
 - 未开启 `--llm-summary` 时，summary 仍是截断式摘要；
 - 未开启 `--llm-expand` 时，大 node 仍只做 token chunk 兜底切分；
 - `--query` 默认会调用 LLM；如需避免模型调用，使用 `--query-mode keyword`；
-- 当前没有向量检索；
+- 向量检索只做 fallback 补召回，返回已有 `node_id`，不创建新 node；
 - 页码依赖 `w:lastRenderedPageBreak`，如果 DOCX 没有该标记，页码字段会为空；
 - 当前目录已经按独立试验包组织，但还没有接入主审查 workflow；
 - 后续稳定后再考虑迁移到 `tools/retrieval/`。
