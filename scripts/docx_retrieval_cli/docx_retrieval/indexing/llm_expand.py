@@ -7,6 +7,7 @@ from typing import Any
 from docx_retrieval.llm import LLMClient
 from docx_retrieval.llm.cache import JsonlCache, cache_key, text_hash
 from docx_retrieval.llm.prompts import EXPAND_PROMPT_VERSION, expand_prompt
+from docx_retrieval.llm.schemas import ExpandResponse
 from docx_retrieval.schema import BodyItem, DocumentNode
 
 from .node_factory import make_node
@@ -85,10 +86,11 @@ def _collect_candidates(node: DocumentNode, items: list[BodyItem], client: LLMCl
         )
         cached = cache.get(key)
         if cached is None:
-            response = client.complete_json(
-                expand_prompt(node.node_id, node.title, items[start].anchor, items[end - 1].anchor, payload)
+            response = client.complete_model(
+                expand_prompt(node.node_id, node.title, items[start].anchor, items[end - 1].anchor, payload),
+                ExpandResponse,
             )
-            cached = response
+            cached = response.model_dump(mode="json")
             cache.set(key, cached)
         raw_candidates.extend(cached.get("subsections") or [])
     return _validate_candidates(node, items, raw_candidates)

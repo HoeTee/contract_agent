@@ -5,6 +5,7 @@ from pathlib import Path
 from docx_retrieval.llm import LLMClient
 from docx_retrieval.llm.cache import JsonlCache, cache_key, text_hash
 from docx_retrieval.llm.prompts import SUMMARY_PROMPT_VERSION, summary_prompt
+from docx_retrieval.llm.schemas import SummaryResponse
 from docx_retrieval.schema import DocumentNode
 
 from .token_budget import SUMMARY_TRIGGER_MIN_TOKENS, estimate_tokens
@@ -33,8 +34,9 @@ def _summarize_node(node: DocumentNode, client: LLMClient, cache: JsonlCache) ->
     )
     cached = cache.get(key)
     if cached is None:
-        response = client.complete_json(summary_prompt(node.title, node.node_type, content))
-        cached = {"summary": str(response.get("summary") or "").strip()}
+        response = client.complete_model(summary_prompt(node.title, node.node_type, content), SummaryResponse)
+        cached = response.model_dump(mode="json")
+        cached["summary"] = cached["summary"].strip()
         cache.set(key, cached)
     if cached.get("summary"):
         node.summary = cached["summary"]

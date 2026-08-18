@@ -7,8 +7,9 @@ from typing import Any
 from docx_retrieval.indexing import estimate_tokens
 from docx_retrieval.llm import LLMClient
 from docx_retrieval.llm.cache import JsonlCache, cache_key, text_hash
+from docx_retrieval.llm.schemas import QueryResponse
 
-QUERY_PROMPT_VERSION = "docx_query_v1"
+QUERY_PROMPT_VERSION = "docx_query_v2"
 STRUCTURE_QUERY_BUDGET_TOKENS = 18000
 
 
@@ -21,7 +22,8 @@ def llm_query(index: dict[str, Any], queries: list[str], client: LLMClient, cach
         key = cache_key(QUERY_PROMPT_VERSION, client.settings.model, query, text_hash(payload))
         cached = cache.get(key)
         if cached is None:
-            cached = client.complete_json(_query_prompt(query, payload))
+            response = client.complete_model(_query_prompt(query, payload), QueryResponse)
+            cached = response.model_dump(mode="json")
             cache.set(key, cached)
         for item in cached.get("nodes") or []:
             node_id = str(item.get("node_id") or "").strip()
@@ -92,14 +94,20 @@ def _query_prompt(query: str, structure_json: str) -> str:
 结构树：
 {structure_json}
 
-要求：
+选择规则：
 - 只能返回结构树中真实存在的 node_id。
 - 优先返回标题或摘要直接相关的 node。
 - 如果需要跨章节比较，可以返回多个 node。
 - 不要返回整篇正文 body，除非没有更具体的 node。
 - 最多返回 8 个 node。
 
-只返回 JSON：
+输出规范：
+- 必须只返回一个合法 JSON object。
+- 不要返回 Markdown。
+- 不要返回解释。
+- 不要返回纯文本。
+- 不要添加 schema 以外的字段。
+- JSON 必须严格符合：
 {{
   "nodes": [
     {{"node_id": "body/sec_001", "reason": "选择原因"}}

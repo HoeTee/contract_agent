@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from .config import env_api_key, find_local_env, find_project_config, load_env_file, load_yaml
 
@@ -67,6 +67,23 @@ class LLMClient:
     def complete_json(self, prompt: str) -> dict[str, Any]:
         return extract_json_object(self.complete(prompt))
 
+    def complete_model(self, prompt: str, schema: type["TModel"], retries: int = 2) -> "TModel":
+        current_prompt = prompt
+        last_error: Exception | None = None
+        last_content = ""
+        for _ in range(retries + 1):
+            last_content = self.complete(current_prompt)
+            try:
+                payload = extract_json_object(last_content)
+                return schema.model_validate(payload)
+            except (json.JSONDecodeError, ValidationError, ValueError) as exc:
+                last_error = exc
+                current_prompt = retry_prompt(prompt, schema, last_content, exc)
+        raise ValueError(
+            f"LLM response failed {schema.__name__} validation after {retries + 1} attempts: "
+            f"{last_error}; last_content={last_content[:300]!r}"
+        )
+
 
 def extract_json_object(content: str) -> dict[str, Any]:
     text = content.strip()
@@ -78,6 +95,27 @@ def extract_json_object(content: str) -> dict[str, Any]:
     if start == -1 or end == -1 or end < start:
         raise ValueError(f"LLM response does not contain a JSON object: {content[:200]!r}")
     return json.loads(text[start : end + 1])
+
+
+TModel = TypeVar("TModel", bound=BaseModel)
+
+
+def retry_prompt(original_prompt: str, schema: type[BaseModel], previous_content: str, error: Exception) -> str:
+    schema_json = json.dumps(schema.model_json_schema(), ensure_ascii=False, indent=2)
+    return f"""{original_prompt}
+
+上一次输出不符合要求，必须重新生成。
+
+错误信息：
+{error}
+
+上一次输出：
+{previous_content[:2000]}
+
+必须严格返回一个合法 JSON object，不要返回 Markdown，不要返回解释，不要返回纯文本。
+JSON 必须符合以下 schema：
+{schema_json}
+"""
 
 
 def os_env(name: str) -> str | None:
