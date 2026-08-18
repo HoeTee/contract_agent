@@ -12,8 +12,16 @@ from docx_retrieval.evaluation import iter_docx_inputs
 from docx_retrieval.indexing import document_mode
 from docx_retrieval.llm import LLMClient, LLMSettings
 from docx_retrieval.output import attachment_tree, structure_tokens, title_rows, token_rows, write_csv, write_json, write_report
-from docx_retrieval.retrieval import content_view, keyword_search, llm_query
-from docx_retrieval.vector import EmbeddingClient, EmbeddingSettings, build_vector_index, save_vector_index
+from docx_retrieval.output.writers import load_index
+from docx_retrieval.retrieval import (
+    RetrievalConfig,
+    build_content_context,
+    content_view,
+    keyword_search,
+    llm_query,
+    rerank_matches,
+)
+from docx_retrieval.vector import EmbeddingClient, EmbeddingSettings, build_vector_index, load_vector_index, save_vector_index, vector_search
 
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -98,72 +106,243 @@ def write_document_outputs(
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description=(
-            "Build a DOCX DocumentIndex and write inspection artifacts. "
-            "Use one command for normal experiments."
-        )
-    )
-    parser.add_argument("input", type=Path, help="DOCX file, or a directory when --batch is set.")
-    parser.add_argument("--out", type=Path, default=Path("outputs/docx_index"), help="Output directory.")
-    parser.add_argument("--batch", action="store_true", help="Process all DOCX files under an input directory.")
-    parser.add_argument("--query", action="append", default=[], help="Optional query to search after building. Defaults to LLM structure query.")
-    parser.add_argument("--query-mode", choices=["llm", "keyword"], default="llm", help="Query mode. Default: llm. Use keyword to avoid model calls.")
-    parser.add_argument("--node-id", help="Optional node_id to expand after building.")
-    parser.add_argument("--llm-expand", action="store_true", help="Use LLM to discover subsection headings in oversized leaf nodes.")
-    parser.add_argument("--llm-summary", action="store_true", help="Use LLM to generate final node summaries.")
-    parser.add_argument("--build-vector", action="store_true", help="Build vector_index.json for fallback recall.")
-    parser.add_argument("--model", help="OpenAI-compatible model name. Defaults to .env LLM_MODEL_NAME, then config.yaml llm.name.")
-    parser.add_argument("--base-url", help="OpenAI-compatible base URL. Defaults to .env LLM_BASE, then config.yaml llm.base_url.")
-    parser.add_argument("--api-key", help="API key. Defaults to .env LLM_API_KEY, then OPENAI_API_KEY/CHATGPT_API_KEY/LLM_API_KEY.")
-    parser.add_argument("--embedding-model", help="Embedding model name. Defaults to .env EMBEDDING_MODEL_NAME.")
-    parser.add_argument("--embedding-base-url", help="Embedding OpenAI-compatible base URL. Defaults to .env EMBEDDING_BASE.")
-    parser.add_argument("--embedding-api-key", help="Embedding API key. Defaults to .env EMBED_API_KEY.")
-    parser.add_argument("--config", type=Path, help="Optional config.yaml path.")
+    parser = argparse.ArgumentParser(description="DOCX structure retrieval experiment CLI.")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    build = sub.add_parser("build", help="Build document_index.json from a DOCX file or directory.")
+    build.add_argument("input", type=Path, help="DOCX file, or a directory when --batch is set.")
+    build.add_argument("--out", type=Path, default=Path("outputs/docx_index"), help="Output directory.")
+    build.add_argument("--batch", action="store_true", help="Process all DOCX files under an input directory.")
+    build.add_argument("--vector", action="store_true", help="Also build vector_index.json.")
+    _add_llm_args(build)
+    _add_embedding_args(build)
+    build.add_argument("--llm-expand", action="store_true", help="Use LLM to discover subsection headings in oversized leaf nodes.")
+    build.add_argument("--llm-summary", action="store_true", help="Use LLM to generate final node summaries.")
+    build.set_defaults(func=command_build)
+
+    ask = sub.add_parser("ask", help="Retrieve review context from an existing document output directory.")
+    ask.add_argument("--doc", type=Path, required=True, help="Document output directory containing document_index.json.")
+    ask.add_argument("--query", action="append", required=True)
+    ask.add_argument("--part", type=int, default=1, help="Content page number when selected node text exceeds the token budget.")
+    ask.add_argument("--input-tokens", type=int, help="Override retrieval.input_tokens.")
+    ask.add_argument("--no-vector", action="store_true", help="Disable vector fallback for this request.")
+    ask.add_argument("--no-rerank", action="store_true", help="Disable rerank for this request.")
+    ask.add_argument("--retrieval-config", type=Path, help="Optional docx_retrieval_cli config.yaml path.")
+    _add_llm_args(ask)
+    _add_embedding_args(ask)
+    ask.set_defaults(func=command_ask)
+
+    content = sub.add_parser("content", help="Expand one node's original text.")
+    content.add_argument("--doc", type=Path, required=True)
+    content.add_argument("--node", required=True)
+    content.set_defaults(func=command_content)
+
+    search = sub.add_parser("search", help="Keyword search without model calls.")
+    search.add_argument("--doc", type=Path, required=True)
+    search.add_argument("--keyword", action="append", required=True)
+    search.set_defaults(func=command_search)
+
+    vector = sub.add_parser("vector-search", help="Vector search against vector_index.json.")
+    vector.add_argument("--doc", type=Path, required=True)
+    vector.add_argument("--query", action="append", required=True)
+    vector.add_argument("--input-tokens", type=int)
+    vector.add_argument("--retrieval-config", type=Path)
+    vector.add_argument("--config", type=Path, help="Optional project config.yaml path for embedding settings.")
+    _add_embedding_args(vector)
+    vector.set_defaults(func=command_vector_search)
     return parser
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
-    try:
-        files = iter_docx_inputs(args.input, args.batch)
-        if not files:
-            raise ValueError(f"no docx files found: {args.input}")
-        llm_settings = None
-        embedding_settings = None
-        if args.llm_expand or args.llm_summary:
-            llm_settings = LLMSettings.from_sources(
-                model=args.model,
-                base_url=args.base_url,
-                api_key=args.api_key,
-                config_path=args.config,
-            )
-        if args.build_vector:
+def _add_llm_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--model", help="OpenAI-compatible model name. Defaults to .env LLM_MODEL_NAME, then config.yaml llm.name.")
+    parser.add_argument("--base-url", help="OpenAI-compatible base URL. Defaults to .env LLM_BASE, then config.yaml llm.base_url.")
+    parser.add_argument("--api-key", help="API key. Defaults to .env LLM_API_KEY, then OPENAI_API_KEY/CHATGPT_API_KEY/LLM_API_KEY.")
+    parser.add_argument("--config", type=Path, help="Optional project config.yaml path for LLM/embedding settings.")
+
+
+def _add_embedding_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--embedding-model", help="Embedding model name. Defaults to .env EMBEDDING_MODEL_NAME.")
+    parser.add_argument("--embedding-base-url", help="Embedding OpenAI-compatible base URL. Defaults to .env EMBEDDING_BASE.")
+    parser.add_argument("--embedding-api-key", help="Embedding API key. Defaults to .env EMBED_API_KEY.")
+
+
+def command_build(args: argparse.Namespace) -> int:
+    files = iter_docx_inputs(args.input, args.batch)
+    if not files:
+        raise ValueError(f"no docx files found: {args.input}")
+    llm_settings = None
+    embedding_settings = None
+    if args.llm_expand or args.llm_summary:
+        llm_settings = LLMSettings.from_sources(
+            model=args.model,
+            base_url=args.base_url,
+            api_key=args.api_key,
+            config_path=args.config,
+        )
+    if args.vector:
+        embedding_settings = EmbeddingSettings.from_sources(
+            model=args.embedding_model,
+            base_url=args.embedding_base_url,
+            api_key=args.embedding_api_key,
+            config_path=args.config,
+        )
+    summaries = [
+        write_document_outputs(
+            path,
+            args.out,
+            [],
+            "llm",
+            None,
+            args.llm_expand,
+            args.llm_summary,
+            llm_settings,
+            args.vector,
+            embedding_settings,
+        )
+        for path in files
+    ]
+    write_json(args.out / "summary.json", {"documents": summaries})
+    print(json.dumps({"documents": summaries}, ensure_ascii=False, indent=2))
+    return 0
+
+
+def command_ask(args: argparse.Namespace) -> int:
+    config = RetrievalConfig.from_sources(
+        config_path=args.retrieval_config,
+        input_tokens=args.input_tokens,
+        vector_enabled=False if args.no_vector else None,
+        rerank_enabled=False if args.no_rerank else None,
+    )
+    index_path = _index_path(args.doc)
+    data = load_index(index_path)
+    llm_settings = LLMSettings.from_sources(
+        model=args.model,
+        base_url=args.base_url,
+        api_key=args.api_key,
+        config_path=args.config,
+    )
+    llm_client = LLMClient(llm_settings)
+    structure_matches = llm_query(data, args.query, llm_client, args.doc / ".cache", input_tokens=config.input_tokens)
+    vector_matches = []
+    if config.vector.enabled:
+        vector_path = args.doc / "vector_index.json"
+        if not vector_path.exists():
+            if not config.vector.auto_build:
+                raise FileNotFoundError(f"vector_index.json not found: {vector_path}")
             embedding_settings = EmbeddingSettings.from_sources(
                 model=args.embedding_model,
                 base_url=args.embedding_base_url,
                 api_key=args.embedding_api_key,
                 config_path=args.config,
             )
-        summaries = [
-            write_document_outputs(
-                path,
-                args.out,
-                args.query,
-                args.query_mode,
-                args.node_id,
-                args.llm_expand,
-                args.llm_summary,
-                llm_settings,
-                args.build_vector,
-                embedding_settings,
+            save_vector_index(vector_path, build_vector_index(data, EmbeddingClient(embedding_settings), source_index=index_path.name))
+        vector_index = load_vector_index(vector_path)
+        embedding_settings = EmbeddingSettings.from_sources(
+            model=args.embedding_model or vector_index.embedding_model,
+            base_url=args.embedding_base_url,
+            api_key=args.embedding_api_key,
+            config_path=args.config,
+        )
+        embedding_client = EmbeddingClient(embedding_settings)
+        for query in args.query:
+            vector_matches.extend(
+                vector_search(
+                    data,
+                    vector_index,
+                    query,
+                    embedding_client,
+                    score_threshold=config.vector.score_threshold,
+                    input_tokens=config.input_tokens,
+                )
             )
-            for path in files
-        ]
-        write_json(args.out / "summary.json", {"documents": summaries})
-        print(json.dumps({"documents": summaries}, ensure_ascii=False, indent=2))
-        return 0
+    candidates = _merge_matches(structure_matches, vector_matches)
+    query_text = "\n".join(args.query)
+    if config.rerank.enabled:
+        ranked_matches = rerank_matches(data, query_text, candidates, llm_client, config.input_tokens, args.doc / ".cache")
+    else:
+        ranked_matches = candidates
+    context = build_content_context(data, ranked_matches, config.input_tokens, part=args.part)
+    print(
+        json.dumps(
+            {
+                "content_context": context["content_context"],
+                "ranked_matches": ranked_matches,
+                "structure_matches": structure_matches,
+                "vector_matches": vector_matches,
+                "pagination": context["pagination"],
+                "budget": context["budget"],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def command_content(args: argparse.Namespace) -> int:
+    print(json.dumps(content_view(load_index(_index_path(args.doc)), args.node), ensure_ascii=False, indent=2))
+    return 0
+
+
+def command_search(args: argparse.Namespace) -> int:
+    result = keyword_search(load_index(_index_path(args.doc)), args.keyword)
+    print(result.model_dump_json(indent=2))
+    return 0
+
+
+def command_vector_search(args: argparse.Namespace) -> int:
+    config = RetrievalConfig.from_sources(config_path=args.retrieval_config, input_tokens=args.input_tokens)
+    data = load_index(_index_path(args.doc))
+    vector_index = load_vector_index(args.doc / "vector_index.json")
+    settings = EmbeddingSettings.from_sources(
+        model=args.embedding_model or vector_index.embedding_model,
+        base_url=args.embedding_base_url,
+        api_key=args.embedding_api_key,
+        config_path=args.config,
+    )
+    matches = []
+    for query in args.query:
+        matches.extend(
+            vector_search(
+                data,
+                vector_index,
+                query,
+                EmbeddingClient(settings),
+                score_threshold=config.vector.score_threshold,
+                input_tokens=config.input_tokens,
+            )
+        )
+    print(json.dumps({"matches": matches}, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _index_path(doc_dir: Path) -> Path:
+    return doc_dir / "document_index.json"
+
+
+def _merge_matches(structure_matches: list[dict], vector_matches: list[dict]) -> list[dict]:
+    merged: dict[str, dict[str, Any]] = {}
+    for source, matches in (("structure", structure_matches), ("vector", vector_matches)):
+        for match in matches:
+            node_id = match.get("node_id")
+            if not node_id:
+                continue
+            item = merged.setdefault(node_id, dict(match))
+            sources = set(item.get("sources") or [])
+            sources.add(source)
+            item["sources"] = sorted(sources)
+            if source == "vector":
+                item["vector_score"] = match.get("score")
+            if source == "structure":
+                item["structure_reason"] = match.get("reason")
+    return list(merged.values())
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    try:
+        return args.func(args)
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

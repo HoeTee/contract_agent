@@ -10,46 +10,49 @@ from docx_retrieval.llm.cache import JsonlCache, cache_key, text_hash
 from docx_retrieval.llm.schemas import QueryResponse
 
 QUERY_PROMPT_VERSION = "docx_query_v2"
-STRUCTURE_QUERY_BUDGET_TOKENS = 18000
+STRUCTURE_QUERY_BUDGET_TOKENS = 6000
 
 
-def llm_query(index: dict[str, Any], queries: list[str], client: LLMClient, cache_dir: Path | None) -> list[dict[str, Any]]:
+def llm_query(
+    index: dict[str, Any],
+    queries: list[str],
+    client: LLMClient,
+    cache_dir: Path | None,
+    input_tokens: int = STRUCTURE_QUERY_BUDGET_TOKENS,
+) -> list[dict[str, Any]]:
     cache = JsonlCache(cache_dir / "llm_query.jsonl" if cache_dir else None)
-    structure_view = _fit_structure(index["structure_tree"])
+    structure_parts = _split_structure(_compact_structure(index["structure_tree"]), input_tokens)
     results = []
     for query in queries:
-        payload = json.dumps(structure_view, ensure_ascii=False)
-        key = cache_key(QUERY_PROMPT_VERSION, client.settings.model, query, text_hash(payload))
-        cached = cache.get(key)
-        if cached is None:
-            response = client.complete_model(_query_prompt(query, payload), QueryResponse)
-            cached = response.model_dump(mode="json")
-            cache.set(key, cached)
-        for item in cached.get("nodes") or []:
-            node_id = str(item.get("node_id") or "").strip()
-            node = _node_by_id(index, node_id)
-            if not node:
-                continue
-            results.append(
-                {
-                    "query": query,
-                    "match_type": "llm_structure",
-                    "node_id": node_id,
-                    "title": node.get("title"),
-                    "summary": node.get("summary"),
-                    "start_anchor": node.get("start_anchor"),
-                    "end_anchor": node.get("end_anchor"),
-                    "reason": str(item.get("reason") or "").strip(),
-                }
-            )
+        seen = set()
+        for part_index, structure_view in enumerate(structure_parts, 1):
+            payload = json.dumps(structure_view, ensure_ascii=False)
+            key = cache_key(QUERY_PROMPT_VERSION, client.settings.model, query, str(part_index), text_hash(payload))
+            cached = cache.get(key)
+            if cached is None:
+                response = client.complete_model(_query_prompt(query, payload), QueryResponse)
+                cached = response.model_dump(mode="json")
+                cache.set(key, cached)
+            for item in cached.get("nodes") or []:
+                node_id = str(item.get("node_id") or "").strip()
+                node = _node_by_id(index, node_id)
+                if not node or node_id in seen:
+                    continue
+                seen.add(node_id)
+                results.append(
+                    {
+                        "query": query,
+                        "match_type": "llm_structure",
+                        "node_id": node_id,
+                        "title": node.get("title"),
+                        "summary": node.get("summary"),
+                        "start_anchor": node.get("start_anchor"),
+                        "end_anchor": node.get("end_anchor"),
+                        "token_estimate": node.get("token_estimate"),
+                        "reason": str(item.get("reason") or "").strip(),
+                    }
+                )
     return results
-
-
-def _fit_structure(structure_tree: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    compact = _compact_structure(structure_tree)
-    if estimate_tokens(json.dumps(compact, ensure_ascii=False)) <= STRUCTURE_QUERY_BUDGET_TOKENS:
-        return compact
-    return _drop_deep_children(compact, max_depth=2)
 
 
 def _compact_structure(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -68,13 +71,41 @@ def _compact_structure(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return compact
 
 
-def _drop_deep_children(nodes: list[dict[str, Any]], max_depth: int, depth: int = 0) -> list[dict[str, Any]]:
+def _split_structure(structure: list[dict[str, Any]], input_tokens: int) -> list[list[dict[str, Any]]]:
+    if estimate_tokens(json.dumps(structure, ensure_ascii=False)) <= input_tokens:
+        return [structure]
+    chunks: list[list[dict[str, Any]]] = []
+    group: list[dict[str, Any]] = []
+    group_tokens = 0
+    for node in structure:
+        node_tokens = estimate_tokens(json.dumps(node, ensure_ascii=False))
+        if node_tokens > input_tokens:
+            if group:
+                chunks.append(group)
+                group = []
+                group_tokens = 0
+            chunks.extend(_split_oversized_node(node, input_tokens))
+            continue
+        if group and group_tokens + node_tokens > input_tokens:
+            chunks.append(group)
+            group = []
+            group_tokens = 0
+        group.append(node)
+        group_tokens += node_tokens
+    if group:
+        chunks.append(group)
+    return chunks or [structure]
+
+
+def _split_oversized_node(node: dict[str, Any], input_tokens: int) -> list[list[dict[str, Any]]]:
+    children = node.get("children") or []
+    if not children:
+        return [[node]]
+    shell = {key: value for key, value in node.items() if key != "children"}
+    child_budget = max(input_tokens - estimate_tokens(json.dumps(shell, ensure_ascii=False)), input_tokens // 2)
     result = []
-    for node in nodes:
-        item = {key: value for key, value in node.items() if key != "children"}
-        if depth < max_depth and node.get("children"):
-            item["children"] = _drop_deep_children(node["children"], max_depth, depth + 1)
-        result.append(item)
+    for child_chunk in _split_structure(children, child_budget):
+        result.append([{**shell, "children": child_chunk}])
     return result
 
 
@@ -99,7 +130,7 @@ def _query_prompt(query: str, structure_json: str) -> str:
 - 优先返回标题或摘要直接相关的 node。
 - 如果需要跨章节比较，可以返回多个 node。
 - 不要返回整篇正文 body，除非没有更具体的 node。
-- 最多返回 8 个 node。
+- 只返回必要 node，避免返回弱相关 node。
 
 输出规范：
 - 必须只返回一个合法 JSON object。

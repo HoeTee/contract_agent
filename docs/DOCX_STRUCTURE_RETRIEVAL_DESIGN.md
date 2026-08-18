@@ -442,26 +442,46 @@ summary_tree_inline_budget_tokens: 6000
 
 ## 11. 结构树加载方式
 
-是否一次返回完整结构树，只看 summary tree 的 token 估算。
+借鉴 PageIndex 的思想：先返回轻量结构树，再按命中的位置展开原文；结构树和原文都必须受预算控制。
+
+PageIndex 使用字符预算：
 
 ```text
-structure_tokens <= 6000
-  -> compact_structure
-
-6000 < structure_tokens <= 20000
-  -> paged_structure
-
-structure_tokens > 20000
-  -> filtered_or_paged_structure
+TOOL_RESPONSE_CHAR_LIMIT = 100000
+CHAR_BUDGET = 95000
 ```
 
-`compact_structure`：一次返回完整 summary tree。
+DOCX 检索不照搬字符数，统一使用 token 预算：
 
-`paged_structure`：按顶层区域或 Level1 section 分批返回。
+```yaml
+retrieval:
+  input_tokens: 6000
+```
 
-`filtered_or_paged_structure`：先按审查要点的标题关键词或候选区域过滤，再分页返回。
+含义：
 
-注意：这里分页的是结构树 summary，不是合同原文。
+```text
+每一次输入模型的内容最多 6000 tokens。
+结构树输入、向量候选输入、rerank 候选输入、原文上下文输入都使用该预算。
+```
+
+结构树加载：
+
+```text
+structure_tree <= input_tokens
+  -> 一次输入完整轻量结构树
+
+structure_tree > input_tokens
+  -> 按顶层区域或 Level1 section 分批输入
+
+单个结构 node > input_tokens 且存在 children
+  -> 保留父 node 外壳，递归拆 children
+
+单个结构叶子 node > input_tokens
+  -> 仍返回该 node 的轻量字段，不在结构阶段展开 text
+```
+
+注意：这里分页的是结构树轻量视图，不是合同原文。
 
 ## 12. 检索工具接口
 
@@ -650,53 +670,51 @@ structure_tokens > 20000
 
 这种方式可以算作规则审查的一部分，因为它的遍历范围是确定的；但单个 node 内部的问题判断仍然由模型完成。
 
-## 15. 普通 LLM 审查与累加加载
+## 15. 普通 LLM 审查与两阶段检索
 
-除规则审查、标题审查、全文遍历审查以外的审查要点，使用结构树检索后交给 LLM。
+除规则审查、标题审查、全文遍历审查以外的审查要点，使用两阶段检索。
 
 默认流程：
 
 ```text
-1. 输入审查要点。
-2. 读取 summary tree。
-3. 根据标题关键词、结构位置或模型选择候选 node。
-4. 展开候选 node 原文。
-5. 判断内容是否足够。
-6. 不足时继续累加相关 node。
-7. 基于展开后的原文审查。
+1. 输入审查要点 query。
+2. 将 structure_tree 的轻量视图输入 LLM，返回 structure_matches。
+3. 向量检索返回 vector_matches。
+4. 合并 structure_matches 和 vector_matches，得到 candidate_nodes。
+5. 对 candidate_nodes 做 rerank。
+6. 根据 rerank 后的 node_id 从 DocumentIndex 展开原文 content_context。
+7. 审查 LLM 只读取 query + content_context 中的原文和 anchor。
 8. 输出 issue。
 ```
 
-累加顺序：
+两次输入模型的内容不同：
 
 ```text
-第 1 层：命中的 node
-第 2 层：命中 node 的 children
-第 3 层：命中 node 的前后 sibling
-第 4 层：命中 node 的 parent
-第 5 层：被规则命中的交叉引用 node，例如“详见附件”
-第 6 层：必要时 vector_search_nodes 返回的 node
+第一次输入：
+  query + structure_view
+  目标是定位 node_id。
+
+第二次输入：
+  query + content_context.text + anchor
+  目标是完成审查判断。
 ```
 
-继续累加条件：
+`pagination`、`budget`、`score`、`reason` 是工具控制字段，只进入日志和调试输出，不进入最终审查正文 prompt。
+
+原文展开规则：
 
 ```text
-命中 node 太短：< 80 tokens
-命中 node 太长但有 children：先展开 children，不直接塞父 node
-审查要素不完整
-出现引用：详见附件、见清单、另行约定
-模型返回“信息不足”
+多个 node 合计超过 input_tokens：
+  按 node 分批返回，不切短 node。
+
+父 node 和子 node 同时命中：
+  优先展开更具体的子 node。
+
+单个叶子 node 本身超过 input_tokens：
+  按 anchor 顺序切 chunk，并显式标记 truncated=true 和 pagination.has_more=true。
 ```
 
-建议预算：
-
-```yaml
-initial_load_tokens: 3000
-max_accumulated_tokens: 12000
-min_useful_node_tokens: 80
-```
-
-## 16. 向量补召回
+## 16. 向量补召回与 rerank
 
 向量检索只用于 fallback，不用于构建结构树。
 
@@ -721,17 +739,80 @@ metadata.end_anchor = node.end_anchor
 }
 ```
 
-触发条件：
+默认配置：
 
-```text
-结构标题没有命中但审查要点明显需要相关内容；
-关键词规则命中太少；
-命中 node token < 80；
-出现“详见附件/另行约定”但无法解析具体 node；
-模型对已展开原文返回信息不足。
+```yaml
+retrieval:
+  input_tokens: 6000
+  max_depth: 6
+  vector:
+    enabled: true
+    score_threshold: 0.60
+    auto_build: true
+  rerank:
+    enabled: true
 ```
 
-向量召回结果只用于找到已有 `node_id`。召回后仍然调用 `get_node_content(node_id)` 展开原文，再进行审查。
+向量召回以 token 预算控制，不以固定 node 数作为主要控制：
+
+```text
+1. 对 query 做 embedding。
+2. 对 vector_index.json 中的 node embedding 计算相似度。
+3. 过滤 score < vector.score_threshold 的候选。
+4. 按相似度从高到低累计候选轻量字段。
+5. 累计到 retrieval.input_tokens 后停止。
+```
+
+合并不是合并原文，也不是合并索引。合并只做：
+
+```text
+structure_matches + vector_matches
+-> 按 node_id 去重
+-> 保留 sources、vector_score、structure_reason
+-> 得到 candidate_nodes
+```
+
+rerank 对合并后的 `candidate_nodes` 统一重排序，不只重排向量结果。
+
+rerank 输入：
+
+```json
+{
+  "query": "审查要点",
+  "candidates": [
+    {
+      "node_id": "body/sec_002/l2_003",
+      "sources": ["structure", "vector"],
+      "title": "三、本合同款项的分批支付方式及时限如下",
+      "summary": "约定分批付款节点、比例、发票类型和付款期限。"
+    }
+  ]
+}
+```
+
+rerank 输出：
+
+```json
+{
+  "nodes": [
+    {
+      "node_id": "body/sec_002/l2_003",
+      "score": 0.95,
+      "reason": "直接包含付款计划、付款比例和发票类型"
+    }
+  ]
+}
+```
+
+程序必须校验：
+
+```text
+node_id 必须来自 candidate_nodes；
+score 必须在 0 到 1 之间；
+不得接受候选集之外的 node_id。
+```
+
+向量召回和 rerank 都只用于找到已有 `node_id`。最终仍然回到 DocumentIndex 展开原文，再进行审查。
 
 ## 17. 批注定位链路
 

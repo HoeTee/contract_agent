@@ -5,6 +5,10 @@ from typing import Any
 
 from .client import EmbeddingClient
 from .schema import VectorIndex
+from docx_retrieval.indexing import estimate_tokens
+
+
+VECTOR_INTERNAL_CANDIDATE_LIMIT = 30
 
 
 def vector_search(
@@ -12,7 +16,9 @@ def vector_search(
     vector_index: VectorIndex,
     query: str,
     client: EmbeddingClient,
-    top_k: int = 8,
+    top_k: int | None = None,
+    score_threshold: float | None = None,
+    input_tokens: int | None = None,
 ) -> list[dict[str, Any]]:
     query_embedding = client.embed([query])[0]
     nodes = {node.get("node_id"): node for node in document_index.get("nodes") or []}
@@ -35,7 +41,25 @@ def vector_search(
             }
         )
     scored.sort(key=lambda item: item["score"], reverse=True)
-    return scored[:top_k]
+    limit = top_k or VECTOR_INTERNAL_CANDIDATE_LIMIT
+    result = []
+    used = 0
+    for item in scored[:limit]:
+        if score_threshold is not None and item["score"] < score_threshold:
+            continue
+        tokens = estimate_tokens(_candidate_text(item))
+        if input_tokens is not None and result and used + tokens > input_tokens:
+            break
+        result.append(item)
+        used += tokens
+    return result
+
+
+def _candidate_text(item: dict[str, Any]) -> str:
+    return "\n".join(
+        str(item.get(key) or "")
+        for key in ("node_id", "title", "summary", "node_type", "token_estimate")
+    )
 
 
 def cosine_similarity(left: list[float], right: list[float]) -> float:

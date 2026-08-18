@@ -34,3 +34,17 @@ class QueryResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     nodes: list[QueryMatch] = Field(default_factory=list)
+
+
+class RerankMatch(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str = Field(min_length=1)
+    score: float = Field(ge=0.0, le=1.0)
+    reason: str = ""
+
+
+class RerankResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nodes: list[RerankMatch] = Field(default_factory=list)

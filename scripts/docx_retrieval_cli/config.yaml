@@ -1,0 +1,9 @@
+retrieval:
+  input_tokens: 6000
+  max_depth: 6
+  vector:
+    enabled: true
+    score_threshold: 0.60
+    auto_build: true
+  rerank:
+    enabled: true
