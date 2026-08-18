@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from .constants import NODE_HARD_LIMIT_TOKENS, NODE_SOFT_LIMIT_TOKENS, NODE_TARGET_TOKENS
+from docx_retrieval.schema import BodyItem, DocumentNode
+
 from .node_factory import make_node
-from .schema import BodyItem, Node
-from .text import estimate_tokens
+from .token_budget import NODE_HARD_LIMIT_TOKENS, NODE_SOFT_LIMIT_TOKENS, NODE_TARGET_TOKENS, estimate_tokens
 
 
-def split_long_leaf(node: Node, items: list[BodyItem], start: int, end: int) -> None:
+def split_long_leaf(node: DocumentNode, items: list[BodyItem], start: int, end: int) -> None:
     if node.token_estimate <= NODE_SOFT_LIMIT_TOKENS or node.children:
         return
 
@@ -46,7 +46,7 @@ def split_long_leaf(node: Node, items: list[BodyItem], start: int, end: int) -> 
         chunk_index += 1
 
 
-def split_long_leaves(nodes: list[Node], items: list[BodyItem]) -> None:
+def split_long_leaves(nodes: list[DocumentNode], items: list[BodyItem]) -> None:
     for node in nodes:
         split_long_leaves(node.children, items)
         if node.children:

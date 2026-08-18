@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from .constants import SUMMARY_TRIGGER_MIN_TOKENS
-from .schema import BodyItem, Node
-from .text import estimate_tokens, make_summary
+from docx_retrieval.schema import BodyItem, DocumentNode
+
+from .summaries import make_summary
+from .token_budget import SUMMARY_TRIGGER_MIN_TOKENS, estimate_tokens
 
 
 def item_range_text(items: list[BodyItem], start: int, end: int) -> str:
@@ -28,11 +29,11 @@ def make_node(
     parent_id: str | None,
     score: int = 0,
     evidence: list[str] | None = None,
-) -> Node:
+) -> DocumentNode:
     text = item_range_text(items, start, end)
     page_start, page_end, page_source, page_score = item_page_range(items, start, end)
     token_estimate = estimate_tokens(text)
-    return Node(
+    return DocumentNode(
         node_id=node_id,
         node_type=node_type,
         level=level,

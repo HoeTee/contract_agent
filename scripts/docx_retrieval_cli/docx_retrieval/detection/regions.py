@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from .constants import ATTACHMENT_PARENT_RE, LEVEL2_RE, MAIN_SECTION_RE, TAIL_MARKER_RE
-from .schema import BodyItem
+from docx_retrieval.schema import BodyItem
+
+from .patterns import ATTACHMENT_PARENT_RE, LEVEL2_RE, MAIN_SECTION_RE, TAIL_MARKER_RE
 
 
 def find_first_body_start(items: list[BodyItem]) -> int:
     for index, item in enumerate(items):
         if item.kind == "p" and MAIN_SECTION_RE.match(item.text):
             return index
-    # Some legacy contracts use 一、二、三、 as the highest level.
     cn_headings = [index for index, item in enumerate(items) if item.kind == "p" and LEVEL2_RE.match(item.text)]
     return cn_headings[0] if len(cn_headings) >= 2 else 0
 

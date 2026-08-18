@@ -1,11 +1,5 @@
 import re
 
-NS = {
-    "w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
-    "w14": "http://schemas.microsoft.com/office/word/2010/wordml",
-}
-W = f"{{{NS['w']}}}"
-
 CN_NUM = "一二三四五六七八九十百零〇两"
 MAIN_SECTION_RE = re.compile(rf"^第[{CN_NUM}0-9]+[条章]")
 ATTACHMENT_PARENT_RE = re.compile(rf"^第[{CN_NUM}0-9]+[条章]\s*附件\s*$")
@@ -19,11 +13,3 @@ LABEL_KEYWORD_RE = re.compile(
 )
 PLAIN_LABEL_RE = re.compile(r"^[\u4e00-\u9fa5A-Za-z0-9（）()]{2,24}[。；;：:]$")
 TAIL_MARKER_RE = re.compile(r"(以下无正文|以下为合同签署栏|签署|签字|盖章|法定代表人|授权代表)")
-
-NODE_TARGET_TOKENS = 700
-NODE_SOFT_LIMIT_TOKENS = 1000
-NODE_HARD_LIMIT_TOKENS = 1800
-SUMMARY_TRIGGER_MIN_TOKENS = 300
-SUMMARY_MAX_CHARS = 180
-STRUCTURE_INLINE_BUDGET_TOKENS = 6000
-STRUCTURE_PAGED_BUDGET_TOKENS = 20000

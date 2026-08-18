@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from .heading_detector import heading_level, heading_score
+from docx_retrieval.detection import heading_level, heading_score
+from docx_retrieval.schema import BodyItem, DocumentNode
+
 from .node_factory import make_node
-from .schema import BodyItem, Node
 from .splitter import split_long_leaves
 
 
@@ -13,9 +14,9 @@ def build_hierarchy_for_range(
     parent_id: str,
     node_prefix: str,
     use_cn_comma_as_level1: bool = False,
-) -> list[Node]:
-    root_nodes: list[Node] = []
-    stack: list[tuple[int, Node, int]] = []
+) -> list[DocumentNode]:
+    root_nodes: list[DocumentNode] = []
+    stack: list[tuple[int, DocumentNode, int]] = []
     heading_positions: list[tuple[int, int]] = []
     sibling_counts: dict[tuple[str, int], int] = {}
     for index in range(start, end):
@@ -49,7 +50,7 @@ def build_hierarchy_for_range(
     return root_nodes
 
 
-def flatten_nodes(nodes: list[Node]) -> list[Node]:
+def flatten_nodes(nodes: list[DocumentNode]) -> list[DocumentNode]:
     result = []
     for node in nodes:
         result.append(node)

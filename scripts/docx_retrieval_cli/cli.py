@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import re
 import sys
 from pathlib import Path
 from typing import Any
 
-from docx_retrieval import build_document_index, estimate_tokens, get_node, write_json
-from docx_retrieval.retriever import keyword_search
+from docx_retrieval import build_document_index
+from docx_retrieval.evaluation import iter_docx_inputs
+from docx_retrieval.indexing import document_mode
+from docx_retrieval.output import attachment_tree, structure_tokens, title_rows, token_rows, write_csv, write_json, write_report
+from docx_retrieval.retrieval import content_view, keyword_search
 
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -24,131 +26,12 @@ def safe_name(path: Path) -> str:
     return name[:120] or "document"
 
 
-def iter_docx_inputs(path: Path, batch: bool) -> list[Path]:
-    if path.is_file():
-        if path.suffix.lower() != ".docx":
-            raise ValueError(f"input file must be .docx: {path}")
-        return [path]
-    if path.is_dir():
-        if not batch:
-            raise ValueError("directory input requires --batch")
-        return [p for p in sorted(path.rglob("*.docx")) if not p.name.startswith("~$")]
-    raise FileNotFoundError(path)
-
-
-def structure_tokens(index: dict[str, Any]) -> int:
-    return estimate_tokens(json.dumps(index["structure_tree"], ensure_ascii=False))
-
-
-def document_mode(tokens: int) -> str:
-    if tokens <= 6000:
-        return "compact_structure"
-    if tokens <= 20000:
-        return "paged_structure"
-    return "filtered_or_paged_structure"
-
-
-def title_rows(index: dict[str, Any]) -> list[dict[str, Any]]:
-    title_types = {
-        "section",
-        "attachment_parent",
-        "attachment_section",
-        "visual_title",
-        "heading",
-        "plain_label",
-    }
-    return [
-        {
-            "node_id": node["node_id"],
-            "level": node.get("level"),
-            "node_type": node.get("node_type"),
-            "title": node.get("title"),
-            "token_estimate": node.get("token_estimate"),
-            "start_anchor": node.get("start_anchor"),
-            "end_anchor": node.get("end_anchor"),
-        }
-        for node in index["nodes"]
-        if node.get("node_type") in title_types
-    ]
-
-
-def token_rows(index: dict[str, Any]) -> list[dict[str, Any]]:
-    return [
-        {
-            "node_id": node["node_id"],
-            "node_type": node.get("node_type"),
-            "level": node.get("level"),
-            "token_estimate": node.get("token_estimate") or 0,
-            "title": node.get("title") or "",
-            "start_anchor": node.get("start_anchor") or "",
-            "end_anchor": node.get("end_anchor") or "",
-        }
-        for node in sorted(index["nodes"], key=lambda item: item.get("token_estimate") or 0, reverse=True)
-    ]
-
-
-def attachment_tree(index: dict[str, Any]) -> list[dict[str, Any]]:
-    nodes = {node["node_id"]: node for node in index["nodes"]}
-
-    def build(node_id: str) -> dict[str, Any]:
-        node = nodes[node_id]
-        return {
-            "node_id": node["node_id"],
-            "node_type": node.get("node_type"),
-            "title": node.get("title"),
-            "token_estimate": node.get("token_estimate"),
-            "children": [build(child_id) for child_id in node.get("children") or []],
-        }
-
-    attachments = nodes.get("attachments")
-    if not attachments:
-        return []
-    return [build(child_id) for child_id in attachments.get("children") or []]
-
-
 def search_index(index: dict[str, Any], keywords: list[str]) -> list[dict[str, Any]]:
-    return keyword_search(index, keywords)
-
-
-def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fieldnames = list(rows[0].keys()) if rows else ["node_id"]
-    with path.open("w", newline="", encoding="utf-8-sig") as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
-
-
-def write_report(path: Path, docx: Path, index: dict[str, Any], out_dir: Path) -> None:
-    tokens = structure_tokens(index)
-    top_types: dict[str, int] = {}
-    for node in index["nodes"]:
-        node_type = node.get("node_type") or "unknown"
-        top_types[node_type] = top_types.get(node_type, 0) + 1
-
-    largest = token_rows(index)[:10]
-    lines = [
-        f"source_file: {docx}",
-        f"output_dir: {out_dir}",
-        f"schema_version: {index.get('schema_version')}",
-        f"nodes: {len(index['nodes'])}",
-        f"anchors: {len(index['anchor_map'])}",
-        f"structure_tokens: {tokens}",
-        f"document_structure_mode: {document_mode(tokens)}",
-        "",
-        "node_type_counts:",
-    ]
-    lines.extend(f"  {key}: {value}" for key, value in sorted(top_types.items()))
-    lines.extend(["", "largest_nodes:"])
-    lines.extend(
-        f"  {row['token_estimate']:>5}  {row['node_id']}  {row['title'][:80]}"
-        for row in largest
-    )
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return [match.model_dump(mode="json") for match in keyword_search(index, keywords).matches]
 
 
 def write_document_outputs(docx: Path, root_out: Path, query: list[str], node_id: str | None) -> dict[str, Any]:
-    index = build_document_index(docx)
+    index = build_document_index(docx).to_json_dict()
     doc_out = root_out / safe_name(docx)
     doc_out.mkdir(parents=True, exist_ok=True)
 
@@ -166,11 +49,7 @@ def write_document_outputs(docx: Path, root_out: Path, query: list[str], node_id
 
     node_content = None
     if node_id:
-        node = get_node(index, node_id)
-        node_content = {
-            key: node.get(key)
-            for key in ("node_id", "title", "node_type", "text", "start_anchor", "end_anchor", "token_estimate")
-        }
+        node_content = content_view(index, node_id)
         write_json(doc_out / "node_content.json", node_content)
 
     return {

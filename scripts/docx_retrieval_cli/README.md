@@ -13,24 +13,60 @@
 python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\docx_index
 ```
 
+## 安装依赖
+
+这个试验工具有独立依赖文件：
+
+```powershell
+pip install -r scripts\docx_retrieval_cli\requirements.txt
+```
+
+当前真实使用的依赖：
+
+- `lxml`：解析 `document.xml`、`styles.xml`，并保留 XML path；
+- `pydantic`：定义 `BodyItem`、`DocumentNode`、`DocumentIndex`、检索结果等 schema；
+- `tiktoken`：计算 node、结构树和切分阈值的 token 数。
+
 ## 目录结构
 
 ```text
 scripts/docx_retrieval_cli/
   cli.py                         # 单命令试验入口，默认使用这个
   docx_index_cli.py              # 兼容旧版的调试入口，保留 build/structure/content/search/titles
+  requirements.txt               # 当前试验工具的最小依赖
   docx_retrieval/
-    schema.py                    # BodyItem 和 Node 数据结构
-    constants.py                 # 正则、XML namespace、token 阈值
-    docx_package.py              # DOCX zip 包读取，解析 document.xml/styles.xml
-    heading_detector.py          # 正文标题、视觉标题识别
-    attachment_detector.py       # 附件 section 和附件内部 node 识别
-    regions.py                   # 合同首部、正文、合同末尾、附件区域边界判断
-    hierarchy.py                 # 正文章节树构建
-    node_factory.py              # node 文本、页码、summary、anchor 组装
-    splitter.py                  # 超长叶子 node 切分
-    retriever.py                 # 基于 DocumentIndex 的关键词检索
-    io.py                        # JSON 读写和 node 查询
+    schema/                      # pydantic 数据模型
+      items.py                   # BodyItem，表示 w:body 下的 p/tbl 单元
+      nodes.py                   # DocumentNode，表示结构树 node
+      index.py                   # DocumentIndex 和 AnchorRecord
+      retrieval.py               # RetrievalMatch 和 RetrievalResult
+    parser/                      # lxml DOCX XML 解析层
+      package.py                 # DOCX zip 包读取
+      document_xml.py            # document.xml -> BodyItem
+      styles_xml.py              # styles.xml -> style outline 信息
+      xml_utils.py               # namespace、XPath、文本抽取、XML path
+    detection/                   # 结构识别规则
+      headings.py                # 正文标题层级识别
+      attachments.py             # 附件标题和附件内部标题识别
+      regions.py                 # 合同首部、正文、合同末尾、附件边界
+      scoring.py                 # 标题置信度证据
+    indexing/                    # DocumentIndex 构建
+      builder.py                 # 总装入口
+      hierarchy.py               # 正文章节树
+      anchors.py                 # anchor_map
+      attachments.py             # 附件树
+      splitter.py                # 超长叶子 node 切分
+      summaries.py               # 当前截断式摘要
+      token_budget.py            # tiktoken token 预算
+    retrieval/                   # 检索视图
+      keyword.py                 # 关键词检索
+      structure.py               # 结构树视图
+      content.py                 # node 原文展开
+    output/                      # 输出文件
+      writers.py                 # JSON/CSV 写入
+      reports.py                 # titles/tokens/attachments/report
+    evaluation/                  # 样例输入遍历
+      samples.py
 ```
 
 ## 单文件构建
@@ -118,4 +154,5 @@ python scripts\docx_retrieval_cli\docx_index_cli.py titles --index outputs\index
 - 当前 summary 仍是截断式摘要，不是 LLM 生成摘要；
 - 当前关键词检索只是确定性字符串检索，不是向量检索；
 - 页码依赖 `w:lastRenderedPageBreak`，如果 DOCX 没有该标记，页码字段会为空；
-- 这个目录仍是试验脚本，后续稳定后再考虑迁移到 `tools/retrieval/`。
+- 当前目录已经按独立试验包组织，但还没有接入主审查 workflow；
+- 后续稳定后再考虑迁移到 `tools/retrieval/`。
