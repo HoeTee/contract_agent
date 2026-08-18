@@ -204,7 +204,6 @@ summary.json         批量任务汇总，位于 --out 目录下
 
 ## 当前边界
 
-- `docx_index_cli.py` 仍保留为 legacy/debug 入口，但 README 不再推荐使用；
 - `ask` 只准备检索上下文，不执行最终合同审查，也不写批注；
 - 未开启 `--llm-summary` 时，summary 仍是截断式摘要；
 - 未开启 `--llm-expand` 时，大 node 仍只做 token chunk 兜底切分；
