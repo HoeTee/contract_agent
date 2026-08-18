@@ -1,0 +1,82 @@
+﻿# Local secrets and deployment overrides
+.env
+.env.local
+.env.*.local
+config.yaml
+docker-compose.yaml
+.gitignore
+
+# Runtime data, tenant profiles, and generated logs
+data/*
+!data/.gitkeep
+!data/api/.gitkeep
+!data/web/.gitkeep
+logs/
+uploads/
+profiles/*
+!profiles/.gitkeep
+
+# Office documents, user uploads, and temporary lock files
+*.doc
+*.docx
+*.docm
+*.dot
+*.dotx
+*.dotm
+*.pdf
+~$*
+~$*.doc*
+.~lock.*#
+*.tmp
+*.bak
+
+# Keep the committed fallback review criteria
+resources/criteria/*
+!resources/criteria/.gitkeep
+!resources/criteria/criteria.docx
+
+# Python caches, virtual environments, and build output
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# Local tool and editor state
+.claude/
+.codex/
+.vscode/
+.idea/
+.cache/
+
+# Runtime indexes and generated results
+RAG_persist/
+results/
+outputs/
+scripts/docx_retrieval_cli/outputs/
+
+# Local dependency cache and large archives
+/packages/
+*.tar
+*.tar.gz
+*.zip
+*.rar
+image.tar
+/pageindex/
+
+# Local notes and development-only files
+/AGENTS.md
+/DEPLOYMENT.md
+/PLAN.md
+/tests/scripts
+/deploy
+/docs/.$BUSINESS_USER_JOURNEY.drawio.bkp
+/docs/portal
+/docs/superpowers
+检索算法设计文档.txt
