@@ -126,11 +126,11 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("input", type=Path, help="DOCX file, or a directory when --batch is set.")
     build.add_argument("--out", type=Path, default=Path("outputs/docx_index"), help="Output directory.")
     build.add_argument("--batch", action="store_true", help="Process all DOCX files under an input directory.")
-    build.add_argument("--vector", action="store_true", help="Also build vector_index.json.")
+    build.add_argument("--no-vector", action="store_true", help="Do not build vector_index.json.")
     _add_llm_args(build)
     _add_embedding_args(build)
-    build.add_argument("--llm-expand", action="store_true", help="Use LLM to discover subsection headings in oversized leaf nodes.")
-    build.add_argument("--llm-summary", action="store_true", help="Use LLM to generate final node summaries.")
+    build.add_argument("--no-llm-expand", action="store_true", help="Disable LLM subsection discovery for oversized leaf nodes.")
+    build.add_argument("--no-llm-summary", action="store_true", help="Disable LLM final node summaries.")
     build.add_argument("--no-cache", action="store_true", help="Disable LLM response cache for expand/summary/query stages.")
     build.add_argument("--quiet", action="store_true", help="Do not print stage timings to stderr.")
     _add_log_args(build)
@@ -199,13 +199,16 @@ def command_build(args: argparse.Namespace) -> int:
     start_time = time.perf_counter()
     logger = _logger(args)
     timer = TimingCollector(enabled=not args.quiet, log_stream=logger.stream if logger else None)
+    use_llm_expand = not args.no_llm_expand
+    use_llm_summary = not args.no_llm_summary
+    use_vector = not args.no_vector
     with timer.stage("build.discover_inputs"):
         files = iter_docx_inputs(args.input, args.batch)
     if not files:
         raise ValueError(f"no docx files found: {args.input}")
     llm_settings = None
     embedding_settings = None
-    if args.llm_expand or args.llm_summary:
+    if use_llm_expand or use_llm_summary:
         with timer.stage("build.load_llm_settings"):
             llm_settings = LLMSettings.from_sources(
                 model=args.model,
@@ -213,7 +216,7 @@ def command_build(args: argparse.Namespace) -> int:
                 api_key=args.api_key,
                 config_path=args.config,
             )
-    if args.vector:
+    if use_vector:
         with timer.stage("build.load_embedding_settings"):
             embedding_settings = EmbeddingSettings.from_sources(
                 model=args.embedding_model,
@@ -228,10 +231,10 @@ def command_build(args: argparse.Namespace) -> int:
             [],
             "llm",
             None,
-            args.llm_expand,
-            args.llm_summary,
+            use_llm_expand,
+            use_llm_summary,
             llm_settings,
-            args.vector,
+            use_vector,
             embedding_settings,
             timer,
             use_cache=not args.no_cache,

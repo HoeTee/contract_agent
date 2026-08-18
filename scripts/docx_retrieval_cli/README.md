@@ -1,6 +1,6 @@
 # DOCX 检索索引 CLI
 
-这是用于试验合同 DOCX 结构树索引、向量补召回和原文上下文展开的命令行工具。统一入口：
+这是用于试验合同 DOCX 结构树索引、LLM 语义拆分、LLM 摘要、向量补召回和原文上下文展开的命令行工具。统一入口：
 
 ```powershell
 python scripts\docx_retrieval_cli\cli.py <command>
@@ -72,34 +72,42 @@ EMBED_API_KEY
 
 ## 建立索引
 
+默认 build 执行完整流程：
+
+```text
+确定性 DOCX XML 解析
+-> LLM expand
+-> LLM summary
+-> vector index
+```
+
 单文件：
 
 ```powershell
 python scripts\docx_retrieval_cli\cli.py build "C:\path\contract.docx" --out outputs\docx_index
 ```
 
-同时构建向量索引：
-
-```powershell
-python scripts\docx_retrieval_cli\cli.py build "C:\path\contract.docx" --out outputs\docx_index --vector
-```
-
-开启 LLM 语义拆分和 LLM 摘要：
-
-```powershell
-python scripts\docx_retrieval_cli\cli.py build "C:\path\contract.docx" `
-  --out outputs\docx_index `
-  --vector `
-  --llm-expand `
-  --llm-summary
-```
-
-`--llm-summary` 生成的 node summary 默认控制在 200 tokens 内。summary 用于 LLM 读取结构树并选择 node，不用于替代原文审查。
-
 目录批量：
 
 ```powershell
-python scripts\docx_retrieval_cli\cli.py build "C:\Users\lenovo\Downloads\合同样例" --out outputs\docx_index --batch --vector
+python scripts\docx_retrieval_cli\cli.py build "C:\Users\lenovo\Downloads\合同样例" --out outputs\docx_index --batch
+```
+
+关闭某个阶段：
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py build "C:\path\contract.docx" --out outputs\docx_index --no-vector
+python scripts\docx_retrieval_cli\cli.py build "C:\path\contract.docx" --out outputs\docx_index --no-llm-expand
+python scripts\docx_retrieval_cli\cli.py build "C:\path\contract.docx" --out outputs\docx_index --no-llm-summary
+python scripts\docx_retrieval_cli\cli.py build "C:\path\contract.docx" --out outputs\docx_index --no-cache
+```
+
+`--llm-summary` 不再需要显式传入。默认生成的 node summary 控制在 200 tokens 内。summary 用于 LLM 读取结构树并选择 node，不用于替代原文审查。
+
+如果只想快速验证确定性 DOCX XML 解析，不调用模型、不构建向量：
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py build "C:\path\contract.docx" --out outputs\docx_index --no-llm-expand --no-llm-summary --no-vector
 ```
 
 ## 检索
@@ -237,7 +245,7 @@ python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目
 
 ```text
 document_index.json  主索引，包含完整 node、anchor_map、structure_tree
-vector_index.json    可选向量补召回索引，保存 embedding 与 node_id
+vector_index.json    默认生成的向量补召回索引，保存 embedding 与 node_id
 structure_tree.json  轻量结构树
 titles.json          标题类 node 列表
 node_tokens.csv      node token 分布
@@ -249,7 +257,7 @@ summary.json         批量任务汇总，位于 --out 目录
 ## 当前边界
 
 - `ask` 只准备检索上下文，不执行最终合同审查，也不写批注。
-- 未开启 `--llm-summary` 时，summary 仍是截断式摘要。
-- 未开启 `--llm-expand` 时，大 node 只做 token chunk 兜底切分。
+- 使用 `--no-llm-summary` 后，summary 会退回截断式摘要。
+- 使用 `--no-llm-expand` 后，大 node 只做 token chunk 兜底切分。
 - 页码依赖 `w:lastRenderedPageBreak`，DOCX 没有该标记时页码为空。
 - 当前工具尚未接入 `/api/review/jobs` workflow。
