@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from .config import env_api_key, find_project_config, load_yaml
+from .config import env_api_key, find_local_env, find_project_config, load_env_file, load_yaml
 
 
 class LLMSettings(BaseModel):
@@ -28,12 +28,13 @@ class LLMSettings(BaseModel):
         api_key: str | None = None,
         config_path: Path | None = None,
     ) -> "LLMSettings":
+        local_env = load_env_file(find_local_env())
         config = load_yaml(config_path or find_project_config())
         llm = config.get("llm") or {}
         return cls(
-            model=model or llm.get("name") or "qwen3.6-35b-a3b",
-            base_url=base_url or llm.get("base_url"),
-            api_key=api_key or env_api_key(),
+            model=model or local_env.get("LLM_MODEL_NAME") or os_env("LLM_MODEL_NAME") or llm.get("name") or "qwen3.6-35b-a3b",
+            base_url=base_url or local_env.get("LLM_BASE") or os_env("LLM_BASE") or llm.get("base_url"),
+            api_key=api_key or local_env.get("LLM_API_KEY") or env_api_key(),
             temperature=float(llm.get("temperature", 0.0)),
             enable_thinking=llm.get("enable_thinking"),
         )
@@ -77,3 +78,9 @@ def extract_json_object(content: str) -> dict[str, Any]:
     if start == -1 or end == -1 or end < start:
         raise ValueError(f"LLM response does not contain a JSON object: {content[:200]!r}")
     return json.loads(text[start : end + 1])
+
+
+def os_env(name: str) -> str | None:
+    import os
+
+    return os.getenv(name)

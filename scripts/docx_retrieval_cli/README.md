@@ -92,16 +92,24 @@ python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\d
 python scripts\docx_retrieval_cli\cli.py "C:\Users\lenovo\Downloads\合同样例" --out outputs\docx_index --batch
 ```
 
-## 构建后顺手检索关键词
+## 构建后查询结构树
 
 ```powershell
 python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\docx_index --query 支付方式
 ```
 
-可以重复传多个关键词：
+`--query` 默认使用 `--query-mode llm`，会读取 `.env` 中的模型配置，让模型根据 `structure_tree` 选择相关 node。
+
+可以重复传多个 query：
 
 ```powershell
 python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\docx_index --query 支付方式 --query 发票
+```
+
+如果只想做确定性关键词检索，不连接模型：
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\docx_index --query 支付方式 --query-mode keyword
 ```
 
 ## 开启 LLM 语义拆分和摘要
@@ -115,7 +123,15 @@ python scripts\docx_retrieval_cli\cli.py "C:\path\contract.docx" --out outputs\d
 参数来源优先级：
 
 ```text
-CLI 参数 > 指定 --config > 项目 config.yaml > 环境变量默认值
+CLI 参数 > scripts/docx_retrieval_cli/.env > 系统环境变量 > 指定 --config > 项目 config.yaml > 内置默认值
+```
+
+`.env` 支持的 LLM 变量名：
+
+```text
+LLM_MODEL_NAME
+LLM_BASE
+LLM_API_KEY
 ```
 
 可以显式指定模型地址：
@@ -156,6 +172,7 @@ LLM 结果会缓存到：
 ```text
 <--out>/.cache/llm_expand.jsonl
 <--out>/.cache/llm_summary.jsonl
+<--out>/.cache/llm_query.jsonl
 ```
 
 ## 构建后展开指定 node
@@ -216,7 +233,8 @@ python scripts\docx_retrieval_cli\docx_index_cli.py titles --index outputs\index
 
 - 未开启 `--llm-summary` 时，summary 仍是截断式摘要；
 - 未开启 `--llm-expand` 时，大 node 仍只做 token chunk 兜底切分；
-- 当前关键词检索只是确定性字符串检索，不是向量检索；
+- `--query` 默认会调用 LLM；如需避免模型调用，使用 `--query-mode keyword`；
+- 当前没有向量检索；
 - 页码依赖 `w:lastRenderedPageBreak`，如果 DOCX 没有该标记，页码字段会为空；
 - 当前目录已经按独立试验包组织，但还没有接入主审查 workflow；
 - 后续稳定后再考虑迁移到 `tools/retrieval/`。
