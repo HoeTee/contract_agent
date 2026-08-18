@@ -172,6 +172,14 @@ python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目
 python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --quiet
 ```
 
+关闭 LLM 结果缓存：
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --no-cache
+```
+
+`--no-cache` 只影响 LLM 响应缓存，不会删除或重建 `vector_index.json`。
+
 ## ask 返回
 
 `ask` 默认只返回最终检索结果：

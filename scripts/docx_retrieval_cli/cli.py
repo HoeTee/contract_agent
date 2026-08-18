@@ -54,15 +54,17 @@ def write_document_outputs(
     build_vector: bool,
     embedding_settings: EmbeddingSettings | None,
     timer: TimingCollector | None = None,
+    use_cache: bool = True,
 ) -> dict[str, Any]:
     start_time = time.perf_counter()
+    cache_dir = root_out / ".cache" if use_cache else None
     with _stage(timer, "build.document_index_total"):
         index = build_document_index(
             docx,
             llm_expand=llm_expand,
             llm_summary=llm_summary,
             llm_settings=llm_settings,
-            cache_dir=root_out / ".cache",
+            cache_dir=cache_dir,
             timer=timer,
         ).to_json_dict()
     doc_out = root_out / safe_name(docx)
@@ -91,7 +93,7 @@ def write_document_outputs(
             if query_mode == "llm":
                 if llm_settings is None:
                     llm_settings = LLMSettings.from_sources()
-                query_matches = llm_query(index, query, LLMClient(llm_settings), root_out / ".cache")
+                query_matches = llm_query(index, query, LLMClient(llm_settings), cache_dir)
             else:
                 query_matches = search_index(index, query)
             write_json(doc_out / "query_results.json", {"matches": query_matches})
@@ -129,6 +131,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_embedding_args(build)
     build.add_argument("--llm-expand", action="store_true", help="Use LLM to discover subsection headings in oversized leaf nodes.")
     build.add_argument("--llm-summary", action="store_true", help="Use LLM to generate final node summaries.")
+    build.add_argument("--no-cache", action="store_true", help="Disable LLM response cache for expand/summary/query stages.")
     build.add_argument("--quiet", action="store_true", help="Do not print stage timings to stderr.")
     build.set_defaults(func=command_build)
 
@@ -140,6 +143,7 @@ def build_parser() -> argparse.ArgumentParser:
     ask.add_argument("--no-vector", action="store_true", help="Disable vector fallback for this request.")
     ask.add_argument("--no-rerank", action="store_true", help="Disable rerank for this request.")
     ask.add_argument("--debug", action="store_true", help="Include internal structure/vector/rerank retrieval details.")
+    ask.add_argument("--no-cache", action="store_true", help="Disable LLM response cache for structure query and rerank.")
     ask.add_argument("--quiet", action="store_true", help="Do not print stage timings to stderr.")
     ask.add_argument("--retrieval-config", type=Path, help="Optional docx_retrieval_cli config.yaml path.")
     _add_llm_args(ask)
@@ -219,6 +223,7 @@ def command_build(args: argparse.Namespace) -> int:
             args.vector,
             embedding_settings,
             timer,
+            use_cache=not args.no_cache,
         )
         for path in files
     ]
@@ -254,7 +259,8 @@ def command_ask(args: argparse.Namespace) -> int:
     with timer.stage("ask.init_llm_client"):
         llm_client = LLMClient(llm_settings)
     with timer.stage("ask.llm_structure_query"):
-        structure_matches = llm_query(data, args.query, llm_client, args.doc / ".cache", input_tokens=config.input_tokens)
+        structure_cache_dir = args.doc / ".cache" if not args.no_cache else None
+        structure_matches = llm_query(data, args.query, llm_client, structure_cache_dir, input_tokens=config.input_tokens)
     vector_matches = []
     if config.vector.enabled:
         vector_path = args.doc / "vector_index.json"
@@ -297,7 +303,8 @@ def command_ask(args: argparse.Namespace) -> int:
     query_text = "\n".join(args.query)
     if config.rerank.enabled:
         with timer.stage("ask.rerank"):
-            ranked_matches = rerank_matches(data, query_text, candidates, llm_client, config.input_tokens, args.doc / ".cache")
+            rerank_cache_dir = args.doc / ".cache" if not args.no_cache else None
+            ranked_matches = rerank_matches(data, query_text, candidates, llm_client, config.input_tokens, rerank_cache_dir)
     else:
         ranked_matches = candidates
     with timer.stage("ask.build_content_context"):
