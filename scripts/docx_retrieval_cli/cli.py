@@ -130,6 +130,7 @@ def build_parser() -> argparse.ArgumentParser:
     ask.add_argument("--input-tokens", type=int, help="Override retrieval.input_tokens.")
     ask.add_argument("--no-vector", action="store_true", help="Disable vector fallback for this request.")
     ask.add_argument("--no-rerank", action="store_true", help="Disable rerank for this request.")
+    ask.add_argument("--debug", action="store_true", help="Include internal structure/vector/rerank retrieval details.")
     ask.add_argument("--retrieval-config", type=Path, help="Optional docx_retrieval_cli config.yaml path.")
     _add_llm_args(ask)
     _add_embedding_args(ask)
@@ -268,17 +269,22 @@ def command_ask(args: argparse.Namespace) -> int:
     else:
         ranked_matches = candidates
     context = build_content_context(data, ranked_matches, config.input_tokens, part=args.part)
+    payload = {
+        "query": args.query if len(args.query) > 1 else args.query[0],
+        "nodes": context["content_context"],
+        "elapsed_seconds": round(time.perf_counter() - start_time, 3),
+    }
+    if args.debug:
+        payload["debug"] = {
+            "ranked_matches": ranked_matches,
+            "structure_matches": structure_matches,
+            "vector_matches": vector_matches,
+            "pagination": context["pagination"],
+            "budget": context["budget"],
+        }
     print(
         json.dumps(
-            {
-                "content_context": context["content_context"],
-                "ranked_matches": ranked_matches,
-                "structure_matches": structure_matches,
-                "vector_matches": vector_matches,
-                "pagination": context["pagination"],
-                "budget": context["budget"],
-                "elapsed_seconds": round(time.perf_counter() - start_time, 3),
-            },
+            payload,
             ensure_ascii=False,
             indent=2,
         )

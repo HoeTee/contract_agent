@@ -160,18 +160,20 @@ python scripts\docx_retrieval_cli\cli.py vector-search --doc "outputs\docx_index
 python scripts\docx_retrieval_cli\cli.py content --doc "outputs\docx_index\合同目录名" --node body/sec_002/l2_003
 ```
 
+开启调试输出：
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --debug
+```
+
 ## ask 返回
 
-`ask` 返回的是调试用完整结果：
+`ask` 默认只返回最终检索结果：
 
 ```json
 {
-  "content_context": [],
-  "ranked_matches": [],
-  "structure_matches": [],
-  "vector_matches": [],
-  "pagination": {},
-  "budget": {},
+  "query": "支付方式",
+  "nodes": [],
   "elapsed_seconds": 1.234
 }
 ```
@@ -179,14 +181,31 @@ python scripts\docx_retrieval_cli\cli.py content --doc "outputs\docx_index\合�
 真正给审查 LLM 的内容只应使用：
 
 ```text
-content_context[].node_id
-content_context[].title
-content_context[].text
-content_context[].start_anchor
-content_context[].end_anchor
+nodes[].node_id
+nodes[].title
+nodes[].text
+nodes[].start_anchor
+nodes[].end_anchor
 ```
 
-`pagination`、`budget`、`score`、`reason` 只用于程序控制、日志和调试，不进入审查正文 prompt。
+开启 `--debug` 后才会额外返回内部检索过程：
+
+```json
+{
+  "query": "支付方式",
+  "nodes": [],
+  "elapsed_seconds": 1.234,
+  "debug": {
+    "ranked_matches": [],
+    "structure_matches": [],
+    "vector_matches": [],
+    "pagination": {},
+    "budget": {}
+  }
+}
+```
+
+`debug.pagination`、`debug.budget`、`score`、`reason` 只用于程序控制、日志和调试，不进入审查正文 prompt。
 
 所有 CLI 命令都会输出耗时字段：
 
