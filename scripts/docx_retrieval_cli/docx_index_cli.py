@@ -6,9 +6,9 @@ import sys
 from pathlib import Path
 
 from docx_retrieval import build_document_index, load_index, write_json
-from docx_retrieval.llm import LLMSettings
+from docx_retrieval.llm import LLMClient, LLMSettings
 from docx_retrieval.output import title_rows
-from docx_retrieval.retrieval import content_view, keyword_search, structure_summary
+from docx_retrieval.retrieval import content_view, keyword_search, llm_query, structure_summary
 
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -57,6 +57,26 @@ def command_search(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_query(args: argparse.Namespace) -> int:
+    data = load_index(args.index)
+    settings = LLMSettings.from_sources(
+        model=args.model,
+        base_url=args.base_url,
+        api_key=args.api_key,
+        config_path=args.config,
+    )
+    result = {
+        "matches": llm_query(
+            data,
+            args.query,
+            LLMClient(settings),
+            args.cache_dir,
+        )
+    }
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
 def command_titles(args: argparse.Namespace) -> int:
     data = load_index(args.index)
     print(json.dumps({"titles": title_rows(data)}, ensure_ascii=False, indent=2))
@@ -92,6 +112,16 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--index", type=Path, required=True)
     search.add_argument("--keyword", action="append", required=True)
     search.set_defaults(func=command_search)
+
+    query = sub.add_parser("query", help="Use LLM to select relevant nodes from a persisted index structure tree.")
+    query.add_argument("--index", type=Path, required=True)
+    query.add_argument("--query", action="append", required=True)
+    query.add_argument("--model")
+    query.add_argument("--base-url")
+    query.add_argument("--api-key")
+    query.add_argument("--config", type=Path)
+    query.add_argument("--cache-dir", type=Path, default=Path("outputs/docx_index_cache"))
+    query.set_defaults(func=command_query)
 
     titles = sub.add_parser("titles", help="Print title-like nodes.")
     titles.add_argument("--index", type=Path, required=True)

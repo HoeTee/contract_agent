@@ -223,6 +223,18 @@ python scripts\docx_retrieval_cli\docx_index_cli.py content --index outputs\inde
 python scripts\docx_retrieval_cli\docx_index_cli.py search --index outputs\index.json --keyword 支付方式
 ```
 
+已构建索引后的 LLM 结构树查询：
+
+```powershell
+python scripts\docx_retrieval_cli\docx_index_cli.py query --index outputs\index.json --query 支付方式
+```
+
+`query` 会读取 `.env` / 环境变量 / `config.yaml` 中的模型配置，让模型根据 `structure_tree` 选择相关 node；它不会重新构建索引，也不会自动展开原文。需要原文时继续使用 `content`：
+
+```powershell
+python scripts\docx_retrieval_cli\docx_index_cli.py content --index outputs\index.json --node-id body/sec_002
+```
+
 查看标题类 node：
 
 ```powershell
