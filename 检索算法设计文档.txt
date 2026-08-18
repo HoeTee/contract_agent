@@ -1,0 +1,190 @@
+1. 段落顺序这里的 word/document.xml w:body 直接子节点 是什么意思？你是要重新建立一个索引吗 还是 建立一个标号系统 我想知道这个新的索引或标号是怎么实现的
+2. 附件内布视觉标题判断 是怎么实施的
+3. lastRenderedPageBreak 是在哪个 xml 文件里？document.xml 里不存在
+4. node confidence level 改为计数吧 目前的 high medium 不具备量化意义
+5. “表格单元格内的标题文本” 不属于bodynode吗 表格内容当然属于正文的一部分 只不过不是章节标题罢了
+6. tailnode 的辨识逻辑能够优化吗 比如通过 附件子标题来辨识？有些合同文本正文不存在“以下无正文”“以下为合同签署栏”，而且bodynode 怎么与 tailnode 进行区分的？这一块区分的逻辑不清晰
+7. 一切等级的参数最好都设置成数字变量
+8. {
+  "main_level_1_patterns": ["^第.+条", "^第.+章", "^[一二三四五六七八九十]+、"],
+  "main_level_2_patterns": ["^[一二三四五六七八九十]+、"],
+  "main_level_3_patterns": ["^（[一二三四五六七八九十]+）"],
+  "require_sequence_for_no_outline": true,
+  "min_sequence_siblings": 2
+}
+这一块标题的辅助识别规则有遍历过所有样例形成的吗
+9. chunknode 生成的逻辑没有介绍
+10. {
+  "plain_label_keywords": [
+    "目的",
+    "对象",
+    "分工",
+    "内容",
+    "方式",
+    "结果",
+    "要求",
+    "标准",
+    "范围",
+    "期限",
+    "责任",
+    "义务",
+    "说明",
+    "证明",
+    "来源",
+    "包装",
+    "请假",
+    "考核",
+    "罚则",
+    "承诺",
+    "服务",
+    "电话"
+  ],
+  "standalone_plain_label_max_chars": 16
+}
+这些字段值是用来做什么的
+11. node 字段设计字段值是不是太多了？这个远比 pageindex 复杂，看起来会浪费过多 token，pageindex 每个 node 似乎只有 四个字段（我不是说只需要四个字段，但是那么多字段的必要性是什么）
+12. 结构树需要给 LLM 一个低 token 的总览。 这个是 summary 的生成逻辑吗
+13. 规则索引服务 criteria-formal.docx 中确定性审查点。
+字段：
+{
+  "titles": [],
+  "parties": [],
+  "amounts": [],
+  "dates": [],
+  "invoice_types": [],
+  "payment_terms": [],
+  "sensitive_words": [],
+  "attachment_references": [],
+  "attachment_sections": [],
+  "tail_markers": []
+}
+
+为什么规则索引规定这些字段？意义是什么？
+14. -> 必要时 vector recall 触发条件以及实现方式没有介绍
+15. {
+  "criterion_id": 6,
+  "strategy": "structure_then_rule",
+  "title_keywords": [
+    "支付方式",
+    "付款",
+    "价款",
+    "合同金额",
+    "结算"
+  ],
+  "required_signals": [
+    "payment_amount_or_percent",
+    "payment_trigger",
+    "invoice_type"
+  ],
+  "vector_enabled": "fallback_only"
+}
+这些字段怎么生成的 我都没看到你的逻辑过程
+16. 我没有看到你这里 body id 同整个程序的联系，只是存在这些 p_...
+
+
+
+
+
+检索逻辑：
+
+一、怎么定性文档类型
+
+只看 structure_index 的 token 估算。
+
+structure_tokens <= 6000
+-> compact_structure
+
+6000 < structure_tokens <= 20000
+-> paged_structure
+
+structure_tokens > 20000
+-> filtered_or_paged_structure
+
+如果超过 6000 token，按顶层 node 分批：
+
+{
+"document_structure_mode": "paged_structure",
+"structure_tokens": 14300,
+"part": 1,
+"total_parts": 4,
+"structure_index": [
+    {
+    "node_id": "frontmatter",
+    "title": "合同首部",
+    "summary": "..."
+    },
+    {
+    "node_id": "body/sec_001",
+    "title": "第一条 合同内容",
+    "summary": "..."
+    }
+]
+}
+
+agent 如果当前 part 没有相关内容，再请求：
+
+{
+"tool": "get_document_structure",
+"part": 2
+}
+
+1. Node Token 阈值
+
+不要照搬 PageIndex 的 20000。你的 DOCX 合同审查需要精确定位和计算，所以 node 应该更小。
+
+建议：
+
+node_target_tokens: 700
+node_soft_limit_tokens: 1000
+node_hard_limit_tokens: 1800
+
+含义：
+
+参数    含义
+━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+700     理想子 node 大小
+──────  ──────────────────────────────────────────
+1000    超过后优先尝试继续按子标题/编号拆
+──────  ──────────────────────────────────────────
+1800    超过后必须拆，即使没有标题也按段落聚合切
+
+2. 累加加载思路
+
+不是一次把所有原文塞给 LLM，而是：
+
+先给结构树 summary
+agent 选中候选 node
+系统加载候选 node 原文
+如果不够，再累加加载相关 node
+
+累加顺序建议固定：
+
+第 1 层：命中的 node
+第 2 层：命中 node 的 children
+第 3 层：命中 node 的前后 sibling
+第 4 层：命中 node 的 parent
+第 5 层：被规则命中的交叉引用 node，例如“详见附件”
+
+3. 什么时候继续累加
+
+只保留这几个判断：
+
+命中 node 太短：< 80 tokens
+命中 node 太长但有 children：先展开 children，不直接塞父 node
+审查要素不完整：例如付款审查缺总价/付款明细/发票/维保尾款
+出现引用：详见附件、见清单、另行约定
+模型返回“信息不足”
+
+视觉标题参数：
+{
+"visual_title_max_chars": 55,
+"visual_title_min_score": 2,
+"large_font_size_threshold": 28,
+"bold_fraction_threshold": 0.5,
+"attachment_start_window": 8
+}
+视觉标题打分：
++1 居中
++1 加粗比例 >= 0.5
++1 最大字号 >= 28
++1 后 5 个 body child 内出现正文、编号标题或表格
