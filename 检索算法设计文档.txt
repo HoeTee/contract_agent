@@ -1,10 +1,31 @@
 1. 段落顺序这里的 word/document.xml w:body 直接子节点 是什么意思？你是要重新建立一个索引吗 还是 建立一个标号系统 我想知道这个新的索引或标号是怎么实现的
+
+答：这里不是替换 Word 原生结构，也不是只做一个简单编号系统，而是在 Word 原始 XML 阅读顺序上建立一层“结构化索引”。`word/document.xml` 里的 `w:body` 是正文容器，它下面的直接子节点通常是 `w:p` 段落和 `w:tbl` 表格。我们按这些直接子节点的出现顺序生成稳定的内部 anchor，例如 `p_0001`、`tbl_0001`、`p_0002`。这个 anchor 是程序自建的，用于检索、node 边界、批注定位回溯。实现上是遍历 `w:body` 的直接 children：遇到段落就分配一个递增的 `p_xxxx`，遇到表格就分配一个递增的 `tbl_xxxx`，同时保存该 child 在 XML 中的引用、纯文本、样式、页码估计和所在 node。
+
 2. 附件内布视觉标题判断 是怎么实施的
+
+答：附件内部视觉标题判断只用于没有可靠 `outlineLvl` 的场景。实施方式是先限定范围：只在某个正式附件 section 内扫描段落，不在全文任意位置扫描。对每个候选段落提取 DOCX 样式信号：文本长度、是否居中、run 加粗比例、最大字号、前后空段、后续若干 body child 是否出现正文/编号标题/表格。然后按规则打分，达到阈值才认为是附件内部标题。这个逻辑模仿 PageIndex 利用版式信号识别标题的思想，但数据来源是 DOCX XML，不是 PDF OCR/版面解析。
+
 3. lastRenderedPageBreak 是在哪个 xml 文件里？document.xml 里不存在
+
+答：`lastRenderedPageBreak` 如果存在，位置就在 `word/document.xml` 的正文 run 内，常见形态是 `<w:lastRenderedPageBreak/>`。如果你在某个 `document.xml` 里没有看到，说明该 DOCX 没有保存 Word 上次渲染分页结果，或者该文件被生成/清洗时没有写入这个标记。因此页码字段必须是可选字段：存在时估算页码，不存在时 `page_start/page_end=null`，不能把页码作为强依赖。批注定位仍然依赖 `p/tbl anchor + quoted_text`。
+
 4. node confidence level 改为计数吧 目前的 high medium 不具备量化意义
+
+答：同意。`high/medium/low` 可以作为展示层结果，但底层应该保存数字化证据。建议改成 `confidence_score` 和 `confidence_evidence` 两个字段。例如：编号形态命中 +2，编号连续性 +3，direct outlineLvl +4，style outlineLvl +3，视觉标题得分 +0 到 +4，附件上下文命中 +2，排除规则命中 -5。最终根据分数映射展示等级，但判断和调参都以数字为准。
+
 5. “表格单元格内的标题文本” 不属于bodynode吗 表格内容当然属于正文的一部分 只不过不是章节标题罢了
+
+答：你的理解是对的。表格当然属于 BodyNode 的正文内容。原文里“不属于 BodyNode”的表达应修正为：表格单元格内文本不参与“正文章节标题层级”的识别，不作为切分 Level1/Level2/Level3 section 的标题候选。表格本身应作为 `TableNode` 挂在当前 section/node 下，并保留 `tbl_xxxx` anchor。也就是说，表格属于正文内容，但表格内部标题不提升为正文结构树章节标题。
+
 6. tailnode 的辨识逻辑能够优化吗 比如通过 附件子标题来辨识？有些合同文本正文不存在“以下无正文”“以下为合同签署栏”，而且bodynode 怎么与 tailnode 进行区分的？这一块区分的逻辑不清晰
+
+答：可以优化，而且不能只依赖“以下无正文/签署栏”。建议把 TailNode 识别改成多信号边界判断：第一，最后一个正式正文 Level1 section 之后的连续内容进入尾部候选；第二，出现签署、盖章、法定代表人、授权代表、日期、开户信息等签署页信号时提高尾部得分；第三，如果后续出现正式附件 section，则附件开始位置之前的签署/空白/说明内容归 TailNode；第四，如果没有尾部标记但正文 Level1 已结束且后续不再出现正文标题连续性，也可以形成低置信度 TailNode。BodyNode 与 TailNode 的边界不靠单个关键词，而靠“最后一个正式正文 section 结束位置 + 签署页信号 + 附件起点”共同确定。
+
 7. 一切等级的参数最好都设置成数字变量
+
+答：同意。所有影响判断的等级都应数字化，展示层再映射成文字。建议统一使用：`score` 表示置信分，`threshold` 表示触发阈值，`limit` 表示 token/字符预算，`window` 表示扫描窗口。例如 `visual_title_min_score=2`、`main_title_min_score=5`、`attachment_section_min_score=4`、`tail_min_score=3`、`node_soft_limit_tokens=1000`。这样后续可以通过样例统计调参，而不是在代码里散落 `high/medium/low`。
+
 8. {
   "main_level_1_patterns": ["^第.+条", "^第.+章", "^[一二三四五六七八九十]+、"],
   "main_level_2_patterns": ["^[一二三四五六七八九十]+、"],
@@ -13,7 +34,13 @@
   "min_sequence_siblings": 2
 }
 这一块标题的辅助识别规则有遍历过所有样例形成的吗
+
+答：这一组规则不是凭空写的，来源是前面遍历 `合同样例`、`模板合同`、`0721版本` 时观察到的主流标题形态，但还不能说已经形成最终规则。当前可确认的主流层级是：`第X条/第X章`、`一、二、三、`、`（一）（二）（三）`，并且部分合同缺少 `outlineLvl`，必须依赖编号连续性。需要补充的是把遍历结果固化成样例统计报告：每类标题命中多少文件、多少段落、有无误判、是否依赖 outlineLvl。最终规则应来自这个统计结果，而不是只写 pattern。
+
 9. chunknode 生成的逻辑没有介绍
+
+答：ChunkNode 的生成逻辑应补充为：当一个结构 node 超过 token 阈值，先尝试按更细编号或视觉子标题切分；如果没有可靠子标题，则按 `w:body` child 顺序把连续段落和表格聚合成 chunk。目标大小是 `node_target_tokens=700`，超过 `node_soft_limit_tokens=1000` 尽量收口，超过 `node_hard_limit_tokens=1800` 必须切。表格不拆散，作为一个整体放入当前 chunk；如果单个表格自身过大，则单独形成 `TableNode` 并标记 `oversized=true`。chunk 之间可以有少量 overlap，例如 80 tokens，用于避免上下文断裂。
+
 10. {
   "plain_label_keywords": [
     "目的",
@@ -42,8 +69,17 @@
   "standalone_plain_label_max_chars": 16
 }
 这些字段值是用来做什么的
+
+答：这些字段用于识别附件内部的 PlainLabel，也就是“不是正式章节标题，但可以作为局部内容边界”的短标签。例如“目的：”“范围：”“包装：”“考核：”“罚则：”。`plain_label_keywords` 是允许作为标签核心词的词表，`standalone_plain_label_max_chars=16` 限制短文本长度，避免把普通长句误判成标题。PlainLabel 只用于附件内部或超长 node 内部切分，不应提升为正式 Level1/Level2/Level3 章节。
+
 11. node 字段设计字段值是不是太多了？这个远比 pageindex 复杂，看起来会浪费过多 token，pageindex 每个 node 似乎只有 四个字段（我不是说只需要四个字段，但是那么多字段的必要性是什么）
+
+答：字段确实需要分层，不能全部输出给 LLM。完整 node 字段是内部索引字段，用于构建、调试、检索、批注和回溯；输出给 LLM 的应是轻量视图。建议拆成三种视图：`storage_node` 保存完整字段，`structure_view` 只输出 `node_id/title/summary/page/token_estimate/children`，`content_view` 在展开原文时输出 `node_id/title/text/anchors`。这样内部可以比 PageIndex 多保存 DOCX anchor、XML 原生 ID、置信证据等字段，但不会浪费 LLM token。
+
 12. 结构树需要给 LLM 一个低 token 的总览。 这个是 summary 的生成逻辑吗
+
+答：这句话描述的是 summary 的用途，不是完整生成逻辑。summary 生成逻辑应是：对超过最小 token 阈值的 node 生成摘要；叶子 node 基于自身原文生成 summary；非叶子 node 基于 children 的标题和 summary 汇总生成 summary。summary 必须短，建议每个 node 不超过 120 tokens。summary 只用于导航，不能作为最终审查依据；最终审查必须展开原文 node。
+
 13. 规则索引服务 criteria-formal.docx 中确定性审查点。
 字段：
 {
@@ -60,7 +96,13 @@
 }
 
 为什么规则索引规定这些字段？意义是什么？
+
+答：这些字段来自审查要点中可确定性扫描的信号，不是为了让规则索引替代全部审查。它们的意义是给结构检索提供候选位置和事实素材：`titles` 用于章节定位，`parties` 用于主体一致性，`amounts` 用于金额核验，`dates` 用于期限核验，`invoice_types` 用于发票类型核验，`payment_terms` 用于付款计划核验，`sensitive_words` 用于敏感词，`attachment_references` 和 `attachment_sections` 用于附件引用一致性，`tail_markers` 用于正文结尾/签署页判断。这些字段应该由规则扫描生成，并带 anchor。
+
 14. -> 必要时 vector recall 触发条件以及实现方式没有介绍
+
+答：需要补充。vector recall 的触发条件应限定为 fallback：结构标题没有命中但审查要点需要相关内容；规则关键词命中太少；命中 node token 小于最低有效阈值；出现“详见附件/另行约定”但无法解析具体附件；或者 LLM 对已展开内容返回信息不足。实现方式是把结构 node 或 chunk 建成向量索引，metadata 必须带 `node_id/start_anchor/end_anchor/page/token_estimate/node_type`。向量召回只返回候选 node，不直接作为最终审查文本；召回后仍要展开原文 node。
+
 15. {
   "criterion_id": 6,
   "strategy": "structure_then_rule",
@@ -79,7 +121,12 @@
   "vector_enabled": "fallback_only"
 }
 这些字段怎么生成的 我都没看到你的逻辑过程
+
+答：这些字段应由审查要点解析生成，而不是手写固定值。生成过程是：先从 `criteria-formal.docx` 拆出每条审查要点；再对每条要点做分类，识别它依赖标题、关键词、规则字段还是全文扫描；然后生成 `strategy`、`title_keywords`、`required_signals`、`vector_enabled`。以第 6 条为例，因为审查要点明确包含“支付方式”“付款计划”“发票类型”“加总计算”，所以 `title_keywords` 来自这些标题/同义词，`required_signals` 来自必须抽取的付款金额或比例、付款触发节点、发票类型，`strategy` 是结构定位后规则核验，`vector_enabled` 是 fallback_only。
+
 16. 我没有看到你这里 body id 同整个程序的联系，只是存在这些 p_...
+
+答：需要补充完整链路。`p_...` / `tbl_...` 是 DOCX anchor 层，不是最终业务 ID。它们和程序的联系应该是：上传任务生成 `task_id`；解析 DOCX 时生成 `DocumentIndex`；每个 `Node` 保存 `start_anchor/end_anchor`；检索返回 `node_id` 和 anchor；SubAgent 输出 issue 时带 `node_id/quoted_text/char_start/char_end`；批注工具根据 anchor 找回 `document.xml` 中对应 `w:p` 或 `w:tbl`，再用 `quoted_text` 精确定位 run 范围并插入 comment。也就是说，body id 是检索结果和批注工具之间的桥梁。
 
 
 
