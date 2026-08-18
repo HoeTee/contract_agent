@@ -11,6 +11,7 @@ from docx_retrieval.schema import DocumentNode
 from .token_budget import SUMMARY_TRIGGER_MIN_TOKENS, estimate_tokens
 
 SUMMARY_INPUT_TARGET_TOKENS = 6000
+SUMMARY_OUTPUT_MAX_TOKENS = 200
 
 
 def summarize_nodes(roots: list[DocumentNode], client: LLMClient, cache_dir: Path | None) -> None:
@@ -34,13 +35,36 @@ def _summarize_node(node: DocumentNode, client: LLMClient, cache: JsonlCache) ->
     )
     cached = cache.get(key)
     if cached is None:
-        response = client.complete_model(summary_prompt(node.title, node.node_type, content), SummaryResponse)
-        cached = response.model_dump(mode="json")
+        cached = _generate_summary(client, node, content)
         cached["summary"] = cached["summary"].strip()
         cache.set(key, cached)
     if cached.get("summary"):
         node.summary = cached["summary"]
     return node.summary
+
+
+def _generate_summary(client: LLMClient, node: DocumentNode, content: str) -> dict[str, str]:
+    prompt = summary_prompt(node.title, node.node_type, content, max_tokens=SUMMARY_OUTPUT_MAX_TOKENS)
+    last_summary = ""
+    for attempt in range(3):
+        response = client.complete_model(prompt, SummaryResponse)
+        summary = response.summary.strip()
+        last_summary = summary
+        if estimate_tokens(summary) <= SUMMARY_OUTPUT_MAX_TOKENS:
+            return {"summary": summary}
+        prompt = (
+            f"{prompt}\n\n"
+            f"上一版摘要超过 {SUMMARY_OUTPUT_MAX_TOKENS} tokens，必须压缩。"
+            "只保留合同审查导航必需信息，返回同样 JSON schema。"
+        )
+    return {"summary": _truncate_summary(last_summary)}
+
+
+def _truncate_summary(summary: str) -> str:
+    if estimate_tokens(summary) <= SUMMARY_OUTPUT_MAX_TOKENS:
+        return summary
+    chars = max(120, int(len(summary) * SUMMARY_OUTPUT_MAX_TOKENS / max(estimate_tokens(summary), 1)))
+    return summary[:chars].rstrip()
 
 
 def _summary_content(node: DocumentNode) -> str:

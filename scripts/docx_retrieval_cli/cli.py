@@ -93,7 +93,7 @@ def write_document_outputs(
             if query_mode == "llm":
                 if llm_settings is None:
                     llm_settings = LLMSettings.from_sources()
-                query_matches = llm_query(index, query, LLMClient(llm_settings), cache_dir)
+                query_matches = llm_query(index, query, LLMClient(llm_settings), cache_dir, timer=timer)
             else:
                 query_matches = search_index(index, query)
             write_json(doc_out / "query_results.json", {"matches": query_matches})
@@ -274,7 +274,7 @@ def command_ask(args: argparse.Namespace) -> int:
         llm_client = LLMClient(llm_settings)
     with timer.stage("ask.llm_structure_query"):
         structure_cache_dir = args.doc / ".cache" if not args.no_cache else None
-        structure_matches = llm_query(data, args.query, llm_client, structure_cache_dir, input_tokens=config.input_tokens)
+        structure_matches = llm_query(data, args.query, llm_client, structure_cache_dir, input_tokens=config.input_tokens, timer=timer)
     vector_matches = []
     if config.vector.enabled:
         vector_path = args.doc / "vector_index.json"

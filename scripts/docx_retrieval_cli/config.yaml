@@ -1,5 +1,5 @@
 retrieval:
-  input_tokens: 6000
+  input_tokens: 20000
   max_depth: 6
   vector:
     enabled: true

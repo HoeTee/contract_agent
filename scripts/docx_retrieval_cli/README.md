@@ -1,8 +1,6 @@
 # DOCX 检索索引 CLI
 
-这是一个用于试验合同 DOCX 结构化索引和检索链路的命令行工具。
-
-唯一推荐入口：
+这是用于试验合同 DOCX 结构树索引、向量补召回和原文上下文展开的命令行工具。统一入口：
 
 ```powershell
 python scripts\docx_retrieval_cli\cli.py <command>
@@ -14,17 +12,17 @@ python scripts\docx_retrieval_cli\cli.py <command>
 pip install -r scripts\docx_retrieval_cli\requirements.txt
 ```
 
-当前使用的依赖：
+主要依赖：
 
-- `lxml`：解析 `word/document.xml`、`word/styles.xml`；
-- `openai`：调用 OpenAI-compatible LLM 和 embedding 模型；
-- `pydantic`：校验索引、LLM 输出和检索配置；
-- `PyYAML`：读取配置；
+- `lxml`：解析 `word/document.xml`、`word/styles.xml`。
+- `openai`：调用 OpenAI-compatible LLM 和 embedding 模型。
+- `pydantic`：校验索引、LLM 输出和检索配置。
+- `PyYAML`：读取配置。
 - `tiktoken`：估算结构树、向量候选和原文上下文 token。
 
 ## 配置
 
-检索配置文件：
+默认配置文件：
 
 ```text
 scripts/docx_retrieval_cli/config.yaml
@@ -34,7 +32,7 @@ scripts/docx_retrieval_cli/config.yaml
 
 ```yaml
 retrieval:
-  input_tokens: 6000
+  input_tokens: 20000
   max_depth: 6
   vector:
     enabled: true
@@ -46,12 +44,14 @@ retrieval:
 
 含义：
 
-- `input_tokens`：每次输入模型的 token 预算。结构树输入、向量候选输入、原文上下文展开都使用这个统一预算。
+- `input_tokens`：结构树输入、向量候选、rerank 候选、原文上下文展开共用的单次输入预算。默认 20000，用于减少结构树分页次数。
 - `max_depth`：结构树最大深度，当前作为配置保留。
 - `vector.enabled`：`ask` 默认启用向量补召回。
-- `vector.score_threshold`：向量相似度低于该值的候选不进入后续候选池。
+- `vector.score_threshold`：低于该相似度的向量候选不进入候选池。
 - `vector.auto_build`：缺少 `vector_index.json` 时，`ask` 默认自动构建。
-- `rerank.enabled`：`ask` 默认对结构召回和向量召回的合并候选做 rerank。
+- `rerank.enabled`：默认对结构召回和向量召回合并后的候选做 rerank。
+
+LLM 请求默认携带 `enable_thinking=false`。结构树选点和 rerank 属于检索阶段，不需要模型输出长 thinking 内容。
 
 LLM 和 embedding 地址优先级：
 
@@ -70,7 +70,7 @@ EMBEDDING_BASE
 EMBED_API_KEY
 ```
 
-## 构建索引
+## 建立索引
 
 单文件：
 
@@ -78,19 +78,13 @@ EMBED_API_KEY
 python scripts\docx_retrieval_cli\cli.py build "C:\path\contract.docx" --out outputs\docx_index
 ```
 
-单文件，同时构建向量索引：
+同时构建向量索引：
 
 ```powershell
 python scripts\docx_retrieval_cli\cli.py build "C:\path\contract.docx" --out outputs\docx_index --vector
 ```
 
-目录批量：
-
-```powershell
-python scripts\docx_retrieval_cli\cli.py build "C:\Users\lenovo\Downloads\合同样例" --out outputs\docx_index --batch --vector
-```
-
-开启 LLM 语义拆分和摘要：
+开启 LLM 语义拆分和 LLM 摘要：
 
 ```powershell
 python scripts\docx_retrieval_cli\cli.py build "C:\path\contract.docx" `
@@ -100,9 +94,17 @@ python scripts\docx_retrieval_cli\cli.py build "C:\path\contract.docx" `
   --llm-summary
 ```
 
+`--llm-summary` 生成的 node summary 默认控制在 200 tokens 内。summary 用于 LLM 读取结构树并选择 node，不用于替代原文审查。
+
+目录批量：
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py build "C:\Users\lenovo\Downloads\合同样例" --out outputs\docx_index --batch --vector
+```
+
 ## 检索
 
-对已构建的合同目录执行完整检索：
+完整检索：
 
 ```powershell
 python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式"
@@ -115,7 +117,7 @@ structure_tree 轻量结构召回
 -> vector_index 向量补召回
 -> 合并候选 node_id
 -> rerank 重排序
--> 从 document_index.json 展开原文 content_context
+-> 从 document_index.json 展开原文 nodes
 ```
 
 关闭向量补召回：
@@ -130,16 +132,16 @@ python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目
 python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --no-rerank
 ```
 
+关闭 LLM 结果缓存：
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --no-cache
+```
+
 临时调整输入预算：
 
 ```powershell
-python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --input-tokens 8000
-```
-
-如果返回 `pagination.has_more=true`，继续取下一批原文：
-
-```powershell
-python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --part 2
+python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --input-tokens 30000
 ```
 
 只做关键词检索，不调用模型：
@@ -157,19 +159,64 @@ python scripts\docx_retrieval_cli\cli.py vector-search --doc "outputs\docx_index
 展开单个 node 原文：
 
 ```powershell
-python scripts\docx_retrieval_cli\cli.py content --doc "outputs\docx_index\合同目录名" --node body/sec_002/l2_003
+python scripts\docx_retrieval_cli\cli.py content --doc "outputs\docx_index\合同目录名" --node body/sec_002
 ```
 
-开启调试输出：
+## 返回结果
+
+`ask` 默认只返回最终可给审查 LLM 使用的节点：
+
+```json
+{
+  "query": "支付方式",
+  "nodes": [],
+  "elapsed_seconds": 1.234
+}
+```
+
+真正进入后续审查 prompt 的字段应只使用：
+
+```text
+nodes[].node_id
+nodes[].title
+nodes[].text
+nodes[].start_anchor
+nodes[].end_anchor
+```
+
+开启 `--debug` 后才额外返回内部过程：
 
 ```powershell
 python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --debug
+```
+
+debug 中的 `structure_matches`、`vector_matches`、`ranked_matches`、`pagination`、`budget` 只用于调试和控制，不进入审查正文 prompt。
+
+## 耗时与日志
+
+默认会在 stderr 输出阶段耗时，不影响 stdout JSON：
+
+```text
+[timing] ask.llm_structure_query.part_count: 1
+[timing] ask.llm_structure_query.part_1: 15.451s
+[timing] ask.llm_structure_query: 15.451s
+[timing] ask.vector_search: 1.203s
+[timing] ask.rerank: 8.337s
+[timing] ask.total: 25.032s
 ```
 
 关闭阶段耗时输出：
 
 ```powershell
 python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --quiet
+```
+
+默认会写入本地日志：
+
+```text
+logs/build_YYYYMMDD_HHMMSS_PID.log
+logs/ask_YYYYMMDD_HHMMSS_PID.log
+logs/vector_search_YYYYMMDD_HHMMSS_PID.log
 ```
 
 指定日志目录：
@@ -184,117 +231,25 @@ python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目
 python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --no-log
 ```
 
-关闭 LLM 结果缓存：
-
-```powershell
-python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --no-cache
-```
-
-`--no-cache` 只影响 LLM 响应缓存，不会删除或重建 `vector_index.json`。
-
-## ask 返回
-
-`ask` 默认只返回最终检索结果：
-
-```json
-{
-  "query": "支付方式",
-  "nodes": [],
-  "elapsed_seconds": 1.234
-}
-```
-
-真正给审查 LLM 的内容只应使用：
-
-```text
-nodes[].node_id
-nodes[].title
-nodes[].text
-nodes[].start_anchor
-nodes[].end_anchor
-```
-
-开启 `--debug` 后才会额外返回内部检索过程：
-
-```json
-{
-  "query": "支付方式",
-  "nodes": [],
-  "elapsed_seconds": 1.234,
-  "debug": {
-    "ranked_matches": [],
-    "structure_matches": [],
-    "vector_matches": [],
-    "pagination": {},
-    "budget": {},
-    "timings": {
-      "ask.load_index": 0.012,
-      "ask.llm_structure_query": 15.451,
-      "ask.load_vector_index": 0.018,
-      "ask.vector_search": 1.203,
-      "ask.rerank": 8.337,
-      "ask.build_content_context": 0.004
-    }
-  }
-}
-```
-
-`debug.pagination`、`debug.budget`、`score`、`reason` 只用于程序控制、日志和调试，不进入审查正文 prompt。
-
-所有 CLI 命令都会输出总耗时字段：
-
-```text
-elapsed_seconds       当前命令耗时，单位秒
-total_elapsed_seconds 批量 build 总耗时，单位秒
-```
-
-`build`、`ask`、`vector-search` 默认还会在终端 stderr 打印阶段耗时，不影响 stdout 的 JSON：
-
-```text
-[timing] ask.load_index: 0.012s
-[timing] ask.llm_structure_query: 15.451s
-[timing] ask.load_vector_index: 0.018s
-[timing] ask.vector_search: 1.203s
-[timing] ask.rerank: 8.337s
-[timing] ask.build_content_context: 0.004s
-[timing] ask.total: 25.032s
-```
-
-如果只需要机器读取 stdout JSON，使用 `--quiet` 关闭 stderr 阶段耗时。
-
-默认会在本地写入每次命令的日志文件：
-
-```text
-logs/build_20260818_213012_12345.log
-logs/ask_20260818_213045_12345.log
-logs/vector_search_20260818_213100_12345.log
-```
-
-日志包含命令参数、阶段耗时、结果摘要；如果命令异常，会写入 traceback。`api_key`、`embedding_api_key` 等密钥参数会被脱敏。日志不影响 stdout JSON；启动时只会在 stderr 显示日志路径：
-
-```text
-[log] logs\ask_20260818_213045_12345.log
-```
-
 ## 输出文件
 
-每个 DOCX 会生成一个独立输出目录，目录名来自 DOCX 文件名。
+每个 DOCX 会生成一个独立输出目录：
 
 ```text
 document_index.json  主索引，包含完整 node、anchor_map、structure_tree
-vector_index.json    可选向量补召回索引，保存 embedding -> node_id
+vector_index.json    可选向量补召回索引，保存 embedding 与 node_id
 structure_tree.json  轻量结构树
 titles.json          标题类 node 列表
 node_tokens.csv      node token 分布
 attachments.json     附件结构
 report.txt           人工检查摘要
-summary.json         批量任务汇总，位于 --out 目录下
+summary.json         批量任务汇总，位于 --out 目录
 ```
 
 ## 当前边界
 
-- `ask` 只准备检索上下文，不执行最终合同审查，也不写批注；
-- 未开启 `--llm-summary` 时，summary 仍是截断式摘要；
-- 未开启 `--llm-expand` 时，大 node 仍只做 token chunk 兜底切分；
-- 页码依赖 `w:lastRenderedPageBreak`，DOCX 没有该标记时页码为空；
-- 当前工具尚未接入主 `/api/review/jobs` workflow。
+- `ask` 只准备检索上下文，不执行最终合同审查，也不写批注。
+- 未开启 `--llm-summary` 时，summary 仍是截断式摘要。
+- 未开启 `--llm-expand` 时，大 node 只做 token chunk 兜底切分。
+- 页码依赖 `w:lastRenderedPageBreak`，DOCX 没有该标记时页码为空。
+- 当前工具尚未接入 `/api/review/jobs` workflow。

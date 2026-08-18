@@ -9,7 +9,7 @@ from docx_retrieval.llm import LLMClient
 from docx_retrieval.llm.cache import JsonlCache, cache_key, text_hash
 from docx_retrieval.llm.schemas import RerankResponse
 
-RERANK_PROMPT_VERSION = "docx_rerank_v1"
+RERANK_PROMPT_VERSION = "docx_rerank_v2"
 
 
 def rerank_matches(
@@ -93,7 +93,7 @@ def _rerank_prompt(query: str, candidates_json: str) -> str:
 
 重排序规则：
 - 只允许返回候选列表中真实存在的 node_id。
-- 优先选择能直接支撑审查问题判断的 node。
+- 优先选择能够直接支撑审查问题判断的 node。
 - 如果父 node 和更具体的子 node 都相关，优先选择更具体的子 node。
 - 可以保留跨章节判断所需的多个 node。
 - score 使用 0 到 1，1 表示最相关。

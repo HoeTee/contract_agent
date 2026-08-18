@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
@@ -9,8 +10,8 @@ from docx_retrieval.llm import LLMClient
 from docx_retrieval.llm.cache import JsonlCache, cache_key, text_hash
 from docx_retrieval.llm.schemas import QueryResponse
 
-QUERY_PROMPT_VERSION = "docx_query_v2"
-STRUCTURE_QUERY_BUDGET_TOKENS = 6000
+QUERY_PROMPT_VERSION = "docx_query_v3"
+STRUCTURE_QUERY_BUDGET_TOKENS = 20000
 
 
 def llm_query(
@@ -19,20 +20,24 @@ def llm_query(
     client: LLMClient,
     cache_dir: Path | None,
     input_tokens: int = STRUCTURE_QUERY_BUDGET_TOKENS,
+    timer: Any | None = None,
 ) -> list[dict[str, Any]]:
     cache = JsonlCache(cache_dir / "llm_query.jsonl" if cache_dir else None)
     structure_parts = _split_structure(_compact_structure(index["structure_tree"]), input_tokens)
+    if timer is not None:
+        timer.note("ask.llm_structure_query.part_count", len(structure_parts))
     results = []
     for query in queries:
         seen = set()
         for part_index, structure_view in enumerate(structure_parts, 1):
-            payload = json.dumps(structure_view, ensure_ascii=False)
-            key = cache_key(QUERY_PROMPT_VERSION, client.settings.model, query, str(part_index), text_hash(payload))
-            cached = cache.get(key)
-            if cached is None:
-                response = client.complete_model(_query_prompt(query, payload), QueryResponse)
-                cached = response.model_dump(mode="json")
-                cache.set(key, cached)
+            with _stage(timer, f"ask.llm_structure_query.part_{part_index}"):
+                payload = json.dumps(structure_view, ensure_ascii=False)
+                key = cache_key(QUERY_PROMPT_VERSION, client.settings.model, query, str(part_index), text_hash(payload))
+                cached = cache.get(key)
+                if cached is None:
+                    response = client.complete_model(_query_prompt(query, payload), QueryResponse)
+                    cached = response.model_dump(mode="json")
+                    cache.set(key, cached)
             for item in cached.get("nodes") or []:
                 node_id = str(item.get("node_id") or "").strip()
                 node = _node_by_id(index, node_id)
@@ -116,6 +121,12 @@ def _node_by_id(index: dict[str, Any], node_id: str) -> dict[str, Any] | None:
     return None
 
 
+def _stage(timer: Any | None, name: str):
+    if timer is None:
+        return nullcontext()
+    return timer.stage(name)
+
+
 def _query_prompt(query: str, structure_json: str) -> str:
     return f"""你正在从 DOCX 合同结构索引中选择与审查问题最相关的 node。
 
@@ -128,9 +139,10 @@ def _query_prompt(query: str, structure_json: str) -> str:
 选择规则：
 - 只能返回结构树中真实存在的 node_id。
 - 优先返回标题或摘要直接相关的 node。
-- 如果需要跨章节比较，可以返回多个 node。
+- 如果问题需要跨章节比较，可以返回多个 node。
 - 不要返回整篇正文 body，除非没有更具体的 node。
 - 只返回必要 node，避免返回弱相关 node。
+- 如果某个父 node 和更具体的子 node 都相关，优先返回子 node；只有需要完整章节上下文时才返回父 node。
 
 输出规范：
 - 必须只返回一个合法 JSON object。

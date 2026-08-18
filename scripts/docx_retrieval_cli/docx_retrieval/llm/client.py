@@ -36,7 +36,7 @@ class LLMSettings(BaseModel):
             base_url=base_url or local_env.get("LLM_BASE") or os_env("LLM_BASE") or llm.get("base_url"),
             api_key=api_key or local_env.get("LLM_API_KEY") or env_api_key(),
             temperature=float(llm.get("temperature", 0.0)),
-            enable_thinking=llm.get("enable_thinking"),
+            enable_thinking=llm.get("enable_thinking", False),
         )
 
 

@@ -40,6 +40,12 @@ class TimingCollector:
             if self.log_stream:
                 print(f"{self.prefix} {name}: {elapsed:.3f}s", file=self.log_stream, flush=True)
 
+    def note(self, name: str, value: object) -> None:
+        if self.enabled:
+            print(f"{self.prefix} {name}: {value}", file=self.stream, flush=True)
+        if self.log_stream:
+            print(f"{self.prefix} {name}: {value}", file=self.log_stream, flush=True)
+
     def as_dict(self) -> dict[str, float]:
         values: dict[str, float] = {}
         counts: dict[str, int] = {}
