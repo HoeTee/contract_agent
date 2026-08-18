@@ -1,6 +1,15 @@
 # DOCX 结构化索引与检索算法设计
 
-本文设计新的 DOCX 结构化索引方案。目标不是用向量检索替代结构判断，而是先建立类似 PageIndex 的 LLM 可读索引树，再按审查要点选择规则检索、结构检索或必要时的向量补召回。
+本文定义合同审查场景下的 DOCX 结构化索引和检索机制。
+
+核心结论：
+
+```text
+持久化 DOCX 结构树索引是主索引。
+规则审查只是少数审查要点的执行方式，不单独设计“规则索引”。
+向量检索不产生新 node，只对已有结构 node 做 fallback 补召回。
+最终审查必须展开结构树中的原文 node。
+```
 
 当前审查要点来源：
 
@@ -8,34 +17,244 @@
 resources/criteria/criteria-formal.docx
 ```
 
-## 1. 设计目标
+## 1. 审查要点分类
 
-索引需要同时满足四类能力：
+`criteria-formal.docx` 中的审查要点按执行方式分为四类。
 
-1. 支持 LLM 先阅读合同结构树和 section summary，再决定展开哪些正文。
-2. 支持正文第三级标题以下超长内容继续切分。
-3. 支持附件内部无统一标题样式时的局部结构切分。
-4. 支持批注回写到原始 DOCX XML anchor，并尽量携带页码。
+| 类别 | 审查要点 | 执行方式 |
+|---|---|---|
+| 关键词规则审查 | 4、5、8、9、16 | 使用关键词或正则扫描全文，返回命中的 node 和 anchor |
+| 标题规则审查 | 2 | 检查结构树 title 是否存在、是否符合要求 |
+| 全文遍历审查 | 12、15 | 遍历结构树 node，逐个展开 node 输入模型检查 |
+| 普通 LLM 审查 | 其他审查要点 | 先用结构树检索候选 node，再展开原文交给模型审查 |
 
-不把向量检索作为默认入口。默认入口是结构树和规则索引；向量只在结构或规则无法确定候选范围时补召回。
+其中 12、15 可以归入规则审查的大类，但执行方式不是关键词命中，而是“遍历每个 node 后逐个判断”。
 
-## 2. 数据来源
+标题顺序混乱也归入规则审查：直接检查结构树中标题编号是否连续、层级是否跳变、同级标题是否乱序。
+
+## 2. 总体架构
+
+整体流程：
+
+```text
+DOCX
+  -> 解析 word/document.xml、word/styles.xml
+  -> 生成 body child anchor
+  -> 识别合同首部、正文、合同末尾、附件
+  -> 构建结构树 node
+  -> 计算 node token 并切分超长 node
+  -> 生成 summary tree
+  -> 持久化 DocumentIndex
+  -> 审查要点驱动检索和原文展开
+  -> SubAgent 输出 issue
+  -> 批注工具通过 anchor 回写 DOCX
+```
+
+主索引只有一个：
+
+```text
+DocumentIndex
+```
+
+规则检索和向量检索都只返回 `node_id` / `anchor`，然后回到 DocumentIndex 展开原文。
+
+## 3. DocumentIndex 持久化索引
+
+每个任务解析 DOCX 后生成一个持久化索引，建议写入：
+
+```text
+data/{client_dir}/tasks/{task_id}/index/document_index.json
+```
+
+索引主结构：
+
+```json
+{
+  "schema_version": "docx-index-v1",
+  "task_id": "20260818-xxxx",
+  "source_file": "contract.docx",
+  "top_regions": {
+    "frontmatter": "frontmatter",
+    "body": "body",
+    "tail": "tail",
+    "attachments": "attachments"
+  },
+  "nodes": [],
+  "anchor_map": {}
+}
+```
+
+只存一份完整 node 数据。所谓 `structure_view`、`content_view` 不是额外存储两份索引，而是从同一份完整 node 中按场景裁剪字段。
+
+完整 node 示例：
+
+```json
+{
+  "node_id": "body/sec_002/l2_003",
+  "parent_id": "body/sec_002",
+  "node_type": "section",
+  "level": 2,
+  "title": "三、本合同款项的分批支付方式及时限如下",
+  "text": "三、本合同款项的分批支付方式及时限如下：...",
+  "summary": "约定分批付款节点、比例、发票类型和付款期限。",
+  "start_anchor": "p_0042",
+  "end_anchor": "p_0051",
+  "page_start": null,
+  "page_end": null,
+  "page_source": "unavailable",
+  "page_confidence_score": 0,
+  "token_estimate": 720,
+  "confidence_score": 9,
+  "confidence_evidence": ["number_pattern", "sequence", "style_outline"],
+  "children": []
+}
+```
+
+## 4. 数据来源
 
 | 数据 | 来源 | 用途 |
 |---|---|---|
-| 段落顺序 | `word/document.xml` 的 `w:body` 直接子节点 | 保证阅读顺序 |
-| 段落文本 | `w:t`、`w:delText` | 生成 node text、标题判断 |
-| 表格 | `w:tbl` | 生成 `TableNode` |
-| 段落 anchor | 遍历 `w:body > w:p` 生成 `p_0001` | 批注和检索定位 |
-| 表格 anchor | 遍历 `w:body > w:tbl` 生成 `tbl_0001` | 表格定位 |
+| 阅读顺序 | `word/document.xml` 的 `w:body` 直接子节点 | 保证结构树顺序 |
+| 段落 | `w:body > w:p` | 生成 paragraph anchor 和文本 |
+| 表格 | `w:body > w:tbl` | 生成 table anchor 和 TableNode |
+| 段落文本 | `w:t`、`w:delText` | 标题识别、node text、关键词检索 |
 | direct outline | `w:pPr/w:outlineLvl` | 标题强证据 |
 | style outline | `w:pPr/w:pStyle -> word/styles.xml` | 标题强证据 |
-| style 继承 | `styles.xml` 中 `w:basedOn` 链 | 计算 effective outline |
-| 对齐 | `w:pPr/w:jc` | 附件内部视觉标题判断 |
-| 字号 | `w:rPr/w:sz` | 附件内部视觉标题判断 |
-| 加粗 | `w:rPr/w:b` | 附件内部视觉标题判断 |
-| 页码 | `w:lastRenderedPageBreak` | 页码估算 |
-| 批注关系 | `word/_rels/document.xml.rels` 指向 `word/comments.xml` | 批注正文读写 |
+| 样式继承 | `styles.xml` 中 `w:basedOn` 链 | 计算 effective outline |
+| 对齐 | `w:pPr/w:jc` | 视觉标题判断 |
+| 字号 | `w:rPr/w:sz` | 视觉标题判断 |
+| 加粗 | `w:rPr/w:b` | 视觉标题判断 |
+| 页码 | `w:lastRenderedPageBreak` | 可选展示字段 |
+| 批注关系 | `word/_rels/document.xml.rels` 指向 `word/comments.xml` | 读取和写入批注正文 |
+
+`w:lastRenderedPageBreak` 并非所有 DOCX 都存在。它只能作为可选页码来源，不影响检索、审查和批注。
+
+## 5. Body Child Anchor
+
+`word/document.xml` 中 `w:body` 的直接子节点是结构索引的基础。
+
+遍历规则：
+
+```text
+遇到 w:p   -> 生成 p_0001、p_0002、...
+遇到 w:tbl -> 生成 tbl_0001、tbl_0002、...
+保持它们在 w:body 中的原始顺序。
+```
+
+`anchor_map` 示例：
+
+```json
+{
+  "p_0042": {
+    "body_child_index": 42,
+    "type": "p",
+    "text": "三、本合同款项的分批支付方式及时限如下：",
+    "node_id": "body/sec_002/l2_003"
+  },
+  "tbl_0003": {
+    "body_child_index": 58,
+    "type": "tbl",
+    "text": "表格提取后的文本",
+    "node_id": "body/sec_008"
+  }
+}
+```
+
+`p_...` / `tbl_...` 不是业务 ID，而是检索结果和批注工具之间的桥梁。
+
+## 6. 顶层区域
+
+结构树必须保留四个顶层区域：
+
+```text
+frontmatter  合同首部
+body         正文
+tail         合同末尾
+attachments  附件
+```
+
+### 6.1 合同首部 FrontMatter
+
+合同首部包括正式正文开始前的内容，例如合同标题页、合同编号、甲乙方信息、签署提示等。
+
+识别规则：
+
+```text
+从 document.xml 开始扫描；
+遇到第一个正式正文标题后，之前内容归入 frontmatter；
+正式正文标题通常是 第X条 / 第X章。
+```
+
+### 6.2 正文 Body
+
+正文从第一个正式正文标题开始，到合同末尾或附件父章节前结束。
+
+正文标题识别不包含：
+
+```text
+附件内部的 第X条 / 第X章
+表格单元格内的标题文本
+附件清单里的 附件N
+```
+
+表格内容仍然属于正文，只是不参与正文章节标题识别。
+
+### 6.3 合同末尾 Tail
+
+合同末尾用于保存正文结束后的签署页、无正文提示、盖章栏和附件前的尾部内容。
+
+TailNode 不只依赖“以下无正文”“以下为合同签署栏”。
+
+建议使用多信号识别：
+
+```text
+最后一个正式正文 Level1 section 之后的连续内容进入 tail 候选；
+出现签署、盖章、法定代表人、授权代表、日期等信号时提高得分；
+如果后续出现正式附件 section，则附件开始前的签署/空白/说明内容归 tail；
+没有明确 tail marker 时，正文标题连续性结束后的内容可形成低置信度 tail。
+```
+
+### 6.4 附件 Attachments
+
+附件区从正文中的附件父章节或正文末尾的正式附件 section 开始。
+
+附件父章节示例：
+
+```text
+第二十条 附件
+第十四条 附件
+```
+
+正式附件 section 示例：
+
+```text
+附件1
+附件 1
+附件一
+附件1：
+附件1、
+```
+
+正式附件 section 必须位于附件父章节之后，或位于正文末尾附件区。正文中的“详见附件3”不应直接升格为附件 section。
+
+## 7. 正文章节 Node 构建
+
+正文默认提取到三级：
+
+```text
+Level 1: 第X条 / 第X章
+Level 2: 一、二、三、
+Level 3: （一）（二）（三）
+```
+
+标题判断信号：
+
+```text
+1. 编号形态
+2. 编号连续性
+3. effective_outlineLvl
+4. 样式、字号、加粗、居中等辅助信号
+```
 
 `effective_outlineLvl` 计算顺序：
 
@@ -45,277 +264,45 @@ resources/criteria/criteria-formal.docx
 3. pStyle basedOn 链上的 outlineLvl
 ```
 
-## 3. 页码策略
+`outlineLvl` 是强证据，但不是唯一条件。对于没有 outline 的合同，仍然要依赖编号形态和连续性识别章节。
 
-DOCX XML 不天然保存稳定页码。可用的是 Word 上次渲染遗留的：
-
-```xml
-<w:lastRenderedPageBreak/>
-```
-
-页码字段必须带来源和置信度：
+标题置信度使用数字化字段：
 
 ```json
 {
-  "page_start": 4,
-  "page_end": 5,
-  "page_source": "lastRenderedPageBreak",
-  "page_confidence": "medium"
-}
-```
-
-如果文档没有 `w:lastRenderedPageBreak`：
-
-```json
-{
-  "page_start": null,
-  "page_end": null,
-  "page_source": "unavailable",
-  "page_confidence": "none"
-}
-```
-
-页码只用于展示和人工核查；批注定位必须使用 `start_anchor/end_anchor + quoted_text`。
-
-## 4. 顶层区域识别
-
-合同先分成四个顶层区域：
-
-```text
-ContractIndex
-  FrontMatterNode
-  BodyNode
-  TailNode
-  AttachmentRootNode
-```
-
-### 4.1 FrontMatterNode
-
-合同首部包括文件标题页、合同名称、合同编号、签约主体信息，以及第一个正式正文标题前的内容。
-
-触发参数：
-
-```json
-{
-  "frontmatter_max_scan_paragraphs": 80,
-  "body_start_patterns": ["^第.+条", "^第.+章"]
-}
-```
-
-识别规则：
-
-```text
-从 document.xml 开始扫描；
-遇到第一个正式 第X条/第X章 后，之前内容归入 FrontMatterNode；
-如果前 80 个段落内没有正式正文标题，继续扫描全文，但 structure_confidence 降为 medium。
-```
-
-### 4.2 BodyNode
-
-正文从第一个正式 `第X条` 或 `第X章` 开始，到正文尾部或附件父章节前结束。
-
-正文中的正式章节不包括：
-
-```text
-附件内部的 第一章/第一条
-表格单元格内的标题文本
-附件清单项中的 附件N
-```
-
-### 4.3 TailNode
-
-合同末尾主要用于审查第 17、18 条：
-
-```text
-17. 正文结尾处是否写上“以下为合同签署栏”或“以下无正文”
-18. 正文结尾处提到附件是否附在正文后，名称是否一致
-```
-
-触发标记：
-
-```json
-{
-  "tail_markers": [
-    "以下无正文",
-    "以下为合同签署栏",
-    "签字",
-    "盖章",
-    "附件："
-  ],
-  "tail_scan_after_last_main_section": true
-}
-```
-
-识别规则：
-
-```text
-优先从最后一个非附件正文 section 的末尾向后扫描；
-遇到“以下无正文”“以下为合同签署栏”后，后续签署栏内容归入 TailNode；
-如果正文附件清单出现在“第X条 附件”内，则同时生成 AttachmentListNode。
-```
-
-### 4.4 AttachmentRootNode
-
-附件区从正文中的附件父章节开始：
-
-```json
-{
-  "attachment_parent_patterns": [
-    "^第.+条\\s*附件$",
-    "^第.+章\\s*附件$"
+  "confidence_score": 9,
+  "confidence_evidence": [
+    "number_pattern",
+    "sequence",
+    "style_outline"
   ]
 }
 ```
 
-示例：
+示例计分：
 
 ```text
-第二十条 附件
-第十四条 附件
+编号形态命中 +2
+同级编号连续 +3
+direct outlineLvl +4
+style outlineLvl +3
+视觉标题得分 +0 到 +4
+附件上下文命中 +2
+排除规则命中 -5
 ```
 
-## 5. 正文标题层级
+## 8. 附件内部 Node 构建
 
-正文默认提取到三级：
+附件内部不能依赖统一 `outlineLvl`。先识别正式附件 section，再在附件 section 内部做局部切分。
+
+附件内部标题候选包括：
 
 ```text
-Level 1: 第X条 / 第X章
-Level 2: 一、
-Level 3: （一）
+视觉标题：科技部门驻场外包考核细则
+编号标题：第一条、第一章、一、（一）、1、
+局部标签：目的：、范围：、包装：、考核：、罚则：
+表格：独立 TableNode
 ```
-
-判断信号：
-
-```text
-1. 文本编号形态
-2. 编号连续性
-3. effective_outlineLvl
-4. 段落样式、字号、加粗、对齐
-```
-
-`outlineLvl` 是强证据，不是唯一条件。404 号这类没有 outline 的合同，仍需依靠 `一、二、三` 连续编号识别主层级。
-
-正文标题候选规则：
-
-```json
-{
-  "main_level_1_patterns": ["^第.+条", "^第.+章", "^[一二三四五六七八九十]+、"],
-  "main_level_2_patterns": ["^[一二三四五六七八九十]+、"],
-  "main_level_3_patterns": ["^（[一二三四五六七八九十]+）"],
-  "require_sequence_for_no_outline": true,
-  "min_sequence_siblings": 2
-}
-```
-
-## 6. 第三级超长切分
-
-第三级标题下内容可能过长。触发阈值：
-
-```json
-{
-  "level3_split_char_threshold": 1800,
-  "level3_split_token_threshold": 1000,
-  "chunk_target_tokens": 700,
-  "chunk_overlap_tokens": 80
-}
-```
-
-触发行为：
-
-```text
-如果 Level3 node <= 1000 token：
-  保持完整 Level3 node。
-
-如果 Level3 node > 1000 token：
-  先按局部编号 1. / 1、 / 1.1 拆成 ListItemNode 或 SubHeadingNode。
-
-如果拆分后的单个子 node 仍 > 1000 token：
-  按段落窗口生成 ChunkNode。
-
-如果包含表格：
-  表格作为独立 TableNode，不拆散到多个 chunk。
-```
-
-ChunkNode 字段示例：
-
-```json
-{
-  "node_id": "body/sec_008/l3_002/chunk_001",
-  "node_type": "chunk",
-  "title": "（二）服务内容 / chunk 1",
-  "start_anchor": "p_0212",
-  "end_anchor": "p_0238",
-  "token_estimate": 700,
-  "chunk_index": 1,
-  "chunk_count": 3,
-  "overlap_tokens": 80
-}
-```
-
-## 7. 附件 section 识别
-
-附件识别和正文标题识别分开处理。
-
-正式附件标题候选：
-
-```text
-附件1
-附件1 软件产品配置清单
-附件1：备品备件清单
-附件1、非标准技术人天付费标准
-```
-
-排除清单项：
-
-```text
-附件：
-附件1：xxx
-3. 附件3：xxx
-4、附件4：xxx
-```
-
-排除项不是丢弃，而是生成：
-
-```text
-AttachmentListNode
-  AttachmentListItemNode
-```
-
-正式附件 section 规则：
-
-```json
-{
-  "attachment_title_pattern": "^附件\\s*[0-9一二三四五六七八九十]+(?:\\s*$|[：:、\\s])",
-  "attachment_list_item_pattern": "^\\d+[.、]\\s*附件",
-  "prefer_later_duplicate_attachment_number": true,
-  "require_following_content_or_table": true
-}
-```
-
-如果同一个附件编号出现两次：
-
-```text
-第一次位于“附件：”清单区；
-第二次后面跟正文或表格；
-则第二次作为正式 AttachmentSectionNode。
-```
-
-## 8. 附件内部切分
-
-附件内部不以 `outlineLvl` 为主。附件内部标题大多没有有效 outline，需要局部结构识别。
-
-附件内部 node 类型：
-
-| 类型 | 识别依据 |
-|---|---|
-| `LocalDocNode` | 附件开头或中部的短文本，居中/加粗/大字号，后面跟正文、编号或表格 |
-| `ChapterNode` | `第一章`、`第二章` |
-| `ArticleNode` | `第一条`、`第二条` |
-| `HeadingNode` | `一、`、`（一）` 且形成连续编号 |
-| `PlainLabelNode` | `考核目的。`、`质量要求：`、`验收要求：` |
-| `ListItemNode` | `1.`、`1、`、`1.1` 连续编号链 |
-| `TableNode` | `w:tbl` |
-| `ParagraphNode` | 普通段落 |
 
 视觉标题参数：
 
@@ -338,25 +325,7 @@ AttachmentListNode
 +1 后 5 个 body child 内出现正文、编号标题或表格
 ```
 
-同段标题正文拆分：
-
-```text
-（一）外包工作质量。主要衡量外包人员...
-```
-
-输出：
-
-```json
-{
-  "node_type": "heading",
-  "title": "（一）外包工作质量。",
-  "body": "主要衡量外包人员...",
-  "start_anchor": "p_0626",
-  "end_anchor": "p_0626"
-}
-```
-
-PlainLabel 只作为中低层级节点，不直接等同于正式章节：
+PlainLabel 参数：
 
 ```json
 {
@@ -388,322 +357,440 @@ PlainLabel 只作为中低层级节点，不直接等同于正式章节：
 }
 ```
 
-## 9. Node 字段设计
+PlainLabel 只作为局部内容边界，不提升为正式正文章节。
 
-每个 node 必须保留结构、检索、批注和页码字段。
+## 9. Node Token 阈值与 ChunkNode
+
+不照搬 PageIndex 的 20000 token。合同审查需要精确计算、定位和批注，node 应更小。
+
+建议参数：
+
+```yaml
+node_target_tokens: 700
+node_soft_limit_tokens: 1000
+node_hard_limit_tokens: 1800
+chunk_overlap_tokens: 80
+```
+
+含义：
+
+| 参数 | 含义 |
+|---|---|
+| `node_target_tokens` | 理想子 node 大小 |
+| `node_soft_limit_tokens` | 超过后优先按子标题或编号拆 |
+| `node_hard_limit_tokens` | 超过后必须拆，即使只能按段落聚合 |
+| `chunk_overlap_tokens` | 相邻 chunk 的上下文重叠 |
+
+ChunkNode 生成逻辑：
+
+```text
+1. 一个结构 node 超过 soft limit 时，先找更细编号或视觉子标题。
+2. 如果找到可靠子标题，按子标题生成子 node。
+3. 如果没有可靠子标题，按 w:body child 顺序聚合段落和表格。
+4. 聚合目标是 node_target_tokens。
+5. 单个 chunk 不应超过 node_hard_limit_tokens。
+6. 表格不拆散；单个表格过大时独立为 TableNode，并标记 oversized=true。
+```
+
+ChunkNode 示例：
 
 ```json
 {
-  "node_id": "body/sec_020/att_011/local_002/h_005",
-  "node_type": "section",
-  "title": "（五）考勤考核制度及罚则。",
-  "body": "",
-  "text": "完整可检索文本",
-  "summary": "本节点主要约定驻场外包人员考勤违规的扣费和辞退规则。",
-  "path": [
-    "第二十条 附件",
-    "附件11",
-    "科技部门驻场外包考核细则",
-    "（五）考勤考核制度及罚则。"
-  ],
-  "start_anchor": "p_0649",
-  "end_anchor": "p_0656",
-  "page_start": 12,
-  "page_end": 13,
-  "page_source": "lastRenderedPageBreak",
-  "page_confidence": "medium",
-  "parent_id": "body/sec_020/att_011/local_002",
-  "children_ids": [],
-  "char_count": 1200,
-  "token_estimate": 850,
-  "structure_confidence": "high",
-  "reasons": [
-    "paren_cn_sequence",
-    "inside_attachment_section"
-  ]
+  "node_id": "body/sec_008/l3_002/chunk_001",
+  "node_type": "chunk",
+  "title": "（二）服务内容 / chunk 1",
+  "start_anchor": "p_0212",
+  "end_anchor": "p_0238",
+  "token_estimate": 700,
+  "chunk_index": 1,
+  "chunk_count": 3,
+  "overlap_tokens": 80
 }
 ```
-
-`node_id` 是系统生成的索引 ID；`start_anchor/end_anchor` 是 DOCX XML 定位范围。批注工具不得用 `node_id` 直接写入 DOCX，必须回到 anchor 范围定位。
 
 ## 10. Summary Tree
 
-结构树需要给 LLM 一个低 token 的总览。
+summary tree 是给 LLM 的低 token 导航，不是最终事实判断依据。
 
-summary 触发参数：
-
-```json
-{
-  "summary_trigger_min_tokens": 300,
-  "summary_max_tokens": 120,
-  "section_summary_max_tokens": 180,
-  "attachment_summary_max_tokens": 200
-}
-```
-
-summary 内容要求：
+summary 生成规则：
 
 ```text
-SectionNode:
-  概括本节主题、金额、期限、义务、附件引用。
-
-AttachmentNode:
-  概括附件类型、是否表格清单、是否包含技术要求、验收、维保、承诺。
-
-LongNode:
-  概括内部子结构和关键词，不替代原文。
+叶子 node：基于自身原文生成 summary。
+非叶子 node：基于 children 的 title 和 summary 汇总生成 summary。
+短 node 可不生成 summary，直接使用 title 和 token_estimate。
 ```
 
-summary 不参与最终事实判断。最终审查必须展开原文 node 或走规则索引。
+建议参数：
 
-## 11. 规则索引
-
-规则索引服务 `criteria-formal.docx` 中确定性审查点。
-
-字段：
-
-```json
-{
-  "titles": [],
-  "parties": [],
-  "amounts": [],
-  "dates": [],
-  "invoice_types": [],
-  "payment_terms": [],
-  "sensitive_words": [],
-  "attachment_references": [],
-  "attachment_sections": [],
-  "tail_markers": []
-}
+```yaml
+summary_trigger_min_tokens: 300
+summary_max_tokens_per_node: 120
+summary_tree_inline_budget_tokens: 6000
 ```
 
-典型用途：
-
-| 审查要点 | 规则索引字段 |
-|---:|---|
-| 1 合同基本信息 | `parties`、`frontmatter` |
-| 2 必备标题 | `titles` |
-| 3 项目负责人 | `full_text_keywords`、正则 |
-| 4 合同名称含采购 | `contract_title` |
-| 5 目录含金额 | `titles` |
-| 6 支付方式 | `payment_terms`、`amounts`、`invoice_types` |
-| 7 合同期限 | `dates`、期限表达式 |
-| 8 违约责任 | `titles` |
-| 9 甲方住所地人民法院 | `full_text_keywords` |
-| 10 主体一致 | `parties` |
-| 11 正文附件一致 | `structure_tree` + 补召回 |
-| 12 错别字 | 全文通读或语言检查 |
-| 13 标题顺序 | `structure_tree` |
-| 14 金额大小写一致 | `amounts` |
-| 15 语病重复 | 全文通读或语言检查 |
-| 16 敏感词 | `sensitive_words` |
-| 17 正文结尾 | `tail_markers` |
-| 18 附件名称一致 | `attachment_references`、`attachment_sections` |
-
-## 12. 检索流程
-
-默认流程：
-
-```text
-criterion
-  -> criterion profile
-  -> rule_index / structure_tree
-  -> 判断内容是否足够
-  -> 必要时 vector recall
-  -> 展开原文 node
-  -> 规则或 LLM 审查
-  -> anchor resolver
-  -> comment writer
-```
-
-内容不足的可计算条件：
-
-```json
-{
-  "min_section_tokens": 80,
-  "external_reference_patterns": [
-    "详见附件",
-    "见附件",
-    "以附件",
-    "详见.*清单",
-    "详见.*说明书"
-  ],
-  "required_signal_missing_triggers_vector": true
-}
-```
-
-触发向量补召回的条件：
-
-```text
-1. 结构标题未命中。
-2. 结构命中但 token < 80。
-3. 结构命中但缺少审查必要信号。
-4. section 明确引用附件或清单。
-5. 审查要点天然跨章节，例如正文与附件相同条款一致性。
-6. 结构候选超过阈值，需要 rerank。
-```
-
-候选过多参数：
-
-```json
-{
-  "structure_candidate_rerank_threshold": 12,
-  "vector_top_k": 8,
-  "rerank_top_k": 5
-}
-```
-
-## 13. 第 6 条支付方式示例
-
-审查要点：
-
-```text
-如果合同目录中出现“支付方式”四字，对于这个标题下的内容进行检索...
-```
-
-profile：
-
-```json
-{
-  "criterion_id": 6,
-  "strategy": "structure_then_rule",
-  "title_keywords": [
-    "支付方式",
-    "付款",
-    "价款",
-    "合同金额",
-    "结算"
-  ],
-  "required_signals": [
-    "payment_amount_or_percent",
-    "payment_trigger",
-    "invoice_type"
-  ],
-  "vector_enabled": "fallback_only"
-}
-```
-
-流程：
-
-```text
-1. 在 structure_tree 中找标题含“支付方式/付款/价款/合同金额/结算”的 node。
-2. 如果找到完整 section，展开原文。
-3. 规则抽取合同总金额、分项金额、付款金额、付款比例、发票类型、排除项。
-4. 分类加总：
-   - 合同总金额比例
-   - 分项金额比例
-   - 固定金额
-   - 履约保证金/押金/违约金/抵扣款排除
-5. 规则输出问题 anchor。
-6. LLM 只负责将确定性计算结果改写成审查意见。
-```
-
-如果 section 只写：
-
-```text
-具体支付安排详见附件4《服务费用结算清单》。
-```
-
-则触发：
-
-```text
-结构引用附件 -> 找附件4 -> 如果附件标题不清楚，再向量补召回。
-```
-
-## 14. 向量检索的位置
-
-向量索引建立在结构 node 上，不替代结构树。
-
-向量 node 来源：
-
-```text
-1. section summary
-2. attachment summary
-3. leaf node text
-4. 超长 section 的 chunk text
-```
-
-metadata 必须包含：
-
-```json
-{
-  "node_id": "body/sec_006",
-  "node_type": "section",
-  "path": ["第二条 合同金额及支付方式"],
-  "start_anchor": "p_0045",
-  "end_anchor": "p_0058",
-  "page_start": 2,
-  "page_end": 3,
-  "summary": "..."
-}
-```
-
-向量检索只返回候选，不做最终判断。最终判断仍由规则或 LLM 基于原文完成。
-
-## 15. 输出给 LLM 的结构
-
-先给 summary tree：
-
-```json
-{
-  "contract_title": "2026年度GPU算力服务租赁项目合同",
-  "frontmatter_summary": "首部包含合同名称、合同编号、甲乙方基本信息。",
-  "body_sections": [
-    {
-      "node_id": "body/sec_002",
-      "title": "第二条 合同金额及支付方式",
-      "summary": "约定合同总价、付款节点、发票类型和账户信息。",
-      "page_start": 2,
-      "page_end": 3
-    }
-  ],
-  "attachments": [
-    {
-      "node_id": "attachment/att_007",
-      "title": "附件7 算力服务资源验收要求",
-      "summary": "约定产品验收、项目验收和验收失败情形。",
-      "page_start": 18,
-      "page_end": 19
-    }
-  ]
-}
-```
-
-需要审查时再展开原文 node：
+输出给 LLM 的结构视图只包含轻量字段：
 
 ```json
 {
   "node_id": "body/sec_002",
   "title": "第二条 合同金额及支付方式",
-  "text": "第二条 合同金额及支付方式\n一、合同总价...",
-  "start_anchor": "p_0045",
-  "end_anchor": "p_0058",
-  "page_start": 2,
-  "page_end": 3
+  "summary": "约定合同金额、付款方式、发票和账户。",
+  "token_estimate": 1200,
+  "children": []
 }
 ```
 
-## 16. 实施顺序
+## 11. 结构树加载方式
 
-建议分三阶段实施：
+是否一次返回完整结构树，只看 summary tree 的 token 估算。
 
 ```text
-阶段 1：结构索引
-  - FrontMatter/Body/Tail/AttachmentRoot
-  - 正文三级标题
-  - 附件 section
-  - node anchor/page 字段
+structure_tokens <= 6000
+  -> compact_structure
 
-阶段 2：细分与 summary
-  - 第三级超阈值切分
-  - 附件内部 LocalDoc/Heading/List/Table
-  - summary tree
+6000 < structure_tokens <= 20000
+  -> paged_structure
 
-阶段 3：检索接入
-  - criterion profile
-  - rule_index
-  - fallback vector recall
-  - LlamaIndex TextNode metadata 对齐
+structure_tokens > 20000
+  -> filtered_or_paged_structure
 ```
 
-阶段 1、2 完成前，不建议改动现有审查主流程。
+`compact_structure`：一次返回完整 summary tree。
+
+`paged_structure`：按顶层区域或 Level1 section 分批返回。
+
+`filtered_or_paged_structure`：先按审查要点的标题关键词或候选区域过滤，再分页返回。
+
+注意：这里分页的是结构树 summary，不是合同原文。
+
+## 12. 检索工具接口
+
+结构树工具应提供少量稳定接口。
+
+### 12.1 get_document_structure
+
+返回结构树 summary，不返回全文。
+
+输入：
+
+```json
+{
+  "part": 1,
+  "filter": null
+}
+```
+
+输出：
+
+```json
+{
+  "document_structure_mode": "compact_structure",
+  "structure_tokens": 4200,
+  "part": 1,
+  "total_parts": 1,
+  "structure_index": []
+}
+```
+
+### 12.2 get_node_content
+
+按 `node_id` 展开原文。
+
+输入：
+
+```json
+{
+  "node_id": "body/sec_002"
+}
+```
+
+输出：
+
+```json
+{
+  "node_id": "body/sec_002",
+  "title": "第二条 合同金额及支付方式",
+  "text": "...完整原文...",
+  "start_anchor": "p_0038",
+  "end_anchor": "p_0058",
+  "token_estimate": 1200
+}
+```
+
+### 12.3 search_by_keyword
+
+关键词规则检索。只做命中定位，不做字段抽取缓存。
+
+输入：
+
+```json
+{
+  "keywords": ["支付方式", "付款", "合同金额"]
+}
+```
+
+输出：
+
+```json
+{
+  "matches": [
+    {
+      "keyword": "支付方式",
+      "match_text": "第二条 合同金额及支付方式",
+      "match_type": "title",
+      "node_id": "body/sec_002",
+      "anchor": "p_0038"
+    }
+  ]
+}
+```
+
+### 12.4 validate_title_sequence
+
+检查结构树标题顺序。
+
+输出：
+
+```json
+{
+  "issues": [
+    {
+      "node_id": "body/sec_006",
+      "title": "第八条 违约责任",
+      "message": "同级标题从第六条跳到第八条，缺少第七条。"
+    }
+  ]
+}
+```
+
+### 12.5 vector_search_nodes
+
+语义补召回。只返回已有结构树 node，不创建新 node。
+
+输入：
+
+```json
+{
+  "query": "维护响应机制"
+}
+```
+
+输出：
+
+```json
+{
+  "matches": [
+    {
+      "node_id": "body/sec_008/l3_002",
+      "score": 0.82,
+      "title": "售后服务要求"
+    }
+  ]
+}
+```
+
+## 13. 规则审查执行方式
+
+规则审查不设计独立“规则索引”。规则审查直接使用 DocumentIndex 的 text、title、anchor 和 node 顺序。
+
+关键词规则审查要点：
+
+```text
+4、5、8、9、16
+```
+
+执行流程：
+
+```text
+1. 根据审查要点配置关键词或正则。
+2. 在 DocumentIndex 的 title/text 中扫描。
+3. 返回命中的 node_id、anchor、match_text。
+4. 根据审查要点直接生成问题，或展开命中 node 后交给 LLM 复核。
+```
+
+标题规则审查要点：
+
+```text
+2
+```
+
+执行流程：
+
+```text
+1. 读取结构树 title。
+2. 检查标题是否存在、是否符合审查要求。
+3. 如果发现缺失或异常，返回对应 node_id 或父级 node_id。
+```
+
+标题顺序规则：
+
+```text
+遍历同级 title；
+解析 第X条、一、（一） 等序号；
+检查是否连续、是否重复、是否跳号、是否层级反转。
+```
+
+## 14. 全文遍历型审查
+
+全文遍历型审查要点：
+
+```text
+12、15
+```
+
+执行方式：
+
+```text
+1. 遍历 DocumentIndex 中需要审查的 leaf node 或 chunk node。
+2. 每次输入一个 node 的原文给模型。
+3. 模型判断该 node 是否存在对应问题。
+4. 输出 issue 时必须带 node_id、quoted_text、comment_text。
+5. 汇总所有 node 的结果。
+```
+
+这种方式可以算作规则审查的一部分，因为它的遍历范围是确定的；但单个 node 内部的问题判断仍然由模型完成。
+
+## 15. 普通 LLM 审查与累加加载
+
+除规则审查、标题审查、全文遍历审查以外的审查要点，使用结构树检索后交给 LLM。
+
+默认流程：
+
+```text
+1. 输入审查要点。
+2. 读取 summary tree。
+3. 根据标题关键词、结构位置或模型选择候选 node。
+4. 展开候选 node 原文。
+5. 判断内容是否足够。
+6. 不足时继续累加相关 node。
+7. 基于展开后的原文审查。
+8. 输出 issue。
+```
+
+累加顺序：
+
+```text
+第 1 层：命中的 node
+第 2 层：命中 node 的 children
+第 3 层：命中 node 的前后 sibling
+第 4 层：命中 node 的 parent
+第 5 层：被规则命中的交叉引用 node，例如“详见附件”
+第 6 层：必要时 vector_search_nodes 返回的 node
+```
+
+继续累加条件：
+
+```text
+命中 node 太短：< 80 tokens
+命中 node 太长但有 children：先展开 children，不直接塞父 node
+审查要素不完整
+出现引用：详见附件、见清单、另行约定
+模型返回“信息不足”
+```
+
+建议预算：
+
+```yaml
+initial_load_tokens: 3000
+max_accumulated_tokens: 12000
+min_useful_node_tokens: 80
+```
+
+## 16. 向量补召回
+
+向量检索只用于 fallback，不用于构建结构树。
+
+向量索引对象来自 DocumentIndex 中已有 node 或 chunk：
+
+```text
+embedding(node.text)
+metadata.node_id = node.node_id
+metadata.start_anchor = node.start_anchor
+metadata.end_anchor = node.end_anchor
+```
+
+向量 metadata 必须与结构树统一：
+
+```json
+{
+  "node_id": "body/sec_002/l2_003",
+  "start_anchor": "p_0042",
+  "end_anchor": "p_0051",
+  "node_type": "section",
+  "token_estimate": 720
+}
+```
+
+触发条件：
+
+```text
+结构标题没有命中但审查要点明显需要相关内容；
+关键词规则命中太少；
+命中 node token < 80；
+出现“详见附件/另行约定”但无法解析具体 node；
+模型对已展开原文返回信息不足。
+```
+
+向量召回结果只用于找到已有 `node_id`。召回后仍然调用 `get_node_content(node_id)` 展开原文，再进行审查。
+
+## 17. 批注定位链路
+
+审查结果必须能回到 DOCX XML。
+
+链路：
+
+```text
+task_id
+  -> DocumentIndex
+  -> node_id
+  -> start_anchor/end_anchor
+  -> document.xml 中的 w:p / w:tbl
+  -> quoted_text 精确匹配字符范围
+  -> 插入 commentRangeStart/commentRangeEnd/commentReference
+  -> comments.xml 写入批注正文
+```
+
+SubAgent 输出 issue 时至少包含：
+
+```json
+{
+  "node_id": "body/sec_002/l2_003",
+  "quoted_text": "支付合同总金额的40%",
+  "comment_text": "建议核验付款比例加总是否等于合同总金额。",
+  "severity": "medium"
+}
+```
+
+如果能计算字符位置，则补充：
+
+```json
+{
+  "char_start": 36,
+  "char_end": 48
+}
+```
+
+## 18. 实施顺序
+
+建议按以下顺序实施：
+
+```text
+1. DOCX body child anchor 提取：p/tbl 顺序和文本。
+2. DocumentIndex 落盘结构。
+3. 顶层区域识别：frontmatter/body/tail/attachments。
+4. 正文 Level1/Level2/Level3 标题识别。
+5. 附件 section 识别。
+6. 附件内部 node 识别。
+7. node token 统计与 ChunkNode 切分。
+8. summary tree 生成。
+9. 结构树加载接口。
+10. 关键词规则审查：4、5、8、9、16。
+11. 标题规则审查：2。
+12. 标题顺序规则检查。
+13. 全文遍历审查：12、15。
+14. 普通 LLM 审查的累加加载。
+15. 向量补召回。
+16. 批注定位链路对接。
+```
+
+优先稳定结构树和 anchor，再接入向量补召回。否则即使召回命中，也无法可靠展开原文和写回批注。
