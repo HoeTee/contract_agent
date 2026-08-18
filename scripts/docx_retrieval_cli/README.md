@@ -166,6 +166,12 @@ python scripts\docx_retrieval_cli\cli.py content --doc "outputs\docx_index\合�
 python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --debug
 ```
 
+关闭阶段耗时输出：
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --quiet
+```
+
 ## ask 返回
 
 `ask` 默认只返回最终检索结果：
@@ -200,19 +206,41 @@ nodes[].end_anchor
     "structure_matches": [],
     "vector_matches": [],
     "pagination": {},
-    "budget": {}
+    "budget": {},
+    "timings": {
+      "ask.load_index": 0.012,
+      "ask.llm_structure_query": 15.451,
+      "ask.load_vector_index": 0.018,
+      "ask.vector_search": 1.203,
+      "ask.rerank": 8.337,
+      "ask.build_content_context": 0.004
+    }
   }
 }
 ```
 
 `debug.pagination`、`debug.budget`、`score`、`reason` 只用于程序控制、日志和调试，不进入审查正文 prompt。
 
-所有 CLI 命令都会输出耗时字段：
+所有 CLI 命令都会输出总耗时字段：
 
 ```text
 elapsed_seconds       当前命令耗时，单位秒
 total_elapsed_seconds 批量 build 总耗时，单位秒
 ```
+
+`build`、`ask`、`vector-search` 默认还会在终端 stderr 打印阶段耗时，不影响 stdout 的 JSON：
+
+```text
+[timing] ask.load_index: 0.012s
+[timing] ask.llm_structure_query: 15.451s
+[timing] ask.load_vector_index: 0.018s
+[timing] ask.vector_search: 1.203s
+[timing] ask.rerank: 8.337s
+[timing] ask.build_content_context: 0.004s
+[timing] ask.total: 25.032s
+```
+
+如果只需要机器读取 stdout JSON，使用 `--quiet` 关闭 stderr 阶段耗时。
 
 ## 输出文件
 

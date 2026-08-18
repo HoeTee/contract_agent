@@ -22,6 +22,7 @@ from docx_retrieval.retrieval import (
     llm_query,
     rerank_matches,
 )
+from docx_retrieval.utils import TimingCollector
 from docx_retrieval.vector import EmbeddingClient, EmbeddingSettings, build_vector_index, load_vector_index, save_vector_index, vector_search
 
 
@@ -52,47 +53,54 @@ def write_document_outputs(
     llm_settings: LLMSettings | None,
     build_vector: bool,
     embedding_settings: EmbeddingSettings | None,
+    timer: TimingCollector | None = None,
 ) -> dict[str, Any]:
     start_time = time.perf_counter()
-    index = build_document_index(
-        docx,
-        llm_expand=llm_expand,
-        llm_summary=llm_summary,
-        llm_settings=llm_settings,
-        cache_dir=root_out / ".cache",
-    ).to_json_dict()
+    with _stage(timer, "build.document_index_total"):
+        index = build_document_index(
+            docx,
+            llm_expand=llm_expand,
+            llm_summary=llm_summary,
+            llm_settings=llm_settings,
+            cache_dir=root_out / ".cache",
+            timer=timer,
+        ).to_json_dict()
     doc_out = root_out / safe_name(docx)
     doc_out.mkdir(parents=True, exist_ok=True)
 
-    write_json(doc_out / "document_index.json", index)
-    write_json(doc_out / "structure_tree.json", index["structure_tree"])
-    write_json(doc_out / "titles.json", {"titles": title_rows(index)})
-    write_csv(doc_out / "node_tokens.csv", token_rows(index))
-    write_json(doc_out / "attachments.json", {"attachments": attachment_tree(index)})
-    write_report(doc_out / "report.txt", docx, index, doc_out)
+    with _stage(timer, "build.write_outputs"):
+        write_json(doc_out / "document_index.json", index)
+        write_json(doc_out / "structure_tree.json", index["structure_tree"])
+        write_json(doc_out / "titles.json", {"titles": title_rows(index)})
+        write_csv(doc_out / "node_tokens.csv", token_rows(index))
+        write_json(doc_out / "attachments.json", {"attachments": attachment_tree(index)})
+        write_report(doc_out / "report.txt", docx, index, doc_out)
 
     vector_items = None
     if build_vector:
-        if embedding_settings is None:
-            embedding_settings = EmbeddingSettings.from_sources()
-        vector_index = build_vector_index(index, EmbeddingClient(embedding_settings))
-        vector_items = len(vector_index.items)
-        save_vector_index(doc_out / "vector_index.json", vector_index)
+        with _stage(timer, "build.vector_build"):
+            if embedding_settings is None:
+                embedding_settings = EmbeddingSettings.from_sources()
+            vector_index = build_vector_index(index, EmbeddingClient(embedding_settings))
+            vector_items = len(vector_index.items)
+            save_vector_index(doc_out / "vector_index.json", vector_index)
 
     query_matches = None
     if query:
-        if query_mode == "llm":
-            if llm_settings is None:
-                llm_settings = LLMSettings.from_sources()
-            query_matches = llm_query(index, query, LLMClient(llm_settings), root_out / ".cache")
-        else:
-            query_matches = search_index(index, query)
-        write_json(doc_out / "query_results.json", {"matches": query_matches})
+        with _stage(timer, "build.inline_query"):
+            if query_mode == "llm":
+                if llm_settings is None:
+                    llm_settings = LLMSettings.from_sources()
+                query_matches = llm_query(index, query, LLMClient(llm_settings), root_out / ".cache")
+            else:
+                query_matches = search_index(index, query)
+            write_json(doc_out / "query_results.json", {"matches": query_matches})
 
     node_content = None
     if node_id:
-        node_content = content_view(index, node_id)
-        write_json(doc_out / "node_content.json", node_content)
+        with _stage(timer, "build.inline_content"):
+            node_content = content_view(index, node_id)
+            write_json(doc_out / "node_content.json", node_content)
 
     return {
         "source_file": str(docx),
@@ -121,6 +129,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_embedding_args(build)
     build.add_argument("--llm-expand", action="store_true", help="Use LLM to discover subsection headings in oversized leaf nodes.")
     build.add_argument("--llm-summary", action="store_true", help="Use LLM to generate final node summaries.")
+    build.add_argument("--quiet", action="store_true", help="Do not print stage timings to stderr.")
     build.set_defaults(func=command_build)
 
     ask = sub.add_parser("ask", help="Retrieve review context from an existing document output directory.")
@@ -131,6 +140,7 @@ def build_parser() -> argparse.ArgumentParser:
     ask.add_argument("--no-vector", action="store_true", help="Disable vector fallback for this request.")
     ask.add_argument("--no-rerank", action="store_true", help="Disable rerank for this request.")
     ask.add_argument("--debug", action="store_true", help="Include internal structure/vector/rerank retrieval details.")
+    ask.add_argument("--quiet", action="store_true", help="Do not print stage timings to stderr.")
     ask.add_argument("--retrieval-config", type=Path, help="Optional docx_retrieval_cli config.yaml path.")
     _add_llm_args(ask)
     _add_embedding_args(ask)
@@ -152,6 +162,7 @@ def build_parser() -> argparse.ArgumentParser:
     vector.add_argument("--input-tokens", type=int)
     vector.add_argument("--retrieval-config", type=Path)
     vector.add_argument("--config", type=Path, help="Optional project config.yaml path for embedding settings.")
+    vector.add_argument("--quiet", action="store_true", help="Do not print stage timings to stderr.")
     _add_embedding_args(vector)
     vector.set_defaults(func=command_vector_search)
     return parser
@@ -172,25 +183,29 @@ def _add_embedding_args(parser: argparse.ArgumentParser) -> None:
 
 def command_build(args: argparse.Namespace) -> int:
     start_time = time.perf_counter()
-    files = iter_docx_inputs(args.input, args.batch)
+    timer = TimingCollector(enabled=not args.quiet)
+    with timer.stage("build.discover_inputs"):
+        files = iter_docx_inputs(args.input, args.batch)
     if not files:
         raise ValueError(f"no docx files found: {args.input}")
     llm_settings = None
     embedding_settings = None
     if args.llm_expand or args.llm_summary:
-        llm_settings = LLMSettings.from_sources(
-            model=args.model,
-            base_url=args.base_url,
-            api_key=args.api_key,
-            config_path=args.config,
-        )
+        with timer.stage("build.load_llm_settings"):
+            llm_settings = LLMSettings.from_sources(
+                model=args.model,
+                base_url=args.base_url,
+                api_key=args.api_key,
+                config_path=args.config,
+            )
     if args.vector:
-        embedding_settings = EmbeddingSettings.from_sources(
-            model=args.embedding_model,
-            base_url=args.embedding_base_url,
-            api_key=args.embedding_api_key,
-            config_path=args.config,
-        )
+        with timer.stage("build.load_embedding_settings"):
+            embedding_settings = EmbeddingSettings.from_sources(
+                model=args.embedding_model,
+                base_url=args.embedding_base_url,
+                api_key=args.embedding_api_key,
+                config_path=args.config,
+            )
     summaries = [
         write_document_outputs(
             path,
@@ -203,76 +218,97 @@ def command_build(args: argparse.Namespace) -> int:
             llm_settings,
             args.vector,
             embedding_settings,
+            timer,
         )
         for path in files
     ]
     total_elapsed = round(time.perf_counter() - start_time, 3)
-    write_json(args.out / "summary.json", {"documents": summaries, "total_elapsed_seconds": total_elapsed})
+    with timer.stage("build.write_summary"):
+        write_json(args.out / "summary.json", {"documents": summaries, "total_elapsed_seconds": total_elapsed})
+    if not args.quiet:
+        print(f"[timing] build.total: {total_elapsed:.3f}s", file=sys.stderr, flush=True)
     print(json.dumps({"documents": summaries, "total_elapsed_seconds": total_elapsed}, ensure_ascii=False, indent=2))
     return 0
 
 
 def command_ask(args: argparse.Namespace) -> int:
     start_time = time.perf_counter()
-    config = RetrievalConfig.from_sources(
-        config_path=args.retrieval_config,
-        input_tokens=args.input_tokens,
-        vector_enabled=False if args.no_vector else None,
-        rerank_enabled=False if args.no_rerank else None,
-    )
+    timer = TimingCollector(enabled=not args.quiet)
+    with timer.stage("ask.load_config"):
+        config = RetrievalConfig.from_sources(
+            config_path=args.retrieval_config,
+            input_tokens=args.input_tokens,
+            vector_enabled=False if args.no_vector else None,
+            rerank_enabled=False if args.no_rerank else None,
+        )
     index_path = _index_path(args.doc)
-    data = load_index(index_path)
-    llm_settings = LLMSettings.from_sources(
-        model=args.model,
-        base_url=args.base_url,
-        api_key=args.api_key,
-        config_path=args.config,
-    )
-    llm_client = LLMClient(llm_settings)
-    structure_matches = llm_query(data, args.query, llm_client, args.doc / ".cache", input_tokens=config.input_tokens)
+    with timer.stage("ask.load_index"):
+        data = load_index(index_path)
+    with timer.stage("ask.load_llm_settings"):
+        llm_settings = LLMSettings.from_sources(
+            model=args.model,
+            base_url=args.base_url,
+            api_key=args.api_key,
+            config_path=args.config,
+        )
+    with timer.stage("ask.init_llm_client"):
+        llm_client = LLMClient(llm_settings)
+    with timer.stage("ask.llm_structure_query"):
+        structure_matches = llm_query(data, args.query, llm_client, args.doc / ".cache", input_tokens=config.input_tokens)
     vector_matches = []
     if config.vector.enabled:
         vector_path = args.doc / "vector_index.json"
         if not vector_path.exists():
             if not config.vector.auto_build:
                 raise FileNotFoundError(f"vector_index.json not found: {vector_path}")
+            with timer.stage("ask.auto_build_vector_index"):
+                embedding_settings = EmbeddingSettings.from_sources(
+                    model=args.embedding_model,
+                    base_url=args.embedding_base_url,
+                    api_key=args.embedding_api_key,
+                    config_path=args.config,
+                )
+                save_vector_index(vector_path, build_vector_index(data, EmbeddingClient(embedding_settings), source_index=index_path.name))
+        with timer.stage("ask.load_vector_index"):
+            vector_index = load_vector_index(vector_path)
+        with timer.stage("ask.load_embedding_settings"):
             embedding_settings = EmbeddingSettings.from_sources(
-                model=args.embedding_model,
+                model=args.embedding_model or vector_index.embedding_model,
                 base_url=args.embedding_base_url,
                 api_key=args.embedding_api_key,
                 config_path=args.config,
             )
-            save_vector_index(vector_path, build_vector_index(data, EmbeddingClient(embedding_settings), source_index=index_path.name))
-        vector_index = load_vector_index(vector_path)
-        embedding_settings = EmbeddingSettings.from_sources(
-            model=args.embedding_model or vector_index.embedding_model,
-            base_url=args.embedding_base_url,
-            api_key=args.embedding_api_key,
-            config_path=args.config,
-        )
-        embedding_client = EmbeddingClient(embedding_settings)
-        for query in args.query:
-            vector_matches.extend(
-                vector_search(
-                    data,
-                    vector_index,
-                    query,
-                    embedding_client,
-                    score_threshold=config.vector.score_threshold,
-                    input_tokens=config.input_tokens,
+        with timer.stage("ask.init_embedding_client"):
+            embedding_client = EmbeddingClient(embedding_settings)
+        with timer.stage("ask.vector_search"):
+            for query in args.query:
+                vector_matches.extend(
+                    vector_search(
+                        data,
+                        vector_index,
+                        query,
+                        embedding_client,
+                        score_threshold=config.vector.score_threshold,
+                        input_tokens=config.input_tokens,
+                    )
                 )
-            )
-    candidates = _merge_matches(structure_matches, vector_matches)
+    with timer.stage("ask.merge_matches"):
+        candidates = _merge_matches(structure_matches, vector_matches)
     query_text = "\n".join(args.query)
     if config.rerank.enabled:
-        ranked_matches = rerank_matches(data, query_text, candidates, llm_client, config.input_tokens, args.doc / ".cache")
+        with timer.stage("ask.rerank"):
+            ranked_matches = rerank_matches(data, query_text, candidates, llm_client, config.input_tokens, args.doc / ".cache")
     else:
         ranked_matches = candidates
-    context = build_content_context(data, ranked_matches, config.input_tokens, part=args.part)
+    with timer.stage("ask.build_content_context"):
+        context = build_content_context(data, ranked_matches, config.input_tokens, part=args.part)
+    total_elapsed = round(time.perf_counter() - start_time, 3)
+    if not args.quiet:
+        print(f"[timing] ask.total: {total_elapsed:.3f}s", file=sys.stderr, flush=True)
     payload = {
         "query": args.query if len(args.query) > 1 else args.query[0],
         "nodes": context["content_context"],
-        "elapsed_seconds": round(time.perf_counter() - start_time, 3),
+        "elapsed_seconds": total_elapsed,
     }
     if args.debug:
         payload["debug"] = {
@@ -281,6 +317,7 @@ def command_ask(args: argparse.Namespace) -> int:
             "vector_matches": vector_matches,
             "pagination": context["pagination"],
             "budget": context["budget"],
+            "timings": timer.as_dict(),
         }
     print(
         json.dumps(
@@ -311,28 +348,38 @@ def command_search(args: argparse.Namespace) -> int:
 
 def command_vector_search(args: argparse.Namespace) -> int:
     start_time = time.perf_counter()
-    config = RetrievalConfig.from_sources(config_path=args.retrieval_config, input_tokens=args.input_tokens)
-    data = load_index(_index_path(args.doc))
-    vector_index = load_vector_index(args.doc / "vector_index.json")
-    settings = EmbeddingSettings.from_sources(
-        model=args.embedding_model or vector_index.embedding_model,
-        base_url=args.embedding_base_url,
-        api_key=args.embedding_api_key,
-        config_path=args.config,
-    )
-    matches = []
-    for query in args.query:
-        matches.extend(
-            vector_search(
-                data,
-                vector_index,
-                query,
-                EmbeddingClient(settings),
-                score_threshold=config.vector.score_threshold,
-                input_tokens=config.input_tokens,
-            )
+    timer = TimingCollector(enabled=not args.quiet)
+    with timer.stage("vector_search.load_config"):
+        config = RetrievalConfig.from_sources(config_path=args.retrieval_config, input_tokens=args.input_tokens)
+    with timer.stage("vector_search.load_index"):
+        data = load_index(_index_path(args.doc))
+    with timer.stage("vector_search.load_vector_index"):
+        vector_index = load_vector_index(args.doc / "vector_index.json")
+    with timer.stage("vector_search.load_embedding_settings"):
+        settings = EmbeddingSettings.from_sources(
+            model=args.embedding_model or vector_index.embedding_model,
+            base_url=args.embedding_base_url,
+            api_key=args.embedding_api_key,
+            config_path=args.config,
         )
-    print(json.dumps({"matches": matches, "elapsed_seconds": round(time.perf_counter() - start_time, 3)}, ensure_ascii=False, indent=2))
+    matches = []
+    with timer.stage("vector_search.query_embedding_and_rank"):
+        embedding_client = EmbeddingClient(settings)
+        for query in args.query:
+            matches.extend(
+                vector_search(
+                    data,
+                    vector_index,
+                    query,
+                    embedding_client,
+                    score_threshold=config.vector.score_threshold,
+                    input_tokens=config.input_tokens,
+                )
+            )
+    total_elapsed = round(time.perf_counter() - start_time, 3)
+    if not args.quiet:
+        print(f"[timing] vector_search.total: {total_elapsed:.3f}s", file=sys.stderr, flush=True)
+    print(json.dumps({"matches": matches, "elapsed_seconds": total_elapsed}, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -356,6 +403,14 @@ def _merge_matches(structure_matches: list[dict], vector_matches: list[dict]) ->
             if source == "structure":
                 item["structure_reason"] = match.get("reason")
     return list(merged.values())
+
+
+def _stage(timer: TimingCollector | None, name: str):
+    if timer is None:
+        from contextlib import nullcontext
+
+        return nullcontext()
+    return timer.stage(name)
 
 
 def main(argv: list[str] | None = None) -> int:
