@@ -10,6 +10,8 @@ resources/criteria/criteria-formal.docx
 
 ## 1. 设计目标
 
+问题答复：本方案的主线应收敛为 DOCX XML anchor -> 结构树 node -> token 阈值切分 -> summary tree -> 累加加载原文 -> 审查。向量检索不是默认入口，只在结构树和规则索引无法确定候选范围时补召回。
+
 索引需要同时满足四类能力：
 
 1. 支持 LLM 先阅读合同结构树和 section summary，再决定展开哪些正文。
@@ -20,6 +22,8 @@ resources/criteria/criteria-formal.docx
 不把向量检索作为默认入口。默认入口是结构树和规则索引；向量只在结构或规则无法确定候选范围时补召回。
 
 ## 2. 数据来源
+
+问题答复：数据来源足够，但主轴必须是 `word/document.xml` 中 `w:body` 的直接子节点顺序。`outlineLvl`、`pStyle`、字号、加粗、居中等都是标题判断信号，不能替代 `w:p` / `w:tbl` 的阅读顺序和 anchor 边界。
 
 | 数据 | 来源 | 用途 |
 |---|---|---|
@@ -46,6 +50,8 @@ resources/criteria/criteria-formal.docx
 ```
 
 ## 3. 页码策略
+
+问题答复：页码只能作为展示和人工核查字段，不能作为批注定位依据。DOCX 的 `w:lastRenderedPageBreak` 来自 Word 上次渲染，不是稳定分页模型；批注定位必须依赖 `start_anchor/end_anchor + quoted_text + char_start/char_end`。
 
 DOCX XML 不天然保存稳定页码。可用的是 Word 上次渲染遗留的：
 
@@ -78,6 +84,8 @@ DOCX XML 不天然保存稳定页码。可用的是 Word 上次渲染遗留的�
 页码只用于展示和人工核查；批注定位必须使用 `start_anchor/end_anchor + quoted_text`。
 
 ## 4. 顶层区域识别
+
+问题答复：顶层区域识别需要保留，但应只承担粗分区职责：首部、正文、尾部、附件区。`第X条 附件` 是附件父章节，不能和 `附件1/附件2` 这类正式附件 section 混成同一级。
 
 合同先分成四个顶层区域：
 
@@ -176,6 +184,8 @@ ContractIndex
 
 ## 5. 正文标题层级
 
+问题答复：正文默认提取到三级是合理的。标题判断优先使用编号形态和连续性，`effective_outlineLvl` 是强证据但不是唯一条件，视觉样式只做辅助兜底。
+
 正文默认提取到三级：
 
 ```text
@@ -208,6 +218,8 @@ Level 3: （一）
 ```
 
 ## 6. 第三级超长切分
+
+问题答复：这里不应照搬 PageIndex 的 20000 token。合同审查需要精确计算和批注定位，建议使用 `node_target_tokens=700`、`node_soft_limit_tokens=1000`、`node_hard_limit_tokens=1800`：超过软阈值优先按子编号继续拆，超过硬阈值必须拆。
 
 第三级标题下内容可能过长。触发阈值：
 
@@ -253,6 +265,8 @@ ChunkNode 字段示例：
 ```
 
 ## 7. 附件 section 识别
+
+问题答复：附件 section 识别应优先限定上下文，再判断标题形态。只有位于 `第X条 附件` 之后或正文末尾附件区内的 `附件1/附件一/附件1：/附件1、` 才应作为正式附件 section；正文里的“详见附件3”和附件清单项不能直接升格为附件 section。
 
 附件识别和正文标题识别分开处理。
 
@@ -301,6 +315,8 @@ AttachmentListNode
 ```
 
 ## 8. 附件内部切分
+
+问题答复：附件内部不能依赖统一 `outlineLvl`。应使用 DOCX 可取得的视觉标题信号打分，例如短文本、居中、加粗比例、字号、后续是否出现正文/编号标题/表格。这是模仿 PageIndex 的版式信号思想，不是复用 PageIndex 的 PDF 解析代码。
 
 附件内部不以 `outlineLvl` 为主。附件内部标题大多没有有效 outline，需要局部结构识别。
 
@@ -390,6 +406,8 @@ PlainLabel 只作为中低层级节点，不直接等同于正式章节：
 
 ## 9. Node 字段设计
 
+问题答复：字段设计需要强制区分三类 ID：`node_id` 是系统自建结构树 ID，`start_anchor/end_anchor` 是 DOCX body child anchor，`xml_native_id` 保存 Word 原生 ID。最终批注应从 node anchor 回到原始 XML 位置。
+
 每个 node 必须保留结构、检索、批注和页码字段。
 
 ```json
@@ -428,6 +446,8 @@ PlainLabel 只作为中低层级节点，不直接等同于正式章节：
 
 ## 10. Summary Tree
 
+问题答复：summary tree 只负责导航，不负责最终事实判断。LLM 可以读取 summary tree 来选择需要展开的 node；一旦进入审查，必须展开对应原文 node，再基于原文、规则结果和 anchor 输出问题。
+
 结构树需要给 LLM 一个低 token 的总览。
 
 summary 触发参数：
@@ -457,6 +477,8 @@ LongNode:
 summary 不参与最终事实判断。最终审查必须展开原文 node 或走规则索引。
 
 ## 11. 规则索引
+
+问题答复：规则索引应保持简单，负责全文关键词、金额、比例、日期、附件引用等可计算信号的扫描。它的输出是候选 anchor/node，不直接替代 LLM 的法律语义判断。
 
 规则索引服务 `criteria-formal.docx` 中确定性审查点。
 
@@ -501,6 +523,8 @@ summary 不参与最终事实判断。最终审查必须展开原文 node 或走
 | 18 附件名称一致 | `attachment_references`、`attachment_sections` |
 
 ## 12. 检索流程
+
+问题答复：检索流程应采用累加加载：先用规则索引和结构树 summary 找候选 node，再展开候选原文；如果内容不足，再按 children、相邻 sibling、parent、引用 node 的顺序继续累加，直到满足审查要素或达到预算。
 
 默认流程：
 
@@ -554,6 +578,8 @@ criterion
 ```
 
 ## 13. 第 6 条支付方式示例
+
+问题答复：支付方式审查不适合纯向量检索。正确路径是结构树定位“合同金额及支付方式”，规则索引抽取总价、分项价、付款比例、固定金额、发票类型和维保节点，再展开完整支付章节进行加总核验。
 
 审查要点：
 
@@ -612,6 +638,8 @@ profile：
 
 ## 14. 向量检索的位置
 
+问题答复：向量检索只用于补召回。触发场景包括标题没有命中但语义相关、关键词规则未覆盖同义表达、结构命中内容过短、出现不明确引用、或模型明确判断信息不足。
+
 向量索引建立在结构 node 上，不替代结构树。
 
 向量 node 来源：
@@ -641,6 +669,8 @@ metadata 必须包含：
 向量检索只返回候选，不做最终判断。最终判断仍由规则或 LLM 基于原文完成。
 
 ## 15. 输出给 LLM 的结构
+
+问题答复：输出给 LLM 应分为导航输入和原文输入。导航输入只包含 `node_id/title/summary/page/token_estimate` 等轻量字段；原文输入才包含 `text/anchors`。不能一开始把所有 node 原文交给 LLM。
 
 先给 summary tree：
 
@@ -684,6 +714,8 @@ metadata 必须包含：
 ```
 
 ## 16. 实施顺序
+
+问题答复：实施顺序应先稳定结构和 anchor，再做召回增强。优先完成 body child anchor、正文标题层级、附件 section、附件内部切分、token 切分、summary tree、规则索引和累加加载；向量补召回应放在结构链路稳定之后。
 
 建议分三阶段实施：
 
