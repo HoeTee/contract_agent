@@ -42,6 +42,75 @@ def search_index(index: dict[str, Any], keywords: list[str]) -> list[dict[str, A
     return [match.model_dump(mode="json") for match in keyword_search(index, keywords).matches]
 
 
+def pageindex_like_structure(index: dict[str, Any], docx: Path) -> dict[str, Any]:
+    return {
+        "schema_version": "docx-pageindex-like-v1",
+        "doc_name": docx.name,
+        "doc_title": _doc_title(index, docx),
+        "structure": index["structure_tree"],
+    }
+
+
+def content_store(index: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {
+        node["node_id"]: {
+            "node_id": node["node_id"],
+            "title": node.get("title"),
+            "node_type": node.get("node_type"),
+            "text": node.get("text") or "",
+            "summary": node.get("summary") or "",
+            "start_index": node.get("start_index"),
+            "end_index": node.get("end_index"),
+            "start_anchor": node.get("start_anchor"),
+            "end_anchor": node.get("end_anchor"),
+            "token_estimate": node.get("token_estimate"),
+            "nodes": node.get("nodes") or node.get("children") or [],
+        }
+        for node in index.get("nodes") or []
+    }
+
+
+def anchor_store(index: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {
+        anchor_id: {"anchor_id": anchor_id, **record}
+        for anchor_id, record in (index.get("anchor_map") or {}).items()
+    }
+
+
+def manifest_index(index: dict[str, Any], docx: Path) -> dict[str, Any]:
+    return {
+        "schema_version": "docx-pageindex-like-v1",
+        "source_file": str(docx),
+        "doc_name": docx.name,
+        "doc_title": _doc_title(index, docx),
+        "top_regions": index.get("top_regions") or {},
+        "settings": index.get("settings") or {},
+        "files": {
+            "structure_tree": "structure_tree.json",
+            "content_store": "content_store.json",
+            "anchor_store": "anchor_store.json",
+            "vector_index": "vector_index.json",
+        },
+        "stats": {
+            "node_count": len(index.get("nodes") or []),
+            "anchor_count": len(index.get("anchor_map") or {}),
+            "structure_tokens": structure_tokens(index),
+        },
+    }
+
+
+def _doc_title(index: dict[str, Any], docx: Path) -> str:
+    for node in index.get("nodes") or []:
+        if node.get("node_id") == "frontmatter":
+            lines = [line.strip() for line in (node.get("text") or "").splitlines() if line.strip()]
+            for line in lines:
+                if "合同" in line and len(line) <= 80:
+                    return line
+            if lines:
+                return lines[0][:80]
+    return docx.stem
+
+
 def write_document_outputs(
     docx: Path,
     root_out: Path,
@@ -74,8 +143,14 @@ def write_document_outputs(
     doc_out.mkdir(parents=True, exist_ok=True)
 
     with _stage(timer, "build.write_outputs"):
-        write_json(doc_out / "document_index.json", index)
-        write_json(doc_out / "structure_tree.json", index["structure_tree"])
+        structure_doc = pageindex_like_structure(index, docx)
+        content_doc = content_store(index)
+        anchor_doc = anchor_store(index)
+        manifest = manifest_index(index, docx)
+        write_json(doc_out / "document_index.json", manifest)
+        write_json(doc_out / "structure_tree.json", structure_doc)
+        write_json(doc_out / "content_store.json", content_doc)
+        write_json(doc_out / "anchor_store.json", anchor_doc)
         write_json(doc_out / "titles.json", {"titles": title_rows(index)})
         write_csv(doc_out / "node_tokens.csv", token_rows(index))
         write_json(doc_out / "attachments.json", {"attachments": attachment_tree(index)})
@@ -286,7 +361,7 @@ def command_ask(args: argparse.Namespace) -> int:
         timer.note("ask.concurrency.reranker", config.concurrency.reranker)
     index_path = _index_path(args.doc)
     with timer.stage("ask.load_index"):
-        data = load_index(index_path)
+        data = load_runtime_index(args.doc)
     with timer.stage("ask.load_llm_settings"):
         llm_settings = LLMSettings.from_sources(
             model=args.model,
@@ -411,7 +486,7 @@ def command_ask(args: argparse.Namespace) -> int:
 
 def command_content(args: argparse.Namespace) -> int:
     start_time = time.perf_counter()
-    result = content_view(load_index(_index_path(args.doc)), args.node)
+    result = content_view(load_runtime_index(args.doc), args.node)
     result["elapsed_seconds"] = round(time.perf_counter() - start_time, 3)
     _log_json(args, "result_summary", {"elapsed_seconds": result["elapsed_seconds"], "node_id": result.get("node_id")})
     print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -420,7 +495,7 @@ def command_content(args: argparse.Namespace) -> int:
 
 def command_search(args: argparse.Namespace) -> int:
     start_time = time.perf_counter()
-    result = keyword_search(load_index(_index_path(args.doc)), args.keyword)
+    result = keyword_search(load_runtime_index(args.doc), args.keyword)
     payload = result.model_dump(mode="json")
     payload["elapsed_seconds"] = round(time.perf_counter() - start_time, 3)
     _log_json(args, "result_summary", {"elapsed_seconds": payload["elapsed_seconds"], "match_count": len(payload.get("matches") or [])})
@@ -436,7 +511,7 @@ def command_vector_search(args: argparse.Namespace) -> int:
         config = RetrievalConfig.from_sources(config_path=args.retrieval_config, input_tokens=args.input_tokens)
         timer.note("vector_search.concurrency.embedding", config.concurrency.embedding)
     with timer.stage("vector_search.load_index"):
-        data = load_index(_index_path(args.doc))
+        data = load_runtime_index(args.doc)
     with timer.stage("vector_search.load_vector_index"):
         vector_index = load_vector_index(args.doc / "vector_index.json")
     with timer.stage("vector_search.load_embedding_settings"):
@@ -480,6 +555,39 @@ def command_vector_search(args: argparse.Namespace) -> int:
 
 def _index_path(doc_dir: Path) -> Path:
     return doc_dir / "document_index.json"
+
+
+def load_runtime_index(doc_dir: Path) -> dict[str, Any]:
+    manifest = load_index(_index_path(doc_dir))
+    if manifest.get("schema_version") != "docx-pageindex-like-v1":
+        return manifest
+    files = manifest.get("files") or {}
+    structure_doc = load_index(doc_dir / files.get("structure_tree", "structure_tree.json"))
+    content_doc = load_index(doc_dir / files.get("content_store", "content_store.json"))
+    anchor_doc = load_index(doc_dir / files.get("anchor_store", "anchor_store.json"))
+    nodes = []
+    for node_id, node in content_doc.items():
+        item = dict(node)
+        item["children"] = item.get("nodes") or []
+        nodes.append(item)
+    nodes.sort(key=lambda item: ((item.get("start_index") is None), item.get("start_index") or 0, item.get("node_id") or ""))
+    return {
+        "schema_version": manifest["schema_version"],
+        "source_file": manifest.get("source_file"),
+        "doc_name": manifest.get("doc_name"),
+        "doc_title": manifest.get("doc_title"),
+        "top_regions": manifest.get("top_regions") or {},
+        "settings": manifest.get("settings") or {},
+        "nodes": nodes,
+        "root_nodes": [node.get("node_id") for node in structure_doc.get("structure") or []],
+        "structure_tree": structure_doc.get("structure") or [],
+        "anchor_map": {
+            anchor_id: {key: value for key, value in record.items() if key != "anchor_id"}
+            for anchor_id, record in anchor_doc.items()
+        },
+        "files": files,
+        "stats": manifest.get("stats") or {},
+    }
 
 
 def _merge_matches(structure_matches: list[dict], vector_matches: list[dict]) -> list[dict]:

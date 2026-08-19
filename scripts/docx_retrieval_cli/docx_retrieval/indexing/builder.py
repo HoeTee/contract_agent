@@ -114,6 +114,7 @@ def build_document_index(
                 summarize_nodes(roots, client, cache_dir, concurrency=llm_concurrency)
 
     with _stage(timer, "build.finalize_index"):
+        _fill_key_items(roots)
         flat_nodes = flatten_nodes(roots)
         return DocumentIndex(
             source_file=str(docx_path),
@@ -142,6 +143,13 @@ def build_document_index(
             structure_tree=[node.structure_view() for node in roots],
             anchor_map=build_anchor_map(items, flat_nodes),
         )
+
+
+def _fill_key_items(nodes: list[DocumentNode]) -> None:
+    for node in nodes:
+        if node.children:
+            node.key_items = [child.title for child in node.children[:8] if child.title]
+            _fill_key_items(node.children)
 
 
 def _stage(timer: Any | None, name: str):

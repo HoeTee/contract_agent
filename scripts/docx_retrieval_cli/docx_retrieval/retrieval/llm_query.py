@@ -55,6 +55,8 @@ def llm_query(
                         "node_id": node_id,
                         "title": node.get("title"),
                         "summary": node.get("summary"),
+                        "start_index": node.get("start_index"),
+                        "end_index": node.get("end_index"),
                         "start_anchor": node.get("start_anchor"),
                         "end_anchor": node.get("end_anchor"),
                         "token_estimate": node.get("token_estimate"),
@@ -74,8 +76,9 @@ def _compact_structure(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "summary": node.get("summary"),
             "token_estimate": node.get("token_estimate"),
         }
-        if node.get("children"):
-            item["children"] = _compact_structure(node["children"])
+        children = node.get("nodes") or node.get("children") or []
+        if children:
+            item["nodes"] = _compact_structure(children)
         compact.append(item)
     return compact
 
@@ -107,14 +110,14 @@ def _split_structure(structure: list[dict[str, Any]], input_tokens: int) -> list
 
 
 def _split_oversized_node(node: dict[str, Any], input_tokens: int) -> list[list[dict[str, Any]]]:
-    children = node.get("children") or []
+    children = node.get("nodes") or node.get("children") or []
     if not children:
         return [[node]]
-    shell = {key: value for key, value in node.items() if key != "children"}
+    shell = {key: value for key, value in node.items() if key not in {"children", "nodes"}}
     child_budget = max(input_tokens - estimate_tokens(json.dumps(shell, ensure_ascii=False)), input_tokens // 2)
     result = []
     for child_chunk in _split_structure(children, child_budget):
-        result.append([{**shell, "children": child_chunk}])
+        result.append([{**shell, "nodes": child_chunk}])
     return result
 
 
@@ -153,6 +156,33 @@ def _query_prompt(query: str, structure_json: str) -> str:
 - 不要返回 Markdown。
 - 不要返回解释。
 - 不要返回纯文本。
+- 不要添加 schema 以外的字段。
+- JSON 必须严格符合：
+{{
+  "nodes": [
+    {{"node_id": "body/sec_001", "reason": "选择原因"}}
+  ]
+}}"""
+def _query_prompt(query: str, structure_json: str) -> str:
+    return f"""你正在从 DOCX 合同的 PageIndex-like 结构树中选择与审查问题最相关的 node。
+审查问题：{query}
+
+结构树：
+{structure_json}
+
+选择规则：
+- 只能返回结构树中真实存在的 node_id。
+- 结构树字段含义：nodes 是子节点；start_index/end_index 是 DOCX w:body 子节点范围；summary/key_items 用于判断节点内容。
+- 优先返回 title、summary 或 key_items 直接相关的 node。
+- 如果父节点和子节点都相关，优先返回更具体的子节点；只有需要完整章节上下文时才返回父节点。
+- 如果问题需要跨章节比对，可以返回多个 node。
+- 不要返回 body 或 attachments 这类人工区域节点；应选择它们下面的具体业务节点。
+- 避免返回弱相关 node。
+
+输出规范：
+- 必须只返回一个合法 JSON object。
+- 不要返回 Markdown。
+- 不要返回解释。
 - 不要添加 schema 以外的字段。
 - JSON 必须严格符合：
 {{

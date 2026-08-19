@@ -27,25 +27,34 @@ class DocumentNode(BaseModel):
     children: list["DocumentNode"] = Field(default_factory=list)
     source_start: int | None = None
     source_end: int | None = None
+    start_index: int | None = None
+    end_index: int | None = None
+    key_items: list[str] = Field(default_factory=list)
 
     def storage_view(self) -> dict[str, Any]:
         data = self.model_dump(exclude={"children", "source_start", "source_end"})
         data["children"] = [child.node_id for child in self.children]
+        data["nodes"] = data["children"]
         return data
 
     def structure_view(self) -> dict[str, Any]:
         data: dict[str, Any] = {
-            "node_id": self.node_id,
             "title": self.title,
-            "node_type": self.node_type,
+            "node_id": self.node_id,
+            "start_index": self.start_index,
+            "end_index": self.end_index,
             "summary": self.summary,
+            "key_items": self.key_items,
+            "node_type": self.node_type,
             "token_estimate": self.token_estimate,
         }
         if self.page_start is not None or self.page_end is not None:
             data["page_start"] = self.page_start
             data["page_end"] = self.page_end
         if self.children:
-            data["children"] = [child.structure_view() for child in self.children]
+            data["nodes"] = [child.structure_view() for child in self.children]
+        else:
+            data["nodes"] = []
         return data
 
     def content_view(self) -> dict[str, Any]:
@@ -54,7 +63,10 @@ class DocumentNode(BaseModel):
             "title": self.title,
             "node_type": self.node_type,
             "text": self.text,
+            "start_index": self.start_index,
+            "end_index": self.end_index,
             "start_anchor": self.start_anchor,
             "end_anchor": self.end_anchor,
             "token_estimate": self.token_estimate,
+            "nodes": [child.node_id for child in self.children],
         }

@@ -8,6 +8,8 @@ class VectorMetadata(BaseModel):
 
     title: str
     node_type: str
+    start_index: int | None = None
+    end_index: int | None = None
     start_anchor: str | None = None
     end_anchor: str | None = None
     token_estimate: int = 0

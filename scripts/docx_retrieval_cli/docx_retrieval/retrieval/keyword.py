@@ -11,7 +11,7 @@ def keyword_search(index: dict[str, Any], keywords: list[str]) -> RetrievalResul
         for node in index["nodes"]:
             title = node.get("title") or ""
             text = node.get("text") or ""
-            has_children = bool(node.get("children"))
+            has_children = bool(node.get("nodes") or node.get("children"))
             if keyword in title:
                 matches.append(
                     RetrievalMatch(

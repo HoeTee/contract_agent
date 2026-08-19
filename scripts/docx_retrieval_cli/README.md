@@ -188,6 +188,8 @@ python scripts\docx_retrieval_cli\cli.py content --doc "outputs\docx_index\合�
 nodes[].node_id
 nodes[].title
 nodes[].text
+nodes[].start_index
+nodes[].end_index
 nodes[].start_anchor
 nodes[].end_anchor
 ```
@@ -244,9 +246,11 @@ python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目
 每个 DOCX 会生成一个独立输出目录：
 
 ```text
-document_index.json  主索引，包含完整 node、anchor_map、structure_tree
+document_index.json  manifest，总入口，记录 source_file、doc_name、doc_title、files、stats
+structure_tree.json  PageIndex-like 轻量结构树，第一阶段给 LLM 选 node，不包含正文 text
+content_store.json   node_id -> 原文 text 与 start_index/end_index/start_anchor/end_anchor
+anchor_store.json    anchor_id/body_child_index -> DOCX XML 定位信息
 vector_index.json    默认生成的向量补召回索引，保存 embedding 与 node_id
-structure_tree.json  轻量结构树
 titles.json          标题类 node 列表
 node_tokens.csv      node token 分布
 attachments.json     附件结构

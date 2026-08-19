@@ -38,6 +38,8 @@ def vector_search(
                 "node_id": item.node_id,
                 "title": node.get("title") or item.metadata.title,
                 "summary": node.get("summary"),
+                "start_index": node.get("start_index") or item.metadata.start_index,
+                "end_index": node.get("end_index") or item.metadata.end_index,
                 "start_anchor": node.get("start_anchor") or item.metadata.start_anchor,
                 "end_anchor": node.get("end_anchor") or item.metadata.end_anchor,
                 "node_type": node.get("node_type") or item.metadata.node_type,
@@ -62,7 +64,7 @@ def vector_search(
 def _candidate_text(item: dict[str, Any]) -> str:
     return "\n".join(
         str(item.get(key) or "")
-        for key in ("node_id", "title", "summary", "node_type", "token_estimate")
+        for key in ("node_id", "title", "summary", "node_type", "start_index", "end_index", "token_estimate")
     )
 
 

@@ -978,3 +978,59 @@ pageindex/PageIndex/pageindex/agent_tools.py:947
   9. 改动后 commit。
 
   边界：这次改的是索引产物和检索流程，不直接重做标题识别算法；如果某些合同标题识别错，仍然需要后续单独优化 parser/indexing。
+
+实现更新：PageIndex-like DOCX 索引文件布局
+
+当前 DOCX 检索工具不再把结构树、全文 text、anchor 定位全部混在 `document_index.json` 中。索引产物改为四个核心文件：
+
+```text
+document_index.json      manifest，总入口，记录 source_file、doc_name、doc_title、files、stats
+structure_tree.json      PageIndex-like 轻量结构树，第一阶段给 LLM 选 node，不包含正文 text
+content_store.json       node_id -> 原文 text 与 start_index/end_index/start_anchor/end_anchor
+anchor_store.json        anchor_id/body_child_index -> DOCX XML 定位信息
+vector_index.json        向量补召回索引，metadata 使用同一套 node_id/start_index/end_index
+```
+
+`structure_tree.json` 字段对齐 PageIndex：
+
+```json
+{
+  "schema_version": "docx-pageindex-like-v1",
+  "doc_name": "xxx.docx",
+  "doc_title": "采购合同",
+  "structure": [
+    {
+      "title": "第二条 合同金额及支付方式",
+      "node_id": "body/sec_002",
+      "start_index": 51,
+      "end_index": 67,
+      "summary": "本节约定合同金额、支付方式、发票类型和付款账户。",
+      "key_items": ["合同金额", "支付方式", "增值税专用发票"],
+      "node_type": "section",
+      "token_estimate": 893,
+      "nodes": []
+    }
+  ]
+}
+```
+
+字段含义：
+
+- `start_index/end_index`：不是页码，而是 DOCX `w:body` 直接子节点序号范围，用于替代 PageIndex 的 page range。
+- `nodes`：子节点，替代旧字段 `children`。
+- `key_items`：当前先由直接子节点标题生成，后续可以改为 LLM summary 同步生成。
+- `summary`：结构检索用摘要，不放全文。
+
+检索流程：
+
+```text
+读取 document_index.json
+-> 根据 files.structure_tree 读取 structure_tree.json
+-> 将 structure_tree["structure"] 按 token budget 顺次切块输入 LLM
+-> LLM 返回 node_id
+-> 合并 structure/vector 候选并 rerank
+-> 根据 node_id 从 content_store.json 取 text
+-> 如果 text 超过输入阈值，按 anchor_store 的 body_child_index 顺序切 chunk
+```
+
+这个流程不是 PageIndex 的 page 检索原样复制，而是使用 `node_id + start_index/end_index + anchor range` 替代 PageIndex 的 `page range`。原因是 DOCX 没有稳定页概念，批注定位最终也依赖 XML anchor。

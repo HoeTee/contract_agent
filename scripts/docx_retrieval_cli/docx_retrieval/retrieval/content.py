@@ -16,7 +16,17 @@ def content_view(index: dict[str, Any], node_id: str) -> dict[str, Any]:
     node = get_node(index, node_id)
     return {
         key: node.get(key)
-        for key in ("node_id", "title", "node_type", "text", "start_anchor", "end_anchor", "token_estimate")
+        for key in (
+            "node_id",
+            "title",
+            "node_type",
+            "text",
+            "start_index",
+            "end_index",
+            "start_anchor",
+            "end_anchor",
+            "token_estimate",
+        )
     }
 
 
@@ -84,6 +94,8 @@ def _content_item(node: dict[str, Any], candidate: dict[str, Any]) -> dict[str, 
         "node_id": node.get("node_id"),
         "title": node.get("title"),
         "text": node.get("text") or "",
+        "start_index": node.get("start_index"),
+        "end_index": node.get("end_index"),
         "start_anchor": node.get("start_anchor"),
         "end_anchor": node.get("end_anchor"),
         "source": candidate.get("sources") or [candidate.get("source")],
@@ -114,21 +126,46 @@ def _chunk_oversized_node(index: dict[str, Any], node: dict[str, Any], candidate
     parts: list[str] = []
     used = 0
     chunk_start_anchor = anchors[0].get("anchor")
+    chunk_start_index = anchors[0].get("body_child_index")
     chunk_index = 1
     for anchor in anchors:
         text = anchor.get("text") or ""
         tokens = estimate_tokens(text)
         if parts and used + tokens > input_tokens:
-            chunks.append(_chunk_item(node, candidate, chunk_index, parts, chunk_start_anchor, parts_end_anchor))
+            chunks.append(
+                _chunk_item(
+                    node,
+                    candidate,
+                    chunk_index,
+                    parts,
+                    chunk_start_anchor,
+                    parts_end_anchor,
+                    chunk_start_index,
+                    parts_end_index,
+                )
+            )
             chunk_index += 1
             parts = []
             used = 0
             chunk_start_anchor = anchor.get("anchor")
+            chunk_start_index = anchor.get("body_child_index")
         parts.append(text)
         used += tokens
         parts_end_anchor = anchor.get("anchor")
+        parts_end_index = anchor.get("body_child_index")
     if parts:
-        chunks.append(_chunk_item(node, candidate, chunk_index, parts, chunk_start_anchor, parts_end_anchor))
+        chunks.append(
+            _chunk_item(
+                node,
+                candidate,
+                chunk_index,
+                parts,
+                chunk_start_anchor,
+                parts_end_anchor,
+                chunk_start_index,
+                parts_end_index,
+            )
+        )
     return chunks
 
 
@@ -139,11 +176,15 @@ def _chunk_item(
     parts: list[str],
     start_anchor: str | None,
     end_anchor: str | None,
+    start_index: int | None,
+    end_index: int | None,
 ) -> dict[str, Any]:
     return {
         "node_id": f"{node.get('node_id')}/chunk_{chunk_index:03d}",
         "title": node.get("title"),
         "text": "\n".join(part for part in parts if part),
+        "start_index": start_index,
+        "end_index": end_index,
         "start_anchor": start_anchor,
         "end_anchor": end_anchor,
         "source": candidate.get("sources") or [candidate.get("source")],

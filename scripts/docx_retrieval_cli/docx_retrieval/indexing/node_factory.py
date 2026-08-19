@@ -33,6 +33,8 @@ def make_node(
     text = item_range_text(items, start, end)
     page_start, page_end, page_source, page_score = item_page_range(items, start, end)
     token_estimate = estimate_tokens(text)
+    start_anchor = items[start].anchor if start < len(items) else ""
+    end_anchor = items[end - 1].anchor if end > start else (items[start].anchor if start < len(items) else "")
     return DocumentNode(
         node_id=node_id,
         node_type=node_type,
@@ -40,8 +42,8 @@ def make_node(
         title=title or node_type,
         text=text,
         summary=make_summary(text) if token_estimate >= SUMMARY_TRIGGER_MIN_TOKENS else make_summary(title or text),
-        start_anchor=items[start].anchor if start < len(items) else "",
-        end_anchor=items[end - 1].anchor if end > start else (items[start].anchor if start < len(items) else ""),
+        start_anchor=start_anchor,
+        end_anchor=end_anchor,
         page_start=page_start,
         page_end=page_end,
         page_source=page_source,
@@ -52,4 +54,6 @@ def make_node(
         parent_id=parent_id,
         source_start=start,
         source_end=end,
+        start_index=items[start].body_child_index if start < len(items) else None,
+        end_index=items[end - 1].body_child_index if end > start else (items[start].body_child_index if start < len(items) else None),
     )

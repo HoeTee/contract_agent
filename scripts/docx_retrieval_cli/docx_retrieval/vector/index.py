@@ -33,6 +33,8 @@ def build_vector_index(
                 metadata=VectorMetadata(
                     title=node.get("title") or "",
                     node_type=node.get("node_type") or "",
+                    start_index=node.get("start_index"),
+                    end_index=node.get("end_index"),
                     start_anchor=node.get("start_anchor"),
                     end_anchor=node.get("end_anchor"),
                     token_estimate=int(node.get("token_estimate") or 0),
@@ -65,7 +67,7 @@ def _select_vector_entries(index: dict[str, Any]) -> list[dict[str, Any]]:
 def _should_index_node(node: dict[str, Any]) -> bool:
     node_type = node.get("node_type")
     text = (node.get("text") or "").strip()
-    children = node.get("children") or []
+    children = node.get("nodes") or node.get("children") or []
     if node_type in {"body", "attachments"}:
         return False
     if node_type == "table":
