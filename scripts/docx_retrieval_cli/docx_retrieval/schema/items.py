@@ -10,11 +10,15 @@ class BodyItem(BaseModel):
     anchor: str
     body_child_index: int
     text: str
+    raw_text: str | None = None
     xml_path: str
     direct_outline: int | None = None
     style_outline: int | None = None
     style_id: str | None = None
     style_name: str | None = None
+    num_id: str | None = None
+    num_ilvl: int | None = None
+    numbering_prefix: str | None = None
     alignment: str | None = None
     bold_fraction: float = 0.0
     max_font_size: int | None = None

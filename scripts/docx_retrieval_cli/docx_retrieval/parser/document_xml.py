@@ -6,6 +6,7 @@ from lxml import etree
 
 from docx_retrieval.schema import BodyItem
 
+from .numbering_xml import NumberingResolver, apply_numbering_prefix
 from .package import DocxPackage
 from .styles_xml import load_styles, style_outline
 from .xml_utils import NS, attr_value, text_of, w_tag, xml_path, xpath_one
@@ -20,11 +21,19 @@ def table_text(element: etree._Element) -> str:
     return "\n".join(rows).strip() or "[TABLE]"
 
 
-def paragraph_item(element: etree._Element, styles: dict[str, dict[str, str | None]], anchor: str, body_child_index: int) -> BodyItem:
+def paragraph_item(
+    element: etree._Element,
+    styles: dict[str, dict[str, str | None]],
+    numbering: NumberingResolver,
+    anchor: str,
+    body_child_index: int,
+) -> BodyItem:
     ppr = xpath_one(element, "./w:pPr")
     direct_outline = None
     style_id = None
     alignment = None
+    num_id = None
+    num_ilvl = None
     if ppr is not None:
         outline = attr_value(xpath_one(ppr, "./w:outlineLvl"))
         if outline is not None:
@@ -34,6 +43,13 @@ def paragraph_item(element: etree._Element, styles: dict[str, dict[str, str | No
                 direct_outline = None
         style_id = attr_value(xpath_one(ppr, "./w:pStyle"))
         alignment = attr_value(xpath_one(ppr, "./w:jc"))
+        num_id = attr_value(xpath_one(ppr, "./w:numPr/w:numId"))
+        ilvl = attr_value(xpath_one(ppr, "./w:numPr/w:ilvl"))
+        if ilvl is not None:
+            try:
+                num_ilvl = int(ilvl)
+            except ValueError:
+                num_ilvl = None
 
     total_chars = 0
     bold_chars = 0
@@ -55,16 +71,24 @@ def paragraph_item(element: etree._Element, styles: dict[str, dict[str, str | No
             except ValueError:
                 pass
 
+    raw_text = text_of(element)
+    numbering_prefix = numbering.next_prefix(num_id, num_ilvl)
+    display_text = apply_numbering_prefix(raw_text, numbering_prefix)
+
     return BodyItem(
         kind="p",
         anchor=anchor,
         body_child_index=body_child_index,
-        text=text_of(element),
+        text=display_text,
+        raw_text=raw_text,
         xml_path=xml_path(element),
         direct_outline=direct_outline,
         style_outline=style_outline(style_id, styles),
         style_id=style_id,
         style_name=styles.get(style_id, {}).get("name") if style_id else None,
+        num_id=num_id,
+        num_ilvl=num_ilvl,
+        numbering_prefix=numbering_prefix,
         alignment=alignment,
         bold_fraction=bold_chars / total_chars if total_chars else 0.0,
         max_font_size=max(sizes) if sizes else None,
@@ -76,6 +100,7 @@ def read_docx_items(path: Path) -> list[BodyItem]:
     package = DocxPackage(path)
     document = package.read_xml("word/document.xml")
     styles = load_styles(package.try_read_xml("word/styles.xml"))
+    numbering = NumberingResolver(package.try_read_xml("word/numbering.xml"))
     body = xpath_one(document, ".//w:body")
     if body is None:
         return []
@@ -88,7 +113,7 @@ def read_docx_items(path: Path) -> list[BodyItem]:
     for body_child_index, child in enumerate(list(body), start=1):
         if child.tag == w_tag("p"):
             paragraph_index += 1
-            item = paragraph_item(child, styles, f"p_{paragraph_index:04d}", body_child_index)
+            item = paragraph_item(child, styles, numbering, f"p_{paragraph_index:04d}", body_child_index)
         elif child.tag == w_tag("tbl"):
             table_index += 1
             item = BodyItem(
