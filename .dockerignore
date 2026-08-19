@@ -52,6 +52,7 @@ env
 
 # Development-only files
 /tests/
+/scripts/
 /AGENTS.md
 /DEPLOYMENT.md
 /PLAN.md
@@ -64,3 +65,4 @@ env
 image.tar
 /.dockerignore/
 /deploy/
+检索算法设计文档.txt

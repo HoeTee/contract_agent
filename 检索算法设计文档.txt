@@ -10,6 +10,8 @@
 
 答：`lastRenderedPageBreak` 如果存在，位置就在 `word/document.xml` 的正文 run 内，常见形态是 `<w:lastRenderedPageBreak/>`。如果你在某个 `document.xml` 里没有看到，说明该 DOCX 没有保存 Word 上次渲染分页结果，或者该文件被生成/清洗时没有写入这个标记。因此页码字段必须是可选字段：存在时估算页码，不存在时 `page_start/page_end=null`，不能把页码作为强依赖。批注定位仍然依赖 `p/tbl anchor + quoted_text`。
 
+这个页码我搜索了一个合同压缩包 不存在。遍历的样例都存在吗？
+
 4. node confidence level 改为计数吧 目前的 high medium 不具备量化意义
 
 答：同意。`high/medium/low` 可以作为展示层结果，但底层应该保存数字化证据。建议改成 `confidence_score` 和 `confidence_evidence` 两个字段。例如：编号形态命中 +2，编号连续性 +3，direct outlineLvl +4，style outlineLvl +3，视觉标题得分 +0 到 +4，附件上下文命中 +2，排除规则命中 -5。最终根据分数映射展示等级，但判断和调参都以数字为准。
@@ -235,3 +237,91 @@ agent 选中候选 node
 +1 加粗比例 >= 0.5
 +1 最大字号 >= 28
 +1 后 5 个 body child 内出现正文、编号标题或表格
+
+
+
+
+这个字典的目的不是“又建一棵树”，而是做全文扫描缓存。
+
+比如合同全文里有这些内容：
+
+合同总价：¥7,600,000.00元
+支付合同总金额的40%
+增值税专用发票
+详见附件3
+以下无正文
+
+规则索引会扫描出：
+...
+
+听起来很离谱，我建议还是索引检索到后整个 section 进行比对即可，无需提取到字段，毫无意义，过于机械
+
+
+
+  存 storage_node 一份
+  存 structure_view 一份
+  存 content_view 一份
+
+  而是这样：
+
+  内部完整 node
+    -> 给结构检索时，临时返回 structure_view
+    -> 给原文展开时，临时返回 content_view
+    -> 调试/落盘时，使用 storage_node
+意思是 存储一个索引 但是检索的时候查阅其中的部分字段？
+
+
+ metadata 是向量索引里的字段，但它必须和结构树使用同一套 ID。
+ 向量补充召回不就应该存放在这个 node 下吗？我不是很理解，单独建立一个向量召回的 node，也不知道位置是什么。向量召回的目的是构建结构树还是帮助索引啊？这个目的好像都没有弄清楚
+
+
+
+1. PageIndex 对第 2 点“返回片段很多”的控制，不是向量阈值，而是 工具响应字符预算：100_000 * 0.95 = 95,000 chars。
+
+这个定量参数是随着模型能力定义的吗 qwen3.6-35b-a3b 参数数值是什么？
+
+structure:
+    min_matches: 2
+    max_matches: 6
+    parent_node_token_threshold: 1200
+    require_title_or_summary_keyword_hit: true
+    uncertainty_reason_keywords:
+    - 未找到
+    - 不确定
+    - 需要结合其他章节
+    - 需要结合上下文
+    - 需结合
+    - 无法判断
+
+vector_fallback:
+    enabled: true
+    top_k: 8
+    score_threshold: 0.60
+    keep_k: 3
+    auto_build: false
+
+merge:
+    max_nodes: 6
+    prefer_child_over_parent: true
+
+content:
+    include_by_default: false
+    budget_tokens: 6000
+    skip_parent_when_child_selected: true
+
+  retrieval:
+    structure:
+      max_input_tokens: 6000
+      max_selected_nodes: 6
+
+vector:
+    enabled: true
+    top_k: 8
+    score_threshold: 0.60
+    max_added_nodes: 3
+    auto_build: false
+
+content:
+    max_context_tokens: 6000
+    include_text: true
+    prefer_child_node: true
