@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import re
 import sys
@@ -13,30 +14,32 @@ PROJECT_ROOT = PROJECT_DIR.parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from docx_retrieval import build_document_index
-from docx_retrieval.evaluation import iter_docx_inputs
-from docx_retrieval.indexing.config import IndexingConfig
-from docx_retrieval.indexing import document_mode
-from docx_retrieval.llm import LLMClient, LLMSettings
-from docx_retrieval.output import attachment_tree, structure_tokens, title_rows, token_rows, write_csv, write_json, write_report
-from docx_retrieval.output.writers import load_index
-from docx_retrieval.retrieval import (
-    RetrievalConfig,
-    RouteConfig,
-    build_content_context,
-    content_view,
-    join_matches,
-    keyword_search,
-    llm_query,
-    plan_route,
-    region_matches,
-    rerank_matches,
-    rule_matches,
-    scan_matches,
-    title_matches,
-)
-from docx_retrieval.utils import RunLogger, TimingCollector
-from docx_retrieval.vector import EmbeddingClient, EmbeddingSettings, build_vector_index, load_vector_index, save_vector_index, vector_search
+# Keep stdout machine-readable even when shared project modules print during import.
+with contextlib.redirect_stdout(sys.stderr):
+    from docx_retrieval import build_document_index
+    from docx_retrieval.evaluation import iter_docx_inputs
+    from docx_retrieval.indexing.config import IndexingConfig
+    from docx_retrieval.indexing import document_mode
+    from docx_retrieval.llm import LLMClient, LLMSettings
+    from docx_retrieval.output import attachment_tree, structure_tokens, title_rows, token_rows, write_csv, write_json, write_report
+    from docx_retrieval.output.writers import load_index
+    from docx_retrieval.retrieval import (
+        RetrievalConfig,
+        RouteConfig,
+        build_content_context,
+        content_view,
+        join_matches,
+        keyword_search,
+        llm_query,
+        plan_route,
+        region_matches,
+        rerank_matches,
+        rule_matches,
+        scan_matches,
+        title_matches,
+    )
+    from docx_retrieval.utils import RunLogger, TimingCollector
+    from docx_retrieval.vector import EmbeddingClient, EmbeddingSettings, build_vector_index, load_vector_index, save_vector_index, vector_search
 
 DEFAULT_OUTPUT_DIR = PROJECT_DIR / "outputs" / "docx_index"
 DEFAULT_LOG_DIR = PROJECT_DIR / "logs"

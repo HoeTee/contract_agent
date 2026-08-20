@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -11,6 +12,21 @@ import cli
 
 
 class CliPathTest(unittest.TestCase):
+    def test_import_messages_do_not_pollute_stdout(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, str(PROJECT_DIR / "cli.py"), "--help"],
+            cwd=PROJECT_DIR,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            check=False,
+        )
+
+        self.assertEqual(0, completed.returncode, completed.stderr)
+        self.assertNotIn("[config]", completed.stdout)
+        self.assertIn("[config]", completed.stderr)
+
     def test_default_build_output_and_log_are_project_local(self) -> None:
         args = cli.build_parser().parse_args(["build", "contract.docx"])
         self.assertEqual(PROJECT_DIR / "outputs" / "docx_index", args.out)
