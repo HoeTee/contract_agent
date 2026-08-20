@@ -16,65 +16,34 @@ from docx_retrieval.llm.schemas import RouteResponse
 from docx_retrieval.llm.config import load_yaml
 
 
-DEFAULT_ROUTE_CONFIG = Path(__file__).resolve().parents[2] / "route.yaml"
+DEFAULT_ROUTE_CONFIG = Path(__file__).resolve().parents[2] / "config.yaml"
 ROUTE_PROMPT_VERSION = "docx_route_v1"
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 NUMBERED_CRITERION = re.compile(r"^\s*(\d{1,2})(?:\s*[.、．]\s*|\s+)(.+)$", re.S)
 
 
-class CriteriaConfig(BaseModel):
+class RouteConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    source: Path
-    expected_count: int = Field(default=18, ge=1)
-
-
-class RouterConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    fallback: bool = True
-
-
-class FallbackConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
+    criteria: Path
+    expected_criteria_count: int = Field(default=18, ge=1)
+    fallback_enabled: bool = True
+    methods: dict[str, str]
     llm_candidates: int = Field(default=12, ge=1)
     vector_candidates: int = Field(default=20, ge=1)
     vector_threshold: float = Field(default=0.45, ge=0.0, le=1.0)
     max_nodes: int = Field(default=5, ge=1)
 
-
-class OutputConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    max_tokens: int = Field(default=12000, ge=500)
-
-
-class ScanConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    batch_tokens: int = Field(default=12000, ge=500)
-
-
-class RouteConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    criteria: CriteriaConfig
-    router: RouterConfig = Field(default_factory=RouterConfig)
-    methods: dict[str, str]
-    fallback: FallbackConfig = Field(default_factory=FallbackConfig)
-    output: OutputConfig = Field(default_factory=OutputConfig)
-    scan: ScanConfig = Field(default_factory=ScanConfig)
-
     @classmethod
     def load(cls, path: Path | None = None) -> "RouteConfig":
         config_path = (path or DEFAULT_ROUTE_CONFIG).resolve()
         raw = load_yaml(config_path)
-        source = Path(str((raw.get("criteria") or {}).get("source") or ""))
+        data = dict(raw.get("routing") or {})
+        source = Path(str(data.get("criteria") or ""))
         if not source.is_absolute():
             source = (config_path.parent / source).resolve()
-        raw.setdefault("criteria", {})["source"] = source
-        config = cls.model_validate(raw)
+        data["criteria"] = source
+        config = cls.model_validate(data)
         if set(config.methods) != {"title", "region", "rule", "join", "scan"}:
             raise ValueError("route methods must be exactly: title, region, rule, join, scan")
         return config
@@ -87,7 +56,7 @@ def plan_route(
     config: RouteConfig,
     cache_dir: Path | None,
 ) -> RouteResponse:
-    criteria = load_criteria(config.criteria.source, config.criteria.expected_count)
+    criteria = load_criteria(config.criteria, config.expected_criteria_count)
     criterion = _criterion_for_query(query, criteria)
     titles = _titles(index.get("structure_tree") or [])
     prompt = _prompt(query, criterion, titles, config)

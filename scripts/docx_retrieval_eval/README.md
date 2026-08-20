@@ -109,7 +109,7 @@ python cli.py --limit 18 --no-query-cache
 python cli.py --quiet
 ```
 
-默认路径和阈值位于 `config.yaml`。
+评测数据、索引目录和评分阈值位于本目录的 `config.yaml`；其中 `retrieval_config` 指向 `../docx_retrieval_cli/config.yaml`。索引建立和检索都会使用该统一配置中的 token、路由、向量、重排序及并发参数。
 
 ## 测试逻辑
 

@@ -37,6 +37,8 @@ class RetrievalConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     input_tokens: int = Field(default=20000, ge=500)
+    output_tokens: int = Field(default=12000, ge=500)
+    scan_batch_tokens: int = Field(default=12000, ge=500)
     max_depth: int = Field(default=6, ge=1)
     vector: VectorRetrievalConfig = Field(default_factory=VectorRetrievalConfig)
     rerank: RerankConfig = Field(default_factory=RerankConfig)

@@ -11,6 +11,7 @@ class EvalConfig:
     project_dir: Path
     dataset: Path
     retrieval_cli: Path
+    retrieval_config: Path
     index_root: Path
     logs_dir: Path
     coverage_threshold: float
@@ -38,6 +39,7 @@ def load_config(path: Path) -> EvalConfig:
         project_dir=base,
         dataset=_resolve(base, payload.get("dataset", "data/retrieval_gold.csv")),
         retrieval_cli=_resolve(base, payload.get("retrieval_cli", "../docx_retrieval_cli/cli.py")),
+        retrieval_config=_resolve(base, payload.get("retrieval_config", "../docx_retrieval_cli/config.yaml")),
         index_root=_resolve(base, payload.get("index_root", "../docx_retrieval_cli/outputs/docx_index")),
         logs_dir=_resolve(base, payload.get("logs_dir", "logs")),
         coverage_threshold=threshold,

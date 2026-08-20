@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from retrieval_eval.runner import _build_index
+from retrieval_eval.runner import _ask, _build_index
 
 
 class BuildIndexTest(unittest.TestCase):
@@ -18,6 +18,8 @@ class BuildIndexTest(unittest.TestCase):
             config = SimpleNamespace(
                 index_root=Path(temporary_dir) / "indexes",
                 retrieval_cli=Path(temporary_dir) / "cli.py",
+                retrieval_config=Path(temporary_dir) / "retrieval.yaml",
+                build_timeout_seconds=1800,
             )
             row = SimpleNamespace(contract_path=str(Path(temporary_dir) / "contract.docx"))
             payload = {"documents": [{"output_dir": str(output_dir)}]}
@@ -31,6 +33,23 @@ class BuildIndexTest(unittest.TestCase):
             self.assertEqual(arguments[0], "build")
             self.assertIn("--no-cache", arguments)
             self.assertIn(str(config.index_root), arguments)
+            self.assertIn(str(config.retrieval_config), arguments)
+
+    def test_ask_uses_same_retrieval_config(self) -> None:
+        config = SimpleNamespace(
+            retrieval_cli=Path("cli.py"),
+            retrieval_config=Path("retrieval.yaml"),
+        )
+        payload = {"nodes": []}
+        with patch("retrieval_eval.runner._run_retrieval_cli", return_value=(payload, "", 0.5)) as run_cli:
+            result, _, elapsed = _ask(config, Path("index"), "合同期限", no_cache=True)
+
+        self.assertEqual(result["nodes"], [])
+        self.assertEqual(elapsed, 0.5)
+        arguments = run_cli.call_args.args[1]
+        self.assertIn("--all-parts", arguments)
+        self.assertIn("--no-cache", arguments)
+        self.assertIn(str(config.retrieval_config), arguments)
 
 
 if __name__ == "__main__":

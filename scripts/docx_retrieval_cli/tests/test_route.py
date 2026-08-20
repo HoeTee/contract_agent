@@ -67,7 +67,7 @@ class RouteTest(unittest.TestCase):
 
     def test_criteria_source_contains_all_items(self) -> None:
         config = RouteConfig.load()
-        criteria = load_criteria(config.criteria.source, config.criteria.expected_count)
+        criteria = load_criteria(config.criteria, config.expected_criteria_count)
         self.assertEqual(list(criteria), list(range(1, 19)))
         self.assertIn("支付方式", criteria[6])
 

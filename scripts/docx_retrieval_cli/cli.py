@@ -241,7 +241,6 @@ def build_parser() -> argparse.ArgumentParser:
     ask.add_argument("--no-cache", action="store_true", help="Disable LLM response cache for structure query and rerank.")
     ask.add_argument("--quiet", action="store_true", help="Do not print stage timings to stderr.")
     ask.add_argument("--retrieval-config", type=Path, help="Optional docx_retrieval_cli config.yaml path.")
-    ask.add_argument("--route-config", type=Path, help="Optional route.yaml path.")
     _add_llm_args(ask)
     _add_embedding_args(ask)
     _add_log_args(ask)
@@ -368,7 +367,7 @@ def command_ask(args: argparse.Namespace) -> int:
         timer.note("ask.concurrency.llm", config.concurrency.llm)
         timer.note("ask.concurrency.embedding", config.concurrency.embedding)
         timer.note("ask.concurrency.reranker", config.concurrency.reranker)
-        route_config = RouteConfig.load(args.route_config)
+        route_config = RouteConfig.load(args.retrieval_config)
     index_path = _index_path(args.doc)
     with timer.stage("ask.load_index"):
         data = load_runtime_index(args.doc)
@@ -390,7 +389,7 @@ def command_ask(args: argparse.Namespace) -> int:
     structure_matches: list[dict[str, Any]] = []
     vector_matches: list[dict[str, Any]] = []
     fallback_used = not routed_matches or (
-        route_config.router.fallback and route_plan.fallback and not _route_is_complete(route_plan)
+        route_config.fallback_enabled and route_plan.fallback and not _route_is_complete(route_plan)
     )
     if fallback_used:
         with timer.stage("ask.llm_structure_query"):
@@ -402,7 +401,7 @@ def command_ask(args: argparse.Namespace) -> int:
                 input_tokens=config.input_tokens,
                 timer=timer,
                 concurrency=config.concurrency.llm,
-            )[: route_config.fallback.llm_candidates]
+            )[: route_config.llm_candidates]
     if fallback_used and config.vector.enabled:
         vector_path = args.doc / "vector_index.json"
         if not vector_path.exists():
@@ -443,10 +442,10 @@ def command_ask(args: argparse.Namespace) -> int:
                         vector_index,
                         query,
                         embedding_client,
-                        score_threshold=route_config.fallback.vector_threshold,
+                        score_threshold=route_config.vector_threshold,
                         input_tokens=config.input_tokens,
                         concurrency=config.concurrency.embedding,
-                    )[: route_config.fallback.vector_candidates]
+                    )[: route_config.vector_candidates]
                 )
     with timer.stage("ask.merge_matches"):
         fallback_matches = _merge_matches(structure_matches, vector_matches)
@@ -463,14 +462,14 @@ def command_ask(args: argparse.Namespace) -> int:
                 rerank_cache_dir,
                 concurrency=config.concurrency.reranker,
             )
-        ranked_matches = ranked_matches[: route_config.fallback.max_nodes]
+        ranked_matches = ranked_matches[: route_config.max_nodes]
     else:
         ranked_matches = candidates
     with timer.stage("ask.build_content_context"):
         content_budget = (
-            route_config.scan.batch_tokens
+            config.scan_batch_tokens
             if any(step.method == "scan" for step in route_plan.steps)
-            else route_config.output.max_tokens
+            else config.output_tokens
         )
         context = build_content_context(data, ranked_matches, content_budget, part=args.part)
         if args.all_parts:

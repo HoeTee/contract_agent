@@ -1,5 +1,7 @@
 retrieval:
   input_tokens: 20000
+  output_tokens: 12000
+  scan_batch_tokens: 12000
   max_depth: 6
   vector:
     enabled: true
@@ -7,6 +9,21 @@ retrieval:
     auto_build: true
   rerank:
     enabled: true
+
+routing:
+  criteria: ../../resources/criteria/criteria-formal.docx
+  expected_criteria_count: 18
+  fallback_enabled: true
+  methods:
+    title: 检查目录、标题、章节名称、必备标题和标题顺序。
+    region: 获取合同首部、正文末端、签署页，或明确标题下的完整内容。
+    rule: 执行全文精确关键词、正则、金额和存在性定位。
+    join: 关联多个区域或节点，获取一致性比较所需的完整证据组。
+    scan: 按原文顺序返回全部 anchor，用于逐批全文检查。
+  llm_candidates: 12
+  vector_candidates: 20
+  vector_threshold: 0.45
+  max_nodes: 5
 
 concurrency:
   llm: 10

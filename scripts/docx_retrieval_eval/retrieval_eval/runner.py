@@ -84,6 +84,8 @@ def _build_index(config: EvalConfig, row: GoldRow, no_cache: bool) -> tuple[Path
         row.contract_path,
         "--out",
         str(config.index_root),
+        "--retrieval-config",
+        str(config.retrieval_config),
         "--quiet",
         "--no-log",
     ]
@@ -108,6 +110,8 @@ def _ask(config: EvalConfig, index_dir: Path, query: str, no_cache: bool) -> tup
         str(index_dir),
         "--query",
         query,
+        "--retrieval-config",
+        str(config.retrieval_config),
         "--all-parts",
         "--quiet",
         "--no-log",

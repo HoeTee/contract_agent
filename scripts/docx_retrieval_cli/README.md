@@ -28,19 +28,15 @@ pip install -r scripts\docx_retrieval_cli\requirements.txt
 scripts/docx_retrieval_cli/config.yaml
 ```
 
-自动路由配置文件：
-
-```text
-scripts/docx_retrieval_cli/route.yaml
-```
-
-`route.yaml` 从 `resources/criteria/criteria-formal.docx` 读取正式审查要点，只配置五种通用检索方法及预算，不保存“审查要点编号 -> 方法”的硬编码映射。
+检索预算、自动路由、向量检索、重排序和并发参数均集中在该文件中。自动路由从 `resources/criteria/criteria-formal.docx` 读取正式审查要点，不保存“审查要点编号 -> 方法”的硬编码映射。
 
 默认内容：
 
 ```yaml
 retrieval:
   input_tokens: 20000
+  output_tokens: 12000
+  scan_batch_tokens: 12000
   max_depth: 6
   vector:
     enabled: true
@@ -48,16 +44,34 @@ retrieval:
     auto_build: true
   rerank:
     enabled: true
+
+routing:
+  criteria: ../../resources/criteria/criteria-formal.docx
+  expected_criteria_count: 18
+  fallback_enabled: true
+  methods:
+    title: 检查目录、标题、章节名称、必备标题和标题顺序。
+    region: 获取合同首部、正文末端、签署页，或明确标题下的完整内容。
+    rule: 执行全文精确关键词、正则、金额和存在性定位。
+    join: 关联多个区域或节点，获取一致性比较所需的完整证据组。
+    scan: 按原文顺序返回全部 anchor，用于逐批全文检查。
+  llm_candidates: 12
+  vector_candidates: 20
+  vector_threshold: 0.45
+  max_nodes: 5
 ```
 
 含义：
 
-- `input_tokens`：结构树输入、向量候选、rerank 候选、原文上下文展开共用的单次输入预算。默认 20000，用于减少结构树分页次数。
+- `input_tokens`：结构树输入、向量候选和 rerank 候选的单次模型输入预算，默认 20000。
+- `output_tokens`：普通 `ask` 单批返回的节点原文预算，默认 12000。
+- `scan_batch_tokens`：全文扫描时单批返回的原文预算，默认 12000。
 - `max_depth`：结构树最大深度，当前作为配置保留。
 - `vector.enabled`：`ask` 默认启用向量补召回。
 - `vector.score_threshold`：低于该相似度的向量候选不进入候选池。
 - `vector.auto_build`：缺少 `vector_index.json` 时，`ask` 默认自动构建。
 - `rerank.enabled`：默认对结构召回和向量召回合并后的候选做 rerank。
+- `routing`：自动路由使用的审查要点来源、五种检索方法和补充召回候选参数。
 
 LLM 请求默认携带 `enable_thinking=false`。结构树选点和 rerank 属于检索阶段，不需要模型输出长 thinking 内容。
 
@@ -204,7 +218,7 @@ python scripts\docx_retrieval_cli\cli.py content --doc "outputs\docx_index\合�
 
 只有仍有后续原文批次时才返回 `next_part`。调用方使用同一 Query 加 `--part 2` 继续获取；确定性 `rule` 与 `scan` 不会因为单次输出 token 上限而缩小扫描范围。
 
-评测或离线批处理需要在一次固定路由计划中取得全部页时使用：
+评测或离线批处理需要在一次固定路由计划中取得全部原文批次时使用：
 
 ```powershell
 python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "是否有错别字" --all-parts

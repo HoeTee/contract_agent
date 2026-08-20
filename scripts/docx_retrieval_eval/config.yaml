@@ -1,5 +1,6 @@
 dataset: data/retrieval_gold.csv
 retrieval_cli: ../docx_retrieval_cli/cli.py
+retrieval_config: ../docx_retrieval_cli/config.yaml
 index_root: ../docx_retrieval_cli/outputs/docx_index
 logs_dir: logs
 coverage_threshold: 0.8
