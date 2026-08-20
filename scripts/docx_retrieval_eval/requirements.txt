@@ -1,4 +1,1 @@
-PyYAML>=6.0.0
-pydantic>=2.0.0
-openai>=1.0.0
-lxml>=4.9.0
+-r ../docx_retrieval_cli/requirements.txt

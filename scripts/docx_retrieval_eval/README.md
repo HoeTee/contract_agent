@@ -54,6 +54,8 @@ case_id,criterion_id,contract,contract_path,query,recall,label,notes
 pip install -r requirements.txt
 ```
 
+评测器通过当前 Python 解释器启动 `docx_retrieval_cli/cli.py`，因此该 requirements 文件会同时安装检索 CLI 的全部依赖，包括 `tiktoken`。
+
 评测器调用现有 `../docx_retrieval_cli/cli.py ask`。参与测试的合同必须先在 `../docx_retrieval_cli/outputs/docx_index` 下建立索引。缺少索引时该用例会记录 `index not found`，评测器不会自动建索引。
 
 ## 执行召回测试
