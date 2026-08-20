@@ -47,23 +47,12 @@ def _resolve_index(row: GoldRow, by_path: dict[str, Path], by_name: dict[str, Pa
     return by_name.get(f"{safe_stem}.docx".casefold())
 
 
-def _ask(config: EvalConfig, index_dir: Path, query: str, no_cache: bool) -> tuple[dict[str, Any], str]:
-    command = [
-        sys.executable,
-        str(config.retrieval_cli),
-        "ask",
-        "--doc",
-        str(index_dir),
-        "--query",
-        query,
-        "--quiet",
-        "--no-log",
-    ]
-    if no_cache:
-        command.append("--no-cache")
+def _run_retrieval_cli(config: EvalConfig, arguments: list[str]) -> tuple[dict[str, Any], str, float]:
+    command = [sys.executable, str(config.retrieval_cli), *arguments]
     environment = os.environ.copy()
     environment["PYTHONUTF8"] = "1"
     environment["PYTHONIOENCODING"] = "utf-8"
+    started = time.perf_counter()
     completed = subprocess.run(
         command,
         cwd=config.retrieval_cli.parent,
@@ -75,9 +64,52 @@ def _ask(config: EvalConfig, index_dir: Path, query: str, no_cache: bool) -> tup
         timeout=config.timeout_seconds,
         check=False,
     )
+    elapsed = round(time.perf_counter() - started, 3)
     if completed.returncode != 0:
         raise RuntimeError(completed.stderr.strip() or completed.stdout.strip() or f"exit code {completed.returncode}")
-    return json.loads(completed.stdout), completed.stderr
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"retrieval CLI returned invalid JSON: {completed.stdout[:500]!r}") from exc
+    return payload, completed.stderr, elapsed
+
+
+def _build_index(config: EvalConfig, row: GoldRow, no_cache: bool) -> tuple[Path, str, float]:
+    arguments = [
+        "build",
+        row.contract_path,
+        "--out",
+        str(config.index_root),
+        "--quiet",
+        "--no-log",
+    ]
+    if no_cache:
+        arguments.append("--no-cache")
+    payload, stderr, elapsed = _run_retrieval_cli(config, arguments)
+    documents = payload.get("documents") or []
+    if not documents or not documents[0].get("output_dir"):
+        raise RuntimeError("retrieval CLI build result does not contain documents[0].output_dir")
+    output_dir = Path(str(documents[0]["output_dir"]))
+    if not output_dir.is_absolute():
+        output_dir = (config.retrieval_cli.parent / output_dir).resolve()
+    if not (output_dir / "document_index.json").is_file():
+        raise RuntimeError(f"retrieval CLI did not create document_index.json: {output_dir}")
+    return output_dir, stderr, elapsed
+
+
+def _ask(config: EvalConfig, index_dir: Path, query: str, no_cache: bool) -> tuple[dict[str, Any], str, float]:
+    arguments = [
+        "ask",
+        "--doc",
+        str(index_dir),
+        "--query",
+        query,
+        "--quiet",
+        "--no-log",
+    ]
+    if no_cache:
+        arguments.append("--no-cache")
+    return _run_retrieval_cli(config, arguments)
 
 
 def _excerpt(text: str, limit: int = 180) -> str:
@@ -85,7 +117,14 @@ def _excerpt(text: str, limit: int = 180) -> str:
     return compact if len(compact) <= limit else f"{compact[:limit]}..."
 
 
-def run_evaluation(config: EvalConfig, case_ids: set[str], limit: int | None, no_cache: bool, quiet: bool) -> int:
+def run_evaluation(
+    config: EvalConfig,
+    case_ids: set[str],
+    limit: int | None,
+    no_build_cache: bool,
+    no_query_cache: bool,
+    quiet: bool,
+) -> int:
     started = time.perf_counter()
     rows = load_gold(config.dataset)
     cases = group_cases(rows)
@@ -109,22 +148,45 @@ def run_evaluation(config: EvalConfig, case_ids: set[str], limit: int | None, no
     strict_passes = 0
     positive_cases = 0
     negative_cases = 0
+    failed_cases = 0
+    indexes_built = 0
+    indexes_reused = 0
+    llm_queries = 0
+    contract_indexes: dict[str, Path | None] = {}
+    contract_errors: dict[str, str] = {}
 
     with log_path.open("w", encoding="utf-8") as log:
         for case_id, gold_rows in cases.items():
             first = gold_rows[0]
-            index_dir = _resolve_index(first, by_path, by_name)
+            contract_key = str(Path(first.contract_path).resolve()).casefold()
+            index_dir = contract_indexes.get(contract_key)
+            if contract_key not in contract_indexes:
+                index_dir = _resolve_index(first, by_path, by_name)
+                if index_dir is None:
+                    try:
+                        index_dir, build_stderr, build_elapsed = _build_index(config, first, no_build_cache)
+                        indexes_built += 1
+                        build_line = f"[{case_id.rsplit('-', 1)[0]}] BUILD elapsed={build_elapsed:.3f}s output={index_dir}"
+                        log.write(build_line + "\n")
+                        if build_stderr:
+                            log.write(build_stderr.rstrip() + "\n")
+                        if not quiet:
+                            print(build_line)
+                    except Exception as exc:
+                        contract_errors[contract_key] = f"index build failed: {exc}"
+                else:
+                    indexes_reused += 1
+                contract_indexes[contract_key] = index_dir
             case_start = time.perf_counter()
             payload: dict[str, Any] = {"nodes": []}
-            error = ""
+            error = contract_errors.get(contract_key, "")
             stderr = ""
-            if index_dir is None:
-                error = "index not found"
-            else:
+            if index_dir is not None and not error:
                 try:
-                    payload, stderr = _ask(config, index_dir, first.query, no_cache)
+                    payload, stderr, _ = _ask(config, index_dir, first.query, no_query_cache)
+                    llm_queries += 1
                 except Exception as exc:
-                    error = str(exc)
+                    error = f"retrieval failed: {exc}"
             elapsed = round(time.perf_counter() - case_start, 3)
             nodes = payload.get("nodes") or []
             positive_hits = []
@@ -149,7 +211,11 @@ def run_evaluation(config: EvalConfig, case_ids: set[str], limit: int | None, no
                         "error": error,
                     }
                 )
-            if positive_hits:
+            if error:
+                failed_cases += 1
+                status = "ERROR"
+                recall_display = "n/a"
+            elif positive_hits:
                 positive_cases += 1
                 case_recall = sum(positive_hits) / len(positive_hits)
                 case_scores.append(case_recall)
@@ -162,6 +228,8 @@ def run_evaluation(config: EvalConfig, case_ids: set[str], limit: int | None, no
                 status = "SKIP"
                 recall_display = "n/a"
             line = f"[{case_id}] criterion={first.criterion_id} {status} Recall@{max(config.top_k)}={recall_display} nodes={len(nodes)} elapsed={elapsed:.3f}s"
+            if error:
+                line = f"{line} error={error}"
             log.write(line + "\n")
             if stderr:
                 log.write(stderr.rstrip() + "\n")
@@ -171,15 +239,22 @@ def run_evaluation(config: EvalConfig, case_ids: set[str], limit: int | None, no
                 for rank, node in enumerate(nodes, start=1):
                     print(f"  {rank}. {node.get('node_id')} {node.get('title') or ''}: {_excerpt(str(node.get('text') or ''))}")
 
-    positive_rows = [row for row in result_rows if int(row["label"]) == 1]
+    requested_positive_rows = [row for row in result_rows if int(row["label"]) == 1]
+    positive_rows = [row for row in requested_positive_rows if not row["error"]]
     summary: dict[str, Any] = {
         "cases": len(cases),
         "positive_cases": positive_cases,
         "negative_cases_not_scored": negative_cases,
-        "evidence": len(positive_rows),
+        "failed_cases": failed_cases,
+        "requested_evidence": len(requested_positive_rows),
+        "evaluated_evidence": len(positive_rows),
         "coverage_threshold": config.coverage_threshold,
         "case_limit": limit,
-        "no_cache": no_cache,
+        "no_build_cache": no_build_cache,
+        "no_query_cache": no_query_cache,
+        "indexes_built": indexes_built,
+        "indexes_reused": indexes_reused,
+        "llm_queries": llm_queries,
         "elapsed_seconds": round(time.perf_counter() - started, 3),
         "strict_case_accuracy": round(strict_passes / positive_cases, 6) if positive_cases else 0.0,
         "macro_recall": round(sum(case_scores) / len(case_scores), 6) if case_scores else 0.0,
