@@ -3,6 +3,7 @@ import re
 import sys
 import copy
 import json
+import secrets
 import shutil
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -14,6 +15,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.table import CT_Tbl
 from docx.oxml.text.paragraph import CT_P
 from docx.opc.packuri import PackURI
+from docx.opc.part import Part
 from docx.table import Table, _Cell
 from docx.text.paragraph import Paragraph
 from docx.text.run import Run
@@ -26,6 +28,10 @@ from tools.document.docx_anchor_index import paragraph_anchor_id, table_anchor_i
 SUMMARY_COMMENT_AUTHOR = "AI 审查总结"
 REVIEW_COMMENT_AUTHOR = "AI 条款审查"
 COMMENTS_RELTYPE = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
+COMMENTS_EXTENDED_RELTYPE = "http://schemas.microsoft.com/office/2011/relationships/commentsExtended"
+PEOPLE_RELTYPE = "http://schemas.microsoft.com/office/2011/relationships/people"
+W14_NAMESPACE = "http://schemas.microsoft.com/office/word/2010/wordml"
+W15_NAMESPACE = "http://schemas.microsoft.com/office/word/2012/wordml"
 RISK_LEVEL_LABELS = {
     "high": "高",
     "medium": "中",
@@ -574,32 +580,34 @@ class DocxReportGenerator:
     @staticmethod
     def _add_comments_to_doc(doc: Document, comments_data: list) -> Document:
         """Add Word comments to a document using OPC XML manipulation."""
-        comments_part = None
-        for rel in doc.part.rels.values():
-            if rel.reltype == COMMENTS_RELTYPE:
-                comments_part = rel.target_part
-                break
-
-        if comments_part is None:
-            from docx.opc.part import Part
-
-            comments_xml = (
-                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        comments_part = DocxReportGenerator._get_or_create_xml_part(
+            doc,
+            COMMENTS_RELTYPE,
+            "/word/comments.xml",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml",
+            (
                 '<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
-                ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-                '</w:comments>'
-            )
-            comments_part = Part(
-                # python-docx expects OPC part names as PackURI objects; a raw
-                # string breaks package traversal during doc.save().
-                partname=PackURI("/word/comments.xml"),
-                content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml",
-                blob=comments_xml.encode('utf-8'),
-                package=doc.part.package,
-            )
-            doc.part.relate_to(comments_part, COMMENTS_RELTYPE)
+                ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/>'
+            ),
+        )
+        comments_extended_part = DocxReportGenerator._get_or_create_xml_part(
+            doc,
+            COMMENTS_EXTENDED_RELTYPE,
+            "/word/commentsExtended.xml",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml",
+            f'<w15:commentsEx xmlns:w15="{W15_NAMESPACE}"/>',
+        )
+        people_part = DocxReportGenerator._get_or_create_xml_part(
+            doc,
+            PEOPLE_RELTYPE,
+            "/word/people.xml",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.people+xml",
+            f'<w15:people xmlns:w15="{W15_NAMESPACE}"/>',
+        )
 
         comments_element = etree.fromstring(comments_part.blob)
+        comments_extended_element = etree.fromstring(comments_extended_part.blob)
+        people_element = etree.fromstring(people_part.blob)
         existing_ids: list[int] = []
         for existing_comment in comments_element.findall(f".//{qn('w:comment')}"):
             raw_id = existing_comment.get(qn("w:id"))
@@ -610,6 +618,20 @@ class DocxReportGenerator:
         comment_id = max(existing_ids, default=-1) + 1
         beijing_tz = timezone(timedelta(hours=8))
         now_str = datetime.now(beijing_tz).isoformat(timespec="seconds")
+        used_para_ids = {
+            value.upper()
+            for value in comments_element.xpath("//@w14:paraId", namespaces={"w14": W14_NAMESPACE})
+        }
+        used_para_ids.update(
+            value.upper()
+            for value in comments_extended_element.xpath(
+                "//@w15:paraId", namespaces={"w15": W15_NAMESPACE}
+            )
+        )
+        existing_authors = {
+            person.get(f"{{{W15_NAMESPACE}}}author", "")
+            for person in people_element.findall(f"{{{W15_NAMESPACE}}}person")
+        }
 
         for cdata in comments_data:
             anchor = cdata.get('anchor')
@@ -625,15 +647,33 @@ class DocxReportGenerator:
             comment_el.set(qn('w:date'), now_str)
 
             comment_lines = comment_text.split('\n')
+            last_para_id = ""
             for line in comment_lines:
                 line = line.strip()
                 p_el = etree.SubElement(comment_el, qn('w:p'))
+                last_para_id = DocxReportGenerator._new_comment_para_id(used_para_ids)
+                p_el.set(f"{{{W14_NAMESPACE}}}paraId", last_para_id)
                 if not line:
                     continue
                 r_el = etree.SubElement(p_el, qn('w:r'))
                 t_el = etree.SubElement(r_el, qn('w:t'))
                 t_el.set(qn('xml:space'), 'preserve')
                 t_el.text = line
+
+            comment_ex = etree.SubElement(
+                comments_extended_element,
+                f"{{{W15_NAMESPACE}}}commentEx",
+            )
+            comment_ex.set(f"{{{W15_NAMESPACE}}}paraId", last_para_id)
+            comment_ex.set(f"{{{W15_NAMESPACE}}}done", "0")
+
+            if author not in existing_authors:
+                person = etree.SubElement(people_element, f"{{{W15_NAMESPACE}}}person")
+                person.set(f"{{{W15_NAMESPACE}}}author", author)
+                presence = etree.SubElement(person, f"{{{W15_NAMESPACE}}}presenceInfo")
+                presence.set(f"{{{W15_NAMESPACE}}}providerId", "None")
+                presence.set(f"{{{W15_NAMESPACE}}}userId", author)
+                existing_authors.add(author)
 
             if isinstance(anchor, TextAnchor):
                 DocxReportGenerator._add_comment_markers_to_text_range(anchor, comment_id)
@@ -642,17 +682,55 @@ class DocxReportGenerator:
 
             comment_id += 1
 
-        comments_blob = etree.tostring(
-            comments_element,
-            xml_declaration=True,
-            encoding='UTF-8',
-            standalone=True,
+        DocxReportGenerator._update_xml_part(comments_part, comments_element)
+        DocxReportGenerator._update_xml_part(
+            comments_extended_part, comments_extended_element
         )
-        comments_part._blob = comments_blob
-        if hasattr(comments_part, "_element"):
-            comments_part._element = comments_element
+        DocxReportGenerator._update_xml_part(people_part, people_element)
 
         return doc
+
+    @staticmethod
+    def _get_or_create_xml_part(
+        doc: Document,
+        reltype: str,
+        partname: str,
+        content_type: str,
+        root_xml: str,
+    ) -> Part:
+        for rel in doc.part.rels.values():
+            if rel.reltype == reltype:
+                return rel.target_part
+        part = Part(
+            partname=PackURI(partname),
+            content_type=content_type,
+            blob=(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                + root_xml
+            ).encode("utf-8"),
+            package=doc.part.package,
+        )
+        doc.part.relate_to(part, reltype)
+        return part
+
+    @staticmethod
+    def _new_comment_para_id(used_para_ids: set[str]) -> str:
+        while True:
+            para_id = secrets.token_hex(4).upper()
+            if para_id not in used_para_ids:
+                used_para_ids.add(para_id)
+                return para_id
+
+    @staticmethod
+    def _update_xml_part(part: Part, element: etree._Element) -> None:
+        part._blob = etree.tostring(
+            element,
+            xml_declaration=True,
+            encoding="UTF-8",
+            standalone=True,
+        )
+        if hasattr(part, "_element"):
+            part._element = element
 
     @staticmethod
     def _generate_standard_docx_report(content: str, output_path: str) -> str | None:

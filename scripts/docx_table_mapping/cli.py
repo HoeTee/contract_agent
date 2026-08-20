@@ -66,9 +66,8 @@ def main() -> int:
     )
 
     cases = _cases(mapping)
-    annotated_doc = Document(str(source_docx))
     existing_case_ids = _existing_test_case_ids(source_docx)
-    comments = []
+    pending_issues = []
     seen_comments: set[tuple[str, str]] = set()
     results = []
     for case in cases:
@@ -87,24 +86,11 @@ def main() -> int:
             elif identity in seen_comments:
                 status = "duplicate_skipped"
             else:
-                anchor = DocxReportGenerator._find_text_range_anchor_in_xml_anchor(
-                    annotated_doc,
-                    "paragraph",
-                    resolution.paragraph_anchor_id or "",
-                    resolution.matched_original_text or "",
+                pending_issues.append(
+                    _production_issue(case, resolution)
                 )
-                if anchor is None:
-                    status = "xml_match_failed"
-                else:
-                    comments.append(
-                        {
-                            "anchor": anchor,
-                            "comment_text": f"[{case['case_id']}] {case['comment_text']}",
-                            "author": "TableMappingTest",
-                        }
-                    )
-                    seen_comments.add(identity)
-                    comment_written = True
+                seen_comments.add(identity)
+                comment_written = True
         results.append(
             {
                 **case,
@@ -116,10 +102,23 @@ def main() -> int:
             }
         )
 
-    if comments:
-        DocxReportGenerator._add_comments_to_doc(annotated_doc, comments)
     staged_path = _staged_output_path(source_docx, out_dir, settings["write_mode"])
-    annotated_doc.save(staged_path)
+    if pending_issues:
+        generated_path = DocxReportGenerator.generate_annotated_docx(
+            contract_path=str(source_docx),
+            results=[
+                {
+                    "criterion_id": "TABLE_MAPPING_TEST",
+                    "criterion": "DOCX 表格 Markdown 来源映射测试",
+                    "issues": pending_issues,
+                }
+            ],
+            output_path=str(staged_path),
+        )
+        if not generated_path:
+            raise RuntimeError("生产批注入口未能生成 DOCX")
+    else:
+        shutil.copy2(source_docx, staged_path)
     verification = _verify_test_comments(staged_path, results)
     if not verification["all_matched"]:
         staged_path.unlink(missing_ok=True)
@@ -164,6 +163,7 @@ def main() -> int:
 
 def _load_settings(args: argparse.Namespace) -> dict[str, Any]:
     config: dict[str, Any] = {}
+    config_path = args.config.resolve()
     if args.config.exists():
         loaded = yaml.safe_load(args.config.read_text(encoding="utf-8")) or {}
         if not isinstance(loaded, dict):
@@ -171,10 +171,15 @@ def _load_settings(args: argparse.Namespace) -> dict[str, Any]:
         config = loaded
 
     source_docx = args.docx or Path(config.get("docx", DEFAULT_DOCX))
+    if not source_docx.is_absolute():
+        source_docx = config_path.parent / source_docx
     table_block = args.table_block or int(config.get("table_block", 225))
-    out_dir = args.out or Path(
-        config.get("artifacts_dir", PROJECT_ROOT / "outputs" / "table_mapping_test")
-    )
+    if args.out:
+        out_dir = args.out
+    else:
+        out_dir = Path(config.get("artifacts_dir", "outputs/table_mapping_test"))
+        if not out_dir.is_absolute():
+            out_dir = config_path.parent / out_dir
     write_mode = args.write_mode or config.get("write_mode", "copy")
     if write_mode not in {"copy", "in_place"}:
         raise ValueError(f"不支持的 write_mode: {write_mode}")
@@ -207,6 +212,24 @@ def _existing_test_case_ids(path: Path) -> set[str]:
         if match:
             result.add(match.group(1))
     return result
+
+
+def _production_issue(case: dict[str, Any], resolution) -> dict[str, Any]:
+    comment_text = f"[{case['case_id']}] {case['comment_text']}"
+    return {
+        "issue_id": case["case_id"],
+        "risk_level": "",
+        "issue_comment": comment_text,
+        "criterion": "DOCX 表格 Markdown 来源映射测试",
+        "anchors": [
+            {
+                "xml_anchor_type": "paragraph",
+                "xml_anchor_id": resolution.paragraph_anchor_id,
+                "quoted_text": resolution.matched_original_text,
+                "comment_text": comment_text,
+            }
+        ],
+    }
 
 
 def _table_at_block(doc, block_number: int) -> Table:
