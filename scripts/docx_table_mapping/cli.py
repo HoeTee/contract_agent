@@ -28,6 +28,7 @@ from tools.document.table_markdown_map import (
     render_table_markdown,
     resolve_agent_evidence,
 )
+from modern_comments import add_modern_comments_to_doc
 
 
 DEFAULT_DOCX = Path(
@@ -67,7 +68,8 @@ def main() -> int:
 
     cases = _cases(mapping)
     existing_case_ids = _existing_test_case_ids(source_docx)
-    pending_issues = []
+    annotated_doc = Document(str(source_docx))
+    pending_comments = []
     seen_comments: set[tuple[str, str]] = set()
     results = []
     for case in cases:
@@ -86,11 +88,24 @@ def main() -> int:
             elif identity in seen_comments:
                 status = "duplicate_skipped"
             else:
-                pending_issues.append(
-                    _production_issue(case, resolution)
+                anchor = DocxReportGenerator._find_text_range_anchor_in_xml_anchor(
+                    annotated_doc,
+                    "paragraph",
+                    resolution.paragraph_anchor_id,
+                    resolution.matched_original_text,
                 )
-                seen_comments.add(identity)
-                comment_written = True
+                if anchor is None:
+                    status = "xml_match_failed"
+                else:
+                    pending_comments.append(
+                        {
+                            "anchor": anchor,
+                            "comment_text": f"[{case['case_id']}] {case['comment_text']}",
+                            "author": "TableMappingTest",
+                        }
+                    )
+                    seen_comments.add(identity)
+                    comment_written = True
         results.append(
             {
                 **case,
@@ -103,20 +118,9 @@ def main() -> int:
         )
 
     staged_path = _staged_output_path(source_docx, out_dir, settings["write_mode"])
-    if pending_issues:
-        generated_path = DocxReportGenerator.generate_annotated_docx(
-            contract_path=str(source_docx),
-            results=[
-                {
-                    "criterion_id": "TABLE_MAPPING_TEST",
-                    "criterion": "DOCX 表格 Markdown 来源映射测试",
-                    "issues": pending_issues,
-                }
-            ],
-            output_path=str(staged_path),
-        )
-        if not generated_path:
-            raise RuntimeError("生产批注入口未能生成 DOCX")
+    if pending_comments:
+        add_modern_comments_to_doc(annotated_doc, pending_comments)
+        annotated_doc.save(staged_path)
     else:
         shutil.copy2(source_docx, staged_path)
     verification = _verify_test_comments(staged_path, results)
@@ -212,24 +216,6 @@ def _existing_test_case_ids(path: Path) -> set[str]:
         if match:
             result.add(match.group(1))
     return result
-
-
-def _production_issue(case: dict[str, Any], resolution) -> dict[str, Any]:
-    comment_text = f"[{case['case_id']}] {case['comment_text']}"
-    return {
-        "issue_id": case["case_id"],
-        "risk_level": "",
-        "issue_comment": comment_text,
-        "criterion": "DOCX 表格 Markdown 来源映射测试",
-        "anchors": [
-            {
-                "xml_anchor_type": "paragraph",
-                "xml_anchor_id": resolution.paragraph_anchor_id,
-                "quoted_text": resolution.matched_original_text,
-                "comment_text": comment_text,
-            }
-        ],
-    }
 
 
 def _table_at_block(doc, block_number: int) -> Table:
