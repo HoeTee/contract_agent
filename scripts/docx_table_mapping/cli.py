@@ -28,9 +28,6 @@ from tools.document.table_markdown_map import (
     render_table_markdown,
     resolve_agent_evidence,
 )
-from modern_comments import add_modern_comments_to_doc
-
-
 DEFAULT_DOCX = Path(
     r"C:\Users\lenovo\Downloads\合同样例\【20251224已审查】2025年度算力资源服务租赁项目（算力资源一）采购合同1223 - 副本.docx"
 )
@@ -119,7 +116,7 @@ def main() -> int:
 
     staged_path = _staged_output_path(source_docx, out_dir, settings["write_mode"])
     if pending_comments:
-        add_modern_comments_to_doc(annotated_doc, pending_comments)
+        DocxReportGenerator._add_comments_to_doc(annotated_doc, pending_comments)
         annotated_doc.save(staged_path)
     else:
         shutil.copy2(source_docx, staged_path)

@@ -38,6 +38,6 @@ annotated_test.docx（仅 `write_mode: copy` 时生成）
 
 `write_mode: in_place` 时，配置指定的 DOCX 会被替换为带批注版本。批注以 `TC01` 等测试编号开头；失败、歧义和重复用例只记录到报告，不写入批注。
 
-测试脚本复用核心模块的只读锚点定位函数，但现代批注兼容写入由本子项目的 `modern_comments.py` 独立完成，不修改生产批注代码。写入器同时维护 `comments.xml`、`commentsExtended.xml`、`commentsIds.xml`、`commentsExtensible.xml` 和 `people.xml`，用于验证当前 Word 版本的批注显示兼容性。
+测试脚本负责将 Markdown 证据映射回原始 DOCX anchor，并直接复用核心 `DocxReportGenerator._add_comments_to_doc()` 写入批注。表格映射项目不单独实现批注 XML 格式，也不修改生产批注代码。
 
 测试覆盖唯一文本反查、合并单元格、重复短文本歧义、指定 source_ref、未找到、表头、后续表格区域、空格规范化、source mismatch 和重复批注拦截。`test_report.json` 的 `annotation_verification.all_matched=true` 表示新增批注包围的 Word 原文全部与预期一致。
