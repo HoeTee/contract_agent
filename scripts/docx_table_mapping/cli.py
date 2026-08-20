@@ -3,12 +3,15 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import re
+import shutil
 import sys
 import zipfile
 from pathlib import Path
 from typing import Any
 
+import yaml
 from docx import Document
 from docx.table import Table
 from lxml import etree
@@ -30,13 +33,16 @@ from tools.document.table_markdown_map import (
 DEFAULT_DOCX = Path(
     r"C:\Users\lenovo\Downloads\合同样例\【20251224已审查】2025年度算力资源服务租赁项目（算力资源一）采购合同1223 - 副本.docx"
 )
+DEFAULT_CONFIG = Path(__file__).with_name("config.yaml")
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="验证 DOCX 表格 Markdown 与 XML 批注映射。")
-    parser.add_argument("docx", nargs="?", type=Path, default=DEFAULT_DOCX)
-    parser.add_argument("--table-block", type=int, default=225)
-    parser.add_argument("--out", type=Path, default=PROJECT_ROOT / "outputs" / "table_mapping_test")
+    parser.add_argument("docx", nargs="?", type=Path)
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--table-block", type=int)
+    parser.add_argument("--out", type=Path)
+    parser.add_argument("--write-mode", choices=("copy", "in_place"))
     return parser
 
 
@@ -45,18 +51,23 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
 
     args = build_parser().parse_args()
-    args.out.mkdir(parents=True, exist_ok=True)
-    doc = Document(str(args.docx))
-    table = _table_at_block(doc, args.table_block)
-    mapping = render_table_markdown(table, f"body/tbl{args.table_block}")
+    settings = _load_settings(args)
+    source_docx = settings["docx"]
+    table_block = settings["table_block"]
+    out_dir = settings["artifacts_dir"]
+    out_dir.mkdir(parents=True, exist_ok=True)
+    doc = Document(str(source_docx))
+    table = _table_at_block(doc, table_block)
+    mapping = render_table_markdown(table, f"body/tbl{table_block}")
 
-    (args.out / "attachment4.md").write_text(mapping.markdown, encoding="utf-8")
-    (args.out / "source_map.json").write_text(
+    (out_dir / "attachment4.md").write_text(mapping.markdown, encoding="utf-8")
+    (out_dir / "source_map.json").write_text(
         json.dumps(mapping.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
     cases = _cases(mapping)
-    annotated_doc = Document(str(args.docx))
+    annotated_doc = Document(str(source_docx))
+    existing_case_ids = _existing_test_case_ids(source_docx)
     comments = []
     seen_comments: set[tuple[str, str]] = set()
     results = []
@@ -70,7 +81,10 @@ def main() -> int:
         comment_written = False
         if status == "matched" and case.get("write_comment", True):
             identity = (resolution.paragraph_anchor_id or "", resolution.matched_original_text or "")
-            if identity in seen_comments:
+            if case["case_id"] in existing_case_ids:
+                status = "existing_comment_skipped"
+                seen_comments.add(identity)
+            elif identity in seen_comments:
                 status = "duplicate_skipped"
             else:
                 anchor = DocxReportGenerator._find_text_range_anchor_in_xml_anchor(
@@ -97,34 +111,102 @@ def main() -> int:
                 **resolution.to_dict(),
                 "status": status,
                 "comment_written": comment_written,
+                "comment_expected": status in {"matched", "existing_comment_skipped"}
+                and case.get("write_comment", True),
             }
         )
 
     if comments:
         DocxReportGenerator._add_comments_to_doc(annotated_doc, comments)
-    annotated_path = args.out / "annotated_test.docx"
-    annotated_doc.save(annotated_path)
-    verification = _verify_test_comments(annotated_path, results)
+    staged_path = _staged_output_path(source_docx, out_dir, settings["write_mode"])
+    annotated_doc.save(staged_path)
+    verification = _verify_test_comments(staged_path, results)
+    if not verification["all_matched"]:
+        staged_path.unlink(missing_ok=True)
+        raise RuntimeError("批注回读验证失败，目标 DOCX 未被替换")
 
-    _write_csv(args.out / "annotation_cases.csv", results)
+    backup_path = None
+    if settings["write_mode"] == "in_place":
+        if settings["backup"]:
+            backup_path = source_docx.with_name(
+                f"{source_docx.stem}.before-table-mapping{source_docx.suffix}"
+            )
+            if not backup_path.exists():
+                shutil.copy2(source_docx, backup_path)
+        os.replace(staged_path, source_docx)
+        annotated_path = source_docx
+    else:
+        annotated_path = staged_path
+
+    _write_csv(out_dir / "annotation_cases.csv", results)
     report = {
-        "source_docx": str(args.docx),
-        "table_block": args.table_block,
+        "source_docx": str(source_docx),
+        "write_mode": settings["write_mode"],
+        "backup_docx": str(backup_path) if backup_path else None,
+        "table_block": table_block,
         "table_anchor_id": mapping.table_anchor_id,
         "rows": len(table.rows),
         "columns": len(table.columns),
         "sources": len(mapping.sources),
         "comments_written": sum(bool(item["comment_written"]) for item in results),
+        "comments_present": sum(bool(item["comment_expected"]) for item in results),
         "status_counts": _status_counts(results),
         "annotation_verification": verification,
         "annotated_docx": str(annotated_path.resolve()),
         "cases": results,
     }
-    (args.out / "test_report.json").write_text(
+    (out_dir / "test_report.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
+
+
+def _load_settings(args: argparse.Namespace) -> dict[str, Any]:
+    config: dict[str, Any] = {}
+    if args.config.exists():
+        loaded = yaml.safe_load(args.config.read_text(encoding="utf-8")) or {}
+        if not isinstance(loaded, dict):
+            raise ValueError(f"配置文件必须是对象: {args.config}")
+        config = loaded
+
+    source_docx = args.docx or Path(config.get("docx", DEFAULT_DOCX))
+    table_block = args.table_block or int(config.get("table_block", 225))
+    out_dir = args.out or Path(
+        config.get("artifacts_dir", PROJECT_ROOT / "outputs" / "table_mapping_test")
+    )
+    write_mode = args.write_mode or config.get("write_mode", "copy")
+    if write_mode not in {"copy", "in_place"}:
+        raise ValueError(f"不支持的 write_mode: {write_mode}")
+    if not source_docx.is_file():
+        raise FileNotFoundError(source_docx)
+    return {
+        "docx": source_docx.resolve(),
+        "table_block": table_block,
+        "artifacts_dir": out_dir.resolve(),
+        "write_mode": write_mode,
+        "backup": bool(config.get("backup", True)),
+    }
+
+
+def _staged_output_path(source_docx: Path, out_dir: Path, write_mode: str) -> Path:
+    if write_mode == "in_place":
+        return source_docx.with_name(f".{source_docx.name}.table-mapping.tmp")
+    return out_dir / "annotated_test.docx"
+
+
+def _existing_test_case_ids(path: Path) -> set[str]:
+    with zipfile.ZipFile(path) as archive:
+        if "word/comments.xml" not in archive.namelist():
+            return set()
+        comments = etree.fromstring(archive.read("word/comments.xml"))
+    namespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    result = set()
+    for comment in comments.iter(f"{{{namespace}}}comment"):
+        match = re.match(r"^\[(TC\d+)]", "".join(comment.itertext()))
+        if match:
+            result.add(match.group(1))
+    return result
 
 
 def _table_at_block(doc, block_number: int) -> Table:
@@ -232,7 +314,7 @@ def _verify_test_comments(path: Path, cases: list[dict[str, Any]]) -> dict[str, 
     expected = {
         case["case_id"]: case.get("matched_original_text")
         for case in cases
-        if case.get("comment_written")
+        if case.get("comment_expected")
     }
     resolved = []
     for comment_id, body in bodies.items():
