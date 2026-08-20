@@ -36,6 +36,30 @@ class TableMarkdownMappingTest(unittest.TestCase):
             self.assertEqual(resolved.status, "matched")
             self.assertEqual(resolved.matched_original_text, "925129")
 
+    def test_horizontal_and_vertical_merges_restore_logical_grid(self) -> None:
+        doc = Document()
+        table = doc.add_table(rows=3, cols=3)
+        horizontal = table.cell(0, 0).merge(table.cell(0, 1))
+        horizontal.text = "合并表头"
+        table.cell(0, 2).text = "金额"
+        vertical = table.cell(1, 0).merge(table.cell(2, 0))
+        vertical.text = "设备类"
+        table.cell(1, 1).text = "服务器"
+        table.cell(1, 2).text = "100"
+        table.cell(2, 1).text = "交换机"
+        table.cell(2, 2).text = "200"
+
+        mapping = render_table_markdown(table, "body/tbl1")
+
+        self.assertEqual(mapping.rows, 3)
+        self.assertEqual(mapping.columns, 3)
+        self.assertIn("同左", mapping.markdown)
+        self.assertIn("同上", mapping.markdown)
+        self.assertEqual(cell_source_refs(mapping, 1, 1), cell_source_refs(mapping, 1, 2))
+        self.assertEqual(cell_source_refs(mapping, 2, 1), cell_source_refs(mapping, 3, 1))
+        merged_cell = next(cell for cell in mapping.cells if cell.row == 2 and cell.column == 1)
+        self.assertEqual((merged_cell.row_start, merged_cell.row_end), (2, 3))
+
     def test_repeated_quote_is_ambiguous_but_source_ref_is_exact(self) -> None:
         doc = Document()
         table = doc.add_table(rows=2, cols=2)

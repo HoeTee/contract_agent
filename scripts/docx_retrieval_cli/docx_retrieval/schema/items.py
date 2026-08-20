@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -25,6 +27,7 @@ class BodyItem(BaseModel):
     page_start: int | None = None
     page_end: int | None = None
     page_breaks: int = 0
+    table_mapping: dict[str, Any] | None = None
 
     @property
     def effective_outline(self) -> int | None:

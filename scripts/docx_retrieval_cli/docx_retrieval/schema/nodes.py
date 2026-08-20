@@ -30,6 +30,10 @@ class DocumentNode(BaseModel):
     start_index: int | None = None
     end_index: int | None = None
     key_items: list[str] = Field(default_factory=list)
+    table_id: str | None = None
+    mapping_ref: str | None = None
+    row_start: int | None = None
+    row_end: int | None = None
 
     def storage_view(self) -> dict[str, Any]:
         data = self.model_dump(exclude={"children", "source_start", "source_end"})
@@ -48,6 +52,8 @@ class DocumentNode(BaseModel):
             "node_type": self.node_type,
             "token_estimate": self.token_estimate,
         }
+        if self.table_id:
+            data["table_id"] = self.table_id
         if self.page_start is not None or self.page_end is not None:
             data["page_start"] = self.page_start
             data["page_end"] = self.page_end
@@ -69,4 +75,8 @@ class DocumentNode(BaseModel):
             "end_anchor": self.end_anchor,
             "token_estimate": self.token_estimate,
             "nodes": [child.node_id for child in self.children],
+            "table_id": self.table_id,
+            "mapping_ref": self.mapping_ref,
+            "row_start": self.row_start,
+            "row_end": self.row_end,
         }

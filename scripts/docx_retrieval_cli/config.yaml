@@ -10,6 +10,11 @@ retrieval:
   rerank:
     enabled: true
 
+indexing:
+  table:
+    inline_max_tokens: 10000
+    chunk_target_tokens: 6000
+
 routing:
   criteria: ../../resources/criteria/criteria-formal.docx
   expected_criteria_count: 18

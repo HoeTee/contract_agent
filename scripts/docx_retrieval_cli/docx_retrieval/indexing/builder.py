@@ -22,6 +22,12 @@ from .llm_expand import (
 from .llm_summary import summarize_nodes
 from .node_factory import make_node
 from .splitter import split_long_leaves
+from .tables import (
+    TABLE_CHUNK_TARGET_TOKENS,
+    TABLE_INLINE_MAX_TOKENS,
+    attach_table_nodes,
+    collect_table_map,
+)
 from .token_budget import (
     NODE_HARD_LIMIT_TOKENS,
     NODE_SOFT_LIMIT_TOKENS,
@@ -39,6 +45,8 @@ def build_document_index(
     cache_dir: Path | None = None,
     timer: Any | None = None,
     llm_concurrency: int = 10,
+    table_inline_max_tokens: int = TABLE_INLINE_MAX_TOKENS,
+    table_chunk_target_tokens: int = TABLE_CHUNK_TARGET_TOKENS,
 ) -> DocumentIndex:
     with _stage(timer, "build.read_docx_items"):
         items = read_docx_items(docx_path)
@@ -68,11 +76,37 @@ def build_document_index(
             use_cn_as_l1,
             split_long_nodes=split_during_deterministic_build,
         )
+        if body_start > 0:
+            attach_table_nodes(
+                frontmatter,
+                items,
+                0,
+                body_start,
+                inline_max_tokens=table_inline_max_tokens,
+                chunk_target_tokens=table_chunk_target_tokens,
+            )
+        attach_table_nodes(
+            body,
+            items,
+            body_start,
+            body_content_end,
+            inline_max_tokens=table_inline_max_tokens,
+            chunk_target_tokens=table_chunk_target_tokens,
+        )
         roots.extend([frontmatter, body])
 
     with _stage(timer, "build.build_tail"):
         if tail_start is not None and tail_start < body_end:
-            roots.append(make_node("tail", "tail", "合同末尾", items, tail_start, body_end, 0, None))
+            tail = make_node("tail", "tail", "合同末尾", items, tail_start, body_end, 0, None)
+            attach_table_nodes(
+                tail,
+                items,
+                tail_start,
+                body_end,
+                inline_max_tokens=table_inline_max_tokens,
+                chunk_target_tokens=table_chunk_target_tokens,
+            )
+            roots.append(tail)
         else:
             roots.append(DocumentNode(node_id="tail", node_type="tail", title="合同末尾", start_anchor="", end_anchor="", level=0))
 
@@ -95,6 +129,8 @@ def build_document_index(
                 len(items),
                 attachment_parent_node.node_id,
                 split_long_nodes=split_during_deterministic_build,
+                table_inline_max_tokens=table_inline_max_tokens,
+                table_chunk_target_tokens=table_chunk_target_tokens,
             )
             attachments.children.append(attachment_parent_node)
         roots.append(attachments)
@@ -137,11 +173,15 @@ def build_document_index(
                 "expand_batch_overlap_tokens": EXPAND_BATCH_OVERLAP_TOKENS,
                 "llm_model": llm_settings.model if llm_settings else None,
                 "llm_concurrency": llm_concurrency,
+                "table_markdown_enabled": True,
+                "table_inline_max_tokens": table_inline_max_tokens,
+                "table_chunk_target_tokens": table_chunk_target_tokens,
             },
             nodes=[node.storage_view() for node in flat_nodes],
             root_nodes=[node.node_id for node in roots],
             structure_tree=[node.structure_view() for node in roots],
             anchor_map=build_anchor_map(items, flat_nodes),
+            table_map=collect_table_map(items),
         )
 
 

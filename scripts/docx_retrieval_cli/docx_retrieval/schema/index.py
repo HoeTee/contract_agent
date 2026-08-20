@@ -11,6 +11,7 @@ class AnchorRecord(BaseModel):
     body_child_index: int
     type: str
     text: str
+    raw_text: str | None = None
     node_id: str | None = None
     page_start: int | None = None
     page_end: int | None = None
@@ -20,7 +21,7 @@ class AnchorRecord(BaseModel):
 class DocumentIndex(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    schema_version: str = "docx-index-v2"
+    schema_version: str = "docx-index-v3"
     source_file: str
     top_regions: dict[str, str]
     settings: dict[str, Any]
@@ -28,6 +29,7 @@ class DocumentIndex(BaseModel):
     root_nodes: list[str]
     structure_tree: list[dict[str, Any]]
     anchor_map: dict[str, AnchorRecord]
+    table_map: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
     def to_json_dict(self) -> dict[str, Any]:
         return self.model_dump(mode="json")

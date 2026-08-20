@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from lxml import etree
+from tools.document.table_markdown_map import render_table_element_markdown
 
 from docx_retrieval.schema import BodyItem
 
@@ -116,13 +117,16 @@ def read_docx_items(path: Path) -> list[BodyItem]:
             item = paragraph_item(child, styles, numbering, f"p_{paragraph_index:04d}", body_child_index)
         elif child.tag == w_tag("tbl"):
             table_index += 1
+            mapping = render_table_element_markdown(child, f"body/tbl{body_child_index}")
             item = BodyItem(
                 kind="tbl",
                 anchor=f"tbl_{table_index:04d}",
                 body_child_index=body_child_index,
-                text=table_text(child),
+                text=mapping.markdown,
+                raw_text=table_text(child),
                 xml_path=xml_path(child),
                 page_breaks=len(child.xpath(".//w:lastRenderedPageBreak", namespaces=NS)),
+                table_mapping=mapping.to_dict(),
             )
         else:
             continue

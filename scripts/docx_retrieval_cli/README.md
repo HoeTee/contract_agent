@@ -45,6 +45,11 @@ retrieval:
   rerank:
     enabled: true
 
+indexing:
+  table:
+    inline_max_tokens: 10000
+    chunk_target_tokens: 6000
+
 routing:
   criteria: ../../resources/criteria/criteria-formal.docx
   expected_criteria_count: 18
@@ -71,6 +76,8 @@ routing:
 - `vector.score_threshold`：低于该相似度的向量候选不进入候选池。
 - `vector.auto_build`：缺少 `vector_index.json` 时，`ask` 默认自动构建。
 - `rerank.enabled`：默认对结构召回和向量召回合并后的候选做 rerank。
+- `indexing.table.inline_max_tokens`：单个 Markdown 表格节点允许直接返回的上限，默认 10000 tokens。
+- `indexing.table.chunk_target_tokens`：超大表按完整数据行拆分后的目标大小，默认 6000 tokens；每个子节点重复表头。
 - `routing`：自动路由使用的审查要点来源、五种检索方法和补充召回候选参数。
 
 LLM 请求默认携带 `enable_thinking=false`。结构树选点和 rerank 属于检索阶段，不需要模型输出长 thinking 内容。
@@ -98,6 +105,7 @@ EMBED_API_KEY
 
 ```text
 确定性 DOCX XML 解析
+-> 所有 w:tbl 转为独立 Markdown 表格节点并建立 source_ref/XML 映射
 -> LLM expand
 -> LLM summary
 -> vector index
@@ -296,6 +304,7 @@ document_index.json  manifest，总入口，记录 source_file、doc_name、doc_
 structure_tree.json  PageIndex-like 轻量结构树，第一阶段给 LLM 选 node，不包含正文 text
 content_store.json   node_id -> 原文 text 与 start_index/end_index/start_anchor/end_anchor
 anchor_store.json    anchor_id/body_child_index -> DOCX XML 定位信息
+table_store.json     table_id -> Markdown、逻辑网格、source_ref、原始段落与 XML path
 vector_index.json    默认生成的向量补召回索引，保存 embedding 与 node_id
 titles.json          标题类 node 列表
 node_tokens.csv      node token 分布
@@ -307,6 +316,7 @@ summary.json         批量任务汇总，位于 --out 目录
 ## 当前边界
 
 - `ask` 只准备检索上下文，不执行最终合同审查，也不写批注。
+- 父 section 不重复保存表格全文；表格由独立 `table` node 返回。超过表格阈值时，父表格 node 只保留结构信息，原文按完整行拆成 `table_chunk` children。
 - 使用 `--no-llm-summary` 后，summary 会退回截断式摘要。
 - 使用 `--no-llm-expand` 后，大 node 只做 token chunk 兜底切分。
 - 页码依赖 `w:lastRenderedPageBreak`，DOCX 没有该标记时页码为空。

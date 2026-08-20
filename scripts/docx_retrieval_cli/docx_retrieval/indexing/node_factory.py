@@ -6,8 +6,12 @@ from .summaries import make_summary
 from .token_budget import SUMMARY_TRIGGER_MIN_TOKENS, estimate_tokens
 
 
-def item_range_text(items: list[BodyItem], start: int, end: int) -> str:
-    return "\n".join(item.text for item in items[start:end] if item.text).strip()
+def item_range_text(items: list[BodyItem], start: int, end: int, include_tables: bool = False) -> str:
+    return "\n".join(
+        item.text
+        for item in items[start:end]
+        if item.text and (include_tables or item.kind != "tbl")
+    ).strip()
 
 
 def item_page_range(items: list[BodyItem], start: int, end: int) -> tuple[int | None, int | None, str, int]:
@@ -29,8 +33,9 @@ def make_node(
     parent_id: str | None,
     score: int = 0,
     evidence: list[str] | None = None,
+    include_tables: bool = False,
 ) -> DocumentNode:
-    text = item_range_text(items, start, end)
+    text = item_range_text(items, start, end, include_tables=include_tables)
     page_start, page_end, page_source, page_score = item_page_range(items, start, end)
     token_estimate = estimate_tokens(text)
     start_anchor = items[start].anchor if start < len(items) else ""

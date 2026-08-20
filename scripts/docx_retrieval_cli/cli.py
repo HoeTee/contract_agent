@@ -8,8 +8,14 @@ import time
 from pathlib import Path
 from typing import Any
 
+PROJECT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = PROJECT_DIR.parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from docx_retrieval import build_document_index
 from docx_retrieval.evaluation import iter_docx_inputs
+from docx_retrieval.indexing.config import IndexingConfig
 from docx_retrieval.indexing import document_mode
 from docx_retrieval.llm import LLMClient, LLMSettings
 from docx_retrieval.output import attachment_tree, structure_tokens, title_rows, token_rows, write_csv, write_json, write_report
@@ -32,7 +38,6 @@ from docx_retrieval.retrieval import (
 from docx_retrieval.utils import RunLogger, TimingCollector
 from docx_retrieval.vector import EmbeddingClient, EmbeddingSettings, build_vector_index, load_vector_index, save_vector_index, vector_search
 
-PROJECT_DIR = Path(__file__).resolve().parent
 DEFAULT_OUTPUT_DIR = PROJECT_DIR / "outputs" / "docx_index"
 DEFAULT_LOG_DIR = PROJECT_DIR / "logs"
 
@@ -55,7 +60,7 @@ def search_index(index: dict[str, Any], keywords: list[str]) -> list[dict[str, A
 
 def pageindex_like_structure(index: dict[str, Any], docx: Path) -> dict[str, Any]:
     return {
-        "schema_version": "docx-pageindex-like-v1",
+        "schema_version": "docx-pageindex-like-v2",
         "doc_name": docx.name,
         "doc_title": _doc_title(index, docx),
         "structure": index["structure_tree"],
@@ -76,6 +81,10 @@ def content_store(index: dict[str, Any]) -> dict[str, dict[str, Any]]:
             "end_anchor": node.get("end_anchor"),
             "token_estimate": node.get("token_estimate"),
             "nodes": node.get("nodes") or node.get("children") or [],
+            "table_id": node.get("table_id"),
+            "mapping_ref": node.get("mapping_ref"),
+            "row_start": node.get("row_start"),
+            "row_end": node.get("row_end"),
         }
         for node in index.get("nodes") or []
     }
@@ -90,7 +99,7 @@ def anchor_store(index: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 def manifest_index(index: dict[str, Any], docx: Path) -> dict[str, Any]:
     return {
-        "schema_version": "docx-pageindex-like-v1",
+        "schema_version": "docx-pageindex-like-v2",
         "source_file": str(docx),
         "doc_name": docx.name,
         "doc_title": _doc_title(index, docx),
@@ -100,11 +109,13 @@ def manifest_index(index: dict[str, Any], docx: Path) -> dict[str, Any]:
             "structure_tree": "structure_tree.json",
             "content_store": "content_store.json",
             "anchor_store": "anchor_store.json",
+            "table_store": "table_store.json",
             "vector_index": "vector_index.json",
         },
         "stats": {
             "node_count": len(index.get("nodes") or []),
             "anchor_count": len(index.get("anchor_map") or {}),
+            "table_count": len(index.get("table_map") or {}),
             "structure_tokens": structure_tokens(index),
         },
     }
@@ -137,6 +148,8 @@ def write_document_outputs(
     use_cache: bool = True,
     llm_concurrency: int = 10,
     embedding_concurrency: int = 10,
+    table_inline_max_tokens: int = 10000,
+    table_chunk_target_tokens: int = 6000,
 ) -> dict[str, Any]:
     start_time = time.perf_counter()
     cache_dir = root_out / ".cache" if use_cache else None
@@ -149,6 +162,8 @@ def write_document_outputs(
             cache_dir=cache_dir,
             timer=timer,
             llm_concurrency=llm_concurrency,
+            table_inline_max_tokens=table_inline_max_tokens,
+            table_chunk_target_tokens=table_chunk_target_tokens,
         ).to_json_dict()
     doc_out = root_out / safe_name(docx)
     doc_out.mkdir(parents=True, exist_ok=True)
@@ -157,11 +172,13 @@ def write_document_outputs(
         structure_doc = pageindex_like_structure(index, docx)
         content_doc = content_store(index)
         anchor_doc = anchor_store(index)
+        table_doc = index.get("table_map") or {}
         manifest = manifest_index(index, docx)
         write_json(doc_out / "document_index.json", manifest)
         write_json(doc_out / "structure_tree.json", structure_doc)
         write_json(doc_out / "content_store.json", content_doc)
         write_json(doc_out / "anchor_store.json", anchor_doc)
+        write_json(doc_out / "table_store.json", table_doc)
         write_json(doc_out / "titles.json", {"titles": title_rows(index)})
         write_csv(doc_out / "node_tokens.csv", token_rows(index))
         write_json(doc_out / "attachments.json", {"attachments": attachment_tree(index)})
@@ -307,6 +324,7 @@ def command_build(args: argparse.Namespace) -> int:
     use_vector = not args.no_vector
     with timer.stage("build.load_retrieval_config"):
         retrieval_config = RetrievalConfig.from_sources(config_path=args.retrieval_config)
+        indexing_config = IndexingConfig.from_sources(config_path=args.retrieval_config)
         timer.note("build.concurrency.llm", retrieval_config.concurrency.llm)
         timer.note("build.concurrency.embedding", retrieval_config.concurrency.embedding)
         timer.note("build.concurrency.reranker", retrieval_config.concurrency.reranker)
@@ -348,6 +366,8 @@ def command_build(args: argparse.Namespace) -> int:
             use_cache=not args.no_cache,
             llm_concurrency=retrieval_config.concurrency.llm,
             embedding_concurrency=retrieval_config.concurrency.embedding,
+            table_inline_max_tokens=indexing_config.table.inline_max_tokens,
+            table_chunk_target_tokens=indexing_config.table.chunk_target_tokens,
         )
         for path in files
     ]
@@ -607,12 +627,14 @@ def _index_path(doc_dir: Path) -> Path:
 
 def load_runtime_index(doc_dir: Path) -> dict[str, Any]:
     manifest = load_index(_index_path(doc_dir))
-    if manifest.get("schema_version") != "docx-pageindex-like-v1":
+    if not str(manifest.get("schema_version") or "").startswith("docx-pageindex-like-v"):
         return manifest
     files = manifest.get("files") or {}
     structure_doc = load_index(doc_dir / files.get("structure_tree", "structure_tree.json"))
     content_doc = load_index(doc_dir / files.get("content_store", "content_store.json"))
     anchor_doc = load_index(doc_dir / files.get("anchor_store", "anchor_store.json"))
+    table_path = doc_dir / files.get("table_store", "table_store.json")
+    table_doc = load_index(table_path) if table_path.exists() else {}
     nodes = []
     for node_id, node in content_doc.items():
         item = dict(node)
@@ -633,6 +655,7 @@ def load_runtime_index(doc_dir: Path) -> dict[str, Any]:
             anchor_id: {key: value for key, value in record.items() if key != "anchor_id"}
             for anchor_id, record in anchor_doc.items()
         },
+        "table_map": table_doc,
         "files": files,
         "stats": manifest.get("stats") or {},
     }

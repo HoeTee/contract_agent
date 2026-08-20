@@ -19,6 +19,7 @@ def build_anchor_map(items: list[BodyItem], flat_nodes: list[DocumentNode]) -> d
             body_child_index=item.body_child_index,
             type=item.kind,
             text=item.text,
+            raw_text=item.raw_text,
             node_id=owner,
             page_start=item.page_start,
             page_end=item.page_end,

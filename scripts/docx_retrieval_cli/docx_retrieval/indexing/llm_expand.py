@@ -51,6 +51,8 @@ def _expand_node(
     limiter: BoundedSemaphore,
     depth: int,
 ) -> None:
+    if node.node_type in {"table", "table_chunk"}:
+        return
     for child in node.children:
         _expand_node(child, items, client, cache, limiter, depth)
     if node.children:

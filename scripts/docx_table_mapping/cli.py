@@ -58,7 +58,7 @@ def main() -> int:
     table = _table_at_block(doc, table_block)
     mapping = render_table_markdown(table, f"body/tbl{table_block}")
 
-    (out_dir / "attachment4.md").write_text(mapping.markdown, encoding="utf-8")
+    (out_dir / "table.md").write_text(mapping.markdown, encoding="utf-8")
     (out_dir / "source_map.json").write_text(
         json.dumps(mapping.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8"
     )
@@ -145,8 +145,10 @@ def main() -> int:
         "backup_docx": str(backup_path) if backup_path else None,
         "table_block": table_block,
         "table_anchor_id": mapping.table_anchor_id,
-        "rows": len(table.rows),
-        "columns": len(table.columns),
+        "rows": mapping.rows,
+        "columns": mapping.columns,
+        "header_rows": list(mapping.header_rows),
+        "mapping_warnings": list(mapping.warnings),
         "sources": len(mapping.sources),
         "comments_written": sum(bool(item["comment_written"]) for item in results),
         "comments_present": sum(bool(item["comment_expected"]) for item in results),
