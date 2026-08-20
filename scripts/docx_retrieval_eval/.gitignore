@@ -1,0 +1,4 @@
+logs/
+.gold_cache/
+__pycache__/
+*.pyc
