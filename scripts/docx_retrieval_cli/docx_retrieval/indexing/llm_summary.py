@@ -12,6 +12,7 @@ from docx_retrieval.schema import DocumentNode
 from .token_budget import SUMMARY_TRIGGER_MIN_TOKENS, estimate_tokens
 
 SUMMARY_INPUT_TARGET_TOKENS = 6000
+TABLE_SUMMARY_INPUT_TARGET_TOKENS = 20000
 SUMMARY_OUTPUT_MAX_TOKENS = 200
 
 
@@ -71,17 +72,22 @@ def _truncate_summary(summary: str) -> str:
 
 
 def _summary_content(node: DocumentNode) -> str:
+    input_tokens = (
+        TABLE_SUMMARY_INPUT_TARGET_TOKENS
+        if node.node_type in {"table", "table_chunk"}
+        else SUMMARY_INPUT_TARGET_TOKENS
+    )
     if node.children:
         lines = []
         for child in node.children:
             child_summary = child.summary or child.title
             lines.append(f"- {child.title}: {child_summary}")
-        return _truncate_by_tokens("\n".join(lines))
-    return _truncate_by_tokens(node.text)
+        return _truncate_by_tokens("\n".join(lines), input_tokens)
+    return _truncate_by_tokens(node.text, input_tokens)
 
 
-def _truncate_by_tokens(text: str) -> str:
-    if estimate_tokens(text) <= SUMMARY_INPUT_TARGET_TOKENS:
+def _truncate_by_tokens(text: str, input_tokens: int = SUMMARY_INPUT_TARGET_TOKENS) -> str:
+    if estimate_tokens(text) <= input_tokens:
         return text
-    chars = max(1000, int(len(text) * SUMMARY_INPUT_TARGET_TOKENS / max(estimate_tokens(text), 1)))
+    chars = max(1000, int(len(text) * input_tokens / max(estimate_tokens(text), 1)))
     return text[:chars].rstrip() + "..."

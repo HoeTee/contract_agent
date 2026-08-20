@@ -6,8 +6,8 @@ from .node_factory import make_node
 from .summaries import make_summary
 from .token_budget import estimate_tokens
 
-TABLE_CHUNK_TARGET_TOKENS = 6000
-TABLE_INLINE_MAX_TOKENS = 10000
+TABLE_CHUNK_TARGET_TOKENS = 18000
+TABLE_SPLIT_THRESHOLD_TOKENS = 20000
 
 
 def attach_table_nodes(
@@ -16,7 +16,7 @@ def attach_table_nodes(
     start: int,
     end: int,
     *,
-    inline_max_tokens: int = TABLE_INLINE_MAX_TOKENS,
+    split_threshold_tokens: int = TABLE_SPLIT_THRESHOLD_TOKENS,
     chunk_target_tokens: int = TABLE_CHUNK_TARGET_TOKENS,
 ) -> None:
     """Attach each body-level table to the deepest structural node that contains it."""
@@ -42,7 +42,7 @@ def attach_table_nodes(
         )
         node.table_id = item.anchor
         node.mapping_ref = f"table_store.json#{item.anchor}"
-        _split_large_table(node, item, inline_max_tokens, chunk_target_tokens)
+        _split_large_table(node, item, split_threshold_tokens, chunk_target_tokens)
         owner.children.append(node)
         owner.children.sort(key=lambda value: (value.start_index is None, value.start_index or 0, value.node_id))
 
@@ -75,10 +75,10 @@ def _deepest_owner(node: DocumentNode, item_index: int) -> DocumentNode:
 def _split_large_table(
     node: DocumentNode,
     item: BodyItem,
-    inline_max_tokens: int,
+    split_threshold_tokens: int,
     chunk_target_tokens: int,
 ) -> None:
-    if node.token_estimate <= inline_max_tokens or not item.table_mapping:
+    if node.token_estimate <= split_threshold_tokens or not item.table_mapping:
         return
     mapping = item.table_mapping
     rows = list(mapping.get("row_markdown") or [])

@@ -5,6 +5,7 @@ from docx_retrieval.schema import BodyItem, DocumentNode
 
 from .node_factory import make_node
 from .splitter import split_long_leaves
+from .token_budget import PARAGRAPH_CHUNK_TARGET_TOKENS, PARAGRAPH_SPLIT_THRESHOLD_TOKENS
 
 
 def build_hierarchy_for_range(
@@ -15,6 +16,8 @@ def build_hierarchy_for_range(
     node_prefix: str,
     use_cn_comma_as_level1: bool = False,
     split_long_nodes: bool = True,
+    paragraph_split_threshold_tokens: int = PARAGRAPH_SPLIT_THRESHOLD_TOKENS,
+    paragraph_chunk_target_tokens: int = PARAGRAPH_CHUNK_TARGET_TOKENS,
 ) -> list[DocumentNode]:
     root_nodes: list[DocumentNode] = []
     stack: list[tuple[int, DocumentNode, int]] = []
@@ -48,7 +51,12 @@ def build_hierarchy_for_range(
         stack.append((level, node, index))
 
     if split_long_nodes:
-        split_long_leaves(root_nodes, items)
+        split_long_leaves(
+            root_nodes,
+            items,
+            paragraph_split_threshold_tokens,
+            paragraph_chunk_target_tokens,
+        )
     return root_nodes
 
 

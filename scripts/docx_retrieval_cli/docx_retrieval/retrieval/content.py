@@ -71,6 +71,9 @@ def _content_units(index: dict[str, Any], candidates: list[dict[str, Any]], inpu
             units.extend(_table_child_units(index, node, candidate, input_tokens))
             continue
         item = _content_item(node, candidate)
+        if node.get("node_type") in {"table", "table_chunk"}:
+            units.append(item)
+            continue
         item_tokens = estimate_tokens(item.get("text") or "")
         if item_tokens > input_tokens:
             units.extend(_chunk_oversized_node(index, node, candidate, input_tokens))
@@ -98,10 +101,7 @@ def _table_child_units(
             "end_anchor": child.get("end_anchor"),
         }
         item = _content_item(child, child_candidate)
-        if estimate_tokens(item.get("text") or "") > input_tokens:
-            units.extend(_chunk_text_without_anchors(child, child_candidate, input_tokens))
-        else:
-            units.append(item)
+        units.append(item)
     return units
 
 

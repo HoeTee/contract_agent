@@ -11,22 +11,36 @@ from docx_retrieval.llm.config import load_yaml
 DEFAULT_INDEXING_CONFIG = Path(__file__).resolve().parents[2] / "config.yaml"
 
 
+class ParagraphIndexConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    split_threshold_tokens: int = Field(default=1000, ge=100)
+    chunk_target_tokens: int = Field(default=700, ge=100)
+
+    @model_validator(mode="after")
+    def validate_chunk_budget(self) -> "ParagraphIndexConfig":
+        if self.chunk_target_tokens > self.split_threshold_tokens:
+            raise ValueError("indexing.paragraph.chunk_target_tokens must not exceed split_threshold_tokens")
+        return self
+
+
 class TableIndexConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    inline_max_tokens: int = Field(default=10000, ge=500)
-    chunk_target_tokens: int = Field(default=6000, ge=500)
+    split_threshold_tokens: int = Field(default=20000, ge=500)
+    chunk_target_tokens: int = Field(default=18000, ge=500)
 
     @model_validator(mode="after")
     def validate_chunk_budget(self) -> "TableIndexConfig":
-        if self.chunk_target_tokens > self.inline_max_tokens:
-            raise ValueError("indexing.table.chunk_target_tokens must not exceed inline_max_tokens")
+        if self.chunk_target_tokens > self.split_threshold_tokens:
+            raise ValueError("indexing.table.chunk_target_tokens must not exceed split_threshold_tokens")
         return self
 
 
 class IndexingConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    paragraph: ParagraphIndexConfig = Field(default_factory=ParagraphIndexConfig)
     table: TableIndexConfig = Field(default_factory=TableIndexConfig)
 
     @classmethod

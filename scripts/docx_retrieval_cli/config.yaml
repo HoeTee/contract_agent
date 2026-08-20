@@ -11,9 +11,12 @@ retrieval:
     enabled: true
 
 indexing:
+  paragraph:
+    split_threshold_tokens: 1000
+    chunk_target_tokens: 700
   table:
-    inline_max_tokens: 10000
-    chunk_target_tokens: 6000
+    split_threshold_tokens: 20000
+    chunk_target_tokens: 18000
 
 routing:
   criteria: ../../resources/criteria/criteria-formal.docx

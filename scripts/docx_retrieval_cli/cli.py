@@ -148,8 +148,10 @@ def write_document_outputs(
     use_cache: bool = True,
     llm_concurrency: int = 10,
     embedding_concurrency: int = 10,
-    table_inline_max_tokens: int = 10000,
-    table_chunk_target_tokens: int = 6000,
+    paragraph_split_threshold_tokens: int = 1000,
+    paragraph_chunk_target_tokens: int = 700,
+    table_split_threshold_tokens: int = 20000,
+    table_chunk_target_tokens: int = 18000,
 ) -> dict[str, Any]:
     start_time = time.perf_counter()
     cache_dir = root_out / ".cache" if use_cache else None
@@ -162,7 +164,9 @@ def write_document_outputs(
             cache_dir=cache_dir,
             timer=timer,
             llm_concurrency=llm_concurrency,
-            table_inline_max_tokens=table_inline_max_tokens,
+            paragraph_split_threshold_tokens=paragraph_split_threshold_tokens,
+            paragraph_chunk_target_tokens=paragraph_chunk_target_tokens,
+            table_split_threshold_tokens=table_split_threshold_tokens,
             table_chunk_target_tokens=table_chunk_target_tokens,
         ).to_json_dict()
     doc_out = root_out / safe_name(docx)
@@ -366,7 +370,9 @@ def command_build(args: argparse.Namespace) -> int:
             use_cache=not args.no_cache,
             llm_concurrency=retrieval_config.concurrency.llm,
             embedding_concurrency=retrieval_config.concurrency.embedding,
-            table_inline_max_tokens=indexing_config.table.inline_max_tokens,
+            paragraph_split_threshold_tokens=indexing_config.paragraph.split_threshold_tokens,
+            paragraph_chunk_target_tokens=indexing_config.paragraph.chunk_target_tokens,
+            table_split_threshold_tokens=indexing_config.table.split_threshold_tokens,
             table_chunk_target_tokens=indexing_config.table.chunk_target_tokens,
         )
         for path in files

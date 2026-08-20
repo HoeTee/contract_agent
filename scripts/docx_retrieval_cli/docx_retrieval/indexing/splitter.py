@@ -3,11 +3,18 @@ from __future__ import annotations
 from docx_retrieval.schema import BodyItem, DocumentNode
 
 from .node_factory import make_node
-from .token_budget import NODE_HARD_LIMIT_TOKENS, NODE_SOFT_LIMIT_TOKENS, NODE_TARGET_TOKENS, estimate_tokens
+from .token_budget import PARAGRAPH_CHUNK_TARGET_TOKENS, PARAGRAPH_SPLIT_THRESHOLD_TOKENS, estimate_tokens
 
 
-def split_long_leaf(node: DocumentNode, items: list[BodyItem], start: int, end: int) -> None:
-    if node.token_estimate <= NODE_SOFT_LIMIT_TOKENS or node.children:
+def split_long_leaf(
+    node: DocumentNode,
+    items: list[BodyItem],
+    start: int,
+    end: int,
+    split_threshold_tokens: int = PARAGRAPH_SPLIT_THRESHOLD_TOKENS,
+    chunk_target_tokens: int = PARAGRAPH_CHUNK_TARGET_TOKENS,
+) -> None:
+    if node.token_estimate <= split_threshold_tokens or node.children:
         return
 
     chunks = []
@@ -15,10 +22,9 @@ def split_long_leaf(node: DocumentNode, items: list[BodyItem], start: int, end: 
     chunk_tokens = 0
     chunk_index = 1
     for index in range(start, end):
-        item_tokens = estimate_tokens(items[index].text)
-        should_flush = chunk_tokens >= NODE_TARGET_TOKENS and index > chunk_start
-        hard_flush = chunk_tokens + item_tokens > NODE_HARD_LIMIT_TOKENS and index > chunk_start
-        if should_flush or hard_flush:
+        item_tokens = 0 if items[index].kind == "tbl" else estimate_tokens(items[index].text)
+        should_flush = chunk_tokens > 0 and chunk_tokens + item_tokens > chunk_target_tokens and index > chunk_start
+        if should_flush:
             chunks.append((chunk_start, index))
             chunk_start = index
             chunk_tokens = 0
@@ -46,11 +52,23 @@ def split_long_leaf(node: DocumentNode, items: list[BodyItem], start: int, end: 
         chunk_index += 1
 
 
-def split_long_leaves(nodes: list[DocumentNode], items: list[BodyItem]) -> None:
+def split_long_leaves(
+    nodes: list[DocumentNode],
+    items: list[BodyItem],
+    split_threshold_tokens: int = PARAGRAPH_SPLIT_THRESHOLD_TOKENS,
+    chunk_target_tokens: int = PARAGRAPH_CHUNK_TARGET_TOKENS,
+) -> None:
     for node in nodes:
-        split_long_leaves(node.children, items)
+        split_long_leaves(node.children, items, split_threshold_tokens, chunk_target_tokens)
         if node.children:
             continue
         if node.source_start is None or node.source_end is None:
             continue
-        split_long_leaf(node, items, node.source_start, node.source_end)
+        split_long_leaf(
+            node,
+            items,
+            node.source_start,
+            node.source_end,
+            split_threshold_tokens,
+            chunk_target_tokens,
+        )

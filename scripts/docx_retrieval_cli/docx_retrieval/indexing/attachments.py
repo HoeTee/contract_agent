@@ -6,6 +6,7 @@ from docx_retrieval.schema import BodyItem, DocumentNode
 from .node_factory import make_node
 from .splitter import split_long_leaf
 from .tables import attach_table_nodes
+from .token_budget import PARAGRAPH_CHUNK_TARGET_TOKENS, PARAGRAPH_SPLIT_THRESHOLD_TOKENS
 
 
 def build_attachment_children(
@@ -14,6 +15,8 @@ def build_attachment_children(
     end: int,
     parent_id: str,
     split_long_nodes: bool = True,
+    paragraph_split_threshold_tokens: int = PARAGRAPH_SPLIT_THRESHOLD_TOKENS,
+    paragraph_chunk_target_tokens: int = PARAGRAPH_CHUNK_TARGET_TOKENS,
 ) -> list[DocumentNode]:
     nodes: list[DocumentNode] = []
     candidate_positions = []
@@ -45,7 +48,14 @@ def build_attachment_children(
             evidence,
         )
         if split_long_nodes:
-            split_long_leaf(node, items, index, next_index)
+            split_long_leaf(
+                node,
+                items,
+                index,
+                next_index,
+                paragraph_split_threshold_tokens,
+                paragraph_chunk_target_tokens,
+            )
         nodes.append(node)
     return nodes
 
@@ -56,8 +66,10 @@ def build_attachments(
     end: int,
     parent_id: str,
     split_long_nodes: bool = True,
-    table_inline_max_tokens: int = 10000,
-    table_chunk_target_tokens: int = 6000,
+    paragraph_split_threshold_tokens: int = PARAGRAPH_SPLIT_THRESHOLD_TOKENS,
+    paragraph_chunk_target_tokens: int = PARAGRAPH_CHUNK_TARGET_TOKENS,
+    table_split_threshold_tokens: int = 20000,
+    table_chunk_target_tokens: int = 18000,
 ) -> list[DocumentNode]:
     starts = attachment_starts(items, start, end)
     nodes = []
@@ -78,13 +90,21 @@ def build_attachments(
             score,
             evidence,
         )
-        node.children = build_attachment_children(items, attach_start + 1, attach_end, node.node_id, split_long_nodes)
+        node.children = build_attachment_children(
+            items,
+            attach_start + 1,
+            attach_end,
+            node.node_id,
+            split_long_nodes,
+            paragraph_split_threshold_tokens,
+            paragraph_chunk_target_tokens,
+        )
         attach_table_nodes(
             node,
             items,
             attach_start + 1,
             attach_end,
-            inline_max_tokens=table_inline_max_tokens,
+            split_threshold_tokens=table_split_threshold_tokens,
             chunk_target_tokens=table_chunk_target_tokens,
         )
         nodes.append(node)

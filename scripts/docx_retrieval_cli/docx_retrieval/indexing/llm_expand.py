@@ -13,7 +13,7 @@ from docx_retrieval.schema import BodyItem, DocumentNode
 
 from .node_factory import make_node
 from .splitter import split_long_leaf
-from .token_budget import NODE_SOFT_LIMIT_TOKENS, estimate_tokens
+from .token_budget import PARAGRAPH_CHUNK_TARGET_TOKENS, PARAGRAPH_SPLIT_THRESHOLD_TOKENS, estimate_tokens
 
 EXPAND_BATCH_TARGET_TOKENS = 6000
 EXPAND_BATCH_HARD_TOKENS = 10000
@@ -36,11 +36,22 @@ def expand_large_leaves(
     client: LLMClient,
     cache_dir: Path | None,
     concurrency: int = 10,
+    split_threshold_tokens: int = PARAGRAPH_SPLIT_THRESHOLD_TOKENS,
+    chunk_target_tokens: int = PARAGRAPH_CHUNK_TARGET_TOKENS,
 ) -> None:
     cache = JsonlCache(cache_dir / "llm_expand.jsonl" if cache_dir else None)
     limiter = BoundedSemaphore(max(1, concurrency))
     for node in roots:
-        _expand_node(node, items, client, cache, limiter, depth=0)
+        _expand_node(
+            node,
+            items,
+            client,
+            cache,
+            limiter,
+            depth=0,
+            split_threshold_tokens=split_threshold_tokens,
+            chunk_target_tokens=chunk_target_tokens,
+        )
 
 
 def _expand_node(
@@ -50,19 +61,30 @@ def _expand_node(
     cache: JsonlCache,
     limiter: BoundedSemaphore,
     depth: int,
+    split_threshold_tokens: int,
+    chunk_target_tokens: int,
 ) -> None:
     if node.node_type in {"table", "table_chunk"}:
         return
     for child in node.children:
-        _expand_node(child, items, client, cache, limiter, depth)
+        _expand_node(
+            child,
+            items,
+            client,
+            cache,
+            limiter,
+            depth,
+            split_threshold_tokens,
+            chunk_target_tokens,
+        )
     if node.children:
         return
     if depth >= MAX_EXPAND_DEPTH:
-        _fallback_chunk(node, items)
+        _fallback_chunk(node, items, split_threshold_tokens, chunk_target_tokens)
         return
     if node.source_start is None or node.source_end is None:
         return
-    if node.token_estimate <= NODE_SOFT_LIMIT_TOKENS:
+    if node.token_estimate <= split_threshold_tokens:
         return
 
     candidates = _collect_candidates(node, items, client, cache, limiter)
@@ -70,15 +92,36 @@ def _expand_node(
     if children:
         node.children = children
         for child in node.children:
-            _expand_node(child, items, client, cache, limiter, depth + 1)
+            _expand_node(
+                child,
+                items,
+                client,
+                cache,
+                limiter,
+                depth + 1,
+                split_threshold_tokens,
+                chunk_target_tokens,
+            )
     else:
-        _fallback_chunk(node, items)
+        _fallback_chunk(node, items, split_threshold_tokens, chunk_target_tokens)
 
 
-def _fallback_chunk(node: DocumentNode, items: list[BodyItem]) -> None:
+def _fallback_chunk(
+    node: DocumentNode,
+    items: list[BodyItem],
+    split_threshold_tokens: int,
+    chunk_target_tokens: int,
+) -> None:
     if node.source_start is None or node.source_end is None:
         return
-    split_long_leaf(node, items, node.source_start, node.source_end)
+    split_long_leaf(
+        node,
+        items,
+        node.source_start,
+        node.source_end,
+        split_threshold_tokens,
+        chunk_target_tokens,
+    )
 
 
 def _collect_candidates(

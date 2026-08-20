@@ -46,9 +46,12 @@ retrieval:
     enabled: true
 
 indexing:
+  paragraph:
+    split_threshold_tokens: 1000
+    chunk_target_tokens: 700
   table:
-    inline_max_tokens: 10000
-    chunk_target_tokens: 6000
+    split_threshold_tokens: 20000
+    chunk_target_tokens: 18000
 
 routing:
   criteria: ../../resources/criteria/criteria-formal.docx
@@ -76,8 +79,10 @@ routing:
 - `vector.score_threshold`：低于该相似度的向量候选不进入候选池。
 - `vector.auto_build`：缺少 `vector_index.json` 时，`ask` 默认自动构建。
 - `rerank.enabled`：默认对结构召回和向量召回合并后的候选做 rerank。
-- `indexing.table.inline_max_tokens`：单个 Markdown 表格节点允许直接返回的上限，默认 10000 tokens。
-- `indexing.table.chunk_target_tokens`：超大表按完整数据行拆分后的目标大小，默认 6000 tokens；每个子节点重复表头。
+- `indexing.paragraph.split_threshold_tokens`：普通文本叶节点超过1000 tokens后才启动兜底拆分。
+- `indexing.paragraph.chunk_target_tokens`：启动拆分后，按完整段落组成约700 tokens的子节点。
+- `indexing.table.split_threshold_tokens`：Markdown表格不超过20000 tokens时保持为单个完整节点。
+- `indexing.table.chunk_target_tokens`：超大表按完整数据行拆分为约18000 tokens的子节点；每个子节点重复表头。
 - `routing`：自动路由使用的审查要点来源、五种检索方法和补充召回候选参数。
 
 LLM 请求默认携带 `enable_thinking=false`。结构树选点和 rerank 属于检索阶段，不需要模型输出长 thinking 内容。
@@ -316,7 +321,7 @@ summary.json         批量任务汇总，位于 --out 目录
 ## 当前边界
 
 - `ask` 只准备检索上下文，不执行最终合同审查，也不写批注。
-- 父 section 不重复保存表格全文；表格由独立 `table` node 返回。超过表格阈值时，父表格 node 只保留结构信息，原文按完整行拆成 `table_chunk` children。
+- 父 section 不重复保存表格全文；表格由独立 `table` node 返回。超过20000 tokens时，父表格 node 只保留结构信息，原文按完整行拆成 `table_chunk` children。表格及其行块在检索阶段保持原子返回，不按普通文本预算从行内截断。
 - 使用 `--no-llm-summary` 后，summary 会退回截断式摘要。
 - 使用 `--no-llm-expand` 后，大 node 只做 token chunk 兜底切分。
 - 页码依赖 `w:lastRenderedPageBreak`，DOCX 没有该标记时页码为空。

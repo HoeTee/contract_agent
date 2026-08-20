@@ -24,14 +24,13 @@ from .node_factory import make_node
 from .splitter import split_long_leaves
 from .tables import (
     TABLE_CHUNK_TARGET_TOKENS,
-    TABLE_INLINE_MAX_TOKENS,
+    TABLE_SPLIT_THRESHOLD_TOKENS,
     attach_table_nodes,
     collect_table_map,
 )
 from .token_budget import (
-    NODE_HARD_LIMIT_TOKENS,
-    NODE_SOFT_LIMIT_TOKENS,
-    NODE_TARGET_TOKENS,
+    PARAGRAPH_CHUNK_TARGET_TOKENS,
+    PARAGRAPH_SPLIT_THRESHOLD_TOKENS,
     STRUCTURE_INLINE_BUDGET_TOKENS,
     STRUCTURE_PAGED_BUDGET_TOKENS,
 )
@@ -45,7 +44,9 @@ def build_document_index(
     cache_dir: Path | None = None,
     timer: Any | None = None,
     llm_concurrency: int = 10,
-    table_inline_max_tokens: int = TABLE_INLINE_MAX_TOKENS,
+    paragraph_split_threshold_tokens: int = PARAGRAPH_SPLIT_THRESHOLD_TOKENS,
+    paragraph_chunk_target_tokens: int = PARAGRAPH_CHUNK_TARGET_TOKENS,
+    table_split_threshold_tokens: int = TABLE_SPLIT_THRESHOLD_TOKENS,
     table_chunk_target_tokens: int = TABLE_CHUNK_TARGET_TOKENS,
 ) -> DocumentIndex:
     with _stage(timer, "build.read_docx_items"):
@@ -75,6 +76,8 @@ def build_document_index(
             "body",
             use_cn_as_l1,
             split_long_nodes=split_during_deterministic_build,
+            paragraph_split_threshold_tokens=paragraph_split_threshold_tokens,
+            paragraph_chunk_target_tokens=paragraph_chunk_target_tokens,
         )
         if body_start > 0:
             attach_table_nodes(
@@ -82,7 +85,7 @@ def build_document_index(
                 items,
                 0,
                 body_start,
-                inline_max_tokens=table_inline_max_tokens,
+                split_threshold_tokens=table_split_threshold_tokens,
                 chunk_target_tokens=table_chunk_target_tokens,
             )
         attach_table_nodes(
@@ -90,7 +93,7 @@ def build_document_index(
             items,
             body_start,
             body_content_end,
-            inline_max_tokens=table_inline_max_tokens,
+            split_threshold_tokens=table_split_threshold_tokens,
             chunk_target_tokens=table_chunk_target_tokens,
         )
         roots.extend([frontmatter, body])
@@ -103,7 +106,7 @@ def build_document_index(
                 items,
                 tail_start,
                 body_end,
-                inline_max_tokens=table_inline_max_tokens,
+                split_threshold_tokens=table_split_threshold_tokens,
                 chunk_target_tokens=table_chunk_target_tokens,
             )
             roots.append(tail)
@@ -129,7 +132,9 @@ def build_document_index(
                 len(items),
                 attachment_parent_node.node_id,
                 split_long_nodes=split_during_deterministic_build,
-                table_inline_max_tokens=table_inline_max_tokens,
+                paragraph_split_threshold_tokens=paragraph_split_threshold_tokens,
+                paragraph_chunk_target_tokens=paragraph_chunk_target_tokens,
+                table_split_threshold_tokens=table_split_threshold_tokens,
                 table_chunk_target_tokens=table_chunk_target_tokens,
             )
             attachments.children.append(attachment_parent_node)
@@ -142,9 +147,22 @@ def build_document_index(
             client = LLMClient(llm_settings)
         if llm_expand:
             with _stage(timer, "build.llm_expand"):
-                expand_large_leaves(roots, items, client, cache_dir, concurrency=llm_concurrency)
+                expand_large_leaves(
+                    roots,
+                    items,
+                    client,
+                    cache_dir,
+                    concurrency=llm_concurrency,
+                    split_threshold_tokens=paragraph_split_threshold_tokens,
+                    chunk_target_tokens=paragraph_chunk_target_tokens,
+                )
             with _stage(timer, "build.split_long_leaves_after_llm_expand"):
-                split_long_leaves(roots, items)
+                split_long_leaves(
+                    roots,
+                    items,
+                    paragraph_split_threshold_tokens,
+                    paragraph_chunk_target_tokens,
+                )
         if llm_summary:
             with _stage(timer, "build.llm_summary"):
                 summarize_nodes(roots, client, cache_dir, concurrency=llm_concurrency)
@@ -161,9 +179,8 @@ def build_document_index(
                 "attachments": "attachments",
             },
             settings={
-                "node_target_tokens": NODE_TARGET_TOKENS,
-                "node_soft_limit_tokens": NODE_SOFT_LIMIT_TOKENS,
-                "node_hard_limit_tokens": NODE_HARD_LIMIT_TOKENS,
+                "paragraph_split_threshold_tokens": paragraph_split_threshold_tokens,
+                "paragraph_chunk_target_tokens": paragraph_chunk_target_tokens,
                 "summary_tree_inline_budget_tokens": STRUCTURE_INLINE_BUDGET_TOKENS,
                 "summary_tree_paged_budget_tokens": STRUCTURE_PAGED_BUDGET_TOKENS,
                 "llm_expand_enabled": llm_expand,
@@ -174,7 +191,7 @@ def build_document_index(
                 "llm_model": llm_settings.model if llm_settings else None,
                 "llm_concurrency": llm_concurrency,
                 "table_markdown_enabled": True,
-                "table_inline_max_tokens": table_inline_max_tokens,
+                "table_split_threshold_tokens": table_split_threshold_tokens,
                 "table_chunk_target_tokens": table_chunk_target_tokens,
             },
             nodes=[node.storage_view() for node in flat_nodes],

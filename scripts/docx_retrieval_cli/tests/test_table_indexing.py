@@ -88,7 +88,7 @@ class TableIndexingTest(unittest.TestCase):
             self._write_contract(docx)
             index = build_document_index(
                 docx,
-                table_inline_max_tokens=20,
+                table_split_threshold_tokens=20,
                 table_chunk_target_tokens=15,
             ).to_json_dict()
             table_node = next(node for node in index["nodes"] if node["node_type"] == "table")
@@ -105,6 +105,25 @@ class TableIndexingTest(unittest.TestCase):
             self.assertTrue(all(item["text"].startswith("<!-- table_id:") for item in returned))
             self.assertTrue(all(item["table_id"] == table_node["table_id"] for item in returned))
             self.assertTrue(all(item["mapping_ref"] == table_node["mapping_ref"] for item in returned))
+
+    def test_table_node_is_atomic_above_normal_content_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            docx = Path(directory) / "contract.docx"
+            self._write_contract(docx)
+            index = build_document_index(docx).to_json_dict()
+            table_node = next(node for node in index["nodes"] if node["node_type"] == "table")
+
+            context = build_content_context(
+                index,
+                [{"node_id": table_node["node_id"], "source": "structure"}],
+                input_tokens=10,
+            )
+
+            returned = context["content_context"]
+            self.assertEqual(len(returned), 1)
+            self.assertEqual(returned[0]["node_id"], table_node["node_id"])
+            self.assertEqual(returned[0]["text"], table_node["text"])
+            self.assertFalse(returned[0]["truncated"])
 
 
 if __name__ == "__main__":
