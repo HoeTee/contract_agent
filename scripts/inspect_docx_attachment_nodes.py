@@ -421,7 +421,14 @@ def iter_docx_files(paths: list[Path]) -> list[Path]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Inspect DOCX attachment section nodes.")
     parser.add_argument("paths", nargs="+", type=Path)
-    parser.add_argument("--out", type=Path, default=Path("outputs/docx_attachment_nodes"))
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=Path(__file__).resolve().parent
+        / "docx_retrieval_cli"
+        / "outputs"
+        / "attachment_nodes",
+    )
     args = parser.parse_args()
 
     args.out.mkdir(parents=True, exist_ok=True)

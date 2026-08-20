@@ -109,6 +109,8 @@ EMBED_API_KEY
 python scripts\docx_retrieval_cli\cli.py build "C:\path\contract.docx" --out outputs\docx_index
 ```
 
+所有相对的 `--out`、`--doc` 和 `--log-dir` 均以 `scripts/docx_retrieval_cli` 为基准，不受当前终端工作目录影响。默认索引位于本项目的 `outputs/docx_index`，默认日志位于本项目的 `logs`，不会写入 `contract_agent` 根目录。
+
 目录批量：
 
 ```powershell

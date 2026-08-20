@@ -32,6 +32,10 @@ from docx_retrieval.retrieval import (
 from docx_retrieval.utils import RunLogger, TimingCollector
 from docx_retrieval.vector import EmbeddingClient, EmbeddingSettings, build_vector_index, load_vector_index, save_vector_index, vector_search
 
+PROJECT_DIR = Path(__file__).resolve().parent
+DEFAULT_OUTPUT_DIR = PROJECT_DIR / "outputs" / "docx_index"
+DEFAULT_LOG_DIR = PROJECT_DIR / "logs"
+
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
@@ -216,7 +220,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     build = sub.add_parser("build", help="Build document_index.json from a DOCX file or directory.")
     build.add_argument("input", type=Path, help="DOCX file, or a directory when --batch is set.")
-    build.add_argument("--out", type=Path, default=Path("outputs/docx_index"), help="Output directory.")
+    build.add_argument("--out", type=_project_local_path, default=DEFAULT_OUTPUT_DIR, help="Output directory. Relative paths are resolved under this CLI project.")
     build.add_argument("--batch", action="store_true", help="Process all DOCX files under an input directory.")
     build.add_argument("--no-vector", action="store_true", help="Do not build vector_index.json.")
     _add_llm_args(build)
@@ -230,7 +234,7 @@ def build_parser() -> argparse.ArgumentParser:
     build.set_defaults(func=command_build)
 
     ask = sub.add_parser("ask", help="Retrieve review context from an existing document output directory.")
-    ask.add_argument("--doc", type=Path, required=True, help="Document output directory containing document_index.json.")
+    ask.add_argument("--doc", type=_project_local_path, required=True, help="Document output directory containing document_index.json.")
     ask.add_argument("--query", action="append", required=True)
     ask.add_argument("--part", type=int, default=1, help="Content page number when selected node text exceeds the token budget.")
     ask.add_argument("--all-parts", action="store_true", help="Return every content page in one run for evaluation or batch processing.")
@@ -247,19 +251,19 @@ def build_parser() -> argparse.ArgumentParser:
     ask.set_defaults(func=command_ask)
 
     content = sub.add_parser("content", help="Expand one node's original text.")
-    content.add_argument("--doc", type=Path, required=True)
+    content.add_argument("--doc", type=_project_local_path, required=True)
     content.add_argument("--node", required=True)
     _add_log_args(content)
     content.set_defaults(func=command_content)
 
     search = sub.add_parser("search", help="Keyword search without model calls.")
-    search.add_argument("--doc", type=Path, required=True)
+    search.add_argument("--doc", type=_project_local_path, required=True)
     search.add_argument("--keyword", action="append", required=True)
     _add_log_args(search)
     search.set_defaults(func=command_search)
 
     vector = sub.add_parser("vector-search", help="Vector search against vector_index.json.")
-    vector.add_argument("--doc", type=Path, required=True)
+    vector.add_argument("--doc", type=_project_local_path, required=True)
     vector.add_argument("--query", action="append", required=True)
     vector.add_argument("--input-tokens", type=int)
     vector.add_argument("--retrieval-config", type=Path)
@@ -285,8 +289,13 @@ def _add_embedding_args(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_log_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--log-dir", type=Path, default=Path("logs"), help="Local directory for CLI run logs.")
+    parser.add_argument("--log-dir", type=_project_local_path, default=DEFAULT_LOG_DIR, help="Local directory for CLI run logs. Relative paths are resolved under this CLI project.")
     parser.add_argument("--no-log", action="store_true", help="Disable local file logging for this command.")
+
+
+def _project_local_path(value: str | Path) -> Path:
+    path = Path(value)
+    return path.resolve() if path.is_absolute() else (PROJECT_DIR / path).resolve()
 
 
 def command_build(args: argparse.Namespace) -> int:

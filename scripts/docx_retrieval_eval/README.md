@@ -2,6 +2,8 @@
 
 本项目用于评测 `scripts/docx_retrieval_cli` 对合同审查要点的原文召回能力。Gold 测试集和实际运行结果严格分离：`data/retrieval_gold.csv` 只保存人工审查语义下的期望证据，运行结果写入 `logs/<时间戳>/`，不会回写 Gold。
 
+所有配置相对路径均以本项目的 `config.yaml` 所在目录为基准。评测日志固定写入本项目 `logs/`，索引固定读取同级 `docx_retrieval_cli/outputs/docx_index`，不会在 `contract_agent` 根目录创建 `/outputs`。
+
 ## 数据范围
 
 Gold 数据覆盖 30 份 DOCX：
