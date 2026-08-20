@@ -76,6 +76,14 @@ python cli.py --no-cache
 python cli.py --case TPL007-C07 --no-cache
 ```
 
+按测试集顺序只执行前 10 个完整用例：
+
+```powershell
+python cli.py --limit 10 --no-cache
+```
+
+`--limit` 在按 `case_id` 分组后生效，不会截断同一用例的多条 Gold 证据。与 `--case` 同时使用时，先按 `--case` 筛选，再取前 N 个用例。
+
 只显示最终汇总：
 
 ```powershell

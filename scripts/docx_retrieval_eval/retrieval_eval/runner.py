@@ -85,7 +85,7 @@ def _excerpt(text: str, limit: int = 180) -> str:
     return compact if len(compact) <= limit else f"{compact[:limit]}..."
 
 
-def run_evaluation(config: EvalConfig, case_ids: set[str], no_cache: bool, quiet: bool) -> int:
+def run_evaluation(config: EvalConfig, case_ids: set[str], limit: int | None, no_cache: bool, quiet: bool) -> int:
     started = time.perf_counter()
     rows = load_gold(config.dataset)
     cases = group_cases(rows)
@@ -94,6 +94,8 @@ def run_evaluation(config: EvalConfig, case_ids: set[str], no_cache: bool, quiet
         if unknown:
             raise ValueError(f"unknown case_id: {', '.join(unknown)}")
         cases = {key: value for key, value in cases.items() if key in case_ids}
+    if limit is not None:
+        cases = dict(list(cases.items())[:limit])
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = config.logs_dir / stamp
@@ -176,6 +178,7 @@ def run_evaluation(config: EvalConfig, case_ids: set[str], no_cache: bool, quiet
         "negative_cases_not_scored": negative_cases,
         "evidence": len(positive_rows),
         "coverage_threshold": config.coverage_threshold,
+        "case_limit": limit,
         "no_cache": no_cache,
         "elapsed_seconds": round(time.perf_counter() - started, 3),
         "strict_case_accuracy": round(strict_passes / positive_cases, 6) if positive_cases else 0.0,

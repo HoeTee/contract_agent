@@ -1,0 +1,21 @@
+from __future__ import annotations
+
+import argparse
+import unittest
+
+from cli import build_parser
+
+
+class CliArgumentsTest(unittest.TestCase):
+    def test_limit_accepts_positive_integer(self) -> None:
+        args = build_parser().parse_args(["--limit", "10"])
+
+        self.assertEqual(args.limit, 10)
+
+    def test_limit_rejects_zero(self) -> None:
+        with self.assertRaises(SystemExit):
+            build_parser().parse_args(["--limit", "0"])
+
+
+if __name__ == "__main__":
+    unittest.main()
