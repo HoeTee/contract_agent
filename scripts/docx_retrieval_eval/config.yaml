@@ -7,4 +7,5 @@ top_k:
   - 1
   - 3
   - 5
-timeout_seconds: 600
+query_timeout_seconds: 600
+build_timeout_seconds: 1800

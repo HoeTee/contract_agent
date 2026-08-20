@@ -28,6 +28,14 @@ pip install -r scripts\docx_retrieval_cli\requirements.txt
 scripts/docx_retrieval_cli/config.yaml
 ```
 
+自动路由配置文件：
+
+```text
+scripts/docx_retrieval_cli/route.yaml
+```
+
+`route.yaml` 从 `resources/criteria/criteria-formal.docx` 读取正式审查要点，只配置五种通用检索方法及预算，不保存“审查要点编号 -> 方法”的硬编码映射。
+
 默认内容：
 
 ```yaml
@@ -121,12 +129,22 @@ python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目
 `ask` 默认流程：
 
 ```text
-structure_tree 轻量结构召回
--> vector_index 向量补召回
--> 合并候选 node_id
--> rerank 重排序
--> 从 document_index.json 展开原文 nodes
+读取 structure_tree 与正式审查要点
+-> LLM 自动规划 title/region/rule/join/scan 路由
+-> 执行确定性标题、区域、全文关键词或全文扫描
+-> 仅在路由要求 fallback 或确定性结果为空时执行结构树 LLM + vector + rerank
+-> 从 content_store/anchor_store 展开原文 nodes
 ```
+
+五种业务路由：
+
+- `title`：检查正式目录标题及顺序；完整目录返回全部正式章节标题。
+- `region`：返回合同首部、正文、合同末尾、附件，或明确标题下的内容。
+- `rule`：扫描全部 anchor，返回所有精确关键词、枚举敏感词及金额字面命中。
+- `join`：组合主体首尾、正文与附件或其他多区域证据。
+- `scan`：按 `anchor_store` 阅读顺序返回全文，超出预算时通过 `next_part` 继续。
+
+原有结构树 LLM、向量召回和 rerank 是内部语义 fallback，不作为第六种业务路由。
 
 关闭向量补召回：
 
@@ -177,10 +195,22 @@ python scripts\docx_retrieval_cli\cli.py content --doc "outputs\docx_index\合�
 ```json
 {
   "query": "支付方式",
+  "mode": ["title", "region"],
   "nodes": [],
+  "next_part": 2,
   "elapsed_seconds": 1.234
 }
 ```
+
+只有仍有后续原文批次时才返回 `next_part`。调用方使用同一 Query 加 `--part 2` 继续获取；确定性 `rule` 与 `scan` 不会因为单次输出 token 上限而缩小扫描范围。
+
+评测或离线批处理需要在一次固定路由计划中取得全部页时使用：
+
+```powershell
+python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "是否有错别字" --all-parts
+```
+
+`--all-parts` 可能返回大量原文，不应直接用于单次审查模型输入。
 
 真正进入后续审查 prompt 的字段应只使用：
 
@@ -200,7 +230,7 @@ nodes[].end_anchor
 python scripts\docx_retrieval_cli\cli.py ask --doc "outputs\docx_index\合同目录名" --query "支付方式" --debug
 ```
 
-debug 中的 `structure_matches`、`vector_matches`、`ranked_matches`、`pagination`、`budget` 只用于调试和控制，不进入审查正文 prompt。
+debug 中的 `route_plan`、`routed_matches`、`structure_matches`、`vector_matches`、`ranked_matches`、`pagination`、`budget` 只用于调试和控制，不进入审查正文 prompt。
 
 ## 耗时与日志
 

@@ -62,7 +62,7 @@ def _content_units(index: dict[str, Any], candidates: list[dict[str, Any]], inpu
         node_id = candidate.get("node_id")
         if not node_id:
             continue
-        node = get_node(index, node_id)
+        node = get_node(index, candidate.get("parent_node_id") or node_id)
         item = _content_item(node, candidate)
         item_tokens = estimate_tokens(item.get("text") or "")
         if item_tokens > input_tokens:
@@ -91,13 +91,13 @@ def _paginate_units(units: list[dict[str, Any]], input_tokens: int) -> list[list
 
 def _content_item(node: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
     return {
-        "node_id": node.get("node_id"),
+        "node_id": candidate.get("node_id") or node.get("node_id"),
         "title": node.get("title"),
-        "text": node.get("text") or "",
-        "start_index": node.get("start_index"),
-        "end_index": node.get("end_index"),
-        "start_anchor": node.get("start_anchor"),
-        "end_anchor": node.get("end_anchor"),
+        "text": candidate.get("text_override") if candidate.get("text_override") is not None else node.get("text") or "",
+        "start_index": candidate.get("start_index", node.get("start_index")),
+        "end_index": candidate.get("end_index", node.get("end_index")),
+        "start_anchor": candidate.get("start_anchor", node.get("start_anchor")),
+        "end_anchor": candidate.get("end_anchor", node.get("end_anchor")),
         "source": candidate.get("sources") or [candidate.get("source")],
         "truncated": False,
     }
@@ -111,7 +111,10 @@ def _prefer_specific_nodes(index: dict[str, Any], matches: list[dict[str, Any]])
         node_id = match.get("node_id")
         if not node_id:
             continue
-        has_selected_descendant = any(other != node_id and str(other).startswith(f"{node_id}/") for other in id_set)
+        sources = set(match.get("sources") or [])
+        has_selected_descendant = not sources.intersection({"title", "region"}) and any(
+            other != node_id and str(other).startswith(f"{node_id}/") for other in id_set
+        )
         if has_selected_descendant:
             continue
         filtered.append(match)
@@ -223,9 +226,18 @@ def _anchors_for_node(index: dict[str, Any], node: dict[str, Any]) -> list[dict[
     end = node.get("end_anchor")
     if not start or not end:
         return []
+    start_index = node.get("start_index")
+    end_index = node.get("end_index")
     anchors = []
     for anchor, record in (index.get("anchor_map") or {}).items():
-        if record.get("node_id") == node.get("node_id"):
+        body_index = record.get("body_child_index")
+        in_range = (
+            start_index is not None
+            and end_index is not None
+            and body_index is not None
+            and start_index <= body_index <= end_index
+        )
+        if in_range:
             anchors.append({"anchor": anchor, **record})
     anchors.sort(key=lambda item: item.get("body_child_index") or 0)
     return anchors

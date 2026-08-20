@@ -47,7 +47,11 @@ def _resolve_index(row: GoldRow, by_path: dict[str, Path], by_name: dict[str, Pa
     return by_name.get(f"{safe_stem}.docx".casefold())
 
 
-def _run_retrieval_cli(config: EvalConfig, arguments: list[str]) -> tuple[dict[str, Any], str, float]:
+def _run_retrieval_cli(
+    config: EvalConfig,
+    arguments: list[str],
+    timeout_seconds: int | None = None,
+) -> tuple[dict[str, Any], str, float]:
     command = [sys.executable, str(config.retrieval_cli), *arguments]
     environment = os.environ.copy()
     environment["PYTHONUTF8"] = "1"
@@ -61,7 +65,7 @@ def _run_retrieval_cli(config: EvalConfig, arguments: list[str]) -> tuple[dict[s
         errors="replace",
         capture_output=True,
         env=environment,
-        timeout=config.timeout_seconds,
+        timeout=timeout_seconds or config.query_timeout_seconds,
         check=False,
     )
     elapsed = round(time.perf_counter() - started, 3)
@@ -85,7 +89,7 @@ def _build_index(config: EvalConfig, row: GoldRow, no_cache: bool) -> tuple[Path
     ]
     if no_cache:
         arguments.append("--no-cache")
-    payload, stderr, elapsed = _run_retrieval_cli(config, arguments)
+    payload, stderr, elapsed = _run_retrieval_cli(config, arguments, config.build_timeout_seconds)
     documents = payload.get("documents") or []
     if not documents or not documents[0].get("output_dir"):
         raise RuntimeError("retrieval CLI build result does not contain documents[0].output_dir")
@@ -104,12 +108,26 @@ def _ask(config: EvalConfig, index_dir: Path, query: str, no_cache: bool) -> tup
         str(index_dir),
         "--query",
         query,
+        "--all-parts",
         "--quiet",
         "--no-log",
     ]
     if no_cache:
         arguments.append("--no-cache")
-    return _run_retrieval_cli(config, arguments)
+    payload, stderr, elapsed = _run_retrieval_cli(config, arguments)
+    payload["nodes"] = _unique_nodes(payload.get("nodes") or [])
+    return payload, stderr, elapsed
+
+
+def _unique_nodes(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    result = []
+    seen = set()
+    for node in nodes:
+        identity = (node.get("node_id"), node.get("start_anchor"), node.get("end_anchor"))
+        if identity not in seen:
+            seen.add(identity)
+            result.append(node)
+    return result
 
 
 def _excerpt(text: str, limit: int = 180) -> str:
@@ -191,10 +209,10 @@ def run_evaluation(
             nodes = payload.get("nodes") or []
             positive_hits = []
             for gold in gold_rows:
-                scored = score_row(gold.recall, nodes, config.top_k, config.coverage_threshold) if gold.label == 1 else {}
+                scored = score_row(gold.recall, gold.notes, nodes, config.top_k, config.coverage_threshold) if gold.label == 1 else {}
                 largest_k = max(config.top_k)
                 if gold.label == 1:
-                    positive_hits.append(int(scored[f"hit_at_{largest_k}"]))
+                    positive_hits.append(int(scored["hit"]))
                 result_rows.append(
                     {
                         "case_id": gold.case_id,
@@ -207,6 +225,8 @@ def run_evaluation(
                         "notes": gold.notes,
                         **scored,
                         "retrieved_node_ids": json.dumps([node.get("node_id") for node in nodes], ensure_ascii=False),
+                        "route_mode": json.dumps(payload.get("mode") or [], ensure_ascii=False),
+                        "parts": payload.get("parts", 1),
                         "elapsed_seconds": payload.get("elapsed_seconds", elapsed),
                         "error": error,
                     }
@@ -264,6 +284,8 @@ def run_evaluation(
     for value in config.top_k:
         hits = sum(int(row.get(f"hit_at_{value}", 0)) for row in positive_rows)
         summary[f"micro_recall_at_{value}"] = round(hits / len(positive_rows), 6) if positive_rows else 0.0
+    hits = sum(int(row.get("hit", 0)) for row in positive_rows)
+    summary["micro_recall"] = round(hits / len(positive_rows), 6) if positive_rows else 0.0
     write_results(result_path, result_rows)
     write_summary(summary_path, summary)
     print(json.dumps(summary, ensure_ascii=False, indent=2))

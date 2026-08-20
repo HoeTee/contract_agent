@@ -56,7 +56,7 @@ pip install -r requirements.txt
 
 评测器通过当前 Python 解释器启动 `docx_retrieval_cli/cli.py`，因此该 requirements 文件会同时安装检索 CLI 的全部依赖，包括 `tiktoken`。
 
-评测器调用现有 `../docx_retrieval_cli/cli.py ask`。参与测试的合同必须先在 `../docx_retrieval_cli/outputs/docx_index` 下建立索引。缺少索引时该用例会记录 `index not found`，评测器不会自动建索引。
+评测器只通过现有 `../docx_retrieval_cli/cli.py` 执行 `build` 和 `ask`，不复制索引或检索实现。缺少索引时自动执行完整 `build`；同一合同后续 case 复用该索引。
 
 ## 执行召回测试
 
@@ -113,7 +113,9 @@ python cli.py --quiet
 
 ## 测试逻辑
 
-评测器按 `case_id` 分组，同一合同、同一 Query 只调用一次 `ask`。CLI 返回的 Node 保持原排名，分别取前 1、3、5 个 Node 计算 Gold 证据覆盖率。
+评测器按 `case_id` 分组，并通过 `ask --all-parts` 在一次固定路由计划中取得全部分页结果。前 1、3、5 个 Node 指标用于观察排序质量；主召回指标使用该 case 全部返回 Node。
+
+Gold 的 `notes` 中保存证据 anchor。主命中判断为：返回 Node 覆盖 Gold anchor，或者标准化后的 Gold 原文覆盖率达到阈值。anchor 命中优先，文本覆盖率用于兼容无法稳定映射 anchor 的内容并作为诊断值。
 
 文本比较先执行：
 
@@ -130,8 +132,9 @@ coverage = Gold 三元组中被返回内容覆盖的数量 / Gold 三元组总�
 
 默认 `coverage >= 0.8` 时 `hit=1`，否则 `hit=0`。最终报告包含：
 
-- `Micro Recall@1/3/5`：全部正样本证据的命中率；
-- `Macro Recall@5`：各正样本 case 召回率的平均值；
+- `Micro Recall`：基于一个 case 全部返回 Node 的正样本证据命中率；
+- `Micro Recall@1/3/5`：前 K 个 Node 的命中率，用于评估排序；
+- `Macro Recall`：各正样本 case 完整召回率的平均值；
 - `Strict Case Accuracy`：一个 case 的全部 Gold 均命中的比例；
 - `label=0` 的 case 标记为 `SKIP`，不进入召回率计算。
 

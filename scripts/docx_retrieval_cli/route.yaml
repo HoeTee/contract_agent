@@ -1,0 +1,25 @@
+criteria:
+  source: ../../resources/criteria/criteria-formal.docx
+  expected_count: 18
+
+router:
+  fallback: true
+
+methods:
+  title: 检查目录、标题、章节名称、必备标题和标题顺序。
+  region: 获取合同首部、正文末端、签署页，或明确标题下的完整内容。
+  rule: 执行全文精确关键词、正则、金额和存在性定位。
+  join: 关联多个区域或节点，获取一致性比较所需的完整证据组。
+  scan: 按原文顺序返回全部 anchor，用于逐批全文检查。
+
+fallback:
+  llm_candidates: 12
+  vector_candidates: 20
+  vector_threshold: 0.45
+  max_nodes: 5
+
+output:
+  max_tokens: 12000
+
+scan:
+  batch_tokens: 12000

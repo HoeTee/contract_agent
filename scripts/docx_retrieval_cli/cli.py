@@ -16,11 +16,18 @@ from docx_retrieval.output import attachment_tree, structure_tokens, title_rows,
 from docx_retrieval.output.writers import load_index
 from docx_retrieval.retrieval import (
     RetrievalConfig,
+    RouteConfig,
     build_content_context,
     content_view,
+    join_matches,
     keyword_search,
     llm_query,
+    plan_route,
+    region_matches,
     rerank_matches,
+    rule_matches,
+    scan_matches,
+    title_matches,
 )
 from docx_retrieval.utils import RunLogger, TimingCollector
 from docx_retrieval.vector import EmbeddingClient, EmbeddingSettings, build_vector_index, load_vector_index, save_vector_index, vector_search
@@ -226,6 +233,7 @@ def build_parser() -> argparse.ArgumentParser:
     ask.add_argument("--doc", type=Path, required=True, help="Document output directory containing document_index.json.")
     ask.add_argument("--query", action="append", required=True)
     ask.add_argument("--part", type=int, default=1, help="Content page number when selected node text exceeds the token budget.")
+    ask.add_argument("--all-parts", action="store_true", help="Return every content page in one run for evaluation or batch processing.")
     ask.add_argument("--input-tokens", type=int, help="Override retrieval.input_tokens.")
     ask.add_argument("--no-vector", action="store_true", help="Disable vector fallback for this request.")
     ask.add_argument("--no-rerank", action="store_true", help="Disable rerank for this request.")
@@ -233,6 +241,7 @@ def build_parser() -> argparse.ArgumentParser:
     ask.add_argument("--no-cache", action="store_true", help="Disable LLM response cache for structure query and rerank.")
     ask.add_argument("--quiet", action="store_true", help="Do not print stage timings to stderr.")
     ask.add_argument("--retrieval-config", type=Path, help="Optional docx_retrieval_cli config.yaml path.")
+    ask.add_argument("--route-config", type=Path, help="Optional route.yaml path.")
     _add_llm_args(ask)
     _add_embedding_args(ask)
     _add_log_args(ask)
@@ -359,6 +368,7 @@ def command_ask(args: argparse.Namespace) -> int:
         timer.note("ask.concurrency.llm", config.concurrency.llm)
         timer.note("ask.concurrency.embedding", config.concurrency.embedding)
         timer.note("ask.concurrency.reranker", config.concurrency.reranker)
+        route_config = RouteConfig.load(args.route_config)
     index_path = _index_path(args.doc)
     with timer.stage("ask.load_index"):
         data = load_runtime_index(args.doc)
@@ -371,19 +381,29 @@ def command_ask(args: argparse.Namespace) -> int:
         )
     with timer.stage("ask.init_llm_client"):
         llm_client = LLMClient(llm_settings)
-    with timer.stage("ask.llm_structure_query"):
-        structure_cache_dir = args.doc / ".cache" if not args.no_cache else None
-        structure_matches = llm_query(
-            data,
-            args.query,
-            llm_client,
-            structure_cache_dir,
-            input_tokens=config.input_tokens,
-            timer=timer,
-            concurrency=config.concurrency.llm,
-        )
-    vector_matches = []
-    if config.vector.enabled:
+    query_text = "\n".join(args.query)
+    cache_dir = args.doc / ".cache" if not args.no_cache else None
+    with timer.stage("ask.route"):
+        route_plan = plan_route(data, query_text, llm_client, route_config, cache_dir)
+        routed_matches = _execute_route(data, query_text, route_plan)
+
+    structure_matches: list[dict[str, Any]] = []
+    vector_matches: list[dict[str, Any]] = []
+    fallback_used = not routed_matches or (
+        route_config.router.fallback and route_plan.fallback and not _route_is_complete(route_plan)
+    )
+    if fallback_used:
+        with timer.stage("ask.llm_structure_query"):
+            structure_matches = llm_query(
+                data,
+                args.query,
+                llm_client,
+                cache_dir,
+                input_tokens=config.input_tokens,
+                timer=timer,
+                concurrency=config.concurrency.llm,
+            )[: route_config.fallback.llm_candidates]
+    if fallback_used and config.vector.enabled:
         vector_path = args.doc / "vector_index.json"
         if not vector_path.exists():
             if not config.vector.auto_build:
@@ -423,15 +443,15 @@ def command_ask(args: argparse.Namespace) -> int:
                         vector_index,
                         query,
                         embedding_client,
-                        score_threshold=config.vector.score_threshold,
+                        score_threshold=route_config.fallback.vector_threshold,
                         input_tokens=config.input_tokens,
                         concurrency=config.concurrency.embedding,
-                    )
+                    )[: route_config.fallback.vector_candidates]
                 )
     with timer.stage("ask.merge_matches"):
-        candidates = _merge_matches(structure_matches, vector_matches)
-    query_text = "\n".join(args.query)
-    if config.rerank.enabled:
+        fallback_matches = _merge_matches(structure_matches, vector_matches)
+        candidates = _merge_routed_matches(routed_matches, fallback_matches)
+    if fallback_used and config.rerank.enabled:
         with timer.stage("ask.rerank"):
             rerank_cache_dir = args.doc / ".cache" if not args.no_cache else None
             ranked_matches = rerank_matches(
@@ -443,23 +463,43 @@ def command_ask(args: argparse.Namespace) -> int:
                 rerank_cache_dir,
                 concurrency=config.concurrency.reranker,
             )
+        ranked_matches = ranked_matches[: route_config.fallback.max_nodes]
     else:
         ranked_matches = candidates
     with timer.stage("ask.build_content_context"):
-        context = build_content_context(data, ranked_matches, config.input_tokens, part=args.part)
+        content_budget = (
+            route_config.scan.batch_tokens
+            if any(step.method == "scan" for step in route_plan.steps)
+            else route_config.output.max_tokens
+        )
+        context = build_content_context(data, ranked_matches, content_budget, part=args.part)
+        if args.all_parts:
+            all_nodes = list(context["content_context"])
+            part = args.part
+            while context["pagination"]["has_more"]:
+                part += 1
+                context = build_content_context(data, ranked_matches, content_budget, part=part)
+                all_nodes.extend(context["content_context"])
+            context["content_context"] = all_nodes
     total_elapsed = round(time.perf_counter() - start_time, 3)
     if not args.quiet:
         print(f"[timing] ask.total: {total_elapsed:.3f}s", file=sys.stderr, flush=True)
     payload = {
         "query": args.query if len(args.query) > 1 else args.query[0],
+        "mode": [step.method for step in route_plan.steps],
         "nodes": context["content_context"],
         "elapsed_seconds": total_elapsed,
     }
+    if not args.all_parts and context["pagination"]["has_more"]:
+        payload["next_part"] = context["pagination"]["next_part"]
     if args.debug:
         payload["debug"] = {
             "ranked_matches": ranked_matches,
             "structure_matches": structure_matches,
             "vector_matches": vector_matches,
+            "route_plan": route_plan.model_dump(mode="json"),
+            "routed_matches": routed_matches,
+            "fallback_used": fallback_used,
             "pagination": context["pagination"],
             "budget": context["budget"],
             "timings": timer.as_dict(),
@@ -606,6 +646,50 @@ def _merge_matches(structure_matches: list[dict], vector_matches: list[dict]) ->
             if source == "structure":
                 item["structure_reason"] = match.get("reason")
     return list(merged.values())
+
+
+def _execute_route(index: dict[str, Any], query: str, plan: Any) -> list[dict[str, Any]]:
+    matches: list[dict[str, Any]] = []
+    for step in plan.steps:
+        if step.method == "title":
+            current = title_matches(index, step)
+        elif step.method == "region":
+            current = region_matches(index, step, matches)
+        elif step.method == "rule":
+            current = rule_matches(index, step, query)
+        elif step.method == "join":
+            current = join_matches(index, query, step)
+        elif step.method == "scan":
+            current = scan_matches(index)
+        else:
+            raise ValueError(f"unsupported route method: {step.method}")
+        matches = _merge_routed_matches(matches, current)
+    return matches
+
+
+def _route_is_complete(plan: Any) -> bool:
+    return any(step.method == "scan" or (step.method == "title" and step.all_titles) for step in plan.steps)
+
+
+def _merge_routed_matches(*groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    merged: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    for matches in groups:
+        for match in matches:
+            node_id = match.get("node_id")
+            if not node_id:
+                continue
+            if node_id not in merged:
+                merged[node_id] = dict(match)
+                order.append(node_id)
+            item = merged[node_id]
+            sources = set(item.get("sources") or [])
+            sources.update(match.get("sources") or [])
+            item["sources"] = sorted(source for source in sources if source)
+            for key in ("vector_score", "structure_reason", "reason", "rerank_score", "rerank_reason"):
+                if match.get(key) is not None:
+                    item[key] = match[key]
+    return [merged[node_id] for node_id in order]
 
 
 def _stage(timer: TimingCollector | None, name: str):

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SummaryResponse(BaseModel):
@@ -48,3 +50,41 @@ class RerankResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     nodes: list[RerankMatch] = Field(default_factory=list)
+
+
+class RouteStep(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    method: Literal["title", "region", "rule", "join", "scan"]
+    terms: list[str] = Field(default_factory=list)
+    regions: list[Literal["frontmatter", "body", "tail", "attachments"]] = Field(default_factory=list)
+    slots: list[str] = Field(default_factory=list)
+    all_titles: bool = False
+    context: int = Field(default=0, ge=0, le=2)
+
+    @model_validator(mode="before")
+    @classmethod
+    def flatten_params(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        normalized = dict(value)
+        normalized.pop("description", None)
+        normalized.pop("reason", None)
+        if "params" in normalized:
+            params = normalized.pop("params")
+            if not isinstance(params, dict):
+                raise ValueError("route step params must be an object")
+            allowed = {"terms", "regions", "slots", "all_titles", "context"}
+            unknown = set(params) - allowed
+            if unknown:
+                raise ValueError(f"unsupported route step params: {sorted(unknown)}")
+            for key, item in params.items():
+                normalized.setdefault(key, item)
+        return normalized
+
+
+class RouteResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    steps: list[RouteStep] = Field(min_length=1, max_length=5)
+    fallback: bool = False

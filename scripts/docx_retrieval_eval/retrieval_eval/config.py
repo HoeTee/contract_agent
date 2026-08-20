@@ -15,7 +15,8 @@ class EvalConfig:
     logs_dir: Path
     coverage_threshold: float
     top_k: tuple[int, ...]
-    timeout_seconds: int
+    query_timeout_seconds: int
+    build_timeout_seconds: int
 
 
 def _resolve(base: Path, value: str) -> Path:
@@ -41,5 +42,6 @@ def load_config(path: Path) -> EvalConfig:
         logs_dir=_resolve(base, payload.get("logs_dir", "logs")),
         coverage_threshold=threshold,
         top_k=top_k,
-        timeout_seconds=int(payload.get("timeout_seconds", 600)),
+        query_timeout_seconds=int(payload.get("query_timeout_seconds", payload.get("timeout_seconds", 600))),
+        build_timeout_seconds=int(payload.get("build_timeout_seconds", 1800)),
     )
