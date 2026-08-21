@@ -1,1 +1,0 @@
--r ../docx_retrieval_cli/requirements.txt
