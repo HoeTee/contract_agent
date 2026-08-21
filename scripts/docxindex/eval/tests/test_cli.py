@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import unittest
 
-from cli import build_parser
+from cli import build_parser, parse_row_ranges
 
 
 class CliArgumentsTest(unittest.TestCase):
@@ -25,8 +25,22 @@ class CliArgumentsTest(unittest.TestCase):
     def test_row_range_accepts_positive_inclusive_bounds(self) -> None:
         args = build_parser().parse_args(["--start", "1", "--end", "18"])
 
-        self.assertEqual(args.start, 1)
-        self.assertEqual(args.end, 18)
+        self.assertEqual(args.start, [1])
+        self.assertEqual(args.end, [18])
+
+    def test_multiple_row_ranges_are_paired_by_position(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(["--start", "1", "--end", "18", "--start", "101", "--end", "120"])
+
+        self.assertEqual(parse_row_ranges(parser, args), [(1, 18), (101, 120)])
+
+    def test_mismatched_row_range_counts_exit_before_evaluation(self) -> None:
+        parser = build_parser()
+        args = parser.parse_args(["--start", "1", "--end", "18", "--start", "101"])
+
+        with self.assertRaises(SystemExit) as context:
+            parse_row_ranges(parser, args)
+        self.assertEqual(context.exception.code, 2)
 
 
 if __name__ == "__main__":

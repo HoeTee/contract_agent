@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from docxindex_eval.dataset import GoldRow, select_data_rows
+from docxindex_eval.dataset import GoldRow, select_data_ranges
 
 
 def _row(number: int, case_id: str) -> GoldRow:
@@ -24,19 +24,24 @@ class SelectDataRowsTest(unittest.TestCase):
         self.rows = [_row(1, "C01"), _row(2, "C01"), _row(3, "C02")]
 
     def test_range_is_one_based_and_inclusive(self) -> None:
-        selected = select_data_rows(self.rows, 2, 3)
+        selected = select_data_ranges(self.rows, [(2, 3)])
 
         self.assertEqual([row.recall for row in selected], ["evidence-2", "evidence-3"])
 
     def test_range_does_not_expand_a_partial_case(self) -> None:
-        selected = select_data_rows(self.rows, 2, 2)
+        selected = select_data_ranges(self.rows, [(2, 2)])
 
         self.assertEqual(len(selected), 1)
         self.assertEqual(selected[0].case_id, "C01")
 
     def test_end_cannot_exceed_data_row_count(self) -> None:
         with self.assertRaisesRegex(ValueError, "exceeds Gold data row count"):
-            select_data_rows(self.rows, 1, 4)
+            select_data_ranges(self.rows, [(1, 4)])
+
+    def test_multiple_ranges_are_deduplicated_and_keep_csv_order(self) -> None:
+        selected = select_data_ranges(self.rows, [(3, 3), (1, 2), (2, 3)])
+
+        self.assertEqual([row.recall for row in selected], ["evidence-1", "evidence-2", "evidence-3"])
 
 
 if __name__ == "__main__":

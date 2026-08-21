@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import EvalConfig
-from .dataset import GoldRow, group_cases, load_gold, select_data_rows
+from .dataset import GoldRow, group_cases, load_gold, select_data_ranges
 from .reporting import write_results, write_summary
 from .scoring import score_row
 
@@ -143,15 +143,14 @@ def run_evaluation(
     config: EvalConfig,
     case_ids: set[str],
     limit: int | None,
-    start: int | None,
-    end: int | None,
+    row_ranges: list[tuple[int, int]],
     no_build_cache: bool,
     no_query_cache: bool,
     quiet: bool,
 ) -> int:
     started = time.perf_counter()
     rows = load_gold(config.dataset)
-    rows = select_data_rows(rows, start, end)
+    rows = select_data_ranges(rows, row_ranges)
     cases = group_cases(rows)
     if case_ids:
         unknown = sorted(case_ids - set(cases))
@@ -277,8 +276,10 @@ def run_evaluation(
         "evaluated_evidence": len(positive_rows),
         "coverage_threshold": config.coverage_threshold,
         "case_limit": limit,
-        "row_start": start,
-        "row_end": end,
+        "row_ranges": [
+            {"start": start, "end": end}
+            for start, end in row_ranges
+        ],
         "selected_rows": len(rows),
         "no_build_cache": no_build_cache,
         "no_query_cache": no_query_cache,

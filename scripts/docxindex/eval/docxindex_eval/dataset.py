@@ -78,18 +78,18 @@ def group_cases(rows: list[GoldRow]) -> dict[str, list[GoldRow]]:
     return grouped
 
 
-def select_data_rows(
+def select_data_ranges(
     rows: list[GoldRow],
-    start: int | None,
-    end: int | None,
+    ranges: list[tuple[int, int]],
 ) -> list[GoldRow]:
-    """Select an inclusive, one-based range of CSV data rows."""
-    if start is None and end is None:
+    """Select inclusive, one-based CSV data ranges in original row order."""
+    if not ranges:
         return rows
-    if start is None or end is None:
-        raise ValueError("--start and --end must be provided together")
-    if start > end:
-        raise ValueError("--start must be less than or equal to --end")
-    if end > len(rows):
-        raise ValueError(f"--end {end} exceeds Gold data row count {len(rows)}")
-    return rows[start - 1 : end]
+    selected_indexes: set[int] = set()
+    for position, (start, end) in enumerate(ranges, start=1):
+        if start > end:
+            raise ValueError(f"range {position}: start must be less than or equal to end")
+        if end > len(rows):
+            raise ValueError(f"range {position}: end {end} exceeds Gold data row count {len(rows)}")
+        selected_indexes.update(range(start - 1, end))
+    return [row for index, row in enumerate(rows) if index in selected_indexes]

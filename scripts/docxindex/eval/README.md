@@ -96,6 +96,14 @@ python cli.py --start 1 --end 18 --no-cache
 
 `--start/--end` 在按 `case_id` 分组前生效，只评测范围内的 Gold 行，不会自动补齐范围外的同一 `case_id` 证据。两者必须同时提供，且不能与 `--limit` 或 `--case` 同时使用。
 
+重复输入 `--start/--end` 可以执行多个范围：
+
+```powershell
+python cli.py --start 1 --end 18 --start 101 --end 120 --no-cache
+```
+
+多个 `--start` 和 `--end` 按出现顺序配对，数量不一致时在索引或 LLM 调用前以退出码 2 结束。重叠范围只执行一次，最终按 Gold CSV 的原始行顺序评测。
+
 评测器会通过 `../cli.py` 执行完整流程：索引不存在时先运行 `build`，然后为每个 `case_id` 运行一次 `ask`。同一合同只建立一次索引。
 
 缓存开关：
