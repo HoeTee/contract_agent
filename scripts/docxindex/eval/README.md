@@ -88,6 +88,14 @@ python cli.py --limit 10 --no-cache
 
 `--limit` 在按 `case_id` 分组后生效，不会截断同一用例的多条 Gold 证据。与 `--case` 同时使用时，先按 `--case` 筛选，再取前 N 个用例。
 
+按 CSV 数据行号执行第 1 至第 18 行（表头不计入，首尾均包含）：
+
+```powershell
+python cli.py --start 1 --end 18 --no-cache
+```
+
+`--start/--end` 在按 `case_id` 分组前生效，只评测范围内的 Gold 行，不会自动补齐范围外的同一 `case_id` 证据。两者必须同时提供，且不能与 `--limit` 或 `--case` 同时使用。
+
 评测器会通过 `../cli.py` 执行完整流程：索引不存在时先运行 `build`，然后为每个 `case_id` 运行一次 `ask`。同一合同只建立一次索引。
 
 缓存开关：

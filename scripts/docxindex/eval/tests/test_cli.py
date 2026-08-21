@@ -22,6 +22,12 @@ class CliArgumentsTest(unittest.TestCase):
         self.assertFalse(args.no_query_cache)
         self.assertFalse(args.no_cache)
 
+    def test_row_range_accepts_positive_inclusive_bounds(self) -> None:
+        args = build_parser().parse_args(["--start", "1", "--end", "18"])
+
+        self.assertEqual(args.start, 1)
+        self.assertEqual(args.end, 18)
+
 
 if __name__ == "__main__":
     unittest.main()

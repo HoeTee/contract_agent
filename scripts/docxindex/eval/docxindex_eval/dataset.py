@@ -76,3 +76,20 @@ def group_cases(rows: list[GoldRow]) -> dict[str, list[GoldRow]]:
     for row in rows:
         grouped.setdefault(row.case_id, []).append(row)
     return grouped
+
+
+def select_data_rows(
+    rows: list[GoldRow],
+    start: int | None,
+    end: int | None,
+) -> list[GoldRow]:
+    """Select an inclusive, one-based range of CSV data rows."""
+    if start is None and end is None:
+        return rows
+    if start is None or end is None:
+        raise ValueError("--start and --end must be provided together")
+    if start > end:
+        raise ValueError("--start must be less than or equal to --end")
+    if end > len(rows):
+        raise ValueError(f"--end {end} exceeds Gold data row count {len(rows)}")
+    return rows[start - 1 : end]
