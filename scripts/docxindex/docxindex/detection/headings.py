@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from docxindex.schema import BodyItem
 
-from .patterns import ATTACHMENT_RE, LEVEL2_RE, LEVEL3_RE, MAIN_SECTION_RE
+from .patterns import (
+    ATTACHMENT_RE,
+    FALLBACK_LEVEL2_RE,
+    FALLBACK_LEVEL3_RE,
+    LEVEL2_RE,
+    LEVEL3_RE,
+    MAIN_SECTION_RE,
+)
 
 
 def is_level1(item: BodyItem, use_cn_comma_as_level1: bool = False) -> bool:
@@ -15,6 +22,14 @@ def is_level1(item: BodyItem, use_cn_comma_as_level1: bool = False) -> bool:
 
 def heading_level(item: BodyItem, use_cn_comma_as_level1: bool = False) -> int | None:
     if item.kind != "p" or not item.text:
+        return None
+    if use_cn_comma_as_level1:
+        if LEVEL2_RE.match(item.text):
+            return 1
+        if FALLBACK_LEVEL2_RE.match(item.text):
+            return 2
+        if FALLBACK_LEVEL3_RE.match(item.text):
+            return 3
         return None
     if is_level1(item, use_cn_comma_as_level1):
         return 1

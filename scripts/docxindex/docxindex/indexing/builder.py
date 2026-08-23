@@ -58,10 +58,10 @@ def build_document_index(
         body_start = find_first_body_start(items)
         attachment_parent = find_attachment_parent(items, body_start)
         body_end = attachment_parent if attachment_parent is not None else len(items)
+        use_cn_as_l1 = not any(item.kind == "p" and MAIN_SECTION_RE.match(item.text) for item in items[body_start:body_end])
         tail_start = find_tail_start(items, body_start, body_end)
         body_content_end = tail_start if tail_start is not None else body_end
 
-    use_cn_as_l1 = not any(item.kind == "p" and MAIN_SECTION_RE.match(item.text) for item in items[body_start:body_content_end])
     split_during_deterministic_build = not llm_expand
     roots: list[DocumentNode] = []
 
@@ -181,6 +181,7 @@ def build_document_index(
             settings={
                 "paragraph_split_threshold_tokens": paragraph_split_threshold_tokens,
                 "paragraph_chunk_target_tokens": paragraph_chunk_target_tokens,
+                "heading_mode": "agreement_fallback" if use_cn_as_l1 else "standard",
                 "summary_tree_inline_budget_tokens": STRUCTURE_INLINE_BUDGET_TOKENS,
                 "summary_tree_paged_budget_tokens": STRUCTURE_PAGED_BUDGET_TOKENS,
                 "llm_expand_enabled": llm_expand,
