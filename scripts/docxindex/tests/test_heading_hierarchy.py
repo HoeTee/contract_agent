@@ -9,13 +9,13 @@ PROJECT_ROOT = PROJECT_DIR.parents[1]
 sys.path.insert(0, str(PROJECT_DIR))
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from docxindex.detection import find_first_body_start, find_tail_start, heading_level
+from docxindex.detection import find_first_body_start, find_standalone_attachment_start, find_tail_start, heading_level
 from docxindex.detection.heading_profiles import default_heading_profiles
 from docxindex.indexing.hierarchy import build_hierarchy_for_range
 from docxindex.schema import BodyItem
 
 
-def item(index: int, text: str, kind: str = "p") -> BodyItem:
+def item(index: int, text: str, kind: str = "p", outline: int | None = None) -> BodyItem:
     prefix = "tbl" if kind == "tbl" else "p"
     return BodyItem(
         kind=kind,
@@ -23,6 +23,7 @@ def item(index: int, text: str, kind: str = "p") -> BodyItem:
         body_child_index=index,
         text=text,
         xml_path=f"/document/body/{prefix}[{index}]",
+        direct_outline=outline,
     )
 
 
@@ -69,6 +70,23 @@ class HeadingHierarchyTest(unittest.TestCase):
 
         self.assertEqual(find_first_body_start(items), 0)
         self.assertEqual(find_tail_start(items, 0, len(items)), 3)
+
+    def test_standalone_attachment_requires_outline_signal(self) -> None:
+        items = [
+            item(1, "第一条 合同内容"),
+            item(2, "具体内容详见附件1。"),
+            item(3, "附件：《工作说明书》", outline=1),
+        ]
+
+        self.assertEqual(find_standalone_attachment_start(items, 0), 2)
+
+    def test_plain_attachment_reference_is_not_a_standalone_region(self) -> None:
+        items = [
+            item(1, "第一条 合同内容"),
+            item(2, "附件1：设备清单"),
+        ]
+
+        self.assertIsNone(find_standalone_attachment_start(items, 0))
 
 
 if __name__ == "__main__":

@@ -42,6 +42,14 @@ class TableIndexConfig(BaseModel):
         return self
 
 
+class AttachmentIndexConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    llm_hierarchy_enabled: bool = True
+    input_max_tokens: int = Field(default=20000, ge=1000, le=26000)
+    max_levels: int = Field(default=6, ge=1, le=6)
+
+
 class HeadingProfileConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -76,6 +84,7 @@ class IndexingConfig(BaseModel):
 
     paragraph: ParagraphIndexConfig = Field(default_factory=ParagraphIndexConfig)
     table: TableIndexConfig = Field(default_factory=TableIndexConfig)
+    attachment: AttachmentIndexConfig = Field(default_factory=AttachmentIndexConfig)
     heading: HeadingIndexConfig = Field(default_factory=HeadingIndexConfig)
 
     @classmethod

@@ -3,7 +3,14 @@ from __future__ import annotations
 from docxindex.schema import BodyItem
 
 from .headings import heading_level
-from .patterns import ATTACHMENT_LIST_ITEM_RE, ATTACHMENT_RE, LABEL_KEYWORD_RE, PLAIN_LABEL_RE, TITLE_KEYWORD_RE
+from .patterns import (
+    ATTACHMENT_LIST_ITEM_RE,
+    ATTACHMENT_RE,
+    LABEL_KEYWORD_RE,
+    NAMED_ATTACHMENT_RE,
+    PLAIN_LABEL_RE,
+    TITLE_KEYWORD_RE,
+)
 
 
 def is_visual_title(item: BodyItem, following: list[BodyItem], position: int) -> bool:
@@ -40,13 +47,21 @@ def is_plain_label(item: BodyItem) -> bool:
 
 def attachment_starts(items: list[BodyItem], start: int, end: int) -> list[int]:
     raw = []
+    named = []
     for index in range(start, end):
         item = items[index]
         if item.kind == "p" and ATTACHMENT_RE.match(item.text) and not ATTACHMENT_LIST_ITEM_RE.match(item.text):
             raw.append(index)
+        elif (
+            item.kind == "p"
+            and item.effective_outline is not None
+            and 0 <= item.effective_outline <= 8
+            and NAMED_ATTACHMENT_RE.match(item.text)
+        ):
+            named.append(index)
     last_by_number: dict[str, int] = {}
     for index in raw:
         match = ATTACHMENT_RE.match(items[index].text)
         if match:
             last_by_number[match.group(1)] = index
-    return sorted(last_by_number.values())
+    return sorted([*last_by_number.values(), *named])

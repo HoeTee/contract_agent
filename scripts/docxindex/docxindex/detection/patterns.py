@@ -4,6 +4,7 @@ CN_NUM = "一二三四五六七八九十百零〇两"
 MAIN_SECTION_RE = re.compile(rf"^第[{CN_NUM}0-9]+[条章]")
 ATTACHMENT_PARENT_RE = re.compile(rf"^第[{CN_NUM}0-9]+[条章]\s*附件\s*$")
 ATTACHMENT_RE = re.compile(rf"^附件\s*([{CN_NUM}0-9]+)(?:\s*$|[：:、\s])")
+NAMED_ATTACHMENT_RE = re.compile(r"^附件\s*[：:]\s*《?.+")
 ATTACHMENT_LIST_ITEM_RE = re.compile(r"^\d+[.、]\s*附件")
 LEVEL2_RE = re.compile(rf"^[{CN_NUM}]+、")
 LEVEL3_RE = re.compile(rf"^（[{CN_NUM}]+）")

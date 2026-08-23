@@ -5,13 +5,14 @@ from docxindex.schema import BodyItem
 from .heading_profiles import CompiledHeadingProfile
 from .patterns import (
     ATTACHMENT_PARENT_RE,
+    ATTACHMENT_RE,
     LEVEL2_RE,
     MAIN_SECTION_RE,
+    NAMED_ATTACHMENT_RE,
     SIGNATURE_LINE_RE,
     SIGNATURE_TABLE_RE,
     TAIL_MARKER_RE,
 )
-
 
 def find_first_body_start(items: list[BodyItem], profile: CompiledHeadingProfile | None = None) -> int:
     if profile is not None:
@@ -30,6 +31,18 @@ def find_attachment_parent(items: list[BodyItem], body_start: int) -> int | None
     for index in range(body_start, len(items)):
         item = items[index]
         if item.kind == "p" and ATTACHMENT_PARENT_RE.match(item.text):
+            return index
+    return None
+
+
+def find_standalone_attachment_start(items: list[BodyItem], body_start: int) -> int | None:
+    """Find a real attachment heading when the contract has no formal attachment parent."""
+    for index in range(body_start, len(items)):
+        item = items[index]
+        if item.kind != "p" or item.effective_outline is None or not 0 <= item.effective_outline <= 8:
+            continue
+        text = item.text.strip()
+        if ATTACHMENT_RE.match(text) or NAMED_ATTACHMENT_RE.match(text):
             return index
     return None
 

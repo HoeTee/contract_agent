@@ -153,6 +153,9 @@ def write_document_outputs(
     table_split_threshold_tokens: int = 20000,
     table_chunk_target_tokens: int = 18000,
     heading_profiles: tuple[Any, ...] | None = None,
+    llm_attachment_hierarchy: bool = False,
+    attachment_input_max_tokens: int = 20000,
+    attachment_max_levels: int = 6,
 ) -> dict[str, Any]:
     start_time = time.perf_counter()
     cache_dir = root_out / ".cache" if use_cache else None
@@ -170,6 +173,9 @@ def write_document_outputs(
             table_split_threshold_tokens=table_split_threshold_tokens,
             table_chunk_target_tokens=table_chunk_target_tokens,
             heading_profiles=heading_profiles,
+            llm_attachment_hierarchy=llm_attachment_hierarchy,
+            attachment_input_max_tokens=attachment_input_max_tokens,
+            attachment_max_levels=attachment_max_levels,
         ).to_json_dict()
     doc_out = root_out / safe_name(docx)
     doc_out.mkdir(parents=True, exist_ok=True)
@@ -250,6 +256,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_embedding_args(build)
     build.add_argument("--no-llm-expand", action="store_true", help="Disable LLM subsection discovery for oversized leaf nodes.")
     build.add_argument("--no-llm-summary", action="store_true", help="Disable LLM final node summaries.")
+    build.add_argument("--no-llm-attachment", action="store_true", help="Disable LLM hierarchy inference inside attachments.")
     build.add_argument("--no-cache", action="store_true", help="Disable LLM response cache for expand/summary/query stages.")
     build.add_argument("--quiet", action="store_true", help="Do not print stage timings to stderr.")
     build.add_argument("--retrieval-config", type=Path, help="Optional docxindex config.yaml path.")
@@ -327,10 +334,12 @@ def command_build(args: argparse.Namespace) -> int:
     timer = TimingCollector(enabled=not args.quiet, log_stream=logger.stream if logger else None)
     use_llm_expand = not args.no_llm_expand
     use_llm_summary = not args.no_llm_summary
+    use_llm_attachment = False
     use_vector = not args.no_vector
     with timer.stage("build.load_retrieval_config"):
         retrieval_config = RetrievalConfig.from_sources(config_path=args.retrieval_config)
         indexing_config = IndexingConfig.from_sources(config_path=args.retrieval_config)
+        use_llm_attachment = indexing_config.attachment.llm_hierarchy_enabled and not args.no_llm_attachment
         timer.note("build.concurrency.llm", retrieval_config.concurrency.llm)
         timer.note("build.concurrency.embedding", retrieval_config.concurrency.embedding)
         timer.note("build.concurrency.reranker", retrieval_config.concurrency.reranker)
@@ -340,7 +349,7 @@ def command_build(args: argparse.Namespace) -> int:
         raise ValueError(f"no docx files found: {args.input}")
     llm_settings = None
     embedding_settings = None
-    if use_llm_expand or use_llm_summary:
+    if use_llm_expand or use_llm_summary or use_llm_attachment:
         with timer.stage("build.load_llm_settings"):
             llm_settings = LLMSettings.from_sources(
                 model=args.model,
@@ -377,6 +386,9 @@ def command_build(args: argparse.Namespace) -> int:
             table_split_threshold_tokens=indexing_config.table.split_threshold_tokens,
             table_chunk_target_tokens=indexing_config.table.chunk_target_tokens,
             heading_profiles=indexing_config.heading.compile_profiles(),
+            llm_attachment_hierarchy=use_llm_attachment,
+            attachment_input_max_tokens=indexing_config.attachment.input_max_tokens,
+            attachment_max_levels=indexing_config.attachment.max_levels,
         )
         for path in files
     ]

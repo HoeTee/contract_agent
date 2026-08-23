@@ -2,6 +2,7 @@ from __future__ import annotations
 
 EXPAND_PROMPT_VERSION = "docx_expand_v2"
 SUMMARY_PROMPT_VERSION = "docx_summary_v3"
+ATTACHMENT_HIERARCHY_PROMPT_VERSION = "attachment_hierarchy_v2"
 
 
 def expand_prompt(node_id: str, title: str, start_anchor: str, end_anchor: str, items_text: str) -> str:
@@ -35,6 +36,55 @@ def expand_prompt(node_id: str, title: str, start_anchor: str, end_anchor: str, 
 {{
   "subsections": [
     {{"anchor": "p_0001", "title": "标题原文", "level_hint": 1}}
+  ]
+}}"""
+
+
+def attachment_hierarchy_prompt(
+    attachment_title: str,
+    pattern_summary: str,
+    candidate_text: str,
+    max_levels: int,
+) -> str:
+    return f"""你正在识别一个合同附件内部的真实标题及父子层级。
+附件标题：{attachment_title}
+
+候选编号形态统计：
+{pattern_summary}
+
+候选段落如下。每条包含 anchor、原文、结构信号及相邻内容：
+{candidate_text}
+
+任务：
+- 将附件划分为一个或多个局部文档 segment，并归纳每个 segment 的“编号族到层级”规则。
+- start_anchor 是 segment 覆盖的第一个候选；下一个 segment 开始时，前一个 segment 结束。
+- document_title 只填写无编号的内部文档名称；没有时填 null，且其 level 必须为 1。
+- level_rules 只返回该 segment 中真实作为结构标题的编号族及层级。脚本会把规则应用到该编号族的全部连续候选。
+- additional_headings 只返回无法通过编号族表达、但确实属于标题的少量无编号候选。
+- level 是相对于当前附件的层级，1 为附件内部最高层，最多 {max_levels} 级。
+- 例如“科技部门驻场外包考核细则 -> 第一条 -> （一） -> 1、”应归纳为 document_title level 1、article level 2、cn_paren level 3、arabic_comma level 4。
+- chapter、article、section 是不同编号族；同一 segment 内同一编号族只能对应一个层级。
+- required=true 表示脚本确认该候选属于连续编号序列；相应 segment 必须提供其 number_family 规则。
+- 排除正文句子、表格行列名、普通交叉引用，不要逐条抄写连续编号标题。
+- 所有 anchor 和 title 必须来自候选原文，不得改写、截断或编造。
+- segment 按 start_anchor 原文顺序返回，同一 anchor 只能出现一次。
+- 如果不存在可形成结构的标题，返回空 segments。
+
+输出规范：
+- 必须只返回合法 JSON object，不要返回 Markdown 或解释。
+- 不要添加 schema 以外字段。
+- JSON 必须严格符合：
+{{
+  "segments": [
+    {{
+      "start_anchor": "p_0001",
+      "document_title": {{"anchor": "p_0001", "title": "内部文档标题", "level": 1}},
+      "level_rules": [
+        {{"number_family": "article", "level": 2}},
+        {{"number_family": "cn_paren", "level": 3}}
+      ],
+      "additional_headings": []
+    }}
   ]
 }}"""
 

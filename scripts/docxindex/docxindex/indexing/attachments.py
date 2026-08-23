@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from docxindex.detection import attachment_starts, heading_level, heading_score, is_plain_label, is_visual_title
+from docxindex.llm import LLMClient
 from docxindex.schema import BodyItem, DocumentNode
 
+from .attachment_hierarchy import infer_attachment_children
 from .node_factory import make_node
 from .splitter import split_long_leaf
 from .tables import attach_table_nodes
@@ -70,6 +74,10 @@ def build_attachments(
     paragraph_chunk_target_tokens: int = PARAGRAPH_CHUNK_TARGET_TOKENS,
     table_split_threshold_tokens: int = 20000,
     table_chunk_target_tokens: int = 18000,
+    llm_client: LLMClient | None = None,
+    cache_dir: Path | None = None,
+    attachment_input_max_tokens: int = 20000,
+    attachment_max_levels: int = 6,
 ) -> list[DocumentNode]:
     starts = attachment_starts(items, start, end)
     nodes = []
@@ -90,15 +98,34 @@ def build_attachments(
             score,
             evidence,
         )
-        node.children = build_attachment_children(
-            items,
-            attach_start + 1,
-            attach_end,
-            node.node_id,
-            split_long_nodes,
-            paragraph_split_threshold_tokens,
-            paragraph_chunk_target_tokens,
-        )
+        inferred_children = None
+        if llm_client is not None:
+            inferred_children = infer_attachment_children(
+                node,
+                items,
+                llm_client,
+                cache_dir,
+                input_max_tokens=attachment_input_max_tokens,
+                max_levels=attachment_max_levels,
+                split_long_nodes=split_long_nodes,
+                paragraph_split_threshold_tokens=paragraph_split_threshold_tokens,
+                paragraph_chunk_target_tokens=paragraph_chunk_target_tokens,
+            )
+        if inferred_children is not None:
+            node.children = inferred_children
+            node.confidence_evidence.append("llm_attachment_hierarchy_applied")
+        else:
+            node.children = build_attachment_children(
+                items,
+                attach_start + 1,
+                attach_end,
+                node.node_id,
+                split_long_nodes,
+                paragraph_split_threshold_tokens,
+                paragraph_chunk_target_tokens,
+            )
+            if llm_client is not None:
+                node.confidence_evidence.append("llm_attachment_hierarchy_fallback")
         attach_table_nodes(
             node,
             items,

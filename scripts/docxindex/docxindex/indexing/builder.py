@@ -4,7 +4,12 @@ from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
-from docxindex.detection import find_attachment_parent, find_first_body_start, find_tail_start
+from docxindex.detection import (
+    find_attachment_parent,
+    find_first_body_start,
+    find_standalone_attachment_start,
+    find_tail_start,
+)
 from docxindex.detection.heading_profiles import (
     CompiledHeadingProfile,
     default_heading_profiles,
@@ -53,6 +58,9 @@ def build_document_index(
     table_split_threshold_tokens: int = TABLE_SPLIT_THRESHOLD_TOKENS,
     table_chunk_target_tokens: int = TABLE_CHUNK_TARGET_TOKENS,
     heading_profiles: tuple[CompiledHeadingProfile, ...] | None = None,
+    llm_attachment_hierarchy: bool = False,
+    attachment_input_max_tokens: int = 20000,
+    attachment_max_levels: int = 6,
 ) -> DocumentIndex:
     with _stage(timer, "build.read_docx_items"):
         items = read_docx_items(docx_path)
@@ -62,14 +70,28 @@ def build_document_index(
     with _stage(timer, "build.detect_regions"):
         compiled_profiles = heading_profiles or default_heading_profiles()
         provisional_attachment_parent = find_attachment_parent(items, 0)
-        profile_scan_end = provisional_attachment_parent if provisional_attachment_parent is not None else len(items)
+        provisional_attachment_start = provisional_attachment_parent
+        if provisional_attachment_start is None:
+            provisional_attachment_start = find_standalone_attachment_start(items, 0)
+        profile_scan_end = provisional_attachment_start if provisional_attachment_start is not None else len(items)
         profile_match = select_heading_profile(items[:profile_scan_end], compiled_profiles)
         heading_profile = profile_match.profile
         body_start = find_first_body_start(items, heading_profile)
         attachment_parent = find_attachment_parent(items, body_start)
-        body_end = attachment_parent if attachment_parent is not None else len(items)
+        standalone_attachment_start = None
+        if attachment_parent is None:
+            standalone_attachment_start = find_standalone_attachment_start(items, body_start)
+        attachment_region_start = attachment_parent if attachment_parent is not None else standalone_attachment_start
+        body_end = attachment_region_start if attachment_region_start is not None else len(items)
         tail_start = find_tail_start(items, body_start, body_end)
         body_content_end = tail_start if tail_start is not None else body_end
+
+    llm_client = None
+    if llm_expand or llm_summary or llm_attachment_hierarchy:
+        with _stage(timer, "build.init_llm_client"):
+            if llm_settings is None:
+                llm_settings = LLMSettings.from_sources()
+            llm_client = LLMClient(llm_settings)
 
     split_during_deterministic_build = not llm_expand
     roots: list[DocumentNode] = []
@@ -124,20 +146,22 @@ def build_document_index(
 
     with _stage(timer, "build.build_attachments"):
         attachments = DocumentNode(node_id="attachments", node_type="attachments", title="附件", start_anchor="", end_anchor="", level=0)
-        if attachment_parent is not None:
+        if attachment_region_start is not None:
+            parent_title = items[attachment_parent].text if attachment_parent is not None else "附件"
+            child_start = attachment_parent + 1 if attachment_parent is not None else attachment_region_start
             attachment_parent_node = make_node(
                 "attachments/parent",
                 "attachment_parent",
-                items[attachment_parent].text,
+                parent_title,
                 items,
-                attachment_parent,
+                attachment_region_start,
                 len(items),
                 1,
                 "attachments",
             )
             attachment_parent_node.children = build_attachments(
                 items,
-                attachment_parent + 1,
+                child_start,
                 len(items),
                 attachment_parent_node.node_id,
                 split_long_nodes=split_during_deterministic_build,
@@ -145,21 +169,23 @@ def build_document_index(
                 paragraph_chunk_target_tokens=paragraph_chunk_target_tokens,
                 table_split_threshold_tokens=table_split_threshold_tokens,
                 table_chunk_target_tokens=table_chunk_target_tokens,
+                llm_client=llm_client if llm_attachment_hierarchy else None,
+                cache_dir=cache_dir,
+                attachment_input_max_tokens=attachment_input_max_tokens,
+                attachment_max_levels=attachment_max_levels,
             )
             attachments.children.append(attachment_parent_node)
         roots.append(attachments)
 
     if llm_expand or llm_summary:
-        with _stage(timer, "build.init_llm_client"):
-            if llm_settings is None:
-                llm_settings = LLMSettings.from_sources()
-            client = LLMClient(llm_settings)
+        if llm_client is None:
+            raise RuntimeError("LLM client was not initialized")
         if llm_expand:
             with _stage(timer, "build.llm_expand"):
                 expand_large_leaves(
                     roots,
                     items,
-                    client,
+                    llm_client,
                     cache_dir,
                     concurrency=llm_concurrency,
                     split_threshold_tokens=paragraph_split_threshold_tokens,
@@ -174,7 +200,7 @@ def build_document_index(
                 )
         if llm_summary:
             with _stage(timer, "build.llm_summary"):
-                summarize_nodes(roots, client, cache_dir, concurrency=llm_concurrency)
+                summarize_nodes(roots, llm_client, cache_dir, concurrency=llm_concurrency)
 
     with _stage(timer, "build.finalize_index"):
         _fill_key_items(roots)
@@ -198,6 +224,9 @@ def build_document_index(
                 "summary_tree_paged_budget_tokens": STRUCTURE_PAGED_BUDGET_TOKENS,
                 "llm_expand_enabled": llm_expand,
                 "llm_summary_enabled": llm_summary,
+                "llm_attachment_hierarchy_enabled": llm_attachment_hierarchy,
+                "attachment_input_max_tokens": attachment_input_max_tokens,
+                "attachment_max_levels": attachment_max_levels,
                 "expand_batch_target_tokens": EXPAND_BATCH_TARGET_TOKENS,
                 "expand_batch_hard_tokens": EXPAND_BATCH_HARD_TOKENS,
                 "expand_batch_overlap_tokens": EXPAND_BATCH_OVERLAP_TOKENS,

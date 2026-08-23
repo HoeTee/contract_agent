@@ -78,6 +78,10 @@ indexing:
   table:
     split_threshold_tokens: 20000
     chunk_target_tokens: 18000
+  attachment:
+    llm_hierarchy_enabled: true
+    input_max_tokens: 20000
+    max_levels: 6
 
 routing:
   criteria: ../../resources/criteria/criteria-formal.docx
@@ -110,6 +114,9 @@ routing:
 - `indexing.paragraph.chunk_target_tokens`：启动拆分后，按完整段落组成约700 tokens的子节点。
 - `indexing.table.split_threshold_tokens`：Markdown表格不超过20000 tokens时保持为单个完整节点。
 - `indexing.table.chunk_target_tokens`：超大表按完整数据行拆分为约18000 tokens的子节点；每个子节点重复表头。
+- `indexing.attachment.llm_hierarchy_enabled`：默认让 LLM 归纳附件内部局部文档及“编号族 -> 层级”规则，再由脚本确定性应用规则。
+- `indexing.attachment.input_max_tokens`：单个附件提供给层级归纳模型的最大输入，默认20000 tokens；超限或校验失败时回退到确定性标题识别。
+- `indexing.attachment.max_levels`：附件内部最多构建六级标题。
 - `routing`：自动路由使用的审查要点来源、五种检索方法和补充召回候选参数。
 
 LLM 请求默认携带 `enable_thinking=false`。结构树选点和 rerank 属于检索阶段，不需要模型输出长 thinking 内容。
@@ -138,6 +145,7 @@ EMBED_API_KEY
 ```text
 确定性 DOCX XML 解析
 -> 所有 w:tbl 转为独立 Markdown 表格节点并建立 source_ref/XML 映射
+-> 附件内部 LLM 层级归纳 + anchor/连续编号/outlineLvl 交叉校验
 -> LLM expand
 -> LLM summary
 -> vector index
@@ -163,6 +171,7 @@ python scripts\docxindex\cli.py build "C:\Users\lenovo\Downloads\合同样例" -
 python scripts\docxindex\cli.py build "C:\path\contract.docx" --out outputs\index --no-vector
 python scripts\docxindex\cli.py build "C:\path\contract.docx" --out outputs\index --no-llm-expand
 python scripts\docxindex\cli.py build "C:\path\contract.docx" --out outputs\index --no-llm-summary
+python scripts\docxindex\cli.py build "C:\path\contract.docx" --out outputs\index --no-llm-attachment
 python scripts\docxindex\cli.py build "C:\path\contract.docx" --out outputs\index --no-cache
 ```
 
@@ -171,7 +180,7 @@ python scripts\docxindex\cli.py build "C:\path\contract.docx" --out outputs\inde
 如果只想快速验证确定性 DOCX XML 解析，不调用模型、不构建向量：
 
 ```powershell
-python scripts\docxindex\cli.py build "C:\path\contract.docx" --out outputs\index --no-llm-expand --no-llm-summary --no-vector
+python scripts\docxindex\cli.py build "C:\path\contract.docx" --out outputs\index --no-llm-expand --no-llm-summary --no-llm-attachment --no-vector
 ```
 
 ## 检索

@@ -35,6 +35,10 @@ indexing:
   table:
     split_threshold_tokens: 20000
     chunk_target_tokens: 18000
+  attachment:
+    llm_hierarchy_enabled: true
+    input_max_tokens: 20000
+    max_levels: 6
 
 routing:
   criteria: ../../resources/criteria/criteria-formal.docx
