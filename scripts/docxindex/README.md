@@ -62,6 +62,16 @@ retrieval:
     enabled: true
 
 indexing:
+  heading:
+    profiles:
+      primary:
+        level_1_examples: ["第一条 合同内容"]
+        level_2_examples: ["一、合同总价"]
+        level_3_examples: ["（一）付款条件"]
+      variant_1:
+        level_1_examples: ["一、合作背景"]
+        level_2_examples: ["（一）通信业务合作", "（3）新技术合作"]
+        level_3_examples: ["1. 基础服务", "2、增值服务"]
   paragraph:
     split_threshold_tokens: 1000
     chunk_target_tokens: 700
@@ -95,6 +105,7 @@ routing:
 - `vector.score_threshold`：低于该相似度的向量候选不进入候选池。
 - `vector.auto_build`：缺少 `vector_index.json` 时，`ask` 默认自动构建。
 - `rerank.enabled`：默认对结构召回和向量召回合并后的候选做 rerank。
+- `indexing.heading.profiles`：按优先顺序定义正文标题体系。每层至少提供一个示例；同层存在不同编号形式时，每种形式提供一个。程序从示例确定性生成编号正则并自动选择 profile，不调用 LLM，也没有 `selection` 配置。
 - `indexing.paragraph.split_threshold_tokens`：普通文本叶节点超过1000 tokens后才启动兜底拆分。
 - `indexing.paragraph.chunk_target_tokens`：启动拆分后，按完整段落组成约700 tokens的子节点。
 - `indexing.table.split_threshold_tokens`：Markdown表格不超过20000 tokens时保持为单个完整节点。

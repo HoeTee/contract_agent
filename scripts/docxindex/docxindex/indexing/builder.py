@@ -5,7 +5,11 @@ from pathlib import Path
 from typing import Any
 
 from docxindex.detection import find_attachment_parent, find_first_body_start, find_tail_start
-from docxindex.detection.patterns import MAIN_SECTION_RE
+from docxindex.detection.heading_profiles import (
+    CompiledHeadingProfile,
+    default_heading_profiles,
+    select_heading_profile,
+)
 from docxindex.llm import LLMClient, LLMSettings
 from docxindex.parser import read_docx_items
 from docxindex.schema import DocumentIndex, DocumentNode
@@ -48,6 +52,7 @@ def build_document_index(
     paragraph_chunk_target_tokens: int = PARAGRAPH_CHUNK_TARGET_TOKENS,
     table_split_threshold_tokens: int = TABLE_SPLIT_THRESHOLD_TOKENS,
     table_chunk_target_tokens: int = TABLE_CHUNK_TARGET_TOKENS,
+    heading_profiles: tuple[CompiledHeadingProfile, ...] | None = None,
 ) -> DocumentIndex:
     with _stage(timer, "build.read_docx_items"):
         items = read_docx_items(docx_path)
@@ -55,10 +60,14 @@ def build_document_index(
         raise ValueError(f"No readable word/document.xml body found: {docx_path}")
 
     with _stage(timer, "build.detect_regions"):
-        body_start = find_first_body_start(items)
+        compiled_profiles = heading_profiles or default_heading_profiles()
+        provisional_attachment_parent = find_attachment_parent(items, 0)
+        profile_scan_end = provisional_attachment_parent if provisional_attachment_parent is not None else len(items)
+        profile_match = select_heading_profile(items[:profile_scan_end], compiled_profiles)
+        heading_profile = profile_match.profile
+        body_start = find_first_body_start(items, heading_profile)
         attachment_parent = find_attachment_parent(items, body_start)
         body_end = attachment_parent if attachment_parent is not None else len(items)
-        use_cn_as_l1 = not any(item.kind == "p" and MAIN_SECTION_RE.match(item.text) for item in items[body_start:body_end])
         tail_start = find_tail_start(items, body_start, body_end)
         body_content_end = tail_start if tail_start is not None else body_end
 
@@ -74,7 +83,7 @@ def build_document_index(
             body_content_end,
             "body",
             "body",
-            use_cn_as_l1,
+            heading_profile,
             split_long_nodes=split_during_deterministic_build,
             paragraph_split_threshold_tokens=paragraph_split_threshold_tokens,
             paragraph_chunk_target_tokens=paragraph_chunk_target_tokens,
@@ -181,7 +190,10 @@ def build_document_index(
             settings={
                 "paragraph_split_threshold_tokens": paragraph_split_threshold_tokens,
                 "paragraph_chunk_target_tokens": paragraph_chunk_target_tokens,
-                "heading_mode": "agreement_fallback" if use_cn_as_l1 else "standard",
+                "heading_profile": heading_profile.name,
+                "heading_profile_score": profile_match.score,
+                "heading_level_matches": profile_match.level_counts,
+                "heading_orphan_matches": profile_match.orphan_count,
                 "summary_tree_inline_budget_tokens": STRUCTURE_INLINE_BUDGET_TOKENS,
                 "summary_tree_paged_budget_tokens": STRUCTURE_PAGED_BUDGET_TOKENS,
                 "llm_expand_enabled": llm_expand,

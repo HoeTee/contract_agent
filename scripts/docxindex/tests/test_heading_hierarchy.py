@@ -10,6 +10,7 @@ sys.path.insert(0, str(PROJECT_DIR))
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from docxindex.detection import find_first_body_start, find_tail_start, heading_level
+from docxindex.detection.heading_profiles import default_heading_profiles
 from docxindex.indexing.hierarchy import build_hierarchy_for_range
 from docxindex.schema import BodyItem
 
@@ -32,7 +33,8 @@ class HeadingHierarchyTest(unittest.TestCase):
         self.assertEqual(heading_level(item(3, "（一）服务地点")), 3)
         self.assertIsNone(heading_level(item(4, "1.具体要求")))
 
-    def test_agreement_fallback_has_dense_three_level_hierarchy(self) -> None:
+    def test_variant_profile_has_dense_three_level_hierarchy(self) -> None:
+        variant_profile = next(profile for profile in default_heading_profiles() if profile.name == "variant_1")
         items = [
             item(1, "一、合作总则"),
             item(2, "（一）合作原则"),
@@ -48,7 +50,7 @@ class HeadingHierarchyTest(unittest.TestCase):
             len(items),
             "body",
             "body",
-            use_cn_comma_as_level1=True,
+            heading_profile=variant_profile,
             split_long_nodes=False,
         )
 

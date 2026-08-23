@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from docxindex.schema import BodyItem
 
+from .heading_profiles import CompiledHeadingProfile
 from .patterns import (
     ATTACHMENT_PARENT_RE,
     LEVEL2_RE,
@@ -12,7 +13,12 @@ from .patterns import (
 )
 
 
-def find_first_body_start(items: list[BodyItem]) -> int:
+def find_first_body_start(items: list[BodyItem], profile: CompiledHeadingProfile | None = None) -> int:
+    if profile is not None:
+        for index, item in enumerate(items):
+            if item.kind == "p" and profile.level_for(item.text) == 1:
+                return index
+        return 0
     for index, item in enumerate(items):
         if item.kind == "p" and MAIN_SECTION_RE.match(item.text):
             return index

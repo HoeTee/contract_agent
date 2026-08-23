@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from docxindex.detection import heading_level, heading_score
+from docxindex.detection.heading_profiles import CompiledHeadingProfile
 from docxindex.schema import BodyItem, DocumentNode
 
 from .node_factory import make_node
@@ -14,7 +15,7 @@ def build_hierarchy_for_range(
     end: int,
     parent_id: str,
     node_prefix: str,
-    use_cn_comma_as_level1: bool = False,
+    heading_profile: CompiledHeadingProfile | None = None,
     split_long_nodes: bool = True,
     paragraph_split_threshold_tokens: int = PARAGRAPH_SPLIT_THRESHOLD_TOKENS,
     paragraph_chunk_target_tokens: int = PARAGRAPH_CHUNK_TARGET_TOKENS,
@@ -24,7 +25,7 @@ def build_hierarchy_for_range(
     heading_positions: list[tuple[int, int]] = []
     sibling_counts: dict[tuple[str, int], int] = {}
     for index in range(start, end):
-        level = heading_level(items[index], use_cn_comma_as_level1)
+        level = heading_level(items[index], heading_profile)
         if level is not None:
             heading_positions.append((index, level))
 

@@ -2,36 +2,31 @@ from __future__ import annotations
 
 from docxindex.schema import BodyItem
 
+from .heading_profiles import CompiledHeadingProfile
 from .patterns import (
     ATTACHMENT_RE,
-    FALLBACK_LEVEL2_RE,
-    FALLBACK_LEVEL3_RE,
     LEVEL2_RE,
     LEVEL3_RE,
     MAIN_SECTION_RE,
 )
 
 
-def is_level1(item: BodyItem, use_cn_comma_as_level1: bool = False) -> bool:
+def is_level1(item: BodyItem, profile: CompiledHeadingProfile | None = None) -> bool:
     if item.kind != "p":
         return False
+    if profile is not None:
+        return profile.level_for(item.text) == 1
     if MAIN_SECTION_RE.match(item.text):
         return True
-    return use_cn_comma_as_level1 and LEVEL2_RE.match(item.text) is not None
+    return False
 
 
-def heading_level(item: BodyItem, use_cn_comma_as_level1: bool = False) -> int | None:
+def heading_level(item: BodyItem, profile: CompiledHeadingProfile | None = None) -> int | None:
     if item.kind != "p" or not item.text:
         return None
-    if use_cn_comma_as_level1:
-        if LEVEL2_RE.match(item.text):
-            return 1
-        if FALLBACK_LEVEL2_RE.match(item.text):
-            return 2
-        if FALLBACK_LEVEL3_RE.match(item.text):
-            return 3
-        return None
-    if is_level1(item, use_cn_comma_as_level1):
+    if profile is not None:
+        return profile.level_for(item.text)
+    if is_level1(item):
         return 1
     if LEVEL2_RE.match(item.text):
         return 2

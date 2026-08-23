@@ -5,6 +5,11 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from docxindex.detection.heading_profiles import (
+    DEFAULT_PROFILE_EXAMPLES,
+    CompiledHeadingProfile,
+    compile_heading_profile,
+)
 from docxindex.llm.config import load_yaml
 
 
@@ -37,11 +42,41 @@ class TableIndexConfig(BaseModel):
         return self
 
 
+class HeadingProfileConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    level_1_examples: list[str] = Field(min_length=1, max_length=5)
+    level_2_examples: list[str] = Field(min_length=1, max_length=5)
+    level_3_examples: list[str] = Field(min_length=1, max_length=5)
+
+
+def _default_heading_profiles() -> dict[str, HeadingProfileConfig]:
+    return {name: HeadingProfileConfig(**examples) for name, examples in DEFAULT_PROFILE_EXAMPLES.items()}
+
+
+class HeadingIndexConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    profiles: dict[str, HeadingProfileConfig] = Field(default_factory=_default_heading_profiles, min_length=1)
+
+    def compile_profiles(self) -> tuple[CompiledHeadingProfile, ...]:
+        return tuple(
+            compile_heading_profile(
+                name,
+                profile.level_1_examples,
+                profile.level_2_examples,
+                profile.level_3_examples,
+            )
+            for name, profile in self.profiles.items()
+        )
+
+
 class IndexingConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     paragraph: ParagraphIndexConfig = Field(default_factory=ParagraphIndexConfig)
     table: TableIndexConfig = Field(default_factory=TableIndexConfig)
+    heading: HeadingIndexConfig = Field(default_factory=HeadingIndexConfig)
 
     @classmethod
     def from_sources(cls, config_path: Path | None = None) -> "IndexingConfig":

@@ -152,6 +152,7 @@ def write_document_outputs(
     paragraph_chunk_target_tokens: int = 700,
     table_split_threshold_tokens: int = 20000,
     table_chunk_target_tokens: int = 18000,
+    heading_profiles: tuple[Any, ...] | None = None,
 ) -> dict[str, Any]:
     start_time = time.perf_counter()
     cache_dir = root_out / ".cache" if use_cache else None
@@ -168,6 +169,7 @@ def write_document_outputs(
             paragraph_chunk_target_tokens=paragraph_chunk_target_tokens,
             table_split_threshold_tokens=table_split_threshold_tokens,
             table_chunk_target_tokens=table_chunk_target_tokens,
+            heading_profiles=heading_profiles,
         ).to_json_dict()
     doc_out = root_out / safe_name(docx)
     doc_out.mkdir(parents=True, exist_ok=True)
@@ -374,6 +376,7 @@ def command_build(args: argparse.Namespace) -> int:
             paragraph_chunk_target_tokens=indexing_config.paragraph.chunk_target_tokens,
             table_split_threshold_tokens=indexing_config.table.split_threshold_tokens,
             table_chunk_target_tokens=indexing_config.table.chunk_target_tokens,
+            heading_profiles=indexing_config.heading.compile_profiles(),
         )
         for path in files
     ]
