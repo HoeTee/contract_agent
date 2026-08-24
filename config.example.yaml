@@ -82,7 +82,7 @@ api:
   result_upload_path: "/openapi/agentar/v1/attachment/batchUploadAttachmentFile.json"
   result_upload_authorization: ""
   result_upload_timeout_seconds: 60
-  meta_required: false
+  meta_required: true
   meta_fields:
     - "templateCode"
     - "serialNo"

@@ -337,14 +337,6 @@ async def submit_review_job(request: Request):
                 code="MODEL_CONFIG_INVALID",
                 message=invalid_model_config,
             )
-        try:
-            meta_fields = extract_configured_meta_fields(form)
-        except MetaFieldsValidationError as exc:
-            return _pre_task_error_response(
-                status_code=400,
-                code=exc.code,
-                message=exc.message,
-            )
         if "file_url" in form or "criteria_file_url" in form:
             return _pre_task_error_response(
                 status_code=400,
@@ -376,6 +368,15 @@ async def submit_review_job(request: Request):
                     code="CRITERIA_FILE_NOT_DOCX",
                     message="Review criteria file must be DOCX.",
                 )
+
+        try:
+            meta_fields = extract_configured_meta_fields(form)
+        except MetaFieldsValidationError as exc:
+            return _pre_task_error_response(
+                status_code=400,
+                code=exc.code,
+                message=exc.message,
+            )
 
         task_id = new_task_id()
         ensure_task_dirs(client.client_dir, task_id)
