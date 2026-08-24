@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from docxindex.detection import attachment_starts, heading_level, heading_score, is_plain_label, is_visual_title
@@ -76,11 +77,15 @@ def build_attachments(
     table_chunk_target_tokens: int = 18000,
     llm_client: LLMClient | None = None,
     cache_dir: Path | None = None,
-    attachment_input_max_tokens: int = 20000,
+    hierarchy_input_max_tokens: int = 20000,
+    hierarchy_batch_target_tokens: int = 16000,
+    hierarchy_batch_overlap_tokens: int = 800,
+    hierarchy_retry_count: int = 3,
     attachment_max_levels: int = 6,
+    llm_concurrency: int = 10,
 ) -> list[DocumentNode]:
     starts = attachment_starts(items, start, end)
-    nodes = []
+    attachment_ranges: list[tuple[DocumentNode, int, int]] = []
     for pos, attach_start in enumerate(starts):
         attach_end = starts[pos + 1] if pos + 1 < len(starts) else end
         item = items[attach_start]
@@ -98,19 +103,32 @@ def build_attachments(
             score,
             evidence,
         )
-        inferred_children = None
-        if llm_client is not None:
-            inferred_children = infer_attachment_children(
+        attachment_ranges.append((node, attach_start, attach_end))
+
+    inferred_results: list[list[DocumentNode] | None] = [None] * len(attachment_ranges)
+    if llm_client is not None and attachment_ranges:
+        def infer(entry: tuple[DocumentNode, int, int]) -> list[DocumentNode] | None:
+            node, _, _ = entry
+            return infer_attachment_children(
                 node,
                 items,
                 llm_client,
                 cache_dir,
-                input_max_tokens=attachment_input_max_tokens,
+                input_max_tokens=hierarchy_input_max_tokens,
+                batch_target_tokens=hierarchy_batch_target_tokens,
+                batch_overlap_tokens=hierarchy_batch_overlap_tokens,
                 max_levels=attachment_max_levels,
+                retry_count=hierarchy_retry_count,
                 split_long_nodes=split_long_nodes,
                 paragraph_split_threshold_tokens=paragraph_split_threshold_tokens,
                 paragraph_chunk_target_tokens=paragraph_chunk_target_tokens,
             )
+
+        with ThreadPoolExecutor(max_workers=max(1, llm_concurrency)) as executor:
+            inferred_results = list(executor.map(infer, attachment_ranges))
+
+    nodes: list[DocumentNode] = []
+    for (node, attach_start, attach_end), inferred_children in zip(attachment_ranges, inferred_results):
         if inferred_children is not None:
             node.children = inferred_children
             node.confidence_evidence.append("llm_attachment_hierarchy_applied")

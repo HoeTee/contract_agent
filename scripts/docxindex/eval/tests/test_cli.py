@@ -22,6 +22,11 @@ class CliArgumentsTest(unittest.TestCase):
         self.assertFalse(args.no_query_cache)
         self.assertFalse(args.no_cache)
 
+    def test_rebuild_index_is_independent_from_llm_cache(self) -> None:
+        args = build_parser().parse_args(["--rebuild-index"])
+        self.assertTrue(args.rebuild_index)
+        self.assertFalse(args.no_build_cache)
+
     def test_row_range_accepts_positive_inclusive_bounds(self) -> None:
         args = build_parser().parse_args(["--start", "1", "--end", "18"])
 

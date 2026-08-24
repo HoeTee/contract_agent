@@ -22,12 +22,7 @@ from docxindex.schema import DocumentIndex, DocumentNode
 from .anchors import build_anchor_map
 from .attachments import build_attachments
 from .hierarchy import build_hierarchy_for_range, flatten_nodes
-from .llm_expand import (
-    EXPAND_BATCH_HARD_TOKENS,
-    EXPAND_BATCH_OVERLAP_TOKENS,
-    EXPAND_BATCH_TARGET_TOKENS,
-    expand_large_leaves,
-)
+from .llm_expand import expand_large_leaves
 from .llm_summary import summarize_nodes
 from .node_factory import make_node
 from .splitter import split_long_leaves
@@ -59,8 +54,14 @@ def build_document_index(
     table_chunk_target_tokens: int = TABLE_CHUNK_TARGET_TOKENS,
     heading_profiles: tuple[CompiledHeadingProfile, ...] | None = None,
     llm_attachment_hierarchy: bool = False,
-    attachment_input_max_tokens: int = 20000,
+    hierarchy_input_max_tokens: int = 20000,
+    hierarchy_batch_target_tokens: int = 16000,
+    hierarchy_batch_overlap_tokens: int = 800,
+    hierarchy_max_levels: int = 6,
+    hierarchy_retry_count: int = 3,
     attachment_max_levels: int = 6,
+    summary_batch_max_nodes: int = 10,
+    summary_batch_max_tokens: int = 20000,
 ) -> DocumentIndex:
     with _stage(timer, "build.read_docx_items"):
         items = read_docx_items(docx_path)
@@ -91,7 +92,7 @@ def build_document_index(
         with _stage(timer, "build.init_llm_client"):
             if llm_settings is None:
                 llm_settings = LLMSettings.from_sources()
-            llm_client = LLMClient(llm_settings)
+            llm_client = LLMClient(llm_settings, max_concurrency=llm_concurrency)
 
     split_during_deterministic_build = not llm_expand
     roots: list[DocumentNode] = []
@@ -171,8 +172,12 @@ def build_document_index(
                 table_chunk_target_tokens=table_chunk_target_tokens,
                 llm_client=llm_client if llm_attachment_hierarchy else None,
                 cache_dir=cache_dir,
-                attachment_input_max_tokens=attachment_input_max_tokens,
+                hierarchy_input_max_tokens=hierarchy_input_max_tokens,
+                hierarchy_batch_target_tokens=hierarchy_batch_target_tokens,
+                hierarchy_batch_overlap_tokens=hierarchy_batch_overlap_tokens,
+                hierarchy_retry_count=hierarchy_retry_count,
                 attachment_max_levels=attachment_max_levels,
+                llm_concurrency=llm_concurrency,
             )
             attachments.children.append(attachment_parent_node)
         roots.append(attachments)
@@ -190,6 +195,11 @@ def build_document_index(
                     concurrency=llm_concurrency,
                     split_threshold_tokens=paragraph_split_threshold_tokens,
                     chunk_target_tokens=paragraph_chunk_target_tokens,
+                    input_max_tokens=hierarchy_input_max_tokens,
+                    batch_target_tokens=hierarchy_batch_target_tokens,
+                    batch_overlap_tokens=hierarchy_batch_overlap_tokens,
+                    max_levels=hierarchy_max_levels,
+                    retry_count=hierarchy_retry_count,
                 )
             with _stage(timer, "build.split_long_leaves_after_llm_expand"):
                 split_long_leaves(
@@ -200,7 +210,18 @@ def build_document_index(
                 )
         if llm_summary:
             with _stage(timer, "build.llm_summary"):
-                summarize_nodes(roots, llm_client, cache_dir, concurrency=llm_concurrency)
+                summary_stats = summarize_nodes(
+                    roots,
+                    llm_client,
+                    cache_dir,
+                    concurrency=llm_concurrency,
+                    batch_max_nodes=summary_batch_max_nodes,
+                    batch_max_tokens=summary_batch_max_tokens,
+                )
+                if timer is not None:
+                    timer.note("build.llm_summary.eligible_nodes", summary_stats["eligible_nodes"])
+                    timer.note("build.llm_summary.batches", summary_stats["batches"])
+                    timer.note("build.llm_summary.fallback_nodes", summary_stats["fallback_nodes"])
 
     with _stage(timer, "build.finalize_index"):
         _fill_key_items(roots)
@@ -225,11 +246,12 @@ def build_document_index(
                 "llm_expand_enabled": llm_expand,
                 "llm_summary_enabled": llm_summary,
                 "llm_attachment_hierarchy_enabled": llm_attachment_hierarchy,
-                "attachment_input_max_tokens": attachment_input_max_tokens,
+                "hierarchy_input_max_tokens": hierarchy_input_max_tokens,
+                "hierarchy_batch_target_tokens": hierarchy_batch_target_tokens,
+                "hierarchy_batch_overlap_tokens": hierarchy_batch_overlap_tokens,
+                "hierarchy_max_levels": hierarchy_max_levels,
+                "hierarchy_retry_count": hierarchy_retry_count,
                 "attachment_max_levels": attachment_max_levels,
-                "expand_batch_target_tokens": EXPAND_BATCH_TARGET_TOKENS,
-                "expand_batch_hard_tokens": EXPAND_BATCH_HARD_TOKENS,
-                "expand_batch_overlap_tokens": EXPAND_BATCH_OVERLAP_TOKENS,
                 "llm_model": llm_settings.model if llm_settings else None,
                 "llm_concurrency": llm_concurrency,
                 "table_markdown_enabled": True,

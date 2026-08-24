@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 from pathlib import Path
-from threading import BoundedSemaphore
 from typing import Any
 
-from .client import EmbeddingClient
+import tiktoken
+
+from .client import EMBEDDING_BATCH_SIZE, EmbeddingClient
 from .schema import VectorIndex, VectorItem, VectorMetadata
 
 
@@ -17,9 +20,12 @@ def build_vector_index(
     concurrency: int = 10,
 ) -> VectorIndex:
     entries = _select_vector_entries(index)
-    limiter = BoundedSemaphore(max(1, concurrency))
-    with limiter:
-        embeddings = client.embed([entry["vector_text"] for entry in entries])
+    max_input_tokens = int(getattr(client.settings, "max_input_tokens", 8000))
+    texts = [_truncate_embedding_text(entry["vector_text"], max_input_tokens) for entry in entries]
+    batches = [texts[start : start + EMBEDDING_BATCH_SIZE] for start in range(0, len(texts), EMBEDDING_BATCH_SIZE)]
+    with ThreadPoolExecutor(max_workers=max(1, concurrency)) as executor:
+        embedded_batches = list(executor.map(client.embed_batch, batches))
+    embeddings = [embedding for batch in embedded_batches for embedding in batch]
     items = []
     for entry, embedding in zip(entries, embeddings):
         node = entry["node"]
@@ -88,3 +94,16 @@ def _vector_text(node: dict[str, Any]) -> str:
 
 def _text_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+@lru_cache(maxsize=1)
+def _embedding_encoding():
+    return tiktoken.get_encoding("cl100k_base")
+
+
+def _truncate_embedding_text(text: str, max_tokens: int) -> str:
+    encoding = _embedding_encoding()
+    tokens = encoding.encode(text)
+    if len(tokens) <= max_tokens:
+        return text
+    return encoding.decode(tokens[:max_tokens])

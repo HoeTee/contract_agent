@@ -11,6 +11,19 @@ class SummaryResponse(BaseModel):
     summary: str = Field(min_length=1)
 
 
+class SummaryBatchItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    node_id: str = Field(min_length=1)
+    summary: str = Field(min_length=1)
+
+
+class SummaryBatchResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    summaries: list[SummaryBatchItem] = Field(default_factory=list)
+
+
 class ExpandSubsection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -98,7 +111,7 @@ class RerankResponse(BaseModel):
 class RouteStep(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    method: Literal["title", "region", "rule", "join", "scan"]
+    method: Literal["title", "region", "rule", "join", "scan", "hybrid"]
     terms: list[str] = Field(default_factory=list)
     regions: list[Literal["frontmatter", "body", "tail", "attachments"]] = Field(default_factory=list)
     slots: list[str] = Field(default_factory=list)
@@ -113,17 +126,53 @@ class RouteStep(BaseModel):
         normalized = dict(value)
         normalized.pop("description", None)
         normalized.pop("reason", None)
+        normalized.pop("condition", None)
         if "params" in normalized:
             params = normalized.pop("params")
             if not isinstance(params, dict):
                 raise ValueError("route step params must be an object")
+            if "check_keywords" in params and "terms" not in params:
+                params["terms"] = params.pop("check_keywords")
+            if "keywords" in params and "terms" not in params:
+                params["terms"] = params.pop("keywords")
+            target = params.pop("target", None)
+            context_title = params.pop("context_title", None)
+            if target:
+                target_region = str(target).split("/", 1)[0]
+                if target_region in {"frontmatter", "body", "tail", "attachments"}:
+                    params.setdefault("regions", []).append(target_region)
+                else:
+                    params.setdefault("terms", []).append(str(target))
+            if context_title:
+                params.setdefault("terms", []).append(str(context_title))
             allowed = {"terms", "regions", "slots", "all_titles", "context"}
-            unknown = set(params) - allowed
-            if unknown:
-                raise ValueError(f"unsupported route step params: {sorted(unknown)}")
             for key, item in params.items():
-                normalized.setdefault(key, item)
-        return normalized
+                if key in allowed:
+                    normalized.setdefault(key, item)
+        if "check_keywords" in normalized and "terms" not in normalized:
+            normalized["terms"] = normalized.pop("check_keywords")
+        if "keywords" in normalized and "terms" not in normalized:
+            normalized["terms"] = normalized.pop("keywords")
+        target = normalized.pop("target", None)
+        context_title = normalized.pop("context_title", None)
+        if target:
+            target_region = str(target).split("/", 1)[0]
+            if target_region in {"frontmatter", "body", "tail", "attachments"}:
+                normalized.setdefault("regions", []).append(target_region)
+            else:
+                normalized.setdefault("terms", []).append(str(target))
+        if context_title:
+            normalized.setdefault("terms", []).append(str(context_title))
+        regions = normalized.get("regions")
+        if isinstance(regions, list):
+            normalized_regions = []
+            for value in regions:
+                region = str(value).split("/", 1)[0]
+                if region in {"frontmatter", "body", "tail", "attachments"} and region not in normalized_regions:
+                    normalized_regions.append(region)
+            normalized["regions"] = normalized_regions
+        executable = {"method", "terms", "regions", "slots", "all_titles", "context"}
+        return {key: item for key, item in normalized.items() if key in executable}
 
 
 class RouteResponse(BaseModel):
@@ -131,3 +180,10 @@ class RouteResponse(BaseModel):
 
     steps: list[RouteStep] = Field(min_length=1, max_length=5)
     fallback: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def keep_executable_fields(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        return {key: item for key, item in value.items() if key in {"steps", "fallback"}}

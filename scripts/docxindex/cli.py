@@ -154,8 +154,14 @@ def write_document_outputs(
     table_chunk_target_tokens: int = 18000,
     heading_profiles: tuple[Any, ...] | None = None,
     llm_attachment_hierarchy: bool = False,
-    attachment_input_max_tokens: int = 20000,
+    hierarchy_input_max_tokens: int = 20000,
+    hierarchy_batch_target_tokens: int = 16000,
+    hierarchy_batch_overlap_tokens: int = 800,
+    hierarchy_max_levels: int = 6,
+    hierarchy_retry_count: int = 3,
     attachment_max_levels: int = 6,
+    summary_batch_max_nodes: int = 10,
+    summary_batch_max_tokens: int = 20000,
 ) -> dict[str, Any]:
     start_time = time.perf_counter()
     cache_dir = root_out / ".cache" if use_cache else None
@@ -174,8 +180,14 @@ def write_document_outputs(
             table_chunk_target_tokens=table_chunk_target_tokens,
             heading_profiles=heading_profiles,
             llm_attachment_hierarchy=llm_attachment_hierarchy,
-            attachment_input_max_tokens=attachment_input_max_tokens,
+            hierarchy_input_max_tokens=hierarchy_input_max_tokens,
+            hierarchy_batch_target_tokens=hierarchy_batch_target_tokens,
+            hierarchy_batch_overlap_tokens=hierarchy_batch_overlap_tokens,
+            hierarchy_max_levels=hierarchy_max_levels,
+            hierarchy_retry_count=hierarchy_retry_count,
             attachment_max_levels=attachment_max_levels,
+            summary_batch_max_nodes=summary_batch_max_nodes,
+            summary_batch_max_tokens=summary_batch_max_tokens,
         ).to_json_dict()
     doc_out = root_out / safe_name(docx)
     doc_out.mkdir(parents=True, exist_ok=True)
@@ -201,7 +213,11 @@ def write_document_outputs(
         with _stage(timer, "build.vector_build"):
             if embedding_settings is None:
                 embedding_settings = EmbeddingSettings.from_sources()
-            vector_index = build_vector_index(index, EmbeddingClient(embedding_settings), concurrency=embedding_concurrency)
+            vector_index = build_vector_index(
+                index,
+                EmbeddingClient(embedding_settings, max_concurrency=embedding_concurrency),
+                concurrency=embedding_concurrency,
+            )
             vector_items = len(vector_index.items)
             save_vector_index(doc_out / "vector_index.json", vector_index)
 
@@ -214,7 +230,7 @@ def write_document_outputs(
                 query_matches = llm_query(
                     index,
                     query,
-                    LLMClient(llm_settings),
+                    LLMClient(llm_settings, max_concurrency=llm_concurrency),
                     cache_dir,
                     timer=timer,
                     concurrency=llm_concurrency,
@@ -339,7 +355,7 @@ def command_build(args: argparse.Namespace) -> int:
     with timer.stage("build.load_retrieval_config"):
         retrieval_config = RetrievalConfig.from_sources(config_path=args.retrieval_config)
         indexing_config = IndexingConfig.from_sources(config_path=args.retrieval_config)
-        use_llm_attachment = indexing_config.attachment.llm_hierarchy_enabled and not args.no_llm_attachment
+        use_llm_attachment = not args.no_llm_attachment
         timer.note("build.concurrency.llm", retrieval_config.concurrency.llm)
         timer.note("build.concurrency.embedding", retrieval_config.concurrency.embedding)
         timer.note("build.concurrency.reranker", retrieval_config.concurrency.reranker)
@@ -387,8 +403,14 @@ def command_build(args: argparse.Namespace) -> int:
             table_chunk_target_tokens=indexing_config.table.chunk_target_tokens,
             heading_profiles=indexing_config.heading.compile_profiles(),
             llm_attachment_hierarchy=use_llm_attachment,
-            attachment_input_max_tokens=indexing_config.attachment.input_max_tokens,
+            hierarchy_input_max_tokens=indexing_config.hierarchy.input_max_tokens,
+            hierarchy_batch_target_tokens=indexing_config.hierarchy.batch_target_tokens,
+            hierarchy_batch_overlap_tokens=indexing_config.hierarchy.batch_overlap_tokens,
+            hierarchy_max_levels=indexing_config.hierarchy.max_levels,
+            hierarchy_retry_count=indexing_config.hierarchy.retry_count,
             attachment_max_levels=indexing_config.attachment.max_levels,
+            summary_batch_max_nodes=indexing_config.summary.batch_max_nodes,
+            summary_batch_max_tokens=indexing_config.summary.batch_max_tokens,
         )
         for path in files
     ]
@@ -429,16 +451,17 @@ def command_ask(args: argparse.Namespace) -> int:
             config_path=args.config,
         )
     with timer.stage("ask.init_llm_client"):
-        llm_client = LLMClient(llm_settings)
+        llm_client = LLMClient(llm_settings, max_concurrency=config.concurrency.llm)
     query_text = "\n".join(args.query)
     cache_dir = args.doc / ".cache" if not args.no_cache else None
     with timer.stage("ask.route"):
         route_plan = plan_route(data, query_text, llm_client, route_config, cache_dir)
-        routed_matches = _execute_route(data, query_text, route_plan)
+        routed_matches = _execute_route(data, query_text, route_plan, config.scan_batch_tokens)
 
     structure_matches: list[dict[str, Any]] = []
     vector_matches: list[dict[str, Any]] = []
-    fallback_used = not routed_matches or (
+    hybrid_requested = any(step.method == "hybrid" for step in route_plan.steps)
+    fallback_used = hybrid_requested or not routed_matches or (
         route_config.fallback_enabled and route_plan.fallback and not _route_is_complete(route_plan)
     )
     if fallback_used:
@@ -468,7 +491,7 @@ def command_ask(args: argparse.Namespace) -> int:
                     vector_path,
                     build_vector_index(
                         data,
-                        EmbeddingClient(embedding_settings),
+                        EmbeddingClient(embedding_settings, max_concurrency=config.concurrency.embedding),
                         source_index=index_path.name,
                         concurrency=config.concurrency.embedding,
                     ),
@@ -483,7 +506,7 @@ def command_ask(args: argparse.Namespace) -> int:
                 config_path=args.config,
             )
         with timer.stage("ask.init_embedding_client"):
-            embedding_client = EmbeddingClient(embedding_settings)
+            embedding_client = EmbeddingClient(embedding_settings, max_concurrency=config.concurrency.embedding)
         with timer.stage("ask.vector_search"):
             for query in args.query:
                 vector_matches.extend(
@@ -612,7 +635,7 @@ def command_vector_search(args: argparse.Namespace) -> int:
         )
     matches = []
     with timer.stage("vector_search.query_embedding_and_rank"):
-        embedding_client = EmbeddingClient(settings)
+        embedding_client = EmbeddingClient(settings, max_concurrency=config.concurrency.embedding)
         for query in args.query:
             matches.extend(
                 vector_search(
@@ -701,7 +724,7 @@ def _merge_matches(structure_matches: list[dict], vector_matches: list[dict]) ->
     return list(merged.values())
 
 
-def _execute_route(index: dict[str, Any], query: str, plan: Any) -> list[dict[str, Any]]:
+def _execute_route(index: dict[str, Any], query: str, plan: Any, scan_batch_tokens: int = 12000) -> list[dict[str, Any]]:
     matches: list[dict[str, Any]] = []
     for step in plan.steps:
         if step.method == "title":
@@ -713,7 +736,9 @@ def _execute_route(index: dict[str, Any], query: str, plan: Any) -> list[dict[st
         elif step.method == "join":
             current = join_matches(index, query, step)
         elif step.method == "scan":
-            current = scan_matches(index)
+            current = scan_matches(index, scan_batch_tokens)
+        elif step.method == "hybrid":
+            current = []
         else:
             raise ValueError(f"unsupported route method: {step.method}")
         matches = _merge_routed_matches(matches, current)
@@ -739,6 +764,8 @@ def _merge_routed_matches(*groups: list[dict[str, Any]]) -> list[dict[str, Any]]
             sources = set(item.get("sources") or [])
             sources.update(match.get("sources") or [])
             item["sources"] = sorted(source for source in sources if source)
+            if "region" in (match.get("sources") or []):
+                item.pop("text_override", None)
             for key in ("vector_score", "structure_reason", "reason", "rerank_score", "rerank_reason"):
                 if match.get(key) is not None:
                     item[key] = match[key]

@@ -2,7 +2,8 @@ from __future__ import annotations
 
 EXPAND_PROMPT_VERSION = "docx_expand_v2"
 SUMMARY_PROMPT_VERSION = "docx_summary_v3"
-ATTACHMENT_HIERARCHY_PROMPT_VERSION = "attachment_hierarchy_v2"
+SUMMARY_BATCH_PROMPT_VERSION = "docx_summary_batch_v1"
+ATTACHMENT_HIERARCHY_PROMPT_VERSION = "local_hierarchy_v3"
 
 
 def expand_prompt(node_id: str, title: str, start_anchor: str, end_anchor: str, items_text: str) -> str:
@@ -45,9 +46,17 @@ def attachment_hierarchy_prompt(
     pattern_summary: str,
     candidate_text: str,
     max_levels: int,
+    *,
+    inside_attachment: bool = True,
 ) -> str:
-    return f"""你正在识别一个合同附件内部的真实标题及父子层级。
-附件标题：{attachment_title}
+    scope = "合同附件内部" if inside_attachment else "合同正文大节点内部"
+    multiple_documents = (
+        "附件中可能连续包含多份独立细则或标准，可以划分多个 segment。"
+        if inside_attachment
+        else "当前正文节点属于同一局部文档，除非原文明确开始另一份独立文档，否则只建立一个 segment。"
+    )
+    return f"""你正在识别{scope}的真实标题及父子层级。
+当前节点标题：{attachment_title}
 
 候选编号形态统计：
 {pattern_summary}
@@ -56,7 +65,8 @@ def attachment_hierarchy_prompt(
 {candidate_text}
 
 任务：
-- 将附件划分为一个或多个局部文档 segment，并归纳每个 segment 的“编号族到层级”规则。
+- 将当前节点划分为一个或多个局部文档 segment，并归纳每个 segment 的“编号族到层级”规则。
+- {multiple_documents}
 - start_anchor 是 segment 覆盖的第一个候选；下一个 segment 开始时，前一个 segment 结束。
 - document_title 只填写无编号的内部文档名称；没有时填 null，且其 level 必须为 1。
 - level_rules 只返回该 segment 中真实作为结构标题的编号族及层级。脚本会把规则应用到该编号族的全部连续候选。
@@ -111,3 +121,21 @@ node 类型：{node_type}
 - 不要返回纯文本。
 - 不要添加 schema 以外的字段。
 - JSON 必须严格符合：{{"summary": "摘要内容"}}"""
+
+
+def summary_batch_prompt(nodes: list[dict[str, str]], max_tokens: int = 200) -> str:
+    import json
+
+    return f"""你正在批量为合同结构树 node 生成检索摘要。
+
+待摘要 node：
+{json.dumps(nodes, ensure_ascii=False)}
+
+摘要要求：
+- 每个输入 node_id 必须且只能返回一条摘要，node_id 原样返回。
+- 使用中文，只概括对应 node 内容，不添加原文没有的信息。
+- 摘要用于后续 LLM 根据结构树选择相关 node，保留主体、金额、期限、付款、发票、验收、违约、附件引用、保密、知识产权、项目负责人等导航信息。
+- 每条摘要不得超过 {max_tokens} tokens。
+
+只返回合法 JSON object，不要返回 Markdown、解释或 schema 外字段：
+{{"summaries":[{{"node_id":"body/sec_001","summary":"摘要内容"}}]}}"""

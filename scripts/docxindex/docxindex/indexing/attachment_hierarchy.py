@@ -63,19 +63,61 @@ def infer_attachment_children(
     cache_dir: Path | None,
     *,
     input_max_tokens: int = 20000,
+    batch_target_tokens: int = 16000,
+    batch_overlap_tokens: int = 800,
     max_levels: int = 6,
+    retry_count: int = 3,
     split_long_nodes: bool = True,
     paragraph_split_threshold_tokens: int = 1000,
     paragraph_chunk_target_tokens: int = 700,
 ) -> list[DocumentNode] | None:
     """Infer an attachment-local hierarchy and return nested child nodes."""
+    return infer_hierarchy_children(
+        node,
+        items,
+        client,
+        cache_dir,
+        inside_attachment=True,
+        input_max_tokens=input_max_tokens,
+        batch_target_tokens=batch_target_tokens,
+        batch_overlap_tokens=batch_overlap_tokens,
+        max_levels=max_levels,
+        retry_count=retry_count,
+        split_long_nodes=split_long_nodes,
+        paragraph_split_threshold_tokens=paragraph_split_threshold_tokens,
+        paragraph_chunk_target_tokens=paragraph_chunk_target_tokens,
+    )
+
+
+def infer_hierarchy_children(
+    node: DocumentNode,
+    items: list[BodyItem],
+    client: LLMClient,
+    cache_dir: Path | None,
+    *,
+    inside_attachment: bool,
+    input_max_tokens: int = 20000,
+    batch_target_tokens: int = 16000,
+    batch_overlap_tokens: int = 800,
+    max_levels: int = 6,
+    retry_count: int = 3,
+    split_long_nodes: bool = True,
+    paragraph_split_threshold_tokens: int = 1000,
+    paragraph_chunk_target_tokens: int = 700,
+) -> list[DocumentNode] | None:
+    """Infer a validated local hierarchy for an attachment or an oversized body leaf."""
     if node.source_start is None or node.source_end is None:
         return None
-    candidates = collect_attachment_candidates(items, node.source_start + 1, node.source_end)
+    candidates = collect_hierarchy_candidates(
+        items,
+        node.source_start + 1,
+        node.source_end,
+        inside_attachment=inside_attachment,
+    )
     if len(candidates) < 2:
         return None
 
-    cache = JsonlCache(cache_dir / "llm_attachment_hierarchy.jsonl" if cache_dir else None)
+    cache = JsonlCache(cache_dir / "llm_hierarchy.jsonl" if cache_dir else None)
     headings = _infer_profile(
         node,
         candidates,
@@ -83,17 +125,31 @@ def infer_attachment_children(
         client,
         cache,
         input_max_tokens,
+        batch_target_tokens,
+        batch_overlap_tokens,
         max_levels,
+        retry_count,
+        inside_attachment,
     )
     if headings is None or len(headings) < 2:
         return None
-    children = _build_hierarchy_nodes(node, items, headings)
+    children = _build_hierarchy_nodes(node, items, headings, inside_attachment=inside_attachment)
     if split_long_nodes:
         split_long_leaves(children, items, paragraph_split_threshold_tokens, paragraph_chunk_target_tokens)
     return children or None
 
 
 def collect_attachment_candidates(items: list[BodyItem], start: int, end: int) -> list[AttachmentCandidate]:
+    return collect_hierarchy_candidates(items, start, end, inside_attachment=True)
+
+
+def collect_hierarchy_candidates(
+    items: list[BodyItem],
+    start: int,
+    end: int,
+    *,
+    inside_attachment: bool,
+) -> list[AttachmentCandidate]:
     result: list[AttachmentCandidate] = []
     paragraph_position = 0
     for index in range(start, end):
@@ -107,7 +163,7 @@ def collect_attachment_candidates(items: list[BodyItem], start: int, end: int) -
         visual = is_visual_title(item, items[index + 1 : end], paragraph_position - 1)
         label = is_plain_label(item)
         formatted = item.alignment == "center" or item.bold_fraction >= 0.5 or (item.max_font_size or 0) >= 28
-        opening_short = paragraph_position <= 8 and len(item.text) <= 80
+        opening_short = inside_attachment and paragraph_position <= 8 and len(item.text) <= 80
         if not (outline_valid or numbered or visual or label or (formatted and len(item.text) <= 120) or opening_short):
             continue
 
@@ -265,16 +321,82 @@ def _infer_profile(
     client: LLMClient,
     cache: JsonlCache,
     input_max_tokens: int,
+    batch_target_tokens: int,
+    batch_overlap_tokens: int,
     max_levels: int,
+    retry_count: int,
+    inside_attachment: bool,
 ) -> list[ValidatedHeading] | None:
     candidate_text = "\n".join(_candidate_row(candidate) for candidate in candidates)
-    prompt = attachment_hierarchy_prompt(node.title, pattern_summary, candidate_text, max_levels)
-    if estimate_tokens(prompt) > input_max_tokens:
-        return None
+    prompt = attachment_hierarchy_prompt(
+        node.title,
+        pattern_summary,
+        candidate_text,
+        max_levels,
+        inside_attachment=inside_attachment,
+    )
+    if estimate_tokens(prompt) <= input_max_tokens:
+        return _infer_profile_batch(
+            node,
+            candidates,
+            pattern_summary,
+            client,
+            cache,
+            max_levels,
+            retry_count,
+            inside_attachment,
+        )
+
+    batches = _candidate_batches(
+        node.title,
+        candidates,
+        max_levels,
+        batch_target_tokens,
+        batch_overlap_tokens,
+        inside_attachment,
+    )
+    inferred_batches: list[list[ValidatedHeading]] = []
+    for batch in batches:
+        inferred = _infer_profile_batch(
+            node,
+            batch,
+            _pattern_summary(batch),
+            client,
+            cache,
+            max_levels,
+            retry_count,
+            inside_attachment,
+        )
+        if inferred:
+            inferred_batches.append(inferred)
+    return _merge_heading_batches(candidates, inferred_batches, max_levels)
+
+
+def _infer_profile_batch(
+    node: DocumentNode,
+    candidates: list[AttachmentCandidate],
+    pattern_summary: str,
+    client: LLMClient,
+    cache: JsonlCache,
+    max_levels: int,
+    retry_count: int,
+    inside_attachment: bool,
+) -> list[ValidatedHeading] | None:
+    candidate_text = "\n".join(_candidate_row(candidate) for candidate in candidates)
+    prompt = attachment_hierarchy_prompt(
+        node.title,
+        pattern_summary,
+        candidate_text,
+        max_levels,
+        inside_attachment=inside_attachment,
+    )
     key = cache_key(
         ATTACHMENT_HIERARCHY_PROMPT_VERSION,
         client.settings.model,
+        "attachment" if inside_attachment else "body",
         node.node_id,
+        candidates[0].anchor,
+        candidates[-1].anchor,
         text_hash(candidate_text),
     )
     cached = cache.get(key)
@@ -284,7 +406,7 @@ def _infer_profile(
         return validated if not errors else None
 
     current_prompt = prompt
-    for _ in range(3):
+    for _ in range(retry_count):
         try:
             response = client.complete_model(current_prompt, AttachmentHierarchyResponse, retries=0)
         except ValueError as exc:
@@ -299,6 +421,75 @@ def _infer_profile(
             "请重新核对 anchor、required 候选、原文顺序和层级。"
         )
     return None
+
+
+def _candidate_batches(
+    node_title: str,
+    candidates: list[AttachmentCandidate],
+    max_levels: int,
+    target_tokens: int,
+    overlap_tokens: int,
+    inside_attachment: bool,
+) -> list[list[AttachmentCandidate]]:
+    batches: list[list[AttachmentCandidate]] = []
+    start = 0
+    while start < len(candidates):
+        end = start
+        current: list[AttachmentCandidate] = []
+        while end < len(candidates):
+            proposed = [*current, candidates[end]]
+            proposed_text = "\n".join(_candidate_row(candidate) for candidate in proposed)
+            proposed_prompt = attachment_hierarchy_prompt(
+                node_title,
+                _pattern_summary(proposed),
+                proposed_text,
+                max_levels,
+                inside_attachment=inside_attachment,
+            )
+            if current and estimate_tokens(proposed_prompt) > target_tokens:
+                break
+            current = proposed
+            end += 1
+        if not current:
+            current = [candidates[start]]
+            end = start + 1
+        batches.append(current)
+        if end >= len(candidates):
+            break
+        overlap_start = end
+        used = 0
+        while overlap_start > start + 1 and used < overlap_tokens:
+            overlap_start -= 1
+            used += estimate_tokens(_candidate_row(candidates[overlap_start]))
+        start = overlap_start if overlap_start > start else end
+    return batches
+
+
+def _merge_heading_batches(
+    all_candidates: list[AttachmentCandidate],
+    batches: list[list[ValidatedHeading]],
+    max_levels: int,
+) -> list[ValidatedHeading] | None:
+    if not batches:
+        return None
+    merged: dict[str, ValidatedHeading] = {}
+    for batch in batches:
+        offsets = [
+            merged[item.candidate.anchor].level - item.level
+            for item in batch
+            if item.candidate.anchor in merged
+        ]
+        offset = Counter(offsets).most_common(1)[0][0] if offsets else 0
+        for item in batch:
+            if item.candidate.anchor in merged:
+                continue
+            level = min(max(item.level + offset, 1), max_levels)
+            merged[item.candidate.anchor] = ValidatedHeading(item.candidate, level)
+    result = sorted(merged.values(), key=lambda value: value.candidate.item_index)
+    required = {candidate.anchor for candidate in all_candidates if candidate.required}
+    if not required.issubset(merged):
+        return None
+    return result if len(result) >= 2 and not _hierarchy_errors(result, max_levels) else None
 
 
 def _apply_profile(
@@ -446,6 +637,8 @@ def _build_hierarchy_nodes(
     parent: DocumentNode,
     items: list[BodyItem],
     headings: list[ValidatedHeading],
+    *,
+    inside_attachment: bool,
 ) -> list[DocumentNode]:
     roots: list[DocumentNode] = []
     stack: list[tuple[int, DocumentNode]] = []
@@ -464,11 +657,16 @@ def _build_hierarchy_nodes(
         key = (local_parent.node_id, level)
         sibling_counts[key] = sibling_counts.get(key, 0) + 1
         node_id = f"{local_parent.node_id}/h{level}_{sibling_counts[key]:03d}"
-        score, evidence = heading_score(items[index], level, inside_attachment=True)
-        evidence.extend(["llm_attachment_hierarchy", f"number_family:{heading.candidate.number_family}"])
+        score, evidence = heading_score(items[index], level, inside_attachment=inside_attachment)
+        evidence.extend(
+            [
+                "llm_attachment_hierarchy" if inside_attachment else "llm_body_hierarchy",
+                f"number_family:{heading.candidate.number_family}",
+            ]
+        )
         child = make_node(
             node_id,
-            "attachment_heading",
+            "attachment_heading" if inside_attachment else "semantic_section",
             heading.candidate.text,
             items,
             index,

@@ -6,6 +6,7 @@ from typing import Any
 from docxindex.llm.schemas import RouteStep
 
 from .region import _unique
+from .rule import _scan_nodes
 from .title import _candidate
 
 
@@ -25,9 +26,7 @@ def join_matches(index: dict[str, Any], query: str, step: RouteStep) -> list[dic
     for slot in step.slots:
         words.update(WORD.findall(slot))
     words.update(_query_terms(query))
-    for node in nodes:
-        if node.get("node_type") in {"body", "attachments"}:
-            continue
+    for node in _scan_nodes(index):
         haystack = f"{node.get('title') or ''}\n{node.get('summary') or ''}\n{node.get('text') or ''}"
         if any(word in haystack for word in words):
             result.append(_candidate(node, "join"))

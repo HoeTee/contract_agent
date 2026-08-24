@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from pathlib import Path
-from threading import BoundedSemaphore
 
 from docxindex.llm import LLMClient
 from docxindex.llm.cache import JsonlCache, cache_key, text_hash
-from docxindex.llm.prompts import SUMMARY_PROMPT_VERSION, summary_prompt
-from docxindex.llm.schemas import SummaryResponse
+from docxindex.llm.prompts import (
+    SUMMARY_BATCH_PROMPT_VERSION,
+    SUMMARY_PROMPT_VERSION,
+    summary_batch_prompt,
+    summary_prompt,
+)
+from docxindex.llm.schemas import SummaryBatchResponse, SummaryResponse
 from docxindex.schema import DocumentNode
 
 from .token_budget import SUMMARY_TRIGGER_MIN_TOKENS, estimate_tokens
@@ -16,35 +22,142 @@ TABLE_SUMMARY_INPUT_TARGET_TOKENS = 20000
 SUMMARY_OUTPUT_MAX_TOKENS = 200
 
 
-def summarize_nodes(roots: list[DocumentNode], client: LLMClient, cache_dir: Path | None, concurrency: int = 10) -> None:
+@dataclass(frozen=True)
+class _SummaryTask:
+    node: DocumentNode
+    content: str
+    cache_key: str
+
+
+def summarize_nodes(
+    roots: list[DocumentNode],
+    client: LLMClient,
+    cache_dir: Path | None,
+    concurrency: int = 10,
+    batch_max_nodes: int = 10,
+    batch_max_tokens: int = 20000,
+) -> dict[str, int]:
     cache = JsonlCache(cache_dir / "llm_summary.jsonl" if cache_dir else None)
-    limiter = BoundedSemaphore(max(1, concurrency))
-    for node in roots:
-        _summarize_node(node, client, cache, limiter)
+    nodes: list[DocumentNode] = []
+    for root in roots:
+        _collect_nodes(root, nodes)
+
+    tasks = _prepare_tasks(nodes, client, cache)
+    batches = _pack_tasks(tasks, batch_max_nodes, batch_max_tokens)
+    with ThreadPoolExecutor(max_workers=max(1, concurrency)) as executor:
+        fallback_nodes = sum(executor.map(lambda batch: _summarize_batch(batch, client, cache), batches))
+    return {
+        "eligible_nodes": len(tasks),
+        "batches": len(batches),
+        "fallback_nodes": fallback_nodes,
+    }
 
 
-def _summarize_node(node: DocumentNode, client: LLMClient, cache: JsonlCache, limiter: BoundedSemaphore) -> str:
+def _collect_nodes(node: DocumentNode, result: list[DocumentNode]) -> None:
     for child in node.children:
-        _summarize_node(child, client, cache, limiter)
-    if node.token_estimate < SUMMARY_TRIGGER_MIN_TOKENS and not node.children:
-        return node.summary
+        _collect_nodes(child, result)
+    result.append(node)
 
-    content = _summary_content(node)
+
+def _prepare_tasks(nodes: list[DocumentNode], client: LLMClient, cache: JsonlCache) -> list[_SummaryTask]:
+    tasks: list[_SummaryTask] = []
+    for node in nodes:
+        if node.token_estimate < SUMMARY_TRIGGER_MIN_TOKENS and not node.children:
+            continue
+        content = _summary_content(node)
+        key = _node_cache_key(node, content, client)
+        cached = cache.get(key)
+        if cached and cached.get("summary"):
+            node.summary = cached["summary"]
+            continue
+        tasks.append(_SummaryTask(node=node, content=content, cache_key=key))
+    return tasks
+
+
+def _node_cache_key(node: DocumentNode, content: str, client: LLMClient) -> str:
     key = cache_key(
         SUMMARY_PROMPT_VERSION,
+        SUMMARY_BATCH_PROMPT_VERSION,
         client.settings.model,
         node.node_id,
         text_hash(content),
     )
-    cached = cache.get(key)
-    if cached is None:
-        with limiter:
-            cached = _generate_summary(client, node, content)
-        cached["summary"] = cached["summary"].strip()
-        cache.set(key, cached)
-    if cached.get("summary"):
-        node.summary = cached["summary"]
-    return node.summary
+    return key
+
+
+def _pack_tasks(
+    tasks: list[_SummaryTask],
+    batch_max_nodes: int,
+    batch_max_tokens: int,
+) -> list[list[_SummaryTask]]:
+    batches: list[list[_SummaryTask]] = []
+    current: list[_SummaryTask] = []
+    current_tokens = 0
+    for task in tasks:
+        task_tokens = estimate_tokens(task.content)
+        if current and (
+            len(current) >= max(1, batch_max_nodes)
+            or current_tokens + task_tokens > max(1, batch_max_tokens)
+        ):
+            batches.append(current)
+            current = []
+            current_tokens = 0
+        current.append(task)
+        current_tokens += task_tokens
+    if current:
+        batches.append(current)
+    return batches
+
+
+def _summarize_batch(tasks: list[_SummaryTask], client: LLMClient, cache: JsonlCache) -> int:
+    if not tasks:
+        return 0
+    if len(tasks) == 1:
+        _apply_individual_summary(tasks[0], client, cache)
+        return 0
+
+    prompt_nodes = [
+        {
+            "node_id": task.node.node_id,
+            "title": task.node.title,
+            "node_type": task.node.node_type,
+            "content": task.content,
+        }
+        for task in tasks
+    ]
+    try:
+        prompt = summary_batch_prompt(prompt_nodes, max_tokens=SUMMARY_OUTPUT_MAX_TOKENS)
+        response = client.complete_model(prompt, SummaryBatchResponse)
+        summaries = {
+            item.node_id: _truncate_summary(item.summary.strip())
+            for item in response.summaries
+            if item.summary.strip()
+        }
+    except (RuntimeError, ValueError):
+        summaries = {}
+
+    fallback_nodes = 0
+    for task in tasks:
+        summary = summaries.get(task.node.node_id)
+        if summary:
+            _store_summary(task, summary, cache)
+        else:
+            fallback_nodes += 1
+            _apply_individual_summary(task, client, cache)
+    return fallback_nodes
+
+
+def _apply_individual_summary(task: _SummaryTask, client: LLMClient, cache: JsonlCache) -> None:
+    generated = _generate_summary(client, task.node, task.content)
+    _store_summary(task, generated["summary"].strip(), cache)
+
+
+def _store_summary(task: _SummaryTask, summary: str, cache: JsonlCache) -> None:
+    normalized = _truncate_summary(summary.strip())
+    if not normalized:
+        return
+    task.node.summary = normalized
+    cache.set(task.cache_key, {"summary": normalized})
 
 
 def _generate_summary(client: LLMClient, node: DocumentNode, content: str) -> dict[str, str]:

@@ -424,16 +424,18 @@ summary 生成规则：
 
 ```text
 叶子 node：基于自身原文生成 summary。
-非叶子 node：基于 children 的 title 和 summary 汇总生成 summary。
+非叶子 node：基于 children 的 title 和构建阶段初始 summary 生成独立 LLM summary。
 短 node 可不生成 summary，直接使用 title 和 token_estimate。
+所有待摘要 node 按数量和输入 token 预算组批并发生成，不按树深度串行等待。
 ```
 
 建议参数：
 
 ```yaml
 summary_trigger_min_tokens: 300
-summary_max_tokens_per_node: 120
-summary_tree_inline_budget_tokens: 6000
+summary_max_tokens_per_node: 200
+summary_batch_max_nodes: 10
+summary_batch_max_tokens: 20000
 ```
 
 输出给 LLM 的结构视图只包含轻量字段：
@@ -463,13 +465,13 @@ docxindex 不照搬字符数，统一使用 token 预算：
 
 ```yaml
 retrieval:
-  input_tokens: 6000
+  input_tokens: 20000
 ```
 
 含义：
 
 ```text
-每一次输入模型的内容最多 6000 tokens。
+每一次输入模型的结构或候选内容最多 20000 tokens。
 结构树输入、向量候选输入、rerank 候选输入、原文上下文输入都使用该预算。
 ```
 
@@ -751,7 +753,9 @@ metadata.end_anchor = node.end_anchor
 
 ```yaml
 retrieval:
-  input_tokens: 6000
+  input_tokens: 20000
+  output_tokens: 12000
+  scan_batch_tokens: 12000
   max_depth: 6
   vector:
     enabled: true

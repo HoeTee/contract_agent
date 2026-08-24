@@ -6,10 +6,15 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from docxindex_eval.runner import _ask, _build_index
+from docxindex_eval.runner import _ask, _build_index, _percentile
 
 
 class BuildIndexTest(unittest.TestCase):
+    def test_percentile_uses_linear_interpolation(self) -> None:
+        self.assertEqual(_percentile([1.0, 2.0, 3.0, 4.0], 0.50), 2.5)
+        self.assertEqual(_percentile([1.0, 2.0, 3.0, 4.0], 0.95), 3.85)
+        self.assertIsNone(_percentile([], 0.95))
+
     def test_build_uses_retrieval_cli_and_propagates_no_cache(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_dir:
             output_dir = Path(temporary_dir) / "built"

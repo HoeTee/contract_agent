@@ -75,13 +75,20 @@ indexing:
   paragraph:
     split_threshold_tokens: 1000
     chunk_target_tokens: 700
+  hierarchy:
+    input_max_tokens: 20000
+    batch_target_tokens: 16000
+    batch_overlap_tokens: 800
+    max_levels: 6
+    retry_count: 3
   table:
     split_threshold_tokens: 20000
     chunk_target_tokens: 18000
   attachment:
-    llm_hierarchy_enabled: true
-    input_max_tokens: 20000
     max_levels: 6
+  summary:
+    batch_max_nodes: 10
+    batch_max_tokens: 20000
 
 routing:
   criteria: ../../resources/criteria/criteria-formal.docx
@@ -93,6 +100,7 @@ routing:
     rule: 执行全文精确关键词、正则、金额和存在性定位。
     join: 关联多个区域或节点，获取一致性比较所需的完整证据组。
     scan: 按原文顺序返回全部 anchor，用于逐批全文检查。
+    hybrid: 确定性方法无法可靠定位时，使用结构树语义选择并由向量补召回。
   llm_candidates: 12
   vector_candidates: 20
   vector_threshold: 0.45
@@ -112,12 +120,13 @@ routing:
 - `indexing.heading.profiles`：按优先顺序定义正文标题体系。每层至少提供一个示例；同层存在不同编号形式时，每种形式提供一个。程序从示例确定性生成编号正则并自动选择 profile，不调用 LLM，也没有 `selection` 配置。
 - `indexing.paragraph.split_threshold_tokens`：普通文本叶节点超过1000 tokens后才启动兜底拆分。
 - `indexing.paragraph.chunk_target_tokens`：启动拆分后，按完整段落组成约700 tokens的子节点。
+- `indexing.hierarchy`：正文大叶子和附件内部结构共用的 LLM 层级推断预算、候选分批、重叠、最大层级和重试次数。
 - `indexing.table.split_threshold_tokens`：Markdown表格不超过20000 tokens时保持为单个完整节点。
 - `indexing.table.chunk_target_tokens`：超大表按完整数据行拆分为约18000 tokens的子节点；每个子节点重复表头。
-- `indexing.attachment.llm_hierarchy_enabled`：默认让 LLM 归纳附件内部局部文档及“编号族 -> 层级”规则，再由脚本确定性应用规则。
-- `indexing.attachment.input_max_tokens`：单个附件提供给层级归纳模型的最大输入，默认20000 tokens；超限或校验失败时回退到确定性标题识别。
 - `indexing.attachment.max_levels`：附件内部最多构建六级标题。
-- `routing`：自动路由使用的审查要点来源、五种检索方法和补充召回候选参数。
+- `indexing.summary.batch_max_nodes`：一次摘要请求最多包含10个 node；模型仍为每个 node 分别返回摘要。
+- `indexing.summary.batch_max_tokens`：一次摘要请求中所有 node 原文的合计预算，默认20000 tokens。
+- `routing`：自动路由使用的审查要点来源、六种检索方法和补充召回候选参数。
 
 LLM 请求默认携带 `enable_thinking=false`。结构树选点和 rerank 属于检索阶段，不需要模型输出长 thinking 内容。
 
@@ -145,8 +154,7 @@ EMBED_API_KEY
 ```text
 确定性 DOCX XML 解析
 -> 所有 w:tbl 转为独立 Markdown 表格节点并建立 source_ref/XML 映射
--> 附件内部 LLM 层级归纳 + anchor/连续编号/outlineLvl 交叉校验
--> LLM expand
+-> 正文大叶子与附件共用 LLM 层级归纳、候选分批及 anchor/连续编号/outlineLvl 校验
 -> LLM summary
 -> vector index
 ```
@@ -195,21 +203,22 @@ python scripts\docxindex\cli.py ask --doc "outputs\index\合同目录名" --quer
 
 ```text
 读取 structure_tree 与正式审查要点
--> LLM 自动规划 title/region/rule/join/scan 路由
+-> LLM 自动规划 title/region/rule/join/scan/hybrid 路由
 -> 执行确定性标题、区域、全文关键词或全文扫描
 -> 仅在路由要求 fallback 或确定性结果为空时执行结构树 LLM + vector + rerank
 -> 从 content_store/anchor_store 展开原文 nodes
 ```
 
-五种业务路由：
+六种业务路由：
 
 - `title`：检查正式目录标题及顺序；完整目录返回全部正式章节标题。
 - `region`：返回合同首部、正文、合同末尾、附件，或明确标题下的内容。
 - `rule`：扫描全部 anchor，返回所有精确关键词、枚举敏感词及金额字面命中。
 - `join`：组合主体首尾、正文与附件或其他多区域证据。
 - `scan`：按 `anchor_store` 阅读顺序返回全文，超出预算时通过 `next_part` 继续。
+- `hybrid`：将嵌套结构树交给 LLM 选择具体节点，并使用向量结果补召回后统一 rerank。
 
-原有结构树 LLM、向量召回和 rerank 是内部语义 fallback，不作为第六种业务路由。
+`hybrid`仍通过内部 fallback 执行结构树 LLM、向量召回和 rerank，不改变最终只返回统一 `nodes` 的接口。
 
 关闭向量补召回：
 
@@ -324,6 +333,9 @@ logs/ask_YYYYMMDD_HHMMSS_PID.log
 logs/vector_search_YYYYMMDD_HHMMSS_PID.log
 ```
 
+索引阶段的 LLM 并发上限读取 `config.yaml` 中的 `concurrency.llm`。附件层级推理和正文大叶子节点推理采用“并发计算、按原文顺序写回”；摘要节点不分树深度等待，按 `batch_max_nodes` 和 `batch_max_tokens` 组批后并发生成。父节点摘要输入使用索引构建阶段已有的子节点初始摘要，因此每个 node 仍有独立 LLM 摘要，但不会形成逐层串行网络请求。Embedding 按每批 10 个节点提交，并发批次数读取 `concurrency.embedding`。这些并发共享各自客户端的上限，不改变节点顺序、anchor 或父子关系。
+
+自动路由只接收结构树前三级的标题目录。路由阶段只选择检索方法，不负责选择最终 node，因此不会把附件深层标题全部重复输入路由模型；深层节点仍由具体的结构检索、区域检索、规则检索或向量补召回定位。
 指定日志目录：
 
 ```powershell

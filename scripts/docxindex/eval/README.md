@@ -117,9 +117,12 @@ python cli.py --limit 18 --no-build-cache
 
 # 只关闭检索与 rerank 阶段缓存
 python cli.py --limit 18 --no-query-cache
+
+# 强制使用当前代码为每份选中合同重新建立索引
+python cli.py --limit 18 --rebuild-index
 ```
 
-`--no-cache` 和 `--no-build-cache` 不会强制重建已经存在的索引；它们只在实际执行对应 LLM 阶段时关闭响应缓存。已有索引仍会复用，但 `ask` 会按检索缓存开关正常调用 LLM。
+`--no-cache` 和 `--no-build-cache` 只控制 LLM 响应缓存；`--rebuild-index` 单独控制是否复用已有 `document_index.json`。验证索引算法改动时应组合使用 `--rebuild-index --no-cache`。
 
 只显示最终汇总：
 
@@ -166,6 +169,7 @@ coverage = Gold 三元组中被返回内容覆盖的数量 / Gold 三元组总�
 logs/<时间戳>/
 ├── run.log
 ├── recall_results.csv
+├── contract_metrics.json
 └── summary.json
 ```
 
@@ -176,5 +180,7 @@ coverage_at_1,coverage_at_3,coverage_at_5,
 hit_at_1,hit_at_3,hit_at_5,
 retrieved_node_ids,elapsed_seconds,error
 ```
+
+`recall_results.csv` 另外记录每个 case 的 `index_build_seconds` 和 `retrieval_seconds`。`contract_metrics.json` 按合同记录索引耗时以及检索平均值、P50、P95 和最大值；复用既有索引时 `build_seconds` 为 `null`。`summary.json` 汇总本次实际重建合同和实际执行检索的 P50、P95、最大耗时。评测器只记录指标，不依据耗时或召回阈值修改索引与检索行为。
 
 终端逐个显示 case 的 `PASS/FAIL/SKIP`、Recall@5、返回 Node 数量、耗时和召回文本摘要，最后输出总体 JSON 汇总。

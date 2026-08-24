@@ -35,6 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-cache", action="store_true", help="Disable both index-build and retrieval LLM caches.")
     parser.add_argument("--no-build-cache", action="store_true", help="Disable only the index-build LLM cache.")
     parser.add_argument("--no-query-cache", action="store_true", help="Disable only the retrieval LLM cache.")
+    parser.add_argument("--rebuild-index", action="store_true", help="Rebuild each selected contract index instead of reusing document_index.json.")
     parser.add_argument("--quiet", action="store_true", help="Only print the final summary.")
     return parser
 
@@ -69,6 +70,7 @@ def main() -> int:
         row_ranges=row_ranges,
         no_build_cache=args.no_cache or args.no_build_cache,
         no_query_cache=args.no_cache or args.no_query_cache,
+        rebuild_indexes=args.rebuild_index,
         quiet=args.quiet,
     )
 

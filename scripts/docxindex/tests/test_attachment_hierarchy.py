@@ -10,7 +10,12 @@ PROJECT_ROOT = PROJECT_DIR.parents[1]
 sys.path.insert(0, str(PROJECT_DIR))
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from docxindex.indexing.attachment_hierarchy import collect_attachment_candidates, infer_attachment_children
+from docxindex.indexing.attachment_hierarchy import (
+    _candidate_batches,
+    collect_attachment_candidates,
+    infer_attachment_children,
+    infer_hierarchy_children,
+)
 from docxindex.indexing.node_factory import make_node
 from docxindex.llm.schemas import AttachmentHierarchyResponse
 from docxindex.schema import BodyItem
@@ -164,6 +169,45 @@ class AttachmentHierarchyTest(unittest.TestCase):
         self.assertFalse(by_anchor["p_0002"].required)
         self.assertFalse(any(signal.startswith("outline:") for signal in by_anchor["p_0002"].signals))
         self.assertTrue(by_anchor["p_0003"].required)
+
+    def test_body_leaf_uses_shared_hierarchy_inference(self) -> None:
+        items = [
+            item(1, "第三条 服务要求"),
+            item(2, "一、人员要求"),
+            item(3, "二、设备要求"),
+        ]
+        node = make_node("body/sec_003", "section", items[0].text, items, 0, len(items), 1, "body")
+        response = {
+            "segments": [
+                {
+                    "start_anchor": "p_0002",
+                    "document_title": None,
+                    "level_rules": [{"number_family": "cn_comma", "level": 1}],
+                    "additional_headings": [],
+                }
+            ]
+        }
+
+        roots = infer_hierarchy_children(
+            node,
+            items,
+            FakeClient([response]),
+            None,
+            inside_attachment=False,
+            split_long_nodes=False,
+        )
+
+        self.assertEqual([child.title for child in roots], ["一、人员要求", "二、设备要求"])
+        self.assertTrue(all(child.node_type == "semantic_section" for child in roots))
+
+    def test_candidate_batches_preserve_overlap(self) -> None:
+        items = [item(index, f"{index}、标题{'内容' * 40}") for index in range(1, 9)]
+        candidates = collect_attachment_candidates(items, 0, len(items))
+
+        batches = _candidate_batches("附件1", candidates, 6, 1000, 100, True)
+
+        self.assertGreater(len(batches), 1)
+        self.assertTrue(set(item.anchor for item in batches[0]) & set(item.anchor for item in batches[1]))
 
 
 if __name__ == "__main__":

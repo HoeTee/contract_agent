@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import time
 from pathlib import Path
+from threading import BoundedSemaphore, Lock
 
 from pydantic import BaseModel, ConfigDict
 
@@ -17,6 +19,7 @@ class EmbeddingSettings(BaseModel):
     base_url: str | None = None
     api_key: str = "EMPTY"
     timeout_seconds: float = 120.0
+    max_input_tokens: int = 8000
 
     @classmethod
     def from_sources(
@@ -39,11 +42,13 @@ class EmbeddingSettings(BaseModel):
             ),
             base_url=base_url or local_env.get("EMBEDDING_BASE") or os_env("EMBEDDING_BASE") or embedding.get("base_url"),
             api_key=api_key or local_env.get("EMBED_API_KEY") or os_env("EMBED_API_KEY") or "EMPTY",
+            timeout_seconds=float(embedding.get("timeout_seconds") or 120.0),
+            max_input_tokens=int(embedding.get("max_input_tokens") or 8000),
         )
 
 
 class EmbeddingClient:
-    def __init__(self, settings: EmbeddingSettings):
+    def __init__(self, settings: EmbeddingSettings, max_concurrency: int = 10):
         from openai import OpenAI
 
         self.settings = settings
@@ -53,6 +58,11 @@ class EmbeddingClient:
             timeout=settings.timeout_seconds,
             max_retries=0,
         )
+        self._limiter = BoundedSemaphore(max(1, max_concurrency))
+        self._start_lock = Lock()
+        self._next_start = 0.0
+        self._start_interval_seconds = 0.10
+        self._rate_limit_retries = 4
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
@@ -60,6 +70,33 @@ class EmbeddingClient:
         result = []
         for start in range(0, len(texts), EMBEDDING_BATCH_SIZE):
             batch = texts[start : start + EMBEDDING_BATCH_SIZE]
-            response = self.client.embeddings.create(model=self.settings.model, input=batch)
-            result.extend(list(item.embedding) for item in response.data)
+            result.extend(self.embed_batch(batch))
         return result
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+        for attempt in range(self._rate_limit_retries + 1):
+            self._wait_for_start_slot()
+            try:
+                with self._limiter:
+                    response = self.client.embeddings.create(model=self.settings.model, input=texts)
+                return [list(item.embedding) for item in response.data]
+            except Exception as exc:
+                if not _is_rate_limit_error(exc) or attempt >= self._rate_limit_retries:
+                    raise
+                time.sleep(2**attempt)
+        raise RuntimeError("unreachable embedding retry state")
+
+    def _wait_for_start_slot(self) -> None:
+        with self._start_lock:
+            now = time.monotonic()
+            start_at = max(now, self._next_start)
+            self._next_start = start_at + self._start_interval_seconds
+        delay = start_at - now
+        if delay > 0:
+            time.sleep(delay)
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    return getattr(exc, "status_code", None) == 429 or "429" in str(exc) or "Throttling.BurstRate" in str(exc)

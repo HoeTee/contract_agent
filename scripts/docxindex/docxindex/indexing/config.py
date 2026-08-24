@@ -45,9 +45,32 @@ class TableIndexConfig(BaseModel):
 class AttachmentIndexConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    llm_hierarchy_enabled: bool = True
-    input_max_tokens: int = Field(default=20000, ge=1000, le=26000)
     max_levels: int = Field(default=6, ge=1, le=6)
+
+
+class SummaryIndexConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    batch_max_nodes: int = Field(default=10, ge=1, le=20)
+    batch_max_tokens: int = Field(default=20000, ge=1000, le=100000)
+
+
+class HierarchyIndexConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    input_max_tokens: int = Field(default=20000, ge=1000, le=26000)
+    batch_target_tokens: int = Field(default=16000, ge=1000, le=26000)
+    batch_overlap_tokens: int = Field(default=800, ge=0, le=5000)
+    max_levels: int = Field(default=6, ge=1, le=6)
+    retry_count: int = Field(default=3, ge=1, le=5)
+
+    @model_validator(mode="after")
+    def validate_batch_budget(self) -> "HierarchyIndexConfig":
+        if self.batch_target_tokens > self.input_max_tokens:
+            raise ValueError("indexing.hierarchy.batch_target_tokens must not exceed input_max_tokens")
+        if self.batch_overlap_tokens >= self.batch_target_tokens:
+            raise ValueError("indexing.hierarchy.batch_overlap_tokens must be smaller than batch_target_tokens")
+        return self
 
 
 class HeadingProfileConfig(BaseModel):
@@ -84,7 +107,9 @@ class IndexingConfig(BaseModel):
 
     paragraph: ParagraphIndexConfig = Field(default_factory=ParagraphIndexConfig)
     table: TableIndexConfig = Field(default_factory=TableIndexConfig)
+    hierarchy: HierarchyIndexConfig = Field(default_factory=HierarchyIndexConfig)
     attachment: AttachmentIndexConfig = Field(default_factory=AttachmentIndexConfig)
+    summary: SummaryIndexConfig = Field(default_factory=SummaryIndexConfig)
     heading: HeadingIndexConfig = Field(default_factory=HeadingIndexConfig)
 
     @classmethod

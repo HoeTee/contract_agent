@@ -32,13 +32,20 @@ indexing:
   paragraph:
     split_threshold_tokens: 1000
     chunk_target_tokens: 700
+  hierarchy:
+    input_max_tokens: 20000
+    batch_target_tokens: 16000
+    batch_overlap_tokens: 800
+    max_levels: 6
+    retry_count: 3
   table:
     split_threshold_tokens: 20000
     chunk_target_tokens: 18000
   attachment:
-    llm_hierarchy_enabled: true
-    input_max_tokens: 20000
     max_levels: 6
+  summary:
+    batch_max_nodes: 10
+    batch_max_tokens: 20000
 
 routing:
   criteria: ../../resources/criteria/criteria-formal.docx
@@ -50,6 +57,7 @@ routing:
     rule: 执行全文精确关键词、正则、金额和存在性定位。
     join: 关联多个区域或节点，获取一致性比较所需的完整证据组。
     scan: 按原文顺序返回全部 anchor，用于逐批全文检查。
+    hybrid: 无法通过确定性标题、区域或关键词定位时，使用结构树语义选择并由向量补召回。
   llm_candidates: 12
   vector_candidates: 20
   vector_threshold: 0.45
@@ -59,3 +67,6 @@ concurrency:
   llm: 10
   embedding: 10
   reranker: 10
+
+embedding:
+  max_input_tokens: 8000

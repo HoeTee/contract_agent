@@ -17,7 +17,8 @@ from docxindex.llm.config import load_yaml
 
 
 DEFAULT_ROUTE_CONFIG = Path(__file__).resolve().parents[2] / "config.yaml"
-ROUTE_PROMPT_VERSION = "docx_route_v1"
+ROUTE_PROMPT_VERSION = "docx_route_v3"
+ROUTE_TITLE_MAX_DEPTH = 2
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 NUMBERED_CRITERION = re.compile(r"^\s*(\d{1,2})(?:\s*[.、．]\s*|\s+)(.+)$", re.S)
 
@@ -44,8 +45,8 @@ class RouteConfig(BaseModel):
             source = (config_path.parent / source).resolve()
         data["criteria"] = source
         config = cls.model_validate(data)
-        if set(config.methods) != {"title", "region", "rule", "join", "scan"}:
-            raise ValueError("route methods must be exactly: title, region, rule, join, scan")
+        if set(config.methods) != {"title", "region", "rule", "join", "scan", "hybrid"}:
+            raise ValueError("route methods must be exactly: title, region, rule, join, scan, hybrid")
         return config
 
 
@@ -67,7 +68,7 @@ def plan_route(
         query,
         text_hash(criterion),
         text_hash(json.dumps(config.methods, ensure_ascii=False, sort_keys=True)),
-        text_hash("\n".join(titles)),
+        text_hash(json.dumps(titles, ensure_ascii=False, sort_keys=True)),
     )
     cached = cache.get(key)
     if cached is None:
@@ -123,19 +124,53 @@ def _criterion_for_query(query: str, criteria: dict[int, str]) -> str:
     return criteria.get(int(match.group(1)), query) if match else query
 
 
-def _titles(nodes: list[dict[str, Any]]) -> list[str]:
-    result = []
+def _titles(
+    nodes: list[dict[str, Any]],
+    depth: int = 0,
+    parent_id: str | None = None,
+    region: str | None = None,
+) -> list[dict[str, Any]]:
+    if depth > ROUTE_TITLE_MAX_DEPTH:
+        return []
+    result: list[dict[str, Any]] = []
     for node in nodes:
         title = str(node.get("title") or "").strip()
         node_type = str(node.get("node_type") or "")
+        node_id = str(node.get("node_id") or "")
+        local_region = node_id if node_id in {"frontmatter", "body", "tail", "attachments"} else region
         if title and node_type not in {"body", "attachments"}:
-            result.append(title)
-        result.extend(_titles(node.get("nodes") or node.get("children") or []))
-    return result[:300]
+            result.append(
+                {
+                    "node_id": node_id,
+                    "title": title,
+                    "node_type": node_type,
+                    "depth": depth,
+                    "parent_id": parent_id,
+                    "region": local_region,
+                }
+            )
+        result.extend(
+            _titles(
+                node.get("nodes") or node.get("children") or [],
+                depth + 1,
+                node_id or parent_id,
+                local_region,
+            )
+        )
+    return result
 
 
-def _prompt(query: str, criterion: str, titles: list[str], config: RouteConfig) -> str:
+def _prompt(query: str, criterion: str, titles: list[dict[str, Any]], config: RouteConfig) -> str:
     methods = "\n".join(f"- {name}: {description}" for name, description in config.methods.items())
+    title_view = [
+        {
+            "title": item["title"],
+            "node_type": item["node_type"],
+            "depth": item["depth"],
+            "region": item["region"],
+        }
+        for item in titles
+    ]
     return f"""你是 DOCX 合同检索路由器，只规划检索方法，不审查合同，不选择 node_id。
 
 用户查询：
@@ -145,7 +180,7 @@ def _prompt(query: str, criterion: str, titles: list[str], config: RouteConfig) 
 {criterion}
 
 当前合同标题目录：
-{json.dumps(titles, ensure_ascii=False)}
+{json.dumps(title_view, ensure_ascii=False)}
 
 可用方法：
 {methods}
@@ -157,6 +192,7 @@ def _prompt(query: str, criterion: str, titles: list[str], config: RouteConfig) 
 - 精确关键词、金额、存在或不存在判断使用 rule，并在 terms 中列出需要原文匹配的短词。
 - 两个以上区域、首尾、正文与附件或多个证据角色需要联合判断时使用 join，并在 slots 中列出证据角色。
 - 错别字、语病或必须逐段通读全文的问题使用 scan，且不再组合其他步骤。
+- 标题、区域和精确关键词均无法可靠定位时使用 hybrid，并设置 fallback=true。
 - 只有确定性步骤不足以定位语义证据时 fallback=true。
 - 不得把审查结论写进检索计划。
 

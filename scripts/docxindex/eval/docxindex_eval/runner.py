@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import time
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -139,6 +140,19 @@ def _excerpt(text: str, limit: int = 180) -> str:
     return compact if len(compact) <= limit else f"{compact[:limit]}..."
 
 
+def _percentile(values: list[float], percentile: float) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return round(ordered[0], 3)
+    position = (len(ordered) - 1) * percentile
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    fraction = position - lower
+    return round(ordered[lower] + (ordered[upper] - ordered[lower]) * fraction, 3)
+
+
 def run_evaluation(
     config: EvalConfig,
     case_ids: set[str],
@@ -146,6 +160,7 @@ def run_evaluation(
     row_ranges: list[tuple[int, int]],
     no_build_cache: bool,
     no_query_cache: bool,
+    rebuild_indexes: bool,
     quiet: bool,
 ) -> int:
     started = time.perf_counter()
@@ -166,6 +181,7 @@ def run_evaluation(
     log_path = run_dir / "run.log"
     result_path = run_dir / "recall_results.csv"
     summary_path = run_dir / "summary.json"
+    contract_metrics_path = run_dir / "contract_metrics.json"
     by_path, by_name = _index_map(config.index_root)
     result_rows: list[dict[str, Any]] = []
     case_scores: list[float] = []
@@ -178,17 +194,24 @@ def run_evaluation(
     llm_queries = 0
     contract_indexes: dict[str, Path | None] = {}
     contract_errors: dict[str, str] = {}
+    contract_names: dict[str, str] = {}
+    contract_paths: dict[str, str] = {}
+    contract_build_seconds: dict[str, float | None] = {}
+    contract_retrieval_seconds: dict[str, list[float]] = defaultdict(list)
 
     with log_path.open("w", encoding="utf-8") as log:
         for case_id, gold_rows in cases.items():
             first = gold_rows[0]
             contract_key = str(Path(first.contract_path).resolve()).casefold()
+            contract_names[contract_key] = first.contract
+            contract_paths[contract_key] = str(Path(first.contract_path).resolve())
             index_dir = contract_indexes.get(contract_key)
             if contract_key not in contract_indexes:
-                index_dir = _resolve_index(first, by_path, by_name)
+                index_dir = None if rebuild_indexes else _resolve_index(first, by_path, by_name)
                 if index_dir is None:
                     try:
                         index_dir, build_stderr, build_elapsed = _build_index(config, first, no_build_cache)
+                        contract_build_seconds[contract_key] = build_elapsed
                         indexes_built += 1
                         build_line = f"[{case_id.rsplit('-', 1)[0]}] BUILD elapsed={build_elapsed:.3f}s output={index_dir}"
                         log.write(build_line + "\n")
@@ -200,14 +223,17 @@ def run_evaluation(
                         contract_errors[contract_key] = f"index build failed: {exc}"
                 else:
                     indexes_reused += 1
+                    contract_build_seconds.setdefault(contract_key, None)
                 contract_indexes[contract_key] = index_dir
             case_start = time.perf_counter()
             payload: dict[str, Any] = {"nodes": []}
             error = contract_errors.get(contract_key, "")
             stderr = ""
+            retrieval_elapsed = 0.0
             if index_dir is not None and not error:
                 try:
-                    payload, stderr, _ = _ask(config, index_dir, first.query, no_query_cache)
+                    payload, stderr, retrieval_elapsed = _ask(config, index_dir, first.query, no_query_cache)
+                    contract_retrieval_seconds[contract_key].append(retrieval_elapsed)
                     llm_queries += 1
                 except Exception as exc:
                     error = f"retrieval failed: {exc}"
@@ -233,6 +259,8 @@ def run_evaluation(
                         "retrieved_node_ids": json.dumps([node.get("node_id") for node in nodes], ensure_ascii=False),
                         "route_mode": json.dumps(payload.get("mode") or [], ensure_ascii=False),
                         "parts": payload.get("parts", 1),
+                        "index_build_seconds": contract_build_seconds.get(contract_key),
+                        "retrieval_seconds": retrieval_elapsed,
                         "elapsed_seconds": payload.get("elapsed_seconds", elapsed),
                         "error": error,
                     }
@@ -265,6 +293,26 @@ def run_evaluation(
                 for rank, node in enumerate(nodes, start=1):
                     print(f"  {rank}. {node.get('node_id')} {node.get('title') or ''}: {_excerpt(str(node.get('text') or ''))}")
 
+    contract_metrics = []
+    for contract_key, name in contract_names.items():
+        retrieval_values = contract_retrieval_seconds.get(contract_key, [])
+        build_seconds = contract_build_seconds.get(contract_key)
+        contract_metrics.append(
+            {
+                "contract": name,
+                "contract_path": contract_paths[contract_key],
+                "index_built": build_seconds is not None,
+                "build_seconds": build_seconds,
+                "retrieval_count": len(retrieval_values),
+                "retrieval_mean_seconds": round(sum(retrieval_values) / len(retrieval_values), 3) if retrieval_values else None,
+                "retrieval_p50_seconds": _percentile(retrieval_values, 0.50),
+                "retrieval_p95_seconds": _percentile(retrieval_values, 0.95),
+                "retrieval_max_seconds": round(max(retrieval_values), 3) if retrieval_values else None,
+            }
+        )
+
+    build_values = [value for value in contract_build_seconds.values() if value is not None]
+    retrieval_values = [value for values in contract_retrieval_seconds.values() for value in values]
     requested_positive_rows = [row for row in result_rows if int(row["label"]) == 1]
     positive_rows = [row for row in requested_positive_rows if not row["error"]]
     summary: dict[str, Any] = {
@@ -283,14 +331,22 @@ def run_evaluation(
         "selected_rows": len(rows),
         "no_build_cache": no_build_cache,
         "no_query_cache": no_query_cache,
+        "rebuild_indexes": rebuild_indexes,
         "indexes_built": indexes_built,
         "indexes_reused": indexes_reused,
         "llm_queries": llm_queries,
         "elapsed_seconds": round(time.perf_counter() - started, 3),
+        "build_time_p50_seconds": _percentile(build_values, 0.50),
+        "build_time_p95_seconds": _percentile(build_values, 0.95),
+        "build_time_max_seconds": round(max(build_values), 3) if build_values else None,
+        "retrieval_time_p50_seconds": _percentile(retrieval_values, 0.50),
+        "retrieval_time_p95_seconds": _percentile(retrieval_values, 0.95),
+        "retrieval_time_max_seconds": round(max(retrieval_values), 3) if retrieval_values else None,
         "strict_case_accuracy": round(strict_passes / positive_cases, 6) if positive_cases else 0.0,
         "macro_recall": round(sum(case_scores) / len(case_scores), 6) if case_scores else 0.0,
         "results_csv": str(result_path),
         "run_log": str(log_path),
+        "contract_metrics": str(contract_metrics_path),
     }
     for value in config.top_k:
         hits = sum(int(row.get(f"hit_at_{value}", 0)) for row in positive_rows)
@@ -299,5 +355,6 @@ def run_evaluation(
     summary["micro_recall"] = round(hits / len(positive_rows), 6) if positive_rows else 0.0
     write_results(result_path, result_rows)
     write_summary(summary_path, summary)
+    write_summary(contract_metrics_path, {"contracts": contract_metrics})
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0 if not any(row["error"] for row in result_rows) else 2

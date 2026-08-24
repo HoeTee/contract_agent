@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from pathlib import Path
+from threading import BoundedSemaphore, Lock
 from typing import Any, TypeVar
 
 from pydantic import BaseModel, ConfigDict, ValidationError
@@ -41,7 +43,7 @@ class LLMSettings(BaseModel):
 
 
 class LLMClient:
-    def __init__(self, settings: LLMSettings):
+    def __init__(self, settings: LLMSettings, max_concurrency: int = 10):
         from openai import OpenAI
 
         self.settings = settings
@@ -51,18 +53,41 @@ class LLMClient:
             timeout=settings.timeout_seconds,
             max_retries=0,
         )
+        self._limiter = BoundedSemaphore(max(1, max_concurrency))
+        self._start_lock = Lock()
+        self._next_start = 0.0
+        self._start_interval_seconds = 0.15
+        self._rate_limit_retries = 4
 
     def complete(self, prompt: str) -> str:
         extra_body = {}
         if self.settings.enable_thinking is not None:
             extra_body["enable_thinking"] = self.settings.enable_thinking
-        response = self.client.chat.completions.create(
-            model=self.settings.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=self.settings.temperature,
-            extra_body=extra_body or None,
-        )
-        return response.choices[0].message.content or ""
+        for attempt in range(self._rate_limit_retries + 1):
+            self._wait_for_start_slot()
+            try:
+                with self._limiter:
+                    response = self.client.chat.completions.create(
+                        model=self.settings.model,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=self.settings.temperature,
+                        extra_body=extra_body or None,
+                    )
+                return response.choices[0].message.content or ""
+            except Exception as exc:
+                if not _is_rate_limit_error(exc) or attempt >= self._rate_limit_retries:
+                    raise
+                time.sleep(2**attempt)
+        raise RuntimeError("unreachable LLM retry state")
+
+    def _wait_for_start_slot(self) -> None:
+        with self._start_lock:
+            now = time.monotonic()
+            start_at = max(now, self._next_start)
+            self._next_start = start_at + self._start_interval_seconds
+        delay = start_at - now
+        if delay > 0:
+            time.sleep(delay)
 
     def complete_json(self, prompt: str) -> dict[str, Any]:
         return extract_json_object(self.complete(prompt))
@@ -98,6 +123,10 @@ def extract_json_object(content: str) -> dict[str, Any]:
 
 
 TModel = TypeVar("TModel", bound=BaseModel)
+
+
+def _is_rate_limit_error(exc: Exception) -> bool:
+    return getattr(exc, "status_code", None) == 429 or "429" in str(exc) or "Throttling.BurstRate" in str(exc)
 
 
 def retry_prompt(original_prompt: str, schema: type[BaseModel], previous_content: str, error: Exception) -> str:
