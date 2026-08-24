@@ -458,6 +458,7 @@ def create_task(
     result_filename: str,
     result_path: Path,
     model_config_meta: dict[str, Any] | None = None,
+    meta_fields: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     task_api_log = task_api_events_path(client_dir, task_id)
     task_trace_log = task_trace_path(client_dir, task_id)
@@ -474,6 +475,7 @@ def create_task(
         "finished_at": None,
         "message": "Review job submitted.",
         "error": None,
+        "meta_fields": dict(meta_fields or {}),
         "input": {
             "contract_filename": contract_filename,
             "contract_path": str(contract_path),

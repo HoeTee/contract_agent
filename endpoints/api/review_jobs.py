@@ -23,6 +23,10 @@ from config import (
 )
 from endpoints.api.client_mapping import resolve_api_client
 from endpoints.review.job_worker import run_async_review_job
+from endpoints.review.meta import (
+    MetaFieldsValidationError,
+    extract_configured_meta_fields,
+)
 from endpoints.review.response import (
     present_review_task,
     present_submit_response,
@@ -316,6 +320,7 @@ async def submit_review_job(request: Request):
     criteria_filename = None
     selected_criteria_path = Path(DEFAULT_CRITERIA_PATH)
     request_model_config = None
+    meta_fields: dict[str, str] = {}
 
     if content_type.startswith("multipart/form-data"):
         form = await request.form()
@@ -331,6 +336,14 @@ async def submit_review_job(request: Request):
                 status_code=400,
                 code="MODEL_CONFIG_INVALID",
                 message=invalid_model_config,
+            )
+        try:
+            meta_fields = extract_configured_meta_fields(form)
+        except MetaFieldsValidationError as exc:
+            return _pre_task_error_response(
+                status_code=400,
+                code=exc.code,
+                message=exc.message,
             )
         if "file_url" in form or "criteria_file_url" in form:
             return _pre_task_error_response(
@@ -434,6 +447,14 @@ async def submit_review_job(request: Request):
                 status_code=400,
                 code="MODEL_CONFIG_INVALID",
                 message=invalid_model_config,
+            )
+        try:
+            meta_fields = extract_configured_meta_fields(payload)
+        except MetaFieldsValidationError as exc:
+            return _pre_task_error_response(
+                status_code=400,
+                code=exc.code,
+                message=exc.message,
             )
 
         file_url = payload.get("file_url")
@@ -595,6 +616,7 @@ async def submit_review_job(request: Request):
         result_filename=result_filename,
         result_path=result_path,
         model_config_meta=_model_config_meta(request_model_config),
+        meta_fields=meta_fields,
     )
     if request_model_config:
         save_task_model_config(client.client_dir, task_id, request_model_config)
@@ -662,7 +684,7 @@ async def submit_review_job(request: Request):
 async def get_review_job(request: Request, task_id: str):
     client = await resolve_api_client(request)
     task = _read_api_task_or_404(client.client_dir, task_id)
-    return pretty_json_response(present_review_task(task))
+    return pretty_json_response(present_review_task(task, include_meta_fields=True))
 
 
 @api_jobs_router.post("/api/review/jobs/status")
@@ -671,7 +693,7 @@ async def get_review_job_by_body(request: Request):
     payload = await _json_body(request, allow_empty=False, context="Status request")
     task_id = _task_id_from_payload(payload)
     task = _read_api_task_or_404(client.client_dir, task_id)
-    return pretty_json_response(present_review_task(task))
+    return pretty_json_response(present_review_task(task, include_meta_fields=True))
 
 
 @api_jobs_router.post("/api/review/jobs/{task_id}/result")

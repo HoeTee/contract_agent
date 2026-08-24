@@ -103,6 +103,8 @@ Authorization: <api_key>
 
 如果 `api.require_request_model_config: false`，服务采用根目录 `.env` 中的模型密钥和 `config.yaml` 中的模型名称，请求体中的上述字段不会被使用。Reranker 请求体风格不由客户传入，服务会根据 `reranker_model_name` 在 `config.yaml` 的 `rerank.provider_model_names` 中查找对应 provider。
 
+`api.meta_fields` 定义任务提交接口接受的业务元字段。当前配置为 `templateCode` 和 `serialNo`。`api.meta_required: true` 时，所有配置字段必须是非空字符串，缺少或空白会在生成 `task_id` 前返回 `400`。`api.meta_required: false` 时字段可选，传入的值仍会保存到任务状态中；无论是否必填，已传入的字段都必须是字符串。
+
 **本地文件上传**
 
 ```http
@@ -117,6 +119,8 @@ Authorization: <api_key>
 | --- | --- | --- | --- |
 | `file` | DOCX 文件 | 是 | 待审查的合同文件。 |
 | `criteria_file` | DOCX 文件 | 否 | 本次审查标准；不传时使用默认审查标准。 |
+| `templateCode` | 字符串 | 由 `api.meta_required` 决定 | 业务模板编号。 |
+| `serialNo` | 字符串 | 由 `api.meta_required` 决定 | 业务流水号。 |
 
 PowerShell 示例：
 
@@ -125,6 +129,8 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
   -H "Authorization: platform-key-for-client-a" `
   -F "file=@C:/Users/lenovo/Desktop/contract.docx" `
   -F "criteria_file=@C:/Users/lenovo/Desktop/criteria.docx" `
+  -F "templateCode=template_001" `
+  -F "serialNo=serial_001" `
   -F "llm_api_key=<llm_api_key>" `
   -F "llm_model_name=<llm_model_name>" `
   -F "embedding_api_key=<embedding_api_key>" `
@@ -147,6 +153,8 @@ Authorization: <api_key>
 | --- | --- | --- | --- |
 | `file_url` | URL 字符串 | 是 | 待审查合同 DOCX 的下载地址。 |
 | `criteria_file_url` | URL 字符串 | 否 | 本次审查标准 DOCX 的下载地址；不传时使用默认审查标准。 |
+| `templateCode` | 字符串 | 由 `api.meta_required` 决定 | 业务模板编号。 |
+| `serialNo` | 字符串 | 由 `api.meta_required` 决定 | 业务流水号。 |
 
 PowerShell 示例：
 
@@ -154,10 +162,10 @@ PowerShell 示例：
 curl.exe -X POST "http://localhost:5000/api/review/jobs" `
   -H "Authorization: platform-key-for-client-a" `
   -H "Content-Type: application/json" `
-  -d '{ "file_url": "https://example.com/contract.docx", "criteria_file_url": "https://example.com/criteria.docx", "llm_api_key": "<llm_api_key>", "llm_model_name": "<llm_model_name>", "embedding_api_key": "<embedding_api_key>", "embedding_model_name": "<embedding_model_name>", "reranker_api_key": "<reranker_api_key>", "reranker_model_name": "<reranker_model_name>" }'
+  -d '{ "file_url": "https://example.com/contract.docx", "criteria_file_url": "https://example.com/criteria.docx", "templateCode": "template_001", "serialNo": "serial_001", "llm_api_key": "<llm_api_key>", "llm_model_name": "<llm_model_name>", "embedding_api_key": "<embedding_api_key>", "embedding_model_name": "<embedding_model_name>", "reranker_api_key": "<reranker_api_key>", "reranker_model_name": "<reranker_model_name>" }'
 ```
 
-`application/json` 只支持 URL 输入：`file_url` 必填，`criteria_file_url` 可选。URL 文件会先下载到任务 `input/` 目录，再执行与本地上传一致的 DOCX 校验。保存文件名优先使用下载响应 `Content-Disposition` 中的 `filename*` / `filename`，没有时使用最终 URL path、原始 URL path，仍取不到时使用默认 fallback。
+`application/json` 的文件输入只支持 URL：`file_url` 必填，`criteria_file_url` 可选；此外可以传入配置的业务元字段，以及启用请求级模型配置时所需的模型字段。URL 文件会先下载到任务 `input/` 目录，再执行与本地上传一致的 DOCX 校验。保存文件名优先使用下载响应 `Content-Disposition` 中的 `filename*` / `filename`，没有时使用最终 URL path、原始 URL path，仍取不到时使用默认 fallback。
 
 **成功响应**
 
@@ -218,12 +226,13 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs" `
 | `202` | 任务已接收。 | 任务 ID、初始状态和消息。 |
 | `400` | JSON body 不是合法 JSON object、提交接口缺少 `file_url`、或把状态查询 body 错发到提交接口。 | `{ "detail": "..." }` 或不含 `task_id` 的错误结构。 |
 | `400` | `api.require_request_model_config=true` 时缺少请求级模型配置字段，或 `reranker_model_name` 不在 `rerank.provider_model_names` 映射中。 | 不进入任务生命周期，不返回 `task_id`。 |
+| `400` | `api.meta_required=true` 时缺少配置的元字段，或传入的元字段不是字符串。 | 不进入任务生命周期，不返回 `task_id`。 |
 | `400` | 已生成 `task_id` 后，合同或审查标准不是有效 DOCX，或审查标准内容不符合要求。 | `{ "task_id": "...", "status": "failed", "message": "...", "error": {...} }` |
 | `415` | 请求 `Content-Type` 不受支持。 | 不进入任务生命周期，不返回 `task_id`。 |
 | `502` | 已生成 `task_id` 后，合同 URL 或审查标准 URL 下载失败。 | `{ "task_id": "...", "status": "failed", "message": "...", "error": {...} }` |
 | `400` | 未传 `Authorization`，或平台 key 没有本地客户映射。 | `{ "detail": "Authorization header is required." }` 或 `{ "detail": "API key has no local client mapping." }` |
 | `403` | 该客户映射已禁用。 | `{ "detail": "API client mapping is disabled." }` |
-| `422` | 缺少必填的 `file` multipart 字段，或请求字段无法解析。 | FastAPI 校验详情。 |
+| `400` | 缺少必填的 `file` multipart 字段。 | 不含 `task_id` 的 `FILE_REQUIRED` 错误结构。 |
 | `500` | 客户鉴权映射格式错误或密钥匹配到多个客户。 | `{ "detail": "..." }` |
 
 ## 4. 查询任务状态
@@ -262,6 +271,10 @@ curl.exe -X POST "http://localhost:5000/api/review/jobs/status" `
   "finished_at": null,
   "message": "Contract review is running.",
   "error": null,
+  "meta_fields": {
+    "templateCode": "template_001",
+    "serialNo": "serial_001"
+  },
   "input": {
     "contract_filename": "contract.docx",
     "criteria_source": "default",
@@ -308,7 +321,7 @@ Authorization: <api_key>
 | `file` | DOCX 文件流 | 使用 `-o` 或等价方式保存为 `.docx` 文件。 |
 | `url` | JSON | 读取响应中的 `url` 字段。 |
 
-不传请求体时，使用 `api.result_output_default`。默认配置为 `file`，兼容已有调用方。
+`task_id` 必填；`output_type` 可省略，省略时使用 `api.result_output_default`。默认配置为 `file`，兼容已有调用方。主接口不能省略整个请求体。
 
 **文件流输出**
 

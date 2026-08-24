@@ -111,6 +111,7 @@ async def review_for_oa(
             criteria_path=selected_criteria_path,
             result_filename=response_filename,
             result_path=result_path,
+            meta_fields=meta_fields,
         )
         task_created = True
 
