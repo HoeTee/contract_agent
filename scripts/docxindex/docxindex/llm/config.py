@@ -49,6 +49,25 @@ def load_yaml(path: Path | None) -> dict[str, Any]:
     return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
 
 
+def docxindex_config(raw: dict[str, Any]) -> dict[str, Any]:
+    """Return the docxindex section from the main project configuration.
+
+    Legacy standalone-shaped dictionaries are accepted for library tests, but
+    runtime configuration is sourced from retrieval.docxindex in the project
+    root config.yaml.
+    """
+    retrieval = raw.get("retrieval")
+    if isinstance(retrieval, dict) and isinstance(retrieval.get("docxindex"), dict):
+        return dict(retrieval["docxindex"])
+    if isinstance(retrieval, dict):
+        legacy = dict(retrieval)
+        for key in ("indexing", "routing", "concurrency"):
+            if key in raw:
+                legacy[key] = raw[key]
+        return legacy
+    return raw
+
+
 def env_api_key() -> str:
     return (
         os.getenv("OPENAI_API_KEY")

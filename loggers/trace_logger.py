@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from config import ENABLE_WORKFLOW_LOGS
+from config import LOGGING_ENABLED
 from loggers.trace_helpers import error_info
 
 
@@ -38,7 +38,7 @@ class TraceLogger:
         trace_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
-        self.path = Path(path) if path and ENABLE_WORKFLOW_LOGS else None
+        self.path = Path(path) if path and LOGGING_ENABLED else None
         self.trace_id = trace_id or uuid.uuid4().hex
         self.metadata = metadata or {}
         self.runs: list[dict[str, Any]] = []

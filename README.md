@@ -59,7 +59,8 @@ SESSION_SECRET_KEY=replace-with-a-long-random-secret
 - `rerank`：reranker 地址、模型名、provider 模型名映射和可选 instruction。
 - `workflow`：并发、重试、超时和 subagent 工具白名单。
 - `api`：异步 API 文件留存、结果 URL 上传、元数据字段、回调和 URL 下载限制。
-- `logging`：工作流日志开关。
+- `retrieval`：选择 `llamaindex` 或 `docxindex`，并配置两套检索参数。
+- `logging`：API events、workflow、trace、MCP 和 conversation 的统一日志开关。
 
 reranker 配置说明见 [docs/RERANKER_CONFIGURATION.md](docs/RERANKER_CONFIGURATION.md)。
 

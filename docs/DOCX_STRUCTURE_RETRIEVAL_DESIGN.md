@@ -455,7 +455,8 @@ DOCX 检索不照搬字符数，统一使用 token 预算：
 
 ```yaml
 retrieval:
-  input_tokens: 6000
+  docxindex:
+    input_tokens: 6000
 ```
 
 含义：
@@ -743,14 +744,14 @@ metadata.end_anchor = node.end_anchor
 
 ```yaml
 retrieval:
-  input_tokens: 6000
-  max_depth: 6
-  vector:
-    enabled: true
-    score_threshold: 0.60
-    auto_build: true
-  rerank:
-    enabled: true
+  docxindex:
+    input_tokens: 6000
+    vector:
+      enabled: true
+      score_threshold: 0.60
+      auto_build: true
+    rerank:
+      enabled: true
 ```
 
 向量召回以 token 预算控制，不以固定 node 数作为主要控制：
@@ -760,7 +761,7 @@ retrieval:
 2. 对 vector_index.json 中的 node embedding 计算相似度。
 3. 过滤 score < vector.score_threshold 的候选。
 4. 按相似度从高到低累计候选轻量字段。
-5. 累计到 retrieval.input_tokens 后停止。
+5. 累计到 retrieval.docxindex.input_tokens 后停止。
 ```
 
 合并不是合并原文，也不是合并索引。合并只做：

@@ -12,6 +12,7 @@ llm:
 embedding:
   base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
   name: "text-embedding-v4"
+  max_input_tokens: 8000
 
 rerank:
   base_url: "http://higress.llmgateway.dev.qa.zrub.com/v1/rerank"
@@ -33,7 +34,7 @@ workflow:
   model_call_max_retries: 5
   criterion_retry_max_attempts: 2
   subagent_allowed_tools:
-    - "llamaindex_search"
+    - "contract_search"
 
 queue:
   enabled: true
@@ -66,16 +67,74 @@ model_semaphore:
     poll_interval_seconds: 0.2
 
 retrieval:
-  chunk_size: 512
-  chunk_overlap: 100
-  similarity_top_k: 10
-  rerank_top_n: 5
+  backend: "llamaindex"
+  llamaindex:
+    chunk_size: 512
+    chunk_overlap: 100
+    similarity_top_k: 10
+    rerank_top_n: 5
+  docxindex:
+    input_tokens: 20000
+    output_tokens: 12000
+    scan_batch_tokens: 12000
+    vector:
+      enabled: true
+      score_threshold: 0.60
+      auto_build: true
+    rerank:
+      enabled: true
+    indexing:
+      heading:
+        profiles:
+          primary:
+            level_1_examples: ["第一条 合同内容"]
+            level_2_examples: ["一、合同总价"]
+            level_3_examples: ["（一）付款条件"]
+          variant_1:
+            level_1_examples: ["一、合作背景"]
+            level_2_examples: ["（一）通信业务合作", "（3）新技术与新业务合作"]
+            level_3_examples: ["1. 基础服务", "2、增值服务"]
+      paragraph:
+        split_threshold_tokens: 1000
+        chunk_target_tokens: 700
+      hierarchy:
+        input_max_tokens: 20000
+        batch_target_tokens: 16000
+        batch_overlap_tokens: 800
+        max_levels: 6
+        retry_count: 3
+      table:
+        split_threshold_tokens: 20000
+        chunk_target_tokens: 18000
+      attachment:
+        max_levels: 6
+      summary:
+        batch_max_nodes: 10
+        batch_max_tokens: 20000
+    routing:
+      criteria: "resources/criteria/criteria-formal.docx"
+      expected_criteria_count: 18
+      fallback_enabled: true
+      methods:
+        title: "检查目录、标题、章节名称、必备标题和标题顺序。"
+        region: "获取合同首部、正文末端、签署页，或明确标题下的完整内容。"
+        rule: "执行全文精确关键词、正则、金额和存在性定位。"
+        join: "关联多个区域或节点，获取一致性比较所需的完整证据组。"
+        scan: "按原文顺序返回全部 anchor，用于逐批全文检查。"
+        hybrid: "无法通过确定性标题、区域或关键词定位时，使用结构树语义选择并由向量补召回。"
+      llm_candidates: 12
+      vector_candidates: 20
+      vector_threshold: 0.45
+      max_nodes: 5
+    concurrency:
+      llm: 10
+      embedding: 10
+      reranker: 10
 
 api:
   require_request_model_config: false
   keep_input: true
   keep_output: true
-  write_logs: true
   result_output_default: "file"
   result_upload_enabled: false
   result_upload_domain: "http://64.202.33.42:30843"
@@ -96,4 +155,4 @@ docx:
   comment_include_criterion: false
 
 logging:
-  enable_workflow_logs: false
+  enabled: false

@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from config import ENABLE_WORKFLOW_LOGS, MAX_CONTEXT_TOKENS
+from config import LOGGING_ENABLED, MAX_CONTEXT_TOKENS
 
 
 class WorkflowLogger:
@@ -16,7 +16,7 @@ class WorkflowLogger:
         "mcp_connect",
         "ingest_file(criteria)",
         "ingest_file(contract)",
-        "llamaindex_build_index",
+        "contract_build_index",
         "design_tasks",
         "execute_criteria_complete",
         "compile_summary_comment",
@@ -40,7 +40,7 @@ class WorkflowLogger:
         tokens: int = 0,
         duration: float = 0.0,
     ) -> None:
-        if not ENABLE_WORKFLOW_LOGS:
+        if not LOGGING_ENABLED:
             return
 
         ctx_pct = ""
@@ -135,7 +135,7 @@ class WorkflowLogger:
         return "\n".join(blocks)
 
     def save(self) -> str | None:
-        if not ENABLE_WORKFLOW_LOGS:
+        if not LOGGING_ENABLED:
             return None
         if self.log_dir is None:
             raise ValueError("WorkflowLogger.log_dir is required when file logging is enabled.")
@@ -169,7 +169,7 @@ class WorkflowLogger:
 
 
 def save_review_outputs_json(results: list[dict], path: str | Path) -> str | None:
-    if not ENABLE_WORKFLOW_LOGS:
+    if not LOGGING_ENABLED:
         return None
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)

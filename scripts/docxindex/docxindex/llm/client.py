@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import time
+from contextlib import nullcontext
 from pathlib import Path
 from threading import BoundedSemaphore, Lock
 from typing import Any, TypeVar
@@ -67,12 +69,13 @@ class LLMClient:
             self._wait_for_start_slot()
             try:
                 with self._limiter:
-                    response = self.client.chat.completions.create(
-                        model=self.settings.model,
-                        messages=[{"role": "user", "content": prompt}],
-                        temperature=self.settings.temperature,
-                        extra_body=extra_body or None,
-                    )
+                    with _global_model_slot("llm", "DocxIndexLLM", self.settings.model):
+                        response = self.client.chat.completions.create(
+                            model=self.settings.model,
+                            messages=[{"role": "user", "content": prompt}],
+                            temperature=self.settings.temperature,
+                            extra_body=extra_body or None,
+                        )
                 return response.choices[0].message.content or ""
             except Exception as exc:
                 if not _is_rate_limit_error(exc) or attempt >= self._rate_limit_retries:
@@ -127,6 +130,14 @@ TModel = TypeVar("TModel", bound=BaseModel)
 
 def _is_rate_limit_error(exc: Exception) -> bool:
     return getattr(exc, "status_code", None) == 429 or "429" in str(exc) or "Throttling.BurstRate" in str(exc)
+
+
+def _global_model_slot(model_type: str, caller_name: str, model: str):
+    if "config" not in sys.modules:
+        return nullcontext()
+    from endpoints.runtime.llm_semaphore import model_semaphore_sync
+
+    return model_semaphore_sync(model_type, caller_name, model)
 
 
 def retry_prompt(original_prompt: str, schema: type[BaseModel], previous_content: str, error: Exception) -> str:

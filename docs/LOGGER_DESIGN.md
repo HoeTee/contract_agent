@@ -24,7 +24,7 @@ data/<username>/logs/<YYYY-MM-DD>/<task_id>/
 data/api/<task_id>/logs/
 ```
 
-该目录只在 `config.yaml` 中 `api.write_logs: true` 时写入；关闭时 API 任务不会创建 `events.log`、`trace.json`、`review_outputs.json`、`mcp.log`、conversation 日志，`task.json.logs.*` 为 `null`。
+该目录只在 `config.yaml` 中 `logging.enabled: true` 时写入；关闭时 API 任务不会创建 `events.log`、`trace.json`、`review_outputs.json`、`mcp.log`、conversation 日志，`task.json.logs.*` 为 `null`。
 
 `<任务目录>` 由 `endpoints/review/task_store.py` 生成，格式为 `YYYYMMDD-HHMMSS-xxxx`。直接 API 的完整接口和错误响应说明见 `docs/API_REVIEW_ENDPOINT.md`。
 
@@ -193,7 +193,7 @@ trace.json
 单次审查任务的树状执行轨迹。每个 run 都包含 id、parent_id、name、type、status、start_time、end_time、duration_seconds、inputs、outputs、metadata 和 error。
 ```
 
-`name` 由埋点位置决定，例如 `workflow.run`、`phase.execute`、`criterion.C1`、`llm.SubAgent_C1`、`mcp.llamaindex_search`。`inputs` 和 `outputs` 由 `trace_helpers.py` 做摘要化生成，避免把完整合同、完整检索结果和密钥写入 trace。任务总览字段放在 `workflow.run.outputs`，完整审查结构放在 `review_outputs.json`。
+`name` 由埋点位置决定，例如 `workflow.run`、`phase.execute`、`criterion.C1`、`llm.SubAgent_C1`、`mcp.contract_search`。`inputs` 和 `outputs` 由 `trace_helpers.py` 做摘要化生成，避免把完整合同、完整检索结果和密钥写入 trace。任务总览字段放在 `workflow.run.outputs`，完整审查结构放在 `review_outputs.json`。
 
 ## API 事件日志
 
@@ -260,10 +260,11 @@ URL 下载或结果上传失败事件会记录上游 HTTP 状态码；连接失�
 
 ## 日志开关
 
-`.env` 中的配置控制是否写入任务日志：
+根目录 `config.yaml` 中的唯一开关控制是否写入任务日志：
 
-```env
-ENABLE_WORKFLOW_LOGS=True
+```yaml
+logging:
+  enabled: true
 ```
 
-如果设置为 `False`，任务目录仍可能被创建，但 `events.log`、`trace.json`、`review_outputs.json`、`mcp.log`、`conversations/` 下不会写入任务日志。
+如果设置为 `false`，任务目录仍会用于状态和结果，但不会创建 `logs/` 及其中的 `events.log`、`trace.json`、`review_outputs.json`、`mcp.log`、`conversations/`。

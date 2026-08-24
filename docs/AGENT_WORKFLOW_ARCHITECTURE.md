@@ -6,14 +6,14 @@
 
 `ContractReviewWorkflow` 是单次合同审查的总编排层。它只负责阶段顺序、进度上报、日志和最终结果组装；解析、检索、逐条审查、汇总等细节交给各 agent 和 MCP 工具。
 
-当前是简化工作流：没有 web search，也没有接入制度 RAG，检索模式固定为 LlamaIndex。
+当前是简化工作流：没有 web search，也没有接入制度 RAG；合同检索由 `retrieval.backend` 在 LlamaIndex 和 docxindex 之间选择。
 
 ## 工作流 6 个阶段
 
 | 阶段 | 实现 | 说明 |
 | --- | --- | --- |
 | 1. 解析 ingest | MCP `ingest_file` | 把合同和审查标准 DOCX 转成 markdown |
-| 2. 建索引 build_index | MCP `llamaindex_build_index` | 为合同 DOCX XML anchor 节点建临时 LlamaIndex 向量索引 |
+| 2. 建索引 build_index | MCP `contract_build_index` | 按 `retrieval.backend` 为合同建立临时 LlamaIndex 或 docxindex 索引 |
 | 3. 规划 plan | `PlannerAgent.design_tasks` | 把审查标准 markdown 拆成结构化任务 `criteria_list` |
 | 4. 执行+反思 execute | `OrchestratorAgent.execute_criteria` | 逐条审查标准，产出 `results` |
 | 5. 汇总 summarize | `SummarizerAgent.compile_summary_comment` | 由 `results` 生成 `summary_sections` |
@@ -79,7 +79,7 @@ class SummaryOutput:
 
 `OrchestratorAgent.execute_single_criterion` 负责一条审查标准的完整处理：
 
-1. 检索：调用 MCP `llamaindex_search`（query = 标准 + 检查要点），得到合同相关片段 `context`。检索结果会加一段 guardrail 提示，防止把“检索结果 1/2”“相关度分数”等检索包装文本误当成合同条款位置，并提供 `xml_anchor_type/xml_anchor_id` 给 SubAgent 复用。
+1. 检索：调用 MCP `contract_search`（query = 标准 + 检查要点），由 `retrieval.backend` 选择 LlamaIndex 或 docxindex，得到合同相关片段 `context`。检索结果会加一段 guardrail 提示，并提供 `xml_anchor_type/xml_anchor_id` 给 SubAgent 复用。
 2. SubAgent 审查：以 `SUB_AGENT_BASE_PROMPT` 创建 `SubAgent_<cid>`，只向模型暴露 `workflow.subagent_allowed_tools` 白名单中的 MCP 工具，输出 `SubAgentOutput`，`status` 为 `compliant` / `issues_found` / `not_applicable`，`issues[].anchors` 含 `xml_anchor_type`、`xml_anchor_id`、`quoted_text`、`comment_text` 等字段。
 3. 若 `status == compliant`：短路，跳过反思直接返回。
 4. 否则进入反思循环，最多 `MAX_REFLECTION_ROUNDS` 轮：
@@ -143,13 +143,13 @@ MCP server 可以暴露多个工具，但 SubAgent 不直接继承完整 MCP 工
 ```yaml
 workflow:
   subagent_allowed_tools:
-    - "llamaindex_search"
+    - "contract_search"
 ```
 
 字段含义：
 
 - `workflow.subagent_allowed_tools`：SubAgent 可见 MCP 工具白名单。
-- 配置缺失时默认只允许 `llamaindex_search`。
+- 配置缺失时默认只允许 `contract_search`。
 - 配置为空列表时，SubAgent 不可调用任何 MCP 工具。
 - 配置了 MCP server 未暴露的工具名时，该工具不会传给 SubAgent，程序不会回退为完整工具列表。
 

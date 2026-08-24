@@ -182,7 +182,7 @@ attachments  附件
 ```text
 从 document.xml 开始扫描；
 遇到第一个正式正文标题后，之前内容归入 frontmatter；
-正式正文标题使用 `config.yaml -> indexing.heading.profiles` 配置的编号体系。程序从示例确定性生成编号正则，并自动选择匹配正文结构的 profile。
+正式正文标题使用项目根目录 `config.yaml -> retrieval.docxindex.indexing.heading.profiles` 配置的编号体系。程序从示例确定性生成编号正则，并自动选择匹配正文结构的 profile。
 ```
 
 ### 6.2 正文 Body
@@ -756,7 +756,6 @@ retrieval:
   input_tokens: 20000
   output_tokens: 12000
   scan_batch_tokens: 12000
-  max_depth: 6
   vector:
     enabled: true
     score_threshold: 0.60

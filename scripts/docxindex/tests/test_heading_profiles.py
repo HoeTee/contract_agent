@@ -81,7 +81,7 @@ class HeadingProfileTest(unittest.TestCase):
         self.assertEqual(selected.profile.name, "primary")
 
     def test_project_config_contains_profiles_without_selection(self) -> None:
-        config = IndexingConfig.from_sources(PROJECT_DIR / "config.yaml")
+        config = IndexingConfig.from_sources(PROJECT_DIR.parents[1] / "config.yaml")
 
         self.assertEqual(list(config.heading.profiles), ["primary", "variant_1"])
         self.assertFalse(hasattr(config.heading, "selection"))

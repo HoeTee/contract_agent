@@ -11,6 +11,7 @@ from config import (
     CRITERION_RETRY_MAX_ATTEMPTS,
     MAX_REFLECTION_ROUNDS,
     MAX_ORCHESTRATOR_CONCURRENCY,
+    RETRIEVAL_BACKEND,
     SUBAGENT_ALLOWED_TOOLS,
 )
 from agents.base_agent import Agent
@@ -112,22 +113,25 @@ class OrchestratorAgent:
         search_query = f"{criterion_text}\n检查要点：{check_points_text}"
         retrieval_tokens = 0
 
-        print(f"[Orchestrator] {cid}: Searching contract via temporary LlamaIndex...")
+        print(f"[Orchestrator] {cid}: Searching contract via temporary {RETRIEVAL_BACKEND} index...")
         search_result = await self.mcp_client.call_tool(
-            "llamaindex_search",
+            "contract_search",
             {
                 "query": search_query,
                 "api_events_path": self.api_events_path,
             },
         )
         if isinstance(search_result, str) and search_result.startswith("Error"):
-            raise classify_model_call_error(search_result, default_component="embedding")
+            raise classify_model_call_error(
+                search_result,
+                default_component="embedding" if RETRIEVAL_BACKEND == "llamaindex" else "agent",
+            )
         context = search_result if search_result else "未找到相关内容。"
 
         if self.logger:
             self.logger.log(
-                phase="Execute", sender="Orchestrator", receiver="MCP:llamaindex_search",
-                action=f"llamaindex_search({cid})",
+                phase="Execute", sender="Orchestrator", receiver="MCP:contract_search",
+                action=f"contract_search({RETRIEVAL_BACKEND},{cid})",
                 input_summary=criterion_text,
                 output_summary=f"{len(context)} chars retrieved",
                 duration=round(time.time() - start, 2)
@@ -176,14 +180,17 @@ class OrchestratorAgent:
                 f"所属审查标准：{criterion_text}"
             )
             search_result = await self.mcp_client.call_tool(
-                "llamaindex_search",
+                "contract_search",
                 {
                     "query": search_query,
                     "api_events_path": self.api_events_path,
                 },
             )
             if isinstance(search_result, str) and search_result.startswith("Error"):
-                raise classify_model_call_error(search_result, default_component="embedding")
+                raise classify_model_call_error(
+                    search_result,
+                    default_component="embedding" if RETRIEVAL_BACKEND == "llamaindex" else "agent",
+                )
 
             context = self._prepare_review_context(search_result or "未找到相关内容。")
             notes.append(
@@ -222,7 +229,7 @@ class OrchestratorAgent:
     ) -> dict:
         """
         Review a single criterion:
-        1. Retrieve relevant contract sections from the temporary LlamaIndex index
+        1. Retrieve relevant contract sections from the configured temporary index
         2. Create sub-agent with context
         3. Run reflector loop until PASS or max rounds
         """

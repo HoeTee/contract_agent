@@ -10,10 +10,10 @@ from docxindex.detection.heading_profiles import (
     CompiledHeadingProfile,
     compile_heading_profile,
 )
-from docxindex.llm.config import load_yaml
+from docxindex.llm.config import docxindex_config, load_yaml
 
 
-DEFAULT_INDEXING_CONFIG = Path(__file__).resolve().parents[2] / "config.yaml"
+DEFAULT_INDEXING_CONFIG = Path(__file__).resolve().parents[4] / "config.yaml"
 
 
 class ParagraphIndexConfig(BaseModel):
@@ -115,5 +115,5 @@ class IndexingConfig(BaseModel):
     @classmethod
     def from_sources(cls, config_path: Path | None = None) -> "IndexingConfig":
         raw = load_yaml(config_path or DEFAULT_INDEXING_CONFIG)
-        data: dict[str, Any] = dict(raw.get("indexing") or {})
+        data: dict[str, Any] = dict(docxindex_config(raw).get("indexing") or {})
         return cls.model_validate(data)

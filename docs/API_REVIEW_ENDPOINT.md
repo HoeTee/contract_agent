@@ -139,9 +139,10 @@ data/api/<task_id>/
 api:
   keep_input: true
   keep_output: true
-  write_logs: true
+logging:
+  enabled: true
 ```
 
 - `output/` 会先写入结果文件；`api.keep_output=false` 时，URL 输出上传成功后清理本地结果文件。
 - `input/` 是否保留由 `api.keep_input` 控制。
-- `logs/` 是否写入由 `api.write_logs` 控制。
+- `logs/` 及其中的 API events、workflow、trace、MCP、conversation 日志统一由 `logging.enabled` 控制。

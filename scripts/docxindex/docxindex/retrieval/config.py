@@ -5,10 +5,10 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from docxindex.llm.config import load_yaml
+from docxindex.llm.config import docxindex_config, load_yaml
 
 
-DEFAULT_RETRIEVAL_CONFIG = Path(__file__).resolve().parents[2] / "config.yaml"
+DEFAULT_RETRIEVAL_CONFIG = Path(__file__).resolve().parents[4] / "config.yaml"
 
 
 class VectorRetrievalConfig(BaseModel):
@@ -39,7 +39,6 @@ class RetrievalConfig(BaseModel):
     input_tokens: int = Field(default=20000, ge=500)
     output_tokens: int = Field(default=12000, ge=500)
     scan_batch_tokens: int = Field(default=12000, ge=500)
-    max_depth: int = Field(default=6, ge=1)
     vector: VectorRetrievalConfig = Field(default_factory=VectorRetrievalConfig)
     rerank: RerankConfig = Field(default_factory=RerankConfig)
     concurrency: ConcurrencyConfig = Field(default_factory=ConcurrencyConfig)
@@ -55,10 +54,15 @@ class RetrievalConfig(BaseModel):
         rerank_enabled: bool | None = None,
     ) -> "RetrievalConfig":
         raw = load_yaml(config_path or DEFAULT_RETRIEVAL_CONFIG)
-        data: dict[str, Any] = dict(raw.get("retrieval") or {})
+        section = docxindex_config(raw)
+        data: dict[str, Any] = {
+            key: value
+            for key, value in section.items()
+            if key in {"input_tokens", "output_tokens", "scan_batch_tokens", "vector", "rerank"}
+        }
         vector = dict(data.get("vector") or {})
         rerank = dict(data.get("rerank") or {})
-        concurrency = dict(raw.get("concurrency") or {})
+        concurrency = dict(section.get("concurrency") or {})
 
         if input_tokens is not None:
             data["input_tokens"] = input_tokens

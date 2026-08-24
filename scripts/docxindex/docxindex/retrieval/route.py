@@ -13,10 +13,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from docxindex.llm import LLMClient
 from docxindex.llm.cache import JsonlCache, cache_key, text_hash
 from docxindex.llm.schemas import RouteResponse
-from docxindex.llm.config import load_yaml
+from docxindex.llm.config import docxindex_config, load_yaml
 
 
-DEFAULT_ROUTE_CONFIG = Path(__file__).resolve().parents[2] / "config.yaml"
+DEFAULT_ROUTE_CONFIG = Path(__file__).resolve().parents[4] / "config.yaml"
 ROUTE_PROMPT_VERSION = "docx_route_v3"
 ROUTE_TITLE_MAX_DEPTH = 2
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -39,7 +39,7 @@ class RouteConfig(BaseModel):
     def load(cls, path: Path | None = None) -> "RouteConfig":
         config_path = (path or DEFAULT_ROUTE_CONFIG).resolve()
         raw = load_yaml(config_path)
-        data = dict(raw.get("routing") or {})
+        data = dict(docxindex_config(raw).get("routing") or {})
         source = Path(str(data.get("criteria") or ""))
         if not source.is_absolute():
             source = (config_path.parent / source).resolve()
@@ -56,9 +56,13 @@ def plan_route(
     client: LLMClient,
     config: RouteConfig,
     cache_dir: Path | None,
+    criterion_text: str | None = None,
 ) -> RouteResponse:
-    criteria = load_criteria(config.criteria, config.expected_criteria_count)
-    criterion = _criterion_for_query(query, criteria)
+    if criterion_text is None:
+        criteria = load_criteria(config.criteria, config.expected_criteria_count)
+        criterion = _criterion_for_query(query, criteria)
+    else:
+        criterion = criterion_text
     titles = _titles(index.get("structure_tree") or [])
     prompt = _prompt(query, criterion, titles, config)
     cache = JsonlCache(cache_dir / "route.jsonl" if cache_dir else None)

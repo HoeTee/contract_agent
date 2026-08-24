@@ -11,7 +11,7 @@ python scripts\docxindex\cli.py <command>
 ```text
 scripts/docxindex/
   cli.py                         索引与检索统一入口
-  config.yaml                    索引、路由、召回和并发配置
+  ../../config.yaml             主程序统一的索引、路由、召回和并发配置
   docxindex/                     核心 Python 包
   docs/DESIGN.md                 检索算法设计文档
   tests/                         核心单元测试
@@ -41,7 +41,7 @@ pip install -r scripts\docxindex\requirements.txt
 默认配置文件：
 
 ```text
-scripts/docxindex/config.yaml
+config.yaml -> retrieval.docxindex
 ```
 
 检索预算、自动路由、向量检索、重排序和并发参数均集中在该文件中。自动路由从 `resources/criteria/criteria-formal.docx` 读取正式审查要点，不保存“审查要点编号 -> 方法”的硬编码映射。
@@ -50,61 +50,24 @@ scripts/docxindex/config.yaml
 
 ```yaml
 retrieval:
-  input_tokens: 20000
-  output_tokens: 12000
-  scan_batch_tokens: 12000
-  max_depth: 6
-  vector:
-    enabled: true
-    score_threshold: 0.60
-    auto_build: true
-  rerank:
-    enabled: true
-
-indexing:
-  heading:
-    profiles:
-      primary:
-        level_1_examples: ["第一条 合同内容"]
-        level_2_examples: ["一、合同总价"]
-        level_3_examples: ["（一）付款条件"]
-      variant_1:
-        level_1_examples: ["一、合作背景"]
-        level_2_examples: ["（一）通信业务合作", "（3）新技术合作"]
-        level_3_examples: ["1. 基础服务", "2、增值服务"]
-  paragraph:
-    split_threshold_tokens: 1000
-    chunk_target_tokens: 700
-  hierarchy:
-    input_max_tokens: 20000
-    batch_target_tokens: 16000
-    batch_overlap_tokens: 800
-    max_levels: 6
-    retry_count: 3
-  table:
-    split_threshold_tokens: 20000
-    chunk_target_tokens: 18000
-  attachment:
-    max_levels: 6
-  summary:
-    batch_max_nodes: 10
-    batch_max_tokens: 20000
-
-routing:
-  criteria: ../../resources/criteria/criteria-formal.docx
-  expected_criteria_count: 18
-  fallback_enabled: true
-  methods:
-    title: 检查目录、标题、章节名称、必备标题和标题顺序。
-    region: 获取合同首部、正文末端、签署页，或明确标题下的完整内容。
-    rule: 执行全文精确关键词、正则、金额和存在性定位。
-    join: 关联多个区域或节点，获取一致性比较所需的完整证据组。
-    scan: 按原文顺序返回全部 anchor，用于逐批全文检查。
-    hybrid: 确定性方法无法可靠定位时，使用结构树语义选择并由向量补召回。
-  llm_candidates: 12
-  vector_candidates: 20
-  vector_threshold: 0.45
-  max_nodes: 5
+  backend: docxindex
+  llamaindex: ...
+  docxindex:
+    input_tokens: 20000
+    output_tokens: 12000
+    scan_batch_tokens: 12000
+    vector:
+      enabled: true
+      score_threshold: 0.60
+      auto_build: true
+    rerank:
+      enabled: true
+    indexing: ...
+    routing: ...
+    concurrency:
+      llm: 10
+      embedding: 10
+      reranker: 10
 ```
 
 含义：
@@ -112,7 +75,6 @@ routing:
 - `input_tokens`：结构树输入、向量候选和 rerank 候选的单次模型输入预算，默认 20000。
 - `output_tokens`：普通 `ask` 单批返回的节点原文预算，默认 12000。
 - `scan_batch_tokens`：全文扫描时单批返回的原文预算，默认 12000。
-- `max_depth`：结构树最大深度，当前作为配置保留。
 - `vector.enabled`：`ask` 默认启用向量补召回。
 - `vector.score_threshold`：低于该相似度的向量候选不进入候选池。
 - `vector.auto_build`：缺少 `vector_index.json` 时，`ask` 默认自动构建。
@@ -133,7 +95,7 @@ LLM 请求默认携带 `enable_thinking=false`。结构树选点和 rerank 属�
 LLM 和 embedding 地址优先级：
 
 ```text
-CLI 参数 > scripts/docxindex/.env > 系统环境变量 > 项目 config.yaml > 内置默认值
+CLI 参数 > scripts/docxindex/.env > 系统环境变量 > 项目根目录 config.yaml > 内置默认值
 ```
 
 `.env` 支持：
@@ -333,7 +295,7 @@ logs/ask_YYYYMMDD_HHMMSS_PID.log
 logs/vector_search_YYYYMMDD_HHMMSS_PID.log
 ```
 
-索引阶段的 LLM 并发上限读取 `config.yaml` 中的 `concurrency.llm`。附件层级推理和正文大叶子节点推理采用“并发计算、按原文顺序写回”；摘要节点不分树深度等待，按 `batch_max_nodes` 和 `batch_max_tokens` 组批后并发生成。父节点摘要输入使用索引构建阶段已有的子节点初始摘要，因此每个 node 仍有独立 LLM 摘要，但不会形成逐层串行网络请求。Embedding 按每批 10 个节点提交，并发批次数读取 `concurrency.embedding`。这些并发共享各自客户端的上限，不改变节点顺序、anchor 或父子关系。
+索引阶段的 LLM 并发上限读取项目根目录 `config.yaml` 中的 `retrieval.docxindex.concurrency.llm`。附件层级推理和正文大叶子节点推理采用“并发计算、按原文顺序写回”；摘要节点不分树深度等待，按 `batch_max_nodes` 和 `batch_max_tokens` 组批后并发生成。父节点摘要输入使用索引构建阶段已有的子节点初始摘要，因此每个 node 仍有独立 LLM 摘要，但不会形成逐层串行网络请求。Embedding 按每批 10 个节点提交，并发批次数读取 `retrieval.docxindex.concurrency.embedding`。这些并发共享各自客户端的上限，不改变节点顺序、anchor 或父子关系。
 
 自动路由只接收结构树前三级的标题目录。路由阶段只选择检索方法，不负责选择最终 node，因此不会把附件深层标题全部重复输入路由模型；深层节点仍由具体的结构检索、区域检索、规则检索或向量补召回定位。
 指定日志目录：

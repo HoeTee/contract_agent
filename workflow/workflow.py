@@ -3,7 +3,7 @@ ContractReviewWorkflow orchestrates one annotated-DOCX contract review run.
 
 Phases:
   1. Ingest criteria + contract to markdown
-  2. Build a temporary LlamaIndex contract index from DOCX XML anchors
+  2. Build the configured temporary contract index
   3. Planner extracts review criteria
   4. Orchestrator executes criterion reviews with retrieval + reflection
   5. Summarizer creates a compact summary comment
@@ -16,8 +16,9 @@ import time
 from typing import Any, Awaitable, Callable
 
 from config import (
-    ENABLE_WORKFLOW_LOGS,
+    LOGGING_ENABLED,
     MCP_SERVER_PATH,
+    RETRIEVAL_BACKEND,
 )
 from loggers.workflow_logger import WorkflowLogger, save_review_outputs_json
 from loggers.trace_logger import TraceLogger, reset_current_trace, set_current_trace
@@ -81,7 +82,10 @@ class ContractReviewWorkflow:
         print("=" * 60)
         print("Contract Review Workflow Started")
         print("=" * 60)
-        print("This is an over-simplified workflow without web search or institutional RAG, with retrieval mode being llamaindex.")
+        print(
+            "This is an over-simplified workflow without web search or institutional RAG, "
+            f"with retrieval mode being {RETRIEVAL_BACKEND}."
+        )
         trace_token = set_current_trace(self.trace)
         # Initialize MCP client
         mcp_cleaned = False
@@ -113,9 +117,13 @@ class ContractReviewWorkflow:
                     criteria_md, contract_md = await self._phase_ingest(contract_path, criteria_path)
 
                 # Phase 2: Build index
-                await self._emit_progress(progress_callback, "building_index", "Building temporary LlamaIndex contract index")
+                await self._emit_progress(
+                    progress_callback,
+                    "building_index",
+                    f"Building temporary {RETRIEVAL_BACKEND} contract index",
+                )
                 async with self.trace.span("phase.build_index", run_type="phase"):
-                    await self._phase_build_llamaindex(contract_path)
+                    await self._phase_build_index(contract_path)
 
                 # Phase 3: Plan tasks
                 await self._emit_progress(progress_callback, "planning", "Extracting review criteria")
@@ -125,7 +133,7 @@ class ContractReviewWorkflow:
                     span.set_outputs({"criteria_count": len(criteria_list)})
 
                 # Phase 4: Execute + Reflect
-                print(f"\n  Search mode: llamaindex")
+                print(f"\n  Search mode: {RETRIEVAL_BACKEND}")
                 await self._emit_progress(
                     progress_callback,
                     "reviewing",
@@ -207,7 +215,7 @@ class ContractReviewWorkflow:
                     "criteria_count": len(results),
                     "issue_count": sum(len(result.get("issues", [])) for result in results),
                     "total_tokens": total_tokens,
-                    "retrieval_mode": "llamaindex",
+                    "retrieval_mode": RETRIEVAL_BACKEND,
                     "review_outputs_log": review_outputs_path,
                     "state_dir": str(self.state_store.root_dir) if self.state_store else None,
                 }
@@ -285,16 +293,16 @@ class ContractReviewWorkflow:
         )
         return tool_result.split("\n\n", 1)[-1] if "\n\n" in tool_result else tool_result
 
-    async def _phase_build_llamaindex(
+    async def _phase_build_index(
             self,
             contract_path: str
     ) -> str:
-        """Phase 2 (LlamaIndex mode): Build a temporary DOCX-anchor contract vector index."""
-        print("\n[Phase 2] Building temporary LlamaIndex contract index...")
+        """Phase 2: Build the configured temporary contract retrieval index."""
+        print(f"\n[Phase 2] Building temporary {RETRIEVAL_BACKEND} contract index...")
         start = time.time()
 
         result = await self.client.call_tool(
-            "llamaindex_build_index",
+            "contract_build_index",
             {
                 "docx_path": contract_path,
                 "api_events_path": self.api_events_path,
@@ -302,8 +310,8 @@ class ContractReviewWorkflow:
         )
 
         self.logger.log(
-            phase="Index Building", sender="Workflow", receiver="MCP:llamaindex_build_index",
-            action="llamaindex_build_index",
+            phase="Index Building", sender="Workflow", receiver="MCP:contract_build_index",
+            action="contract_build_index",
             input_summary=os.path.basename(contract_path),
             output_summary=result,
             duration=round(time.time() - start, 2)
@@ -312,8 +320,8 @@ class ContractReviewWorkflow:
         parsed = json.loads(result)
         if parsed.get("error"):
             raise classify_model_call_error(
-                f"LlamaIndex index build failed: {parsed['error']}",
-                default_component="embedding",
+                f"{RETRIEVAL_BACKEND} index build failed: {parsed['error']}",
+                default_component="embedding" if RETRIEVAL_BACKEND == "llamaindex" else "agent",
             )
 
         print(f"  Temporary index built in {round(time.time()-start,1)}s: {result[:200]}")
@@ -367,7 +375,7 @@ class ContractReviewWorkflow:
         self,
         criteria_list: list[dict]
     ) -> list[dict]:
-        """Phase 4: Orchestrator runs sub-agents with LlamaIndex retrieval + reflection."""
+        """Phase 4: Orchestrator runs sub-agents with configured retrieval + reflection."""
         print(f"\n[Phase 4] Executing {len(criteria_list)} criteria reviews...")
         start = time.time()
 
@@ -432,7 +440,7 @@ class ContractReviewWorkflow:
 
     def _save_review_outputs(self, results: list[dict]) -> str | None:
         """Persist the raw criterion review results for debugging."""
-        if not ENABLE_WORKFLOW_LOGS:
+        if not LOGGING_ENABLED:
             return None
         if not self.review_outputs_path:
             return None

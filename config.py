@@ -53,6 +53,18 @@ def cfg_optional(section: str, key: str, default: Any) -> Any:
     return section_data.get(key, default)
 
 
+def cfg_nested(section: str, subsection: str, key: str) -> Any:
+    section_data = CONFIG.get(section)
+    if not isinstance(section_data, dict):
+        raise RuntimeError(f"Missing config.yaml section: {section}")
+    subsection_data = section_data.get(subsection)
+    if not isinstance(subsection_data, dict):
+        raise RuntimeError(f"Missing config.yaml section: {section}.{subsection}")
+    if key not in subsection_data:
+        raise RuntimeError(f"Missing config.yaml field: {section}.{subsection}.{key}")
+    return subsection_data[key]
+
+
 def env_required(name: str) -> str:
     value = os.getenv(name)
     if value is None or value.strip() == "":
@@ -357,7 +369,7 @@ CRITERION_RETRY_MAX_ATTEMPTS = _as_int(
     "workflow.criterion_retry_max_attempts",
 )
 SUBAGENT_ALLOWED_TOOLS = _as_str_tuple(
-    cfg_optional("workflow", "subagent_allowed_tools", ["llamaindex_search"]),
+    cfg_optional("workflow", "subagent_allowed_tools", ["contract_search"]),
     "workflow.subagent_allowed_tools",
     allow_empty=True,
 )
@@ -368,17 +380,31 @@ QUEUE_BROKER_URL = _as_str(
     "queue.broker_url",
 )
 
-CHUNK_SIZE = _as_int(cfg("retrieval", "chunk_size"), "retrieval.chunk_size")
-CHUNK_OVERLAP = _as_int(cfg("retrieval", "chunk_overlap"), "retrieval.chunk_overlap")
-SIMILARITY_TOP_K = _as_int(cfg("retrieval", "similarity_top_k"), "retrieval.similarity_top_k")
-RERANK_TOP_N = _as_int(cfg("retrieval", "rerank_top_n"), "retrieval.rerank_top_n")
+RETRIEVAL_BACKEND = _as_str(cfg("retrieval", "backend"), "retrieval.backend").lower()
+if RETRIEVAL_BACKEND not in {"llamaindex", "docxindex"}:
+    raise RuntimeError("retrieval.backend must be 'llamaindex' or 'docxindex'.")
+CHUNK_SIZE = _as_int(
+    cfg_nested("retrieval", "llamaindex", "chunk_size"),
+    "retrieval.llamaindex.chunk_size",
+)
+CHUNK_OVERLAP = _as_int(
+    cfg_nested("retrieval", "llamaindex", "chunk_overlap"),
+    "retrieval.llamaindex.chunk_overlap",
+)
+SIMILARITY_TOP_K = _as_int(
+    cfg_nested("retrieval", "llamaindex", "similarity_top_k"),
+    "retrieval.llamaindex.similarity_top_k",
+)
+RERANK_TOP_N = _as_int(
+    cfg_nested("retrieval", "llamaindex", "rerank_top_n"),
+    "retrieval.llamaindex.rerank_top_n",
+)
 
 DATA_DIR = str(PROJECT_ROOT_PATH / "data")
 USERS_FILE = str(PROJECT_ROOT_PATH / "profiles" / "users.json")
 
 API_KEEP_INPUT = _parse_bool(cfg("api", "keep_input"), "api.keep_input")
 API_KEEP_OUTPUT = _parse_bool(cfg("api", "keep_output"), "api.keep_output")
-API_WRITE_LOGS = _parse_bool(cfg("api", "write_logs"), "api.write_logs")
 API_RESULT_OUTPUT_DEFAULT = _as_str(
     cfg("api", "result_output_default"),
     "api.result_output_default",
@@ -427,12 +453,12 @@ DOCX_COMMENT_INCLUDE_CRITERION = _parse_bool(
     "docx.comment_include_criterion",
 )
 
-ENABLE_WORKFLOW_LOGS = _parse_bool(
-    cfg("logging", "enable_workflow_logs"),
-    "logging.enable_workflow_logs",
+LOGGING_ENABLED = _parse_bool(
+    cfg("logging", "enabled"),
+    "logging.enabled",
 )
 
-print("[config] Retrieval mode : LlamaIndex temporary contract RAG (MCP)")
+print(f"[config] Retrieval mode : {RETRIEVAL_BACKEND} temporary contract retrieval (MCP)")
 print(
     f"[config] LLM            : {LLM_NAME}  "
     f"(ctx={MAX_CONTEXT_TOKENS:,}  out={MAX_RESULT_TOKENS:,}  tools={MAX_TOOL_CALLS})"

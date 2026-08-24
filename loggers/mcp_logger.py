@@ -2,7 +2,7 @@ import logging
 import sys
 from pathlib import Path
 
-from config import ENABLE_WORKFLOW_LOGS
+from config import LOGGING_ENABLED
 
 
 def create_mcp_logger(log_file: str | Path | None = None) -> logging.Logger:
@@ -17,7 +17,7 @@ def create_mcp_logger(log_file: str | Path | None = None) -> logging.Logger:
 
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
-    if ENABLE_WORKFLOW_LOGS and log_file:
+    if LOGGING_ENABLED and log_file:
         path = Path(log_file)
         path.parent.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(path, encoding="utf-8")

@@ -21,7 +21,8 @@ rerank:
       - "gte-rerank-v2"
 
 retrieval:
-  rerank_top_n: 5
+  llamaindex:
+    rerank_top_n: 5
 ```
 
 字段说明：
@@ -30,7 +31,7 @@ retrieval:
 - `rerank.name`：默认 reranker 模型名。
 - `rerank.instruct`：可选指令。仅 `higress_qwen` 和 `dashscope_qwen` 在非空时发送；`bge` 不发送。
 - `rerank.provider_model_names`：provider 到模型名列表的映射。模型名不能同时出现在多个 provider 下。
-- `retrieval.rerank_top_n`：三种 provider 都会作为 `top_n` 发送。
+- `retrieval.llamaindex.rerank_top_n`：LlamaIndex 检索下，三种 provider 都会作为 `top_n` 发送。
 
 如果开启 `api.require_request_model_config: true`，API 请求体里的 `reranker_model_name` 也会通过同一份 `provider_model_names` 映射推断 provider。
 

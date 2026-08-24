@@ -1,6 +1,6 @@
 dataset: data/retrieval_gold.csv
 retrieval_cli: ../cli.py
-retrieval_config: ../config.yaml
+retrieval_config: ../../../config.yaml
 index_root: ../outputs/index
 logs_dir: logs
 coverage_threshold: 0.8

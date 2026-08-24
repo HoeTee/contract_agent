@@ -14,7 +14,7 @@ from urllib.parse import unquote, urlsplit
 
 import httpx
 from fastapi import UploadFile
-from config import API_KEEP_INPUT, API_WRITE_LOGS, DATA_DIR
+from config import API_KEEP_INPUT, DATA_DIR, LOGGING_ENABLED
 from endpoints.runtime.filenames import safe_upload_filename
 from loggers.api_event_logger import append_api_event
 
@@ -187,7 +187,7 @@ def should_write_task_file(kind: str) -> bool:
     if kind == "output":
         return True
     if kind == "logs":
-        return bool(API_WRITE_LOGS)
+        return bool(LOGGING_ENABLED)
     raise ValueError(f"Unknown task file kind: {kind}")
 
 

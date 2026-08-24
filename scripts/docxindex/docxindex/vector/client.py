@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import time
+import sys
+from contextlib import nullcontext
 from pathlib import Path
 from threading import BoundedSemaphore, Lock
 
@@ -80,7 +82,8 @@ class EmbeddingClient:
             self._wait_for_start_slot()
             try:
                 with self._limiter:
-                    response = self.client.embeddings.create(model=self.settings.model, input=texts)
+                    with _global_model_slot("embedding", "DocxIndexEmbedding", self.settings.model):
+                        response = self.client.embeddings.create(model=self.settings.model, input=texts)
                 return [list(item.embedding) for item in response.data]
             except Exception as exc:
                 if not _is_rate_limit_error(exc) or attempt >= self._rate_limit_retries:
@@ -100,3 +103,11 @@ class EmbeddingClient:
 
 def _is_rate_limit_error(exc: Exception) -> bool:
     return getattr(exc, "status_code", None) == 429 or "429" in str(exc) or "Throttling.BurstRate" in str(exc)
+
+
+def _global_model_slot(model_type: str, caller_name: str, model: str):
+    if "config" not in sys.modules:
+        return nullcontext()
+    from endpoints.runtime.llm_semaphore import model_semaphore_sync
+
+    return model_semaphore_sync(model_type, caller_name, model)

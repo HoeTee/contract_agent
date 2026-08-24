@@ -11,10 +11,12 @@ sys.path.insert(0, PROJECT_ROOT)
 from tools.document.file_parser import FileParser
 from tools.document.report_generator import ReportGenerator
 from tools.retrieval.index_retriever import IndexRetriever
+from tools.retrieval.docxindex_retriever import DocxIndexRetriever
 from loggers.model_event_context import reset_model_event_path, set_model_event_path
 from config import (
     CHUNK_OVERLAP,
     CHUNK_SIZE,
+    CONFIG_PATH,
     EMBED_API_KEY,
     EMBED_BASE_URL,
     EMBED_NAME,
@@ -27,6 +29,7 @@ from config import (
     RERANK_NAME,
     RERANK_PROVIDER,
     RERANK_TOP_N,
+    RETRIEVAL_BACKEND,
     SIMILARITY_TOP_K,
 )
 
@@ -50,12 +53,27 @@ index_retriever = IndexRetriever(
     similarity_top_k=SIMILARITY_TOP_K,
     rerank_top_n=RERANK_TOP_N,
 )
-index_retriever._get_contract_llamaindex_engine()
+docxindex_retriever = None
+
+
+def _get_docxindex_retriever() -> DocxIndexRetriever:
+    global docxindex_retriever
+    if docxindex_retriever is None:
+        docxindex_retriever = DocxIndexRetriever(
+            CONFIG_PATH,
+            llm_model=LLM_NAME,
+            llm_base_url=LLM_BASE_URL,
+            llm_api_key=LLM_API_KEY,
+            embedding_model=EMBED_NAME,
+            embedding_base_url=EMBED_BASE_URL,
+            embedding_api_key=EMBED_API_KEY,
+        )
+    return docxindex_retriever
 
 
 # ============ Document Tools ============
 
-@mcp.tool()
+@mcp.tool(structured_output=False)
 async def ingest_file(file_path: str) -> str:
     """
     Parse a DOCX file, return full markdown content.
@@ -71,7 +89,7 @@ async def ingest_file(file_path: str) -> str:
     return f"File '{filename}' ingested. Content:\n\n{content}"
 
 
-@mcp.tool()
+@mcp.tool(structured_output=False)
 async def generate_markdown_report(
     content_json: str,
     contract_name: str,
@@ -90,7 +108,7 @@ async def generate_markdown_report(
         return json.dumps({"error": str(e)}, ensure_ascii=False)
 
 
-@mcp.tool()
+@mcp.tool(structured_output=False)
 async def generate_docx_report(
     contract_name: str,
     contract_path: str,
@@ -126,7 +144,7 @@ async def generate_docx_report(
         return json.dumps({"error": str(e)}, ensure_ascii=False)
 
 
-@mcp.tool()
+@mcp.tool(structured_output=False)
 async def generate_pdf_report(
     content_json: str,
     contract_name: str,
@@ -171,8 +189,44 @@ async def llamaindex_search(query: str, api_events_path: str | None = None) -> s
         reset_model_event_path(token)
 
 
-mcp.tool()(llamaindex_build_index)
-mcp.tool()(llamaindex_search)
+async def docxindex_build_index(docx_path: str, api_events_path: str | None = None) -> str:
+    """Build the temporary in-memory docxindex index for the current contract."""
+    token = set_model_event_path(api_events_path)
+    try:
+        return await _get_docxindex_retriever().build_index(docx_path)
+    finally:
+        reset_model_event_path(token)
+
+
+async def docxindex_search(query: str, api_events_path: str | None = None) -> str:
+    """Search the temporary in-memory docxindex index for the current contract."""
+    token = set_model_event_path(api_events_path)
+    try:
+        return await _get_docxindex_retriever().search(query)
+    finally:
+        reset_model_event_path(token)
+
+
+async def contract_build_index(docx_path: str, api_events_path: str | None = None) -> str:
+    """Build the configured temporary contract retrieval index."""
+    if RETRIEVAL_BACKEND == "docxindex":
+        return await docxindex_build_index(docx_path, api_events_path)
+    return await llamaindex_build_index(docx_path, api_events_path)
+
+
+async def contract_search(query: str, api_events_path: str | None = None) -> str:
+    """Search the configured temporary contract retrieval index."""
+    if RETRIEVAL_BACKEND == "docxindex":
+        return await docxindex_search(query, api_events_path)
+    return await llamaindex_search(query, api_events_path)
+
+
+mcp.tool(structured_output=False)(llamaindex_build_index)
+mcp.tool(structured_output=False)(llamaindex_search)
+mcp.tool(structured_output=False)(docxindex_build_index)
+mcp.tool(structured_output=False)(docxindex_search)
+mcp.tool(structured_output=False)(contract_build_index)
+mcp.tool(structured_output=False)(contract_search)
 
 
 if __name__ == "__main__":
