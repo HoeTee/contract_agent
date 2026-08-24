@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-import sys
 import unittest
 import asyncio
+import json
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 from unittest.mock import AsyncMock
@@ -10,15 +12,9 @@ from unittest.mock import AsyncMock
 from config import CONFIG_PATH, LOGGING_ENABLED, RETRIEVAL_BACKEND
 from endpoints.review import task_store
 from loggers.trace_logger import TraceLogger
-from tools.retrieval.docxindex_retriever import _format_anchor_context
-
-
-DOCXINDEX_ROOT = Path(__file__).resolve().parents[1] / "scripts" / "docxindex"
-if str(DOCXINDEX_ROOT) not in sys.path:
-    sys.path.insert(0, str(DOCXINDEX_ROOT))
-
-from docxindex.indexing.config import IndexingConfig
-from docxindex.retrieval import RetrievalConfig, RouteConfig
+from tools.docxindex.indexing.config import IndexingConfig
+from tools.docxindex.retrieval import RetrievalConfig, RouteConfig
+from tools.docxindex.retriever import DocxIndexRetriever, _format_anchor_context
 
 
 class RetrievalBackendConfigTests(unittest.TestCase):
@@ -54,6 +50,24 @@ class RetrievalBackendConfigTests(unittest.TestCase):
         self.assertIn("xml_anchor_type: table", result)
         self.assertIn("xml_anchor_id: path:body/tbl2", result)
         self.assertIn("自动编号文本", result)
+
+    def test_docxindex_tool_has_no_scripts_runtime_dependency(self) -> None:
+        tool_root = Path(__file__).resolve().parents[1] / "tools" / "docxindex"
+        source = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in tool_root.rglob("*.py")
+        )
+        self.assertNotIn("scripts/docxindex", source.replace("\\", "/"))
+        self.assertNotIn("DOCXINDEX_ROOT", source)
+        self.assertNotIn("sys.path.insert", source)
+
+    def test_docxindex_progress_uses_stderr_without_tool_log_files(self) -> None:
+        retriever = object.__new__(DocxIndexRetriever)
+        stderr = StringIO()
+        with redirect_stderr(stderr):
+            result = json.loads(asyncio.run(retriever.build_index("missing.docx")))
+        self.assertIn("error", result)
+        self.assertIn("[DocxIndex] Index build failed", stderr.getvalue())
 
 
 class UnifiedLoggingSwitchTests(unittest.TestCase):

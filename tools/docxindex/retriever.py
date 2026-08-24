@@ -3,19 +3,14 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
-
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DOCXINDEX_ROOT = PROJECT_ROOT / "scripts" / "docxindex"
-if str(DOCXINDEX_ROOT) not in sys.path:
-    sys.path.insert(0, str(DOCXINDEX_ROOT))
-
-from docxindex import build_document_index  # noqa: E402
-from docxindex.indexing.config import IndexingConfig  # noqa: E402
-from docxindex.llm import LLMClient, LLMSettings  # noqa: E402
-from docxindex.retrieval import (  # noqa: E402
+from tools.docxindex import build_document_index
+from tools.docxindex.indexing.config import IndexingConfig
+from tools.docxindex.llm import LLMClient, LLMSettings
+from tools.docxindex.retrieval import (
     RetrievalConfig,
     RouteConfig,
     build_content_context,
@@ -28,7 +23,7 @@ from docxindex.retrieval import (  # noqa: E402
     scan_matches,
     title_matches,
 )
-from docxindex.vector import (  # noqa: E402
+from tools.docxindex.vector import (
     EmbeddingClient,
     EmbeddingSettings,
     build_vector_index,
@@ -79,17 +74,34 @@ class DocxIndexRetriever:
 
     async def build_index(self, docx_path: str) -> str:
         """Build one temporary in-memory index from a DOCX path."""
+        started_at = time.monotonic()
+        _terminal(f"[DocxIndex] Building temporary index: {Path(docx_path).name}")
         try:
             result = await asyncio.to_thread(self._build_index_sync, Path(docx_path))
+            result["elapsed_seconds"] = round(time.monotonic() - started_at, 2)
+            _terminal(
+                "[DocxIndex] Index ready: "
+                f"nodes={result['num_nodes']}, anchors={result['num_anchors']}, "
+                f"vectors={result['vector_items']}, elapsed={result['elapsed_seconds']}s"
+            )
             return json.dumps(result, ensure_ascii=False)
         except Exception as exc:
+            _terminal(f"[DocxIndex] Index build failed: {type(exc).__name__}: {exc}")
             return json.dumps({"error": str(exc)}, ensure_ascii=False)
 
     async def search(self, query: str) -> str:
         """Retrieve review-ready, DOCX-anchor-aware text for one query."""
+        started_at = time.monotonic()
+        _terminal(f"[DocxIndex] Searching temporary index: query_chars={len(query)}")
         try:
-            return await asyncio.to_thread(self._search_sync, query)
+            result = await asyncio.to_thread(self._search_sync, query)
+            _terminal(
+                "[DocxIndex] Search complete: "
+                f"result_chars={len(result)}, elapsed={round(time.monotonic() - started_at, 2)}s"
+            )
+            return result
         except Exception as exc:
+            _terminal(f"[DocxIndex] Search failed: {type(exc).__name__}: {exc}")
             return f"Error in contract DocxIndex search: {exc}"
 
     def _build_index_sync(self, docx_path: Path) -> dict[str, Any]:
@@ -307,3 +319,8 @@ def _format_anchor_context(index: dict[str, Any], nodes: list[dict[str, Any]]) -
             header += f"\nxml_anchor_type: {anchor_type}\nxml_anchor_id: {anchor_id}"
             parts.append(f"{header}\n内容：\n{text}")
     return "\n\n---\n\n".join(parts) if parts else "未找到相关合同内容。"
+
+
+def _terminal(message: str) -> None:
+    """Emit concise progress without writing a tool-owned log file."""
+    print(message, file=sys.stderr, flush=True)

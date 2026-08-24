@@ -11,7 +11,7 @@ sys.path.insert(0, PROJECT_ROOT)
 from tools.document.file_parser import FileParser
 from tools.document.report_generator import ReportGenerator
 from tools.retrieval.index_retriever import IndexRetriever
-from tools.retrieval.docxindex_retriever import DocxIndexRetriever
+from tools.docxindex.retriever import DocxIndexRetriever
 from loggers.model_event_context import reset_model_event_path, set_model_event_path
 from config import (
     CHUNK_OVERLAP,
