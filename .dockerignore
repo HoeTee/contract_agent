@@ -56,6 +56,10 @@ env
 /AGENTS.md
 /DEPLOYMENT.md
 /PLAN.md
+/Dockerfile
+/docker-compose.example.yaml
+/README.md
+/docs/
 
 # Local archives/images
 *.tar

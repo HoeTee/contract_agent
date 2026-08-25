@@ -27,7 +27,7 @@ services:
     volumes:
       - ./.env:/app/.env:ro
       - ./config.yaml:/app/config.yaml:ro
-      - ./agents/prompts/cn_prompts.py:/app/agents/prompts/cn_prompts.py:ro
+      - ./agents/prompts/cn_prompts.yaml:/app/agents/prompts/cn_prompts.yaml:ro
       - ./criteria.docx:/app/resources/criteria/criteria.docx
       - ./profiles:/app/profiles
       - ./data:/app/data
@@ -59,7 +59,7 @@ services:
     volumes:
       - ./.env:/app/.env:ro
       - ./config.yaml:/app/config.yaml:ro
-      - ./agents/prompts/cn_prompts.py:/app/agents/prompts/cn_prompts.py:ro
+      - ./agents/prompts/cn_prompts.yaml:/app/agents/prompts/cn_prompts.yaml:ro
       - ./criteria.docx:/app/resources/criteria/criteria.docx
       - ./profiles:/app/profiles
       - ./data:/app/data

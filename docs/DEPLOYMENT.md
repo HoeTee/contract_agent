@@ -6,6 +6,15 @@
 docker build -t deep-research-agent:latest .
 ```
 
+正式镜像使用多阶段构建：第一阶段将项目 `.py` 编译为同目录 `.pyc`，第二阶段只复制编译后的应用树。构建后可验证镜像内没有项目 Python 源码：
+
+```powershell
+docker run --rm --entrypoint sh deep-research-agent:latest -c "find /app -type f -name '*.py'"
+docker run --rm --entrypoint python deep-research-agent:latest -c "import app; print(app.__file__)"
+```
+
+第一条命令应无输出，第二条命令应输出 `/app/app.pyc`。
+
 ## 启动服务
 
 ```powershell
@@ -17,6 +26,7 @@ docker compose up -d
 ```text
 .env
 config.yaml
+agents/prompts/cn_prompts.yaml
 profiles/
 data/
 ```
@@ -27,9 +37,12 @@ data/
 volumes:
   - ./.env:/app/.env:ro
   - ./config.yaml:/app/config.yaml:ro
+  - ./agents/prompts/cn_prompts.yaml:/app/agents/prompts/cn_prompts.yaml:ro
   - ./profiles:/app/profiles
   - ./data:/app/data
 ```
+
+Prompt YAML 在 Web 和 Celery worker 启动导入模块时读取。修改该文件后，需要重启 API 服务和所有 worker 才会生效。
 
 `profiles/` 可以是空目录。首次创建用户时，程序会自动生成：
 

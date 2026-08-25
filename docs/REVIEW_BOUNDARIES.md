@@ -1,6 +1,6 @@
 # 合同审查边界说明
 
-本文档说明 SubAgent 和 Reflector 当前遵守的合同审查边界。对应提示词定义在 `agents/prompts/cn_prompts.py`。
+本文档说明 SubAgent 和 Reflector 当前遵守的合同审查边界。对应提示词定义在 `agents/prompts/cn_prompts.yaml`。
 
 ## 正文与附件
 

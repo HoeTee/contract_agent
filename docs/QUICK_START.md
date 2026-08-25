@@ -146,6 +146,7 @@ Invoke-WebRequest `
 ```text
 .env
 config.yaml
+agents/prompts/cn_prompts.yaml
 profiles/
 data/
 ```
@@ -158,6 +159,8 @@ data/
 docker build -t deep-research-agent:latest .
 docker compose up -d
 ```
+
+正式镜像只包含项目 `.pyc` 字节码。`agents/prompts/cn_prompts.yaml` 以只读方式挂载；修改 Prompt 后需要重启 API 服务和所有 Celery worker。
 
 当前 compose 映射：
 

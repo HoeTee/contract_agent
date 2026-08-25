@@ -31,7 +31,7 @@
 | ReflectorAgent | `agents/reflector.py` | 质量复核 SubAgent 输出 | criterion + subagent_output + 补充检索 | `{ status: PASS/REJECT, feedback }` |
 | SummarizerAgent | `agents/summarizer.py` | 汇总所有结果生成开头总览批注 | `results` | `{ overall_comment, priority_comments }` |
 
-基础设施：`agents/base_agent.py`（`Agent` 基类与 `Settings` 模型配置）、`agents/schemas.py`（结构化输出 schema）、`agents/prompts/cn_prompts.py`（所有提示词，含审查边界）。
+基础设施：`agents/base_agent.py`（`Agent` 基类与 `Settings` 模型配置）、`agents/schemas.py`（结构化输出 schema）、`agents/prompts/cn_prompts.yaml`（所有提示词，含审查边界）。
 
 ## 智能体结构化输出 schema
 
