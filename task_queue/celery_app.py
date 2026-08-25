@@ -8,7 +8,7 @@ from config import QUEUE_BROKER_URL
 celery_app = Celery(
     "contract_agent",
     broker=QUEUE_BROKER_URL,
-    include=["queue.review_tasks"],
+    include=["task_queue.review_tasks"],
 )
 
 celery_app.conf.update(

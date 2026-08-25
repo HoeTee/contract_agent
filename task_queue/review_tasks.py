@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 
 from endpoints.review.job_worker import run_async_review_job
-from queue.celery_app import celery_app
+from task_queue.celery_app import celery_app
 
 
 @celery_app.task(name="review.run_job")

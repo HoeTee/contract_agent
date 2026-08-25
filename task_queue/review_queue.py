@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from queue.review_tasks import run_review_job_task
+from task_queue.review_tasks import run_review_job_task
 
 
 def enqueue_review_job(client_dir: str, task_id: str) -> str:

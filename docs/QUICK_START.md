@@ -59,7 +59,7 @@ uvicorn app:app --host 0.0.0.0 --port 5000
 另开一个终端启动审查 worker：
 
 ```powershell
-celery -A queue.celery_app:celery_app worker --loglevel=info --pool=solo
+celery -A task_queue.celery_app:celery_app worker --loglevel=info --pool=solo
 ```
 
 Windows 本地建议使用 `--pool=solo`。如果 `queue.enabled=false`，可以不启动 Redis 和 Celery worker，API 会回退到进程内后台任务。
