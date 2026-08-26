@@ -1,4 +1,5 @@
 # STAGE 1: Compile Python bytecode
+# # 临时构建容器
 FROM python:3.12-slim AS bytecode-builder
 
 WORKDIR /src
@@ -8,7 +9,16 @@ COPY . .
 
 # Compile project modules to importable sourceless bytecode. Tracebacks retain
 # their final /app paths rather than the temporary /src build paths.
-RUN python -m compileall -b -f -q -s /src -p /app /src \
+# python 编译器
+# /src 存储目录
+RUN python \
+        -m compileall \
+        -b \
+        -f \
+        -q \
+        -s /src \
+        -p /app \
+        /src \
     && find /src -type f -name '*.py' -delete \
     && rm -rf /src/packages
 
@@ -39,10 +49,15 @@ RUN apt-get update \
 # Install Python dependencies from the offline wheelhouse.
 COPY requirements.txt .
 COPY packages/ /packages/
-RUN python -m pip install --no-index --find-links=/packages -r requirements.txt \
+RUN python \
+        -m pip install \
+        --no-index \
+        --find-links=/packages \
+        -r requirements.txt \
     && rm -rf /packages
 
 # Copy the bytecode-only application tree from the builder stage.
+# # 将第一阶段最终留下的 .pyc 等文件复制进第二阶段
 COPY --from=bytecode-builder /src/ /app/
 
 # These directories are expected to be bind-mounted in deployments, but creating
