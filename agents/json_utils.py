@@ -11,6 +11,18 @@ from pydantic import BaseModel, ValidationError
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
+def _loads_json(text: str):
+    """Parse JSON, allowing only literal TAB, CR, and LF as a controlled fallback."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        if not exc.msg.startswith("Invalid control character"):
+            raise
+        if any(ord(character) < 0x20 and character not in "\t\r\n" for character in text):
+            raise
+        return json.loads(text, strict=False)
+
+
 def extract_json(text: str) -> dict:
     """Extract a JSON object from raw LLM output."""
     stripped = text.strip()
@@ -21,13 +33,13 @@ def extract_json(text: str) -> dict:
         stripped = stripped.split("```", 1)[1].split("```", 1)[0].strip()
 
     try:
-        parsed = json.loads(stripped)
+        parsed = _loads_json(stripped)
     except json.JSONDecodeError:
         start = stripped.find("{")
         end = stripped.rfind("}") + 1
         if start == -1 or end <= start:
             raise
-        parsed = json.loads(stripped[start:end])
+        parsed = _loads_json(stripped[start:end])
 
     if not isinstance(parsed, dict):
         raise ValueError("agent output JSON must be an object")
