@@ -9,7 +9,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from config import DEFAULT_CRITERIA_PATH, MCP_SERVER_PATH
+from config import DEFAULT_CRITERIA_PATH, MCP_SERVER_TARGET
 from endpoints.runtime.document_validation import validate_criteria_content, validate_uploaded_docx
 from endpoints.runtime.filenames import build_report_display_name
 from loggers.agent_logger import reset_conversation_log_dir, set_conversation_log_dir
@@ -81,7 +81,7 @@ async def run_cli(contract: str, criteria: str | None = None, output: str | None
         token = set_conversation_log_dir(conversation_log_dir)
         try:
             workflow = ContractReviewWorkflow(
-                server_script_path=MCP_SERVER_PATH,
+                server_target=MCP_SERVER_TARGET,
                 conversation_log_dir=str(conversation_log_dir),
                 mcp_log_file=str(logs_dir / "mcp.log"),
                 trace_path=str(trace_path),

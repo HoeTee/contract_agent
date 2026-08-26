@@ -53,6 +53,9 @@ env
 # Development-only files
 /tests/
 /scripts/
+/protect/*.key
+/protect/out/
+/protect/tmp/
 /AGENTS.md
 /DEPLOYMENT.md
 /PLAN.md

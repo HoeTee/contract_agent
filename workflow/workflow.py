@@ -17,7 +17,7 @@ from typing import Any, Awaitable, Callable
 
 from config import (
     LOGGING_ENABLED,
-    MCP_SERVER_PATH,
+    MCP_SERVER_TARGET,
     RETRIEVAL_BACKEND,
 )
 from loggers.workflow_logger import WorkflowLogger, save_review_outputs_json
@@ -42,7 +42,7 @@ class ContractReviewWorkflow:
 
     def __init__(
         self,
-        server_script_path: str = MCP_SERVER_PATH,
+        server_target: str = MCP_SERVER_TARGET,
         conversation_log_dir: str | None = None,
         mcp_log_file: str | None = None,
         api_events_path: str | None = None,
@@ -52,7 +52,7 @@ class ContractReviewWorkflow:
         settings: Settings | None = None,
         mcp_env: dict[str, str] | None = None,
     ):
-        self.client = MinimalMCPClient(server_script_path, log_file=mcp_log_file, env=mcp_env)
+        self.client = MinimalMCPClient(server_target, log_file=mcp_log_file, env=mcp_env)
         self.logger = WorkflowLogger()
         self.trace = TraceLogger(trace_path, metadata={"component": "workflow"})
         self.conversation_log_dir = conversation_log_dir

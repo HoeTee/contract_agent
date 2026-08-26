@@ -16,6 +16,20 @@ from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
 
 
+def resolve_stdio_target(server_target: str, executable: str | None = None) -> tuple[str, list[str]]:
+    """Resolve a local MCP target into its executable and argument list."""
+    if server_target.startswith("module:"):
+        module_name = server_target.removeprefix("module:").strip()
+        if not module_name:
+            raise ValueError("MCP module target must include a module name")
+        return executable or sys.executable, ["-m", module_name]
+    if server_target.endswith(".py"):
+        return executable or sys.executable, [server_target]
+    if server_target.endswith(".js"):
+        return "node", [server_target]
+    raise ValueError("Local MCP target must be module:<name>, a .py file, or a .js file")
+
+
 class MinimalMCPClient:
     """
     Minimal MCP client that:
@@ -26,11 +40,11 @@ class MinimalMCPClient:
 
     def __init__(
         self,
-        server_script_path: str = "",
+        server_target: str = "",
         log_file: str | None = None,
         env: dict[str, str] | None = None,
     ) -> None:
-        self.server_script_path = server_script_path
+        self.server_target = server_target
         self.env = env or {}
         self.session: Optional[ClientSession] = None
         self.exit_stack = AsyncExitStack()
@@ -39,35 +53,24 @@ class MinimalMCPClient:
 
     async def connect(
         self,
-        server_script_path: str = None,
+        server_target: str | None = None,
     ) -> None:
-        server_script_path = server_script_path or self.server_script_path
-        if not server_script_path:
-            raise ValueError("No server_script_path provided")
+        server_target = server_target or self.server_target
+        if not server_target:
+            raise ValueError("No server_target provided")
         try: 
-            # is_http = server_script_path.startswith(".http")
-            # is_https = server_script_path.startswith(".https")
-            # is_python = server_script_path.endswith(".py")
-            # is_js = server_script_path.endswith(".js")
-            is_http = server_script_path.startswith("http://")
-            is_https = server_script_path.startswith("https://")
-            is_python = server_script_path.endswith(".py")
-            is_js = server_script_path.endswith(".js")
+            is_http = server_target.startswith("http://")
+            is_https = server_target.startswith("https://")
+            is_module = server_target.startswith("module:")
+            is_python = server_target.endswith(".py")
+            is_js = server_target.endswith(".js")
 
-            if not (is_http or is_https or is_python or is_js):
-                # raise ValueError("Server path/script must be a .http, .https, .py, or .js file")
-                raise ValueError("Server target must be an http(s) URL or a .py/.js file")
+            if not (is_http or is_https or is_module or is_python or is_js):
+                raise ValueError("Server target must be an http(s) URL, module name, or a .py/.js file")
             
             elif is_http or is_https:
-                # sse_transport = await self.exit_stack.enter_async_context(
-                #     sse_client(server_script_path)
-                # )
-                # stdio, write = sse_transport
-                # self.session = await self.exit_stack.enter_async_context(
-                #     ClientSession(stdio, write)
-                # )
                 http_transport = await self.exit_stack.enter_async_context(
-                    streamable_http_client(server_script_path)
+                    streamable_http_client(server_target)
                 )
                 read_stream, write_stream, _ = http_transport
                 self.session = await self.exit_stack.enter_async_context(
@@ -80,20 +83,16 @@ class MinimalMCPClient:
                     f"Connected to remote server. Tools: {[t['function']['name'] for t in self.tools]}"
                 )
 
-            elif is_python or is_js:
-                command = sys.executable if is_python else "node"
+            elif is_module or is_python or is_js:
+                command, args = resolve_stdio_target(server_target)
                 server_params = StdioServerParameters(
                     command=command,
-                    args=[server_script_path],
+                    args=args,
                     env={**os.environ, **self.env} if self.env else None,
                 )
                 stdio_transport = await self.exit_stack.enter_async_context(
                     stdio_client(server_params)
                 )
-                # stdio, write = stdio_transport
-                # self.session = await self.exit_stack.enter_async_context(
-                #     ClientSession(stdio, write)
-                # )
                 read_stream, write_stream = stdio_transport
                 self.session = await self.exit_stack.enter_async_context(
                     ClientSession(read_stream, write_stream)

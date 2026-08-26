@@ -1,29 +1,51 @@
-# STAGE 1: Compile Python bytecode
-# # 临时构建容器
-FROM python:3.12-slim AS bytecode-builder
+# syntax=docker/dockerfile:1.7
+
+# STAGE 1: Compile, encrypt, and build the native loader.
+FROM python:3.12-slim AS protect-builder
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /src
 
-# Source only exists in this temporary builder stage.
-COPY . .
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get -o Acquire::Retries=5 update \
+    && apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        libssl-dev \
+        binutils \
+    && rm -rf /var/lib/apt/lists/*
 
-# Compile project modules to importable sourceless bytecode. Tracebacks retain
-# their final /app paths rather than the temporary /src build paths.
-# python 编译器
-# /src 存储目录
-RUN python \
-        -m compileall \
-        -b \
-        -f \
-        -q \
-        -s /src \
-        -p /app \
-        /src \
-    && find /src -type f -name '*.py' -delete \
-    && rm -rf /src/packages
+COPY packages/ /packages/
+COPY protect/requirements.txt /tmp/protect-requirements.txt
+RUN python -m pip install \
+        --no-index \
+        --find-links=/packages \
+        -r /tmp/protect-requirements.txt
+
+COPY . /src/
+
+# The secret is available only to this build instruction. The generated header
+# is compiled into the loader and removed before the instruction completes.
+RUN --mount=type=secret,id=source_key,required=true \
+    python /src/protect/pack.py \
+        --root /src \
+        --modules-file /src/protect/modules.txt \
+        --key-file /run/secrets/source_key \
+        --output /out/code.bin \
+        --key-header /tmp/lexora-key/key_data.h \
+    && cmake \
+        -S /src/protect/loader \
+        -B /tmp/loader-build \
+        -DKEY_HEADER_DIR=/tmp/lexora-key \
+        -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build /tmp/loader-build --config Release --parallel \
+    && install -m 0755 /tmp/loader-build/loader /out/loader \
+    && rm -rf /tmp/lexora-key /tmp/loader-build
 
 
-# STAGE 2: Final image
+# STAGE 2: Final runtime image.
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -34,8 +56,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get -o Acquire::Retries=5 update \
+    && apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
         vim \
         curl \
         dnsutils \
@@ -46,24 +69,26 @@ RUN apt-get update \
         less \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies from the offline wheelhouse.
-COPY requirements.txt .
+COPY requirements.txt /app/requirements.txt
 COPY packages/ /packages/
-RUN python \
-        -m pip install \
+RUN python -m pip install \
         --no-index \
         --find-links=/packages \
-        -r requirements.txt \
+        -r /app/requirements.txt \
     && rm -rf /packages
 
-# Copy the bytecode-only application tree from the builder stage.
-# # 将第一阶段最终留下的 .pyc 等文件复制进第二阶段
-COPY --from=bytecode-builder /src/ /app/
+# Protected backend code.
+COPY --from=protect-builder /out/loader /app/loader
+COPY --from=protect-builder /out/code.bin /app/code.bin
 
-# These directories are expected to be bind-mounted in deployments, but creating
-# them keeps local container runs predictable when mounts are absent.
-RUN mkdir -p /app/data /app/profiles
+# Runtime resources that are intentionally readable or bind-mounted.
+COPY frontend/ /app/frontend/
+COPY agents/prompts/cn_prompts.yaml /app/agents/prompts/cn_prompts.yaml
+COPY resources/criteria/criteria.docx /app/resources/criteria/criteria.docx
+COPY tools/document/reporting/pandoc_xelatex_template.tex /app/tools/document/reporting/pandoc_xelatex_template.tex
+
+RUN mkdir -p /app/data /app/profiles /app/logs /app/reports
 
 EXPOSE 8000
 
-CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["/app/loader", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

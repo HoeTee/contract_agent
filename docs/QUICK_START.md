@@ -156,11 +156,11 @@ data/
 构建并启动：
 
 ```powershell
-docker build -t deep-research-agent:latest .
+.\protect\build.ps1 -Tag deep-research-agent:latest
 docker compose up -d
 ```
 
-正式镜像只包含项目 `.pyc` 字节码。`agents/prompts/cn_prompts.yaml` 以只读方式挂载；修改 Prompt 后需要重启 API 服务和所有 Celery worker。
+正式镜像使用 `/app/loader` 在内存中解密 `/app/code.bin`，不包含项目 `.py`、明文项目 `.pyc` 或 `docs/`。`agents/prompts/cn_prompts.yaml` 以只读方式挂载；修改 Prompt 后需要重启 API 服务和所有 Celery worker。
 
 当前 compose 映射：
 

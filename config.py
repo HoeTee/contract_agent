@@ -204,7 +204,7 @@ def infer_rerank_provider(model_name: str) -> str:
     raise RuntimeError(f"Unsupported reranker model name: {model_name!r}.")
 
 
-MCP_SERVER_PATH = str(PROJECT_ROOT_PATH / "mcp_service" / "server" / "server.py")
+MCP_SERVER_TARGET = "module:mcp_service.server.server"
 MCP_SERVER_URL = "http://localhost:8000/mcp"
 DOCS_DIR = str(PROJECT_ROOT_PATH / "docs")
 DEFAULT_CRITERIA_PATH = str(PROJECT_ROOT_PATH / "resources" / "criteria" / "criteria.docx")

@@ -7,7 +7,7 @@ import traceback
 import uuid
 from pathlib import Path
 
-from config import MCP_SERVER_PATH
+from config import MCP_SERVER_TARGET
 from agents.base_agent import Settings
 from endpoints.review.task_store import (
     cleanup_runtime_input,
@@ -83,7 +83,7 @@ async def run_async_review_job(client_dir: str, task_id: str) -> None:
             }
 
         workflow = ContractReviewWorkflow(
-            server_script_path=str(MCP_SERVER_PATH),
+            server_target=MCP_SERVER_TARGET,
             conversation_log_dir=(
                 str(task_conversation_log_dir(client_dir, task_id)) if task_conversation_log_dir(client_dir, task_id) else None
             ),

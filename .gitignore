@@ -80,4 +80,7 @@ image.tar
 /docs/portal
 /docs/superpowers
 /scripts/
+/protect/*.key
+/protect/out/
+/protect/tmp/
 检索算法设计文档.txt

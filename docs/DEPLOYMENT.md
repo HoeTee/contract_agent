@@ -3,23 +3,34 @@
 ## 构建镜像
 
 ```powershell
-docker build -t deep-research-agent:latest .
+.\protect\build.ps1 -Tag deep-research-agent:latest
 ```
 
-正式镜像使用多阶段构建：第一阶段将项目 `.py` 编译为同目录 `.pyc`，第二阶段只复制编译后的应用树。构建后可验证镜像内没有项目 Python 源码：
+脚本会生成一次性 32 字节 AES 密钥，通过 BuildKit secret 传入临时构建阶段，并在构建结束后删除临时密钥。正式镜像只包含原生 `/app/loader`、AES-GCM 加密的 `/app/code.bin` 和明确列出的运行资源；`docs/`、项目 `.py` 与明文项目 `.pyc` 均不会进入正式镜像。
+
+构建后可验证保护边界：
 
 ```powershell
 docker run --rm --entrypoint sh deep-research-agent:latest -c "find /app -type f -name '*.py'"
-docker run --rm --entrypoint python deep-research-agent:latest -c "import app; print(app.__file__)"
+docker run --rm --entrypoint sh deep-research-agent:latest -c "find /app -type f -name '*.pyc'"
+docker run --rm --entrypoint sh deep-research-agent:latest -c "test -x /app/loader && test -s /app/code.bin"
 ```
 
-第一条命令应无输出，第二条命令应输出 `/app/app.pyc`。
+前两条命令应无输出，第三条命令应成功退出。第三方依赖安装在 `/usr/local/lib/python3.12/site-packages/`，其中仍可能包含公开依赖自己的 `.py` 和 `.pyc`。
+
+如需使用固定密钥，密钥文件必须是原始 32 字节数据，并放在项目目录之外：
+
+```powershell
+.\protect\build.ps1 -Tag deep-research-agent:latest -KeyFile C:\secure\lexora-aes.key
+```
 
 ## 启动服务
 
 ```powershell
 docker compose up -d
 ```
+
+API、Celery worker 和本地 MCP 子进程均通过 `/app/loader -m ...` 启动。loader 在内存中解密代码包，不会把项目 `.pyc` 写回容器文件系统。
 
 ## 服务器上必须准备的文件和目录
 
