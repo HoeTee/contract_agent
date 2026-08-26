@@ -7,7 +7,7 @@ import json
 from agents.base_agent import Agent
 from agents.json_utils import chat_until_valid_json
 from agents.prompts.cn_prompts import SUMMARIZER_SYSTEM_PROMPT
-from agents.schemas import SummaryOutput
+from agents.schemas import SummaryContentOutput, SummaryOutput
 
 
 SUMMARY_EXPECTED_JSON = """
@@ -61,6 +61,7 @@ class SummarizerAgent(Agent):
             prompt,
             SummaryOutput,
             SUMMARY_EXPECTED_JSON,
+            final_attempt_schema=SummaryContentOutput,
         )
         return parsed
 

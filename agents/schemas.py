@@ -89,7 +89,7 @@ class ReflectorOutput(StrictOutputModel):
     feedback: str = ""
 
 
-class SummaryOutput(StrictOutputModel):
+class SummaryContentOutput(StrictOutputModel):
     overall_comment: str = "" # 总体审查总结
     priority_comments: list[str] = Field(default_factory=list) # 优先修改建议；使用 default_factory 来确保 priority_comments 字段默认为一个空列表，而不是 None
 
@@ -99,6 +99,10 @@ class SummaryOutput(StrictOutputModel):
         if any(not item.strip() for item in value): # 检查优先修改建议列表中的每个建议是否为非空字符串
             raise ValueError("priority_comments must not contain empty strings")
         return value # 如果验证通过，返回原始值
+
+
+class SummaryOutput(SummaryContentOutput):
+    """Preferred concise summary shape used for the first three attempts."""
 
     @model_validator(mode="after") # 总体验证
     def validate_total_length(self):

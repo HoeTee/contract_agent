@@ -62,14 +62,16 @@ async def chat_until_valid_json(
     expected_format: str,
     *,
     max_attempts: int = 3,
+    final_attempt_schema: type[BaseModel] | None = None,
 ) -> tuple[dict, str]:
-    """Chat with one agent until its output validates against the given schema."""
+    """Validate agent JSON, optionally relaxing only the final parsed response."""
     prompt = initial_prompt
     last_error: Exception | None = None
     raw_output = ""
 
     for attempt in range(1, max_attempts + 1):
         raw_output = await agent.chat(prompt)
+        parsed: dict | None = None
         try:
             parsed = extract_json(raw_output)
             validated = schema.model_validate(parsed)
@@ -77,6 +79,12 @@ async def chat_until_valid_json(
         except (json.JSONDecodeError, ValidationError, ValueError) as exc:
             last_error = exc
             if attempt == max_attempts:
+                if final_attempt_schema is not None and parsed is not None:
+                    try:
+                        fallback = final_attempt_schema.model_validate(parsed)
+                        return fallback.model_dump(), raw_output
+                    except (ValidationError, ValueError) as fallback_exc:
+                        last_error = fallback_exc
                 break
             prompt = _repair_prompt(exc, expected_format)
 
