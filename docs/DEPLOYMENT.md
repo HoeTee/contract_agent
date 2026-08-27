@@ -1,36 +1,107 @@
 # 部署说明
 
-## 构建镜像
+## 环境边界
 
-```powershell
-.\protect\build.ps1 -Tag deep-research-agent:latest
+- **镜像构建机**：持有项目源码、Docker/BuildKit、32字节 AES 密钥和 VMP console/SDK 工具目录，负责生成生产镜像。
+- **远端部署宿主机**：只需要生产镜像、Compose 配置、`.env`、`config.yaml` 和持久化目录；不要求存在源码、Python、VMP 或项目脚本。
+- **运行服务容器**：只包含运行依赖、`/app/host`、`/app/libloader.vmp.so`、`/app/code.bin` 和明确列出的可读资源。
+- **临时管理容器**：执行用户或 API client 管理命令时，挂载与服务容器相同的 `profiles/`、`data/` 和配置文件。
+
+## 构建生产镜像
+
+正式构建是三阶段流程：
+
+1. `protect-builder`（`python:3.12-slim`）：编译项目字节码并生成 AES-256-GCM 密文 `code.bin`，同时编译未加壳 `libloader.so` 和明文小型 host。
+2. `vmp-pack`（`ubuntu:24.04`）：使用 glibc 2.39 运行 `vmprotect_con`，把 `libloader.so` 中标记的密钥重建和 AES 解密函数虚拟化为 `libloader.vmp.so`。
+3. `runtime`（`python:3.12-slim`）：只复制 `host + libloader.vmp.so + code.bin`，不复制未加壳 loader、VMP 工具、构建密钥或项目源码。
+
+VMP 工具目录由构建机提供，不提交到 Git。目录至少包含：
+
+```text
+<vmp-tools>/
+  vmprotect_con
+  libVMProtectSDK64.so
+  libjitterentropy.so.3
+  VMProtectLicense.ini
+  sdk/
+    VMProtectSDK.h
 ```
 
-脚本会生成一次性 32 字节 AES 密钥，通过 BuildKit secret 传入临时构建阶段，并在构建结束后删除临时密钥。正式镜像只包含原生 `/app/loader`、AES-GCM 加密的 `/app/code.bin` 和明确列出的运行资源；`docs/`、项目 `.py` 与明文项目 `.pyc` 均不会进入正式镜像。
-
-构建后可验证保护边界：
+在项目根目录执行：
 
 ```powershell
-docker run --rm --entrypoint sh deep-research-agent:latest -c "find /app -type f -name '*.py'"
-docker run --rm --entrypoint sh deep-research-agent:latest -c "find /app -type f -name '*.pyc'"
-docker run --rm --entrypoint sh deep-research-agent:latest -c "test -x /app/loader && test -s /app/code.bin"
+.\protect\build.ps1 `
+  -Tag southernbanker/lexora:latest `
+  -VmpToolsDir C:\secure\vmp-tools
 ```
 
-前两条命令应无输出，第三条命令应成功退出。第三方依赖安装在 `/usr/local/lib/python3.12/site-packages/`，其中仍可能包含公开依赖自己的 `.py` 和 `.pyc`。
-
-如需使用固定密钥，密钥文件必须是原始 32 字节数据，并放在项目目录之外：
+也可以通过环境变量提供工具目录：
 
 ```powershell
-.\protect\build.ps1 -Tag deep-research-agent:latest -KeyFile C:\secure\lexora-aes.key
+$env:VMP_TOOLS_DIR = "C:\secure\vmp-tools"
+.\protect\build.ps1 -Tag southernbanker/lexora:latest
 ```
+
+脚本默认生成一次性32字节 AES 密钥，通过 BuildKit secret `source_key` 传入 `protect-builder`，完成后删除临时密钥。如需可重现构建，可以显式提供项目目录之外的原始32字节密钥：
+
+```powershell
+.\protect\build.ps1 `
+  -Tag southernbanker/lexora:latest `
+  -VmpToolsDir C:\secure\vmp-tools `
+  -KeyFile C:\secure\lexora-aes.key
+```
+
+`vmprotect_con` 需要 glibc 2.38或更高版本，不能在 `python:3.12-slim` 的 Debian bookworm 层直接运行。正式 Dockerfile 因此固定使用 `ubuntu:24.04` 执行加壳；运行阶段仍使用 `python:3.12-slim`。
+
+## 构建后验证
+
+Dockerfile 会检查加壳日志中同时出现 `lexora_key_reconstruct`、`lexora_aes_decrypt` 和 `Compilation completed`；任何一项缺失都会中止构建。
+
+继续检查最终镜像：
+
+```powershell
+$image = "southernbanker/lexora:latest"
+
+docker run --rm --entrypoint sh $image -c "test -x /app/host && test -s /app/libloader.vmp.so && test -s /app/code.bin"
+docker run --rm --entrypoint sh $image -c "test ! -e /app/loader && test ! -e /app/libloader.so && test ! -e /app/libVMProtectSDK64.so && test ! -e /app/vmprotect_con"
+docker run --rm --entrypoint find $image /app -type f -name "*.py"
+docker run --rm --entrypoint find $image /app -type f -name "*.pyc"
+docker run --rm --entrypoint sh $image -c "od -An -tx1 -N8 /app/code.bin"
+
+foreach ($term in @("reconstruct_key", "aes_decrypt", "LEXORA1", "zipfile")) {
+  docker run --rm --entrypoint grep $image -a -q $term /app/libloader.vmp.so
+  if ($LASTEXITCODE -eq 0) { throw "Sensitive string remains in packed library: $term" }
+}
+
+$dependencies = docker run --rm --entrypoint ldd $image /app/libloader.vmp.so
+if ($dependencies -match "VMProtectSDK") { throw "Packed library still depends on VMProtect SDK." }
+```
+
+预期结果：
+
+- `/app/host`、`/app/libloader.vmp.so`、`/app/code.bin` 存在。
+- `/app/loader`、未加壳 `libloader.so`、VMP SDK和console不存在。
+- 两条 `find` 命令无输出，即 `/app` 下不存在项目 `.py` 或明文 `.pyc`；第三方依赖位于 `/usr/local/lib/python3.12/site-packages/`，仍可包含依赖自身的公开源码。
+- `code.bin` 前8字节为 `4c 45 58 4f 52 41 31 00`（`LEXORA1\0`）。
+- 加壳 `.so` 中无法直接检索到密钥重建、AES解密或 importer 的关键明文字符串。
 
 ## 启动服务
 
+远端部署宿主机使用已经构建并推送的镜像：
+
 ```powershell
-docker compose up -d
+docker compose pull
+docker compose up -d --force-recreate
 ```
 
-API、Celery worker 和本地 MCP 子进程均通过 `/app/loader -m ...` 启动。loader 在内存中解密代码包，不会把项目 `.pyc` 写回容器文件系统。
+API、Celery worker 和本地 MCP 子进程都通过 host 的 `-m` 接口进入受保护 Python 运行时：
+
+```text
+/app/host -m uvicorn app:app ...
+/app/host -m celery -A task_queue.celery_app:celery_app worker ...
+```
+
+host 根据自身路径 `dlopen` 同目录的 `libloader.vmp.so`；共享库重建 AES 密钥、解密 `/app/code.bin` 并通过内存 importer 加载模块，不会把项目 `.pyc` 写回容器文件系统。加壳后的共享库运行时不依赖 `libVMProtectSDK64.so`。
 
 ## 服务器上必须准备的文件和目录
 
@@ -42,7 +113,7 @@ profiles/
 data/
 ```
 
-当前 `docker-compose.yaml` 会把 `.env`、`profiles/` 和 `data/` 挂载进容器：
+Compose 将宿主机输入挂载为：
 
 ```yaml
 volumes:
@@ -53,89 +124,58 @@ volumes:
   - ./data:/app/data
 ```
 
-Prompt YAML 在 Web 和 Celery worker 启动导入模块时读取。修改该文件后，需要重启 API 服务和所有 worker 才会生效。
+输入文件来自远端部署宿主机；`.env`、`config.yaml` 和 Prompt 以只读方式供 API 与 worker 启动时读取，`profiles/` 和 `data/` 写入宿主机持久化目录，不写入镜像层。修改 Prompt 后，需要重启 API 服务和所有 worker。
 
-`profiles/` 可以是空目录。首次创建用户时，程序会自动生成：
+`profiles/` 可以为空。首次创建用户时，程序会生成 `profiles/users.json`。该目录必须可写，因为管理脚本、管理员后台和用户资料修改都会更新身份数据。
 
-```text
-profiles/users.json
-```
-
-`profiles/` 需要可写挂载，因为管理员后台和 CLI 会创建账号，普通用户也可以在前端修改显示名称。
-
-用户运行数据会被挂载到容器中：
-
-```yaml
-- ./data:/app/data
-```
-
-如果从旧部署迁移，原来的 `users.json` 需要手动移动到：
+如果从旧部署迁移，将原来的 `users.json` 移动到：
 
 ```text
 profiles/users.json
 ```
 
-`users_file` 不再通过 `config.yaml` 配置；请将旧用户数据移动到 `profiles/users.json`。
-
-如果要自定义新用户默认审查要点模板，可以挂载单个文件：
+如需自定义默认审查要点，可挂载单个文件：
 
 ```yaml
 - ./criteria.docx:/app/resources/criteria/criteria.docx:ro
 ```
 
-不要挂载空的 `resources/criteria/` 目录覆盖容器内默认模板，除非宿主机目录中已经有 `criteria.docx`。
+不要用空目录覆盖 `/app/resources/criteria/`。
 
-## 端口说明
+## 端口与健康检查
 
-当前 compose 命令让容器内部服务监听：
-
-```text
-0.0.0.0:8000
-```
-
-`docker-compose.yaml` 中的端口映射决定外部如何访问。例如：
+容器内部服务监听 `0.0.0.0:8000`。例如：
 
 ```yaml
 ports:
   - "0.0.0.0:5000:8000"
 ```
 
-表示允许通过服务器 5000 端口访问：
-
-```text
-http://服务器IP:5000
-```
-
-如果只允许服务器本机访问，需要改为：
+外部访问 `http://服务器IP:5000`。如果只允许宿主机本地访问，改为：
 
 ```yaml
 ports:
   - "127.0.0.1:5000:8000"
 ```
 
-然后访问：
+健康检查地址：
 
 ```text
-http://127.0.0.1:5000
+宿主机：http://127.0.0.1:5000/health
+容器内：http://127.0.0.1:8000/health
 ```
-
-## 健康检查
-
-```text
-http://127.0.0.1:5000/health
-```
-
-容器内部健康检查访问的是 `http://127.0.0.1:8000/health`，这是容器内端口，不是宿主机端口。
 
 ## Queue worker
 
-如果 `queue.enabled=true`，部署时必须在 API 服务之外同时启动 Redis 和 Celery worker。Redis 不会随 `uvicorn` 自动启动；worker 也不是 API 进程的一部分。
+如果 `queue.enabled=true`，必须同时运行 Redis、API 和至少一个 Celery worker：
 
-这里的关键边界是进程隔离：API 容器负责 HTTP 请求和状态读取，worker 容器负责 workflow、MCP、LLM 调用、DOCX 生成和日志写入。`/status` 不应和审查执行任务运行在同一个 API 进程中。
+```text
+redis
+api
+review-worker
+```
 
-Celery task、Redis broker 和 worker 进程的区别见 `docs/QUEUE_WORKER.md`。
-
-容器内部配置应使用 Redis service 名称，不要使用 `localhost`：
+Redis 是 broker，API 负责请求和状态读取，worker 负责 workflow、MCP、LLM调用、DOCX生成和日志写入。容器配置中的 Redis 地址应使用 Compose service 名称，而不是 `localhost`：
 
 ```yaml
 queue:
@@ -143,10 +183,11 @@ queue:
   broker_url: "redis://redis:6379/0"
 ```
 
-运行时至少包含：
+Celery task、broker 和 worker 的详细边界见 `docs/QUEUE_WORKER.md`。
 
-```text
-redis
-api
-review-worker
-```
+## 安全和授权边界
+
+- VMP提高的是离线静态分析成本，不保证运行时明文永不可获得。
+- 能运行容器并使用 `docker exec`、`ptrace`、`LD_PRELOAD` 或进程内存转储的攻击者，仍可提取内存中的解密归档。
+- 生产环境应配合非root运行、限制容器管理权限、避免开放 `docker exec`、启用宿主机审计，并在兼容业务写入需求的前提下收紧容器文件系统权限。
+- 当前VMP工具来源存在授权风险，仅限已获合法授权的内部研究或保护场景；分发和商用前必须完成法律审核。

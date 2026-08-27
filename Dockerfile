@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-# STAGE 1: Compile, encrypt, and build the native loader.
+# STAGE 1: Compile Python bytecode, encrypt it, and build loader.so + host.
 FROM python:3.12-slim AS protect-builder
 
 ENV PIP_NO_CACHE_DIR=1 \
@@ -25,9 +25,11 @@ RUN python -m pip install \
         -r /tmp/protect-requirements.txt
 
 COPY . /src/
+COPY --from=vmp_tools /sdk/ /vmp-sdk/sdk/
+COPY --from=vmp_tools /libVMProtectSDK64.so /vmp-sdk/libVMProtectSDK64.so
 
-# The secret is available only to this build instruction. The generated header
-# is compiled into the loader and removed before the instruction completes.
+# The secret is available only to this build instruction. key_data.h is compiled
+# into libloader.so and removed with the temporary build directory.
 RUN --mount=type=secret,id=source_key,required=true \
     python /src/protect/pack.py \
         --root /src \
@@ -39,14 +41,41 @@ RUN --mount=type=secret,id=source_key,required=true \
         -S /src/protect/loader \
         -B /tmp/loader-build \
         -DKEY_HEADER_DIR=/tmp/lexora-key \
+        -DVMP_SDK_INCLUDE=/vmp-sdk/sdk \
+        -DVMP_SDK_LIB=/vmp-sdk/libVMProtectSDK64.so \
         -DCMAKE_BUILD_TYPE=Release \
-    && cmake --build /tmp/loader-build --config Release --parallel \
-    && install -m 0755 /tmp/loader-build/loader /out/loader \
+    && cmake --build /tmp/loader-build --target loader_so host --config Release --parallel \
+    && install -m 0755 /tmp/loader-build/libloader.so /out/libloader.so \
+    && install -m 0755 /tmp/loader-build/host /out/host \
     && rm -rf /tmp/lexora-key /tmp/loader-build
 
 
-# STAGE 2: Final runtime image.
-FROM python:3.12-slim
+# STAGE 2: VMProtect-pack the sensitive loader shared library. vmprotect_con
+# requires glibc >= 2.38, so this stage cannot use python:3.12-slim/bookworm.
+FROM ubuntu:24.04 AS vmp-pack
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+WORKDIR /vmp-tools
+
+COPY --from=vmp_tools /vmprotect_con /vmp-tools/vmprotect_con
+COPY --from=vmp_tools /libVMProtectSDK64.so /vmp-tools/libVMProtectSDK64.so
+COPY --from=vmp_tools /libjitterentropy.so.3 /vmp-tools/libjitterentropy.so.3
+COPY --from=vmp_tools /VMProtectLicense.ini /vmp-tools/VMProtectLicense.ini
+COPY --from=protect-builder /out/libloader.so /vmp-tools/libloader.so
+
+RUN chmod 0755 /vmp-tools/vmprotect_con \
+    && mkdir -p /out \
+    && LD_LIBRARY_PATH=/vmp-tools /vmp-tools/vmprotect_con /vmp-tools/libloader.so 2>&1 | tee /tmp/vmp-pack.log \
+    && test -s /vmp-tools/libloader.vmp.so \
+    && grep -q "lexora_key_reconstruct" /tmp/vmp-pack.log \
+    && grep -q "lexora_aes_decrypt" /tmp/vmp-pack.log \
+    && grep -q "Compilation completed" /tmp/vmp-pack.log \
+    && install -m 0755 /vmp-tools/libloader.vmp.so /out/libloader.vmp.so
+
+
+# STAGE 3: Final runtime image. VMProtect build tools and the unprotected
+# libloader.so are intentionally excluded.
+FROM python:3.12-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -77,8 +106,9 @@ RUN python -m pip install \
         -r /app/requirements.txt \
     && rm -rf /packages
 
-# Protected backend code.
-COPY --from=protect-builder /out/loader /app/loader
+# Protected backend code and host entrypoint.
+COPY --from=protect-builder /out/host /app/host
+COPY --from=vmp-pack /out/libloader.vmp.so /app/libloader.vmp.so
 COPY --from=protect-builder /out/code.bin /app/code.bin
 
 # Runtime resources that are intentionally readable or bind-mounted.
@@ -91,4 +121,4 @@ RUN mkdir -p /app/data /app/profiles /app/logs /app/reports
 
 EXPOSE 8000
 
-CMD ["/app/loader", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["/app/host", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

@@ -1,122 +1,181 @@
-# 源码保护方案（AES 加密 + VMP 虚拟化）
+# 源码保护方案（AES-256-GCM + VMP 虚拟化）
 
-## 保护目标
+## 当前正式架构
 
-项目源码不能以可解译形态进入最终镜像：即使使用者通过 `docker cp` 或 `docker save` 拿到镜像内容，也无法直接还原 Python 源码。
+生产镜像采用两层保护：
 
-当前保护由两层组成：
+1. `protect/pack.py` 将 `protect/modules.txt` 选中的 Python 源码编译为 Python 3.12 字节码、打包为 ZIP，再用 AES-256-GCM 加密为 `/app/code.bin`。
+2. 密钥重建和 AES 解密逻辑位于 `libloader.so`，其中两个关键函数由 `VMProtectBegin` / `VMProtectEnd` 标记；VMP 将该共享库虚拟化为 `/app/libloader.vmp.so`。
 
-1. **AES 加密层**：源码编译成 pyc 后整体用 AES-256-GCM 加密为 `/app/code.bin`，磁盘上不出现任何 `.py` / `.pyc`。
-2. **VMP 编译层（实验验证）**：把负责解密 code.bin 的 loader 共享库用 VMProtect 加壳，密钥重建与 AES 解密代码被虚拟化，静态分析无法读出密钥。
-
-## 总体结构
+Linux 下不使用“直接加壳 ELF 可执行文件”的路径。当前 VMP 版本对 ELF executable 的处理存在结构性问题；正式方案只对共享库加壳，再由明文小型 `/app/host` 使用 `dlopen` 加载。
 
 ```text
-host（明文小启动器）
-  └─ dlopen /app/libloader.vmp.so（VMP 加壳的 loader）
-       ├─ 重建 AES 密钥（被虚拟化）
-       ├─ AES-256-GCM 解密 /app/code.bin
-       ├─ Python 3.12 初始化 + importer 从内存加载模块
-       └─ 运行 uvicorn 启动应用
+/app/host
+  └─ dlopen /app/libloader.vmp.so
+       ├─ 虚拟化函数：重建 AES 密钥
+       ├─ 虚拟化函数：AES-256-GCM 解密 /app/code.bin
+       ├─ 初始化嵌入式 Python 3.12
+       ├─ 从内存 ZIP 注册 Python importer
+       └─ 按 /app/host -m <module> [arguments...] 执行模块
 ```
 
-镜像中受保护的关键文件只有三个：`/app/host`、`/app/libloader.vmp.so`、`/app/code.bin`。其余资源（frontend、prompts、模板）按设计保持可读。
+最终镜像中的三个保护产物：
 
-## 两层保护说明
-
-### AES 加密层（保护数据）
-
-- 输入：项目 Python 源码（由 `protect/modules.txt` 指定范围）。
-- 处理：`protect/pack.py` 将源码编译为 pyc、打包为 zip，再使用 32 字节密钥做 AES-256-GCM 加密。
-- 输出：`code.bin`（密文）、`key_data.h`（密钥分片，编译进 loader，不进入镜像）。
-- 密钥来源：构建期 BuildKit secret（`source_key`），构建结束后即失效；也支持 `build.ps1 -KeyFile` 指定固定密钥。
-
-### VMP 编译层（保护代码与密钥）
-
-- 对象：`libloader.so`（内含密钥重建 `reconstruct_key` 与 AES 解密 `aes_decrypt_payload`）。
-- 处理：源码中用 `VMProtectBegin` / `VMProtectEnd` 标记上述两个函数，`vmprotect_con` 加壳后变为 `libloader.vmp.so`。
-- 效果：加壳前可直接读出的明文密钥、importer 引导源码、内部符号在加壳后全部消失；运行时行为不变。
-
-## 构建流程
-
-### 1. AES 加密生成 code.bin
-
-```bash
-python3 protect/pack.py \
-  --root /src \
-  --modules-file protect/modules.txt \
-  --key-file source.key \
-  --output code.bin \
-  --key-header key_data.h
+```text
+/app/host                 # 明文启动器，只负责定位 .so、dlopen 和调用导出入口
+/app/libloader.vmp.so     # VMP 虚拟化后的敏感 loader
+/app/code.bin             # AES-256-GCM 密文代码包
 ```
 
-前提：`source.key` 为 32 字节随机密钥；已安装 `cryptography`。
+最终镜像不包含项目 `.py`、明文项目 `.pyc`、未加壳 `libloader.so`、`key_data.h`、AES构建密钥、`vmprotect_con`、VMP SDK库或许可证文件。
 
-### 2. VMP 加壳生成 libloader.vmp.so
+## AES 加密层
 
-先编译 loader 共享库：
+输入：
 
-```bash
-clang++ -shared -fPIC -O2 -fvisibility=hidden -fno-ident \
-  -I protect/loader/src -I <key_data.h目录> -I <VMP SDK头目录> -I <python3.12头目录> \
-  loader_entry.cpp crypto.cpp importer.cpp \
-  -L<console工具目录> -lVMProtectSDK64 -lpython3.12 -lcrypto \
-  -o libloader.so
+- `protect/modules.txt` 指定范围内的项目 Python 源码。
+- 通过 BuildKit secret `source_key` 提供的原始32字节 AES密钥。
+
+处理：
+
+```text
+.py
+→ compile(..., optimize=2)
+→ Python 3.12 .pyc payload
+→ ZIP（manifest.json + modules/*.pyc）
+→ AES-256-GCM
 ```
 
-再加壳：
+`code.bin` 格式：
 
-```bash
-cd <console工具目录>
-LD_LIBRARY_PATH=. ./vmprotect_con libloader.so
+```text
+LEXORA1\0（8字节AAD/文件头）
++ nonce（12字节）
++ ciphertext
++ GCM tag（16字节）
 ```
 
-加壳器 `vmprotect_con` 由 `vmp-linux-so-protect` skill 的 `build_vmp_console.sh` 在 Linux（glibc ≥ 2.38）环境下从自带源码构建，产物含注册配置 `VMProtectLicense.ini`。
+`protect/pack.py` 同时生成临时 `key_data.h`，把密钥拆为随机 mask 与 XOR分片；该头文件只进入 `libloader.so` 编译过程，随后随临时构建目录删除。
 
-### 3. 构建镜像
+## VMP 虚拟化层
+
+VMP保护对象是未加壳的 `libloader.so`，不是 `code.bin`。源码标记位于 `protect/loader/src/crypto.cpp`：
+
+```text
+lexora_key_reconstruct
+lexora_aes_decrypt
+```
+
+共享库使用隐藏符号编译，只显式导出：
+
+```text
+lexora_loader_main
+```
+
+`vmprotect_con` 将标记函数转换为VM字节码并输出 `libloader.vmp.so`。加壳后的共享库包含自身运行时，不需要在最终镜像中携带 `libVMProtectSDK64.so`。
+
+## Docker三阶段构建
+
+正式入口是根目录 `Dockerfile`：
+
+```text
+protect-builder（python:3.12-slim）
+  ├─ pack.py → code.bin + key_data.h
+  └─ CMake → libloader.so + host
+
+vmp-pack（ubuntu:24.04）
+  ├─ vmprotect_con + SDK由BuildKit named context提供
+  └─ libloader.so → libloader.vmp.so
+
+runtime（python:3.12-slim）
+  └─ host + libloader.vmp.so + code.bin + 运行依赖和可读资源
+```
+
+加壳阶段必须使用 glibc 2.38或更高版本；`python:3.12-slim` 的 Debian bookworm glibc版本不足，因此不能合并 `protect-builder` 和 `vmp-pack`。
+
+构建命令：
 
 ```powershell
-docker build -f protect\vmp\tmp_test\Dockerfile.vmp-runtime -t contract_agent:vmp-test .
+.\protect\build.ps1 `
+  -Tag southernbanker/lexora:latest `
+  -VmpToolsDir C:\secure\vmp-tools
 ```
 
-运行时阶段基于 `python:3.12-slim`，与现有正式 Dockerfile 的最终阶段一致，仅将入口从 `/app/loader` 换为 `/app/host`。
+`protect/build.ps1` 将工具目录作为 BuildKit named context `vmp_tools` 传入，工具不会被普通项目构建上下文或最终镜像收录。
 
 ## 运行时流程
 
+API容器：
+
 ```text
-容器启动（CMD: /app/host）
-  → dlopen /app/libloader.vmp.so
-  → VMP 运行时在内存中解包加壳容器
-  → 执行虚拟化代码：重建 AES 密钥 → 解密 code.bin
-  → 内存中获得 Python 源码 zip
-  → importer 加载模块 → uvicorn 监听 8000
+/app/host -m uvicorn app:app ...
+→ dlopen libloader.vmp.so
+→ 重建密钥并验证/解密 code.bin
+→ 注册内存 importer
+→ 从受保护代码包导入 app
 ```
 
-VMP 解包与 AES 解密均发生在内存中，磁盘上的 `libloader.vmp.so` 与 `code.bin` 始终保持加壳/密文形态。
+Celery worker容器：
+
+```text
+/app/host -m celery -A task_queue.celery_app:celery_app worker ...
+→ 使用同一套 .so 和 code.bin
+```
+
+解密不会生成磁盘 `.pyc`，但解密后的 ZIP 字节会在 Python importer 的内存对象中存在，直到进程退出。
 
 ## 证据验证
 
+构建必须同时验证：
+
+- 加壳日志出现 `lexora_key_reconstruct` 和 `lexora_aes_decrypt` 两个marker。
+- 加壳日志出现 `Compilation completed`。
+- `libloader.vmp.so` 是可加载的 ELF shared object。
+- host 能通过 `dlsym` 找到 `lexora_loader_main`。
+
+最终镜像验证：
+
 ```powershell
-# 镜像内不应存在任何 .py / .pyc
-docker run --rm --entrypoint sh contract_agent:vmp-test -c "find /app -name '*.py' | wc -l"
-docker run --rm --entrypoint sh contract_agent:vmp-test -c "find /app -name '*.pyc' | wc -l"
+$image = "southernbanker/lexora:latest"
 
-# code.bin 应为 LEXORA1 密文头
-docker run --rm --entrypoint sh contract_agent:vmp-test -c "xxd -l 8 /app/code.bin"
+docker run --rm --entrypoint sh $image -c "test -x /app/host && test -s /app/libloader.vmp.so && test -s /app/code.bin"
+docker run --rm --entrypoint find $image /app -type f -name "*.py"
+docker run --rm --entrypoint find $image /app -type f -name "*.pyc"
+docker run --rm --entrypoint sh $image -c "od -An -tx1 -N8 /app/code.bin"
 
-# 加壳 .so 中不应存在明文关键字符串
-docker run --rm --entrypoint sh contract_agent:vmp-test -c "strings /app/libloader.vmp.so | grep -cE 'reconstruct_key|aes_decrypt|LEXORA1|zipfile'"
+foreach ($term in @("reconstruct_key", "aes_decrypt", "LEXORA1", "zipfile")) {
+  docker run --rm --entrypoint grep $image -a -q $term /app/libloader.vmp.so
+  if ($LASTEXITCODE -eq 0) { throw "Sensitive string remains in packed library: $term" }
+}
+
+$dependencies = docker run --rm --entrypoint ldd $image /app/libloader.vmp.so
+if ($dependencies -match "VMProtectSDK") { throw "Packed library still depends on VMProtect SDK." }
+```
+
+应用验证：
+
+```powershell
+docker run --rm -p 8000:8000 `
+  --env-file .env `
+  -v "${PWD}\config.yaml:/app/config.yaml:ro" `
+  southernbanker/lexora:latest
+
+curl.exe -I http://127.0.0.1:8000/docs
 ```
 
 ## 安全边界
 
-- 静态分析：`docker cp` 后离线解译源码需先逆向 VMP 虚拟机再解 AES，代价以周/月计。
-- 动态分析：能运行并观察进程的攻击者（docker exec、ptrace、LD_PRELOAD）仍可从进程内存提取解密后的归档。这是所有运行时保护的共性边界，部署层应配合非 root 运行、`/app` 只读挂载、禁止 `docker exec`、审计日志。
-- 法律边界：泄露版 VMP 属未授权软件，仅限技术研究与内部保护，分发与商用存在法律风险。
+- **静态边界**：拿到镜像层后无法像普通 `.py`/`.pyc` 那样直接解译，需要先分析VMP虚拟机和loader，再恢复AES密钥与代码包。
+- **动态边界**：能够执行 `docker exec`、附加调试器、使用 `ptrace`/`LD_PRELOAD` 或读取进程内存的攻击者，仍可提取解密后的归档。
+- **部署边界**：生产环境应使用最小化容器权限、限制宿主机Docker权限、避免向非受信人员开放容器shell，并对调试和容器管理操作进行审计。
+- **授权边界**：当前VMP工具来源存在授权风险，仅限已获合法授权的内部研究或保护场景；分发和商用前必须完成法律审核。
 
-## 现状与相关文件
+## 相关实现
 
-- 正式构建链（`Dockerfile`、`protect/build.ps1`）：当前为 AES-only 形态（`/app/loader` + `code.bin`），尚未集成 VMP 阶段。
-- VMP 版本：实验验证镜像 `contract_agent:vmp-test`；加壳产物与临时 Dockerfile 位于 `protect/vmp/tmp_test/`，未纳入正式构建链。
-- 流程固化：`vmp-linux-so-protect` skill（含泄露版 VMP 源码、注册配置、构建与加壳脚本）。
-- 相关源码：`protect/loader/`（loader_entry.cpp、crypto.cpp、importer.cpp、host.c）、`protect/pack.py`。
+- `Dockerfile`：三阶段生产镜像。
+- `protect/build.ps1`：AES密钥和VMP工具目录校验、BuildKit构建入口。
+- `protect/pack.py`：字节码归档和AES-256-GCM加密。
+- `protect/loader/CMakeLists.txt`：`loader_so` 与 `host` 编译目标。
+- `protect/loader/src/crypto.cpp`：密钥重建和AES解密marker。
+- `protect/loader/src/loader_entry.cpp`：`lexora_loader_main` 导出入口。
+- `protect/loader/src/host.c`：`dlopen`宿主程序。

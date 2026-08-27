@@ -19,18 +19,6 @@ endif()
 find_package(Python3 3.12 EXACT REQUIRED COMPONENTS Development.Embed)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
 
-add_executable(loader
-    src/main.cpp
-    src/loader_entry.cpp
-    src/crypto.cpp
-    src/importer.cpp
-)
-
-target_include_directories(loader PRIVATE src "${KEY_HEADER_DIR}")
-target_link_libraries(loader PRIVATE Python3::Python OpenSSL::Crypto)
-target_compile_options(loader PRIVATE -O3 -flto -fvisibility=hidden -fno-ident)
-target_link_options(loader PRIVATE -flto -Wl,--strip-all)
-
 # Shared library that carries the sensitive loader logic and is VMProtect-packed
 # before deployment; host loads it via dlopen.
 add_library(loader_so SHARED

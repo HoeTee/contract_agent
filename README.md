@@ -140,6 +140,8 @@ python main.py --contract .\contract.docx --criteria .\criteria.docx --output .\
 
 ## Docker
 
+生产镜像采用双层源码保护：项目 Python 模块先编译并通过 AES-256-GCM 加密为 `code.bin`，负责密钥重建和解密的 loader 共享库再经过 VMP 虚拟化。容器通过 `/app/host` 加载 `/app/libloader.vmp.so`，最终镜像不包含项目 `.py`、明文 `.pyc`、未加壳 `libloader.so` 或 VMP 构建工具。
+
 运行数据应持久化到容器外：
 
 ```yaml
@@ -152,6 +154,7 @@ volumes:
 Docker 部署和排障文档：
 
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+- [docs/SOURCE_PROTECTION.md](docs/SOURCE_PROTECTION.md)
 - [docs/DOCKER_NETWORK_TROUBLESHOOTING.md](docs/DOCKER_NETWORK_TROUBLESHOOTING.md)
 
 ## 项目文档

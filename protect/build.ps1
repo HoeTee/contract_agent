@@ -1,6 +1,7 @@
 param(
     [string]$Tag = "southernbanker/lexora:latest",
-    [string]$KeyFile
+    [string]$KeyFile,
+    [string]$VmpToolsDir
 )
 
 $ErrorActionPreference = "Stop"
@@ -8,6 +9,30 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $temporaryKey = $null
 
 try {
+    if (-not $VmpToolsDir) {
+        $VmpToolsDir = $env:VMP_TOOLS_DIR
+    }
+    if (-not $VmpToolsDir) {
+        $VmpToolsDir = Join-Path $PSScriptRoot "vmp\tools"
+    }
+    if (-not (Test-Path -LiteralPath $VmpToolsDir -PathType Container)) {
+        throw "VMP tools directory does not exist: $VmpToolsDir. Pass -VmpToolsDir or set VMP_TOOLS_DIR."
+    }
+    $resolvedVmpToolsDir = (Resolve-Path -LiteralPath $VmpToolsDir).Path
+    $requiredVmpFiles = @(
+        "vmprotect_con",
+        "libVMProtectSDK64.so",
+        "libjitterentropy.so.3",
+        "VMProtectLicense.ini",
+        "sdk\VMProtectSDK.h"
+    )
+    foreach ($relativePath in $requiredVmpFiles) {
+        $requiredPath = Join-Path $resolvedVmpToolsDir $relativePath
+        if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
+            throw "Required VMP tool file is missing: $requiredPath"
+        }
+    }
+
     if ($KeyFile) {
         $resolvedKey = (Resolve-Path -LiteralPath $KeyFile).Path
     }
@@ -31,6 +56,7 @@ try {
     }
 
     docker build `
+        --build-context "vmp_tools=$resolvedVmpToolsDir" `
         --secret "id=source_key,src=$resolvedKey" `
         --tag $Tag `
         $projectRoot

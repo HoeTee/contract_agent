@@ -83,4 +83,6 @@ image.tar
 /protect/*.key
 /protect/out/
 /protect/tmp/
+/protect/vmp/tools/
+/protect/vmp/tmp_test/
 检索算法设计文档.txt

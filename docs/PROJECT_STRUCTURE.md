@@ -24,7 +24,7 @@
 - `workflow/workflow.py`：合同审查主工作流，串联解析、建索引、规划、执行、汇总和报告生成。
 - `mcp_service/client/client.py`：MCP 客户端封装，负责连接 MCP server、拉取工具列表和执行工具调用。
 - `mcp_service/server/server.py`：MCP server 脚本，暴露文档解析、检索建索引、检索查询和报告生成工具。
-- `protect/`：正式镜像保护构建入口，负责AES-GCM代码打包、原生loader编译和Docker镜像构建。
+- `protect/`：正式镜像保护构建入口，负责 Python 字节码打包、AES-256-GCM 加密、loader 共享库与 host 编译，并为 VMP 虚拟化阶段提供源码和构建入口；最终由根目录 `Dockerfile` 组装 `host + libloader.vmp.so + code.bin` 生产镜像。
 - `endpoints/review/task_store.py`：读写 API/Web 任务状态、输入、输出和日志路径。
 - `endpoints/review/job_worker.py`：执行异步审查后台任务。
 - `endpoints/review/response.py`：构造对外 API 响应，避免暴露服务端路径和 secret hash。

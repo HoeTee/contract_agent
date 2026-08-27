@@ -15,7 +15,7 @@ services:
     depends_on:
       - redis
 
-    command: ["/app/loader", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    command: ["/app/host", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
 
     ports:
       - "0.0.0.0:5000:8000"
@@ -47,7 +47,7 @@ services:
     env_file:
       - .env
 
-    command: ["/app/loader", "-m", "celery", "-A", "task_queue.celery_app:celery_app", "worker", "--loglevel=info", "--concurrency=3"]
+    command: ["/app/host", "-m", "celery", "-A", "task_queue.celery_app:celery_app", "worker", "--loglevel=info", "--concurrency=3"]
 
     depends_on:
       - redis

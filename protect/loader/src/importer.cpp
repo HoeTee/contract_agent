@@ -139,7 +139,7 @@ bool install_importer(std::vector<unsigned char>& archive) {
 
 bool run_module(int argc, char** argv) {
     if (argc < 3 || std::string(argv[1]) != "-m") {
-        PyErr_SetString(PyExc_ValueError, "usage: /app/loader -m <module> [arguments...]");
+        PyErr_SetString(PyExc_ValueError, "usage: /app/host -m <module> [arguments...]");
         return false;
     }
     if (!set_runtime_arguments(argc, argv)) {

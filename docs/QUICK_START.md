@@ -156,11 +156,30 @@ data/
 构建并启动：
 
 ```powershell
-.\protect\build.ps1 -Tag deep-research-agent:latest
+.\protect\build.ps1 `
+  -Tag deep-research-agent:latest `
+  -VmpToolsDir C:\secure\vmp-tools
 docker compose up -d
 ```
 
-正式镜像使用 `/app/loader` 在内存中解密 `/app/code.bin`，不包含项目 `.py`、明文项目 `.pyc` 或 `docs/`。`agents/prompts/cn_prompts.yaml` 以只读方式挂载；修改 Prompt 后需要重启 API 服务和所有 Celery worker。
+`VmpToolsDir` 是构建机上的 VMP console/SDK 目录，不会进入运行镜像。正式镜像以 `/app/host` 启动，host 通过 `dlopen` 加载 `/app/libloader.vmp.so`，后者在内存中解密 `/app/code.bin`。镜像不包含项目 `.py`、明文项目 `.pyc`、未加壳 `libloader.so`、VMP console 或 `docs/`。
+
+构建后先验证产物和保护边界：
+
+```powershell
+docker run --rm --entrypoint sh deep-research-agent:latest -c "test -x /app/host && test -s /app/libloader.vmp.so && test -s /app/code.bin"
+docker run --rm --entrypoint sh deep-research-agent:latest -c "test ! -e /app/loader && test ! -e /app/libloader.so && test ! -e /app/libVMProtectSDK64.so"
+docker run --rm --entrypoint find deep-research-agent:latest /app -type f -name "*.py"
+docker run --rm --entrypoint find deep-research-agent:latest /app -type f -name "*.pyc"
+docker run --rm --entrypoint sh deep-research-agent:latest -c "od -An -tx1 -N8 /app/code.bin"
+
+foreach ($term in @("reconstruct_key", "aes_decrypt", "LEXORA1", "zipfile")) {
+  docker run --rm --entrypoint grep deep-research-agent:latest -a -q $term /app/libloader.vmp.so
+  if ($LASTEXITCODE -eq 0) { throw "Sensitive string remains in packed library: $term" }
+}
+```
+
+产物检查应成功退出，两条 `find` 命令应无输出，关键字循环不应抛出异常；`code.bin` 文件头应为 `4c 45 58 4f 52 41 31 00`。`agents/prompts/cn_prompts.yaml` 以只读方式挂载；修改 Prompt 后需要重启 API 服务和所有 Celery worker。
 
 当前 compose 映射：
 
