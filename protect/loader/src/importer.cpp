@@ -97,7 +97,7 @@ bool set_runtime_arguments(int argc, char** argv) {
         Py_DECREF(sys_module);
         return false;
     }
-    PyObject* executable = PyUnicode_FromString("/app/loader");
+    PyObject* executable = PyUnicode_DecodeFSDefault(argv[0]);
     const int executable_result = executable
         ? PyObject_SetAttrString(sys_module, "executable", executable)
         : -1;

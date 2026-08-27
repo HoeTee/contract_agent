@@ -1,6 +1,7 @@
 #include "crypto.h"
 
 #include "key_data.h"
+#include "VMProtectSDK.h"
 
 #include <algorithm>
 #include <array>
@@ -31,11 +32,47 @@ std::vector<unsigned char> read_binary_file(const std::string& path) {
 }
 
 std::array<unsigned char, 32> reconstruct_key() {
+    VMProtectBegin("lexora_key_reconstruct");
     std::array<unsigned char, 32> key{};
     for (std::size_t index = 0; index < key.size(); ++index) {
         key[index] = lexora::protected_key::part_a[index] ^ lexora::protected_key::part_b[index];
     }
+    VMProtectEnd();
     return key;
+}
+
+// Leaf AES core without exception paths so VMProtect can virtualize the whole
+// body safely. Returns false on any OpenSSL failure; the caller raises.
+bool aes_decrypt_payload(const unsigned char* key, const unsigned char* nonce,
+                         const unsigned char* ciphertext, std::size_t ciphertext_size,
+                         const unsigned char* tag, std::vector<unsigned char>& plaintext) {
+    VMProtectBegin("lexora_aes_decrypt");
+    cipher_context context(EVP_CIPHER_CTX_new(), &EVP_CIPHER_CTX_free);
+    if (!context) {
+        VMProtectEnd();
+        return false;
+    }
+
+    int output_size = 0;
+    int final_size = 0;
+    plaintext.resize(ciphertext_size);
+    const bool ok = EVP_DecryptInit_ex(context.get(), EVP_aes_256_gcm(), nullptr, nullptr, nullptr) == 1
+        && EVP_CIPHER_CTX_ctrl(context.get(), EVP_CTRL_GCM_SET_IVLEN, static_cast<int>(nonce_size), nullptr) == 1
+        && EVP_DecryptInit_ex(context.get(), nullptr, nullptr, key, nonce) == 1
+        && EVP_DecryptUpdate(
+               context.get(), nullptr, &output_size, package_magic.data(), static_cast<int>(package_magic.size())) == 1
+        && EVP_DecryptUpdate(
+               context.get(), plaintext.data(), &output_size, ciphertext, static_cast<int>(ciphertext_size)) == 1
+        && EVP_CIPHER_CTX_ctrl(
+               context.get(), EVP_CTRL_GCM_SET_TAG, static_cast<int>(tag_size), const_cast<unsigned char*>(tag)) == 1
+        && EVP_DecryptFinal_ex(context.get(), plaintext.data() + output_size, &final_size) == 1;
+    VMProtectEnd();
+    if (!ok) {
+        plaintext.clear();
+        return false;
+    }
+    plaintext.resize(static_cast<std::size_t>(output_size + final_size));
+    return true;
 }
 
 }  // namespace
@@ -59,31 +96,13 @@ std::vector<unsigned char> decrypt_archive(const std::string& path) {
     const unsigned char* tag = ciphertext + ciphertext_size;
 
     auto key = reconstruct_key();
-    cipher_context context(EVP_CIPHER_CTX_new(), &EVP_CIPHER_CTX_free);
-    if (!context) {
-        OPENSSL_cleanse(key.data(), key.size());
-        throw std::runtime_error("cannot allocate AES context");
-    }
-
-    int output_size = 0;
-    int final_size = 0;
-    std::vector<unsigned char> plaintext(ciphertext_size);
-    bool ok = EVP_DecryptInit_ex(context.get(), EVP_aes_256_gcm(), nullptr, nullptr, nullptr) == 1
-        && EVP_CIPHER_CTX_ctrl(context.get(), EVP_CTRL_GCM_SET_IVLEN, static_cast<int>(nonce_size), nullptr) == 1
-        && EVP_DecryptInit_ex(context.get(), nullptr, nullptr, key.data(), nonce) == 1
-        && EVP_DecryptUpdate(
-               context.get(), nullptr, &output_size, package_magic.data(), static_cast<int>(package_magic.size())) == 1
-        && EVP_DecryptUpdate(
-               context.get(), plaintext.data(), &output_size, ciphertext, static_cast<int>(ciphertext_size)) == 1
-        && EVP_CIPHER_CTX_ctrl(
-               context.get(), EVP_CTRL_GCM_SET_TAG, static_cast<int>(tag_size), const_cast<unsigned char*>(tag)) == 1;
-
+    std::vector<unsigned char> plaintext;
+    const bool ok = aes_decrypt_payload(
+        key.data(), nonce, ciphertext, ciphertext_size, tag, plaintext);
     OPENSSL_cleanse(key.data(), key.size());
-    if (!ok || EVP_DecryptFinal_ex(context.get(), plaintext.data() + output_size, &final_size) != 1) {
-        OPENSSL_cleanse(plaintext.data(), plaintext.size());
+    if (!ok) {
         throw std::runtime_error("encrypted code package authentication failed");
     }
-    plaintext.resize(static_cast<std::size_t>(output_size + final_size));
     return plaintext;
 }
 
