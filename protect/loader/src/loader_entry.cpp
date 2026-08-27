@@ -7,7 +7,7 @@
 #include <iostream>
 #include <string>
 
-extern "C" int lexora_loader_main(int argc, char** argv) {
+extern "C" __attribute__((visibility("default"))) int lexora_loader_main(int argc, char** argv) {
     try {
         auto archive = lexora::decrypt_archive("/app/code.bin");
 
