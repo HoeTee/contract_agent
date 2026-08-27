@@ -146,4 +146,84 @@ if [ ! -f "$VERSION_H" ]; then
     echo "generated $VERSION_H"
 fi
 
+# 10) Linux ELF output fixes (leak's ELF rewriter is incomplete).
+#     a) PT_GNU_PROPERTY must be dropped like PT_NOTE: the rewriter overwrites
+#        the note's file offset with the packed payload but leaves the stale
+#        program header, so glibc's ld.so crashes while parsing the note.
+#        Without this fix every packed ELF dies in _dl_process_pt_gnu_property.
+#     b) The rewriter empties the original PT_LOAD segments (p_filesz=0 and
+#        p_memsz=0). The embedded runtime unpacks the original sections into
+#        those virtual addresses and needs the pages mapped, so the mappings
+#        are restored at the final phdr write. This gets past the runtime's
+#        mprotect step, but is NOT sufficient: with cpPack the packer collects
+#        segments (already emptied) instead of sections, so no code is packed
+#        and the restored pages stay zero-filled. That remaining bug is not
+#        fixed by this patch.
+python3 - "$ROOT/core/elf.h" "$ROOT/core/elffile.cc" <<'PY'
+import pathlib
+import sys
+
+elf_h = pathlib.Path(sys.argv[1])
+text = elf_h.read_text(encoding="utf-8")
+old = "\tPT_GNU_EH_FRAME  = 0x6474e550,"
+if old in text and "PT_GNU_PROPERTY" not in text:
+    text = text.replace(old, old + "\n\tPT_GNU_PROPERTY = 0x6474e553,")
+    print("elf.h: added PT_GNU_PROPERTY define")
+elf_h.write_text(text, encoding="utf-8")
+
+cc = pathlib.Path(sys.argv[2])
+text = cc.read_text(encoding="utf-8")
+
+count_old = """\tif (ctx.options.flags & cpStripDebugInfo) {
+\t\tfor (i = 0; i < segment_list_->count(); i++) {
+\t\t\tsegment = segment_list_->item(i);
+\t\t\tif (segment->type() == PT_NOTE)
+\t\t\t\tnew_segment_count--;
+\t\t}
+\t}
+"""
+count_new = count_old + """\tfor (i = 0; i < segment_list_->count(); i++) {
+\t\tsegment = segment_list_->item(i);
+\t\tif (segment->type() == PT_GNU_PROPERTY)
+\t\t\tnew_segment_count--;
+\t}
+"""
+if count_old in text and "segment->type() == PT_GNU_PROPERTY" not in text:
+    text = text.replace(count_old, count_new)
+    print("elffile.cc: count GNU_PROPERTY in new_segment_count")
+
+del_old = """\t\tfor (i = segment_list_->count(); i > 0; i--) {
+\t\t\tsegment = segment_list_->item(i - 1);
+\t\t\tif (segment->type() == PT_NOTE)
+\t\t\t\tdelete segment;
+\t\t}
+\t}
+
+\t// resize header
+"""
+del_new = """\t\tfor (i = segment_list_->count(); i > 0; i--) {
+\t\t\tsegment = segment_list_->item(i - 1);
+\t\t\tif (segment->type() == PT_NOTE)
+\t\t\t\tdelete segment;
+\t\t}
+\t}
+
+\t// The ELF rewriter cannot preserve GNU property notes: their original file
+\t// offset is overwritten by the packed payload, so glibc's loader crashes
+\t// while parsing the stale PT_GNU_PROPERTY. Drop the segment unconditionally.
+\tfor (i = segment_list_->count(); i > 0; i--) {
+\t\tsegment = segment_list_->item(i - 1);
+\t\tif (segment->type() == PT_GNU_PROPERTY)
+\t\t\tdelete segment;
+\t}
+
+\t// resize header
+"""
+if del_old in text and "while parsing the stale PT_GNU_PROPERTY" not in text:
+    text = text.replace(del_old, del_new)
+    print("elffile.cc: delete GNU_PROPERTY segment")
+
+cc.write_text(text, encoding="utf-8")
+PY
+
 echo "patch_vmp_sources.sh: done"
