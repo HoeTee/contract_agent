@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.18)
-project(lexora_loader LANGUAGES CXX)
+project(lexora_loader LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
